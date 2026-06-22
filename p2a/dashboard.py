@@ -78,96 +78,21 @@ def _graph_topology(item: dict[str, Any]) -> str:
     )
 
 
-def _node_label(node: dict[str, Any]) -> str:
-    labels = []
-    if node.get("selected_issue_anchor"):
-        labels.append("issue anchor")
-    if node.get("root_cause"):
-        labels.append("root")
-    role = node.get("node_role")
-    if role:
-        labels.append(str(role))
-    return " / ".join(labels) or "-"
-
-
-def _dependency_graph(item: dict[str, Any]) -> str:
-    projection = item.get("chain_projection") or {}
-    chain_nodes = projection.get("chain_nodes") or []
-    context_nodes = projection.get("context_nodes") or []
-    chain_edges = projection.get("chain_edges") or []
-    context_edges = projection.get("context_edges") or []
-    if not chain_nodes and not context_nodes:
-        reason = item.get("not_chain_evaluable_reason") or "no schema-v5 chain projection"
-        return f'<div class="muted">{_fmt(reason)}</div>'
-
-    def node_row(node: dict[str, Any]) -> str:
-        line_range = f"{node.get('start_line', '-')}-{node.get('end_line', '-')}"
-        source = node.get("source_preview")
-        source_panel = (
-            f'<div class="source-panel"><pre>{html.escape(str(source))}</pre></div>'
-            if source
-            else '<div class="muted">No source for this node role.</div>'
-        )
-        group = "context-node" if node.get("group") == "context" else "chain-node"
-        return (
-            f'<tr class="{group}">'
-            "<td>"
-            '<details class="node-details">'
-            f'<summary>{_fmt(node.get("key"))}</summary>'
-            f"{source_panel}"
-            "</details>"
-            "</td>"
-            f"<td>{_fmt(node.get('file_path'))}:{_fmt(line_range)}</td>"
-            f"<td>{_fmt(_node_label(node))}</td>"
-            f"<td>{_badge('hit', bool(node.get('hit')))}</td>"
-            f"<td>{_fmt(node.get('first_step'))}</td>"
-            "</tr>"
-        )
-
-    def edge_items(edges: list[dict[str, Any]], css_class: str) -> str:
-        return "\n".join(
-            f'<li class="{css_class}">{_fmt(edge.get("caller"))} -> {_fmt(edge.get("callee"))} '
-            f'<span class="muted">{_fmt(edge.get("role_transition"))}</span></li>'
-            for edge in edges[:80]
-        )
-
-    not_eval = ""
-    if not item.get("chain_evaluable"):
-        not_eval = f'<div class="muted">Not chain-evaluable: {_fmt(item.get("not_chain_evaluable_reason"))}</div>'
-    chain_edge_html = edge_items(chain_edges, "chain-edge") or '<li class="muted">-</li>'
-    context_edge_html = edge_items(context_edges, "context-edge") or '<li class="muted">-</li>'
-    return (
-        f"{not_eval}"
-        f'<div class="muted">{len(chain_nodes)} chain nodes, {len(context_nodes)} context nodes, '
-        f"{len(chain_edges)} chain edges, {len(context_edges)} context edges</div>"
-        '<table class="graph-table dependency-table"><thead><tr>'
-        "<th>Node</th><th>Range</th><th>Role</th><th>Read</th><th>First step</th>"
-        "</tr></thead><tbody>"
-        f"{''.join(node_row(node) for node in context_nodes + chain_nodes)}"
-        "</tbody></table>"
-        '<div class="edge-grid">'
-        f"<section><h4>Chain edges</h4><ul>{chain_edge_html}</ul></section>"
-        f"<section><h4>Context edges</h4><ul>{context_edge_html}</ul></section>"
-        "</div>"
-    )
-
-
 def _summary_cards(summary: dict[str, Any]) -> str:
     rates = summary.get("rates", {})
     averages = summary.get("averages", {})
-    counts = summary.get("counts", {})
     keys = [
-        ("Chain coverage", rates.get("chain_graph_coverage")),
-        ("Anchor hit", rates.get("anchor_hit_rate")),
-        ("Root hit", rates.get("root_hit_rate")),
-        ("Chain hit", rates.get("chain_hit_rate")),
-        ("Chain recall", rates.get("chain_node_recall")),
-        ("Chain precision", rates.get("chain_read_precision")),
-        ("Time to anchor", averages.get("time_to_anchor")),
-        ("Time to root", averages.get("time_to_root")),
-        ("Anchor -> root", averages.get("steps_anchor_to_root")),
-        ("Anchor before root", rates.get("anchor_before_root_rate")),
-        ("Not evaluable", counts.get("n_not_chain_evaluable")),
+        ("Graph hit", rates.get("graph_hit_rate_over_call_graphs")),
+        ("GT hit", rates.get("ground_truth_hit_rate_over_call_graphs")),
+        ("Node recall", rates.get("avg_node_recall")),
+        ("Read precision", rates.get("avg_read_precision")),
+        ("Order", averages.get("avg_order_score")),
+        ("Miracle", rates.get("miracle_rate_over_gt_hits")),
+        ("Block order", averages.get("avg_block_order_score")),
+        ("Block miracle", rates.get("block_miracle_rate_over_gt_hits")),
+        ("Block achieve", rates.get("block_achieve_rate")),
+        ("Loop blocks", rates.get("block_loop_rate")),
+        ("Block efficiency", averages.get("avg_block_efficiency_steps")),
     ]
     return "\n".join(
         f'<section class="metric"><div>{html.escape(name)}</div><strong>{_fmt(value)}</strong></section>'
@@ -178,7 +103,7 @@ def _summary_cards(summary: dict[str, Any]) -> str:
 def _trend_rows(summary: dict[str, Any]) -> str:
     trends = summary.get("trends") or []
     if not trends:
-        return '<tr><td colspan="10" class="muted">No run-step field found in rollout records.</td></tr>'
+        return '<tr><td colspan="9" class="muted">No run-step field found in rollout records.</td></tr>'
     rows = []
     for row in trends[:500]:
         rates = row.get("rates") or {}
@@ -188,13 +113,12 @@ def _trend_rows(summary: dict[str, Any]) -> str:
             f"<td>{_fmt(row.get('data_source'))}</td>"
             f"<td>{_fmt(row.get('run_step'))}</td>"
             f"<td>{_fmt(row.get('n_records'))}</td>"
-            f"<td>{_fmt(rates.get('chain_graph_coverage'))}</td>"
-            f"<td>{_fmt(rates.get('anchor_hit_rate'))}</td>"
-            f"<td>{_fmt(rates.get('root_hit_rate'))}</td>"
-            f"<td>{_fmt(rates.get('chain_hit_rate'))}</td>"
-            f"<td>{_fmt(rates.get('chain_node_recall'))}</td>"
-            f"<td>{_fmt(averages.get('steps_anchor_to_root'))}</td>"
-            f"<td>{_fmt(rates.get('anchor_before_root_rate'))}</td>"
+            f"<td>{_fmt(rates.get('graph_hit_rate_over_call_graphs'))}</td>"
+            f"<td>{_fmt(rates.get('ground_truth_hit_rate_over_call_graphs'))}</td>"
+            f"<td>{_fmt(rates.get('avg_node_recall'))}</td>"
+            f"<td>{_fmt(averages.get('avg_order_score'))}</td>"
+            f"<td>{_fmt(rates.get('miracle_rate_over_gt_hits'))}</td>"
+            f"<td>{_fmt(rates.get('block_loop_rate'))}</td>"
             "</tr>"
         )
     return "\n".join(rows)
@@ -202,8 +126,8 @@ def _trend_rows(summary: dict[str, Any]) -> str:
 
 def _distribution_panel(summary: dict[str, Any]) -> str:
     distributions = summary.get("distributions") or {}
-    not_chain_reasons = distributions.get("not_chain_evaluable_reasons") or {}
-    chain_bad_patterns = distributions.get("chain_bad_patterns") or {}
+    recall_histogram = distributions.get("recall_histogram") or {}
+    hop_coverage = distributions.get("hop_coverage") or {}
     by_case = summary.get("by_case_type") or {}
 
     def rows(items: Iterable[tuple[Any, Any]], value_key: str = "value") -> str:
@@ -218,11 +142,11 @@ def _distribution_panel(summary: dict[str, Any]) -> str:
 
     return (
         '<div class="mini-grid">'
-        '<section><h3>Not chain-evaluable</h3><table><tbody>'
-        f"{rows(not_chain_reasons.items())}"
+        '<section><h3>Recall histogram</h3><table><tbody>'
+        f"{rows(recall_histogram.items())}"
         "</tbody></table></section>"
-        '<section><h3>Chain bad patterns</h3><table><tbody>'
-        f"{rows(chain_bad_patterns.items())}"
+        '<section><h3>Hop coverage</h3><table><tbody>'
+        f"{rows(hop_coverage.items())}"
         "</tbody></table></section>"
         '<section><h3>Case types</h3><table><tbody>'
         f"{rows(by_case.items(), value_key='n')}"
@@ -277,40 +201,20 @@ def _step_list(item: dict[str, Any]) -> str:
 
 def _trace_details(item: dict[str, Any]) -> str:
     bad = item.get("bad_patterns") or {}
-    chain_bad = item.get("chain_bad_patterns") or {}
     bad_labels = " ".join(
         [
             _badge("loop", bool(bad.get("has_loop"))),
             _badge("error spiral", bool(bad.get("error_spiral"))),
         ]
     )
-    chain_badges = " ".join(
-        _badge(label.replace("_", " "), bool(chain_bad.get(label)))
-        for label in (
-            "missed_anchor",
-            "missed_root_after_anchor",
-            "root_before_anchor",
-            "chain_stall",
-            "chain_read_loop",
-            "off_chain_read_spree",
-            "error_spiral_on_chain",
-        )
-    )
     return (
         '<details class="trace"><summary>Open</summary>'
-        f'<div class="badges">{_badge("chain evaluable", bool(item.get("chain_evaluable")))} '
-        f'{_badge("direct", item.get("chain_case_kind") == "direct")}</div>'
-        "<h3>Dependency graph projection</h3>"
-        f"{_dependency_graph(item)}"
-        "<h3>Chain bad patterns</h3>"
-        f'<div class="badges">{chain_badges}</div>'
-        "<h3>Trace hygiene patterns</h3>"
         f'<div class="badges">{bad_labels}</div>'
         "<h3>Purpose blocks</h3>"
         f"{_block_lane(item)}"
         "<h3>Step annotations</h3>"
         f"{_step_list(item)}"
-        "<h3>Graph topology (full)</h3>"
+        "<h3>Graph topology</h3>"
         f"{_graph_topology(item)}"
         "</details>"
     )
@@ -321,11 +225,10 @@ def _record_rows(details: list[dict[str, Any]]) -> str:
     for item in details[:300]:
         badges = " ".join(
             [
-                _badge("chain", bool(item.get("chain_hit"))),
-                _badge("anchor", bool(item.get("anchor_hit"))),
-                _badge("root", bool(item.get("root_hit"))),
-                _badge("evaluable", bool(item.get("chain_evaluable"))),
-                _badge("direct", item.get("chain_case_kind") == "direct"),
+                _badge("hit", bool(item.get("hit_call_graph"))),
+                _badge("GT", bool(item.get("hit_ground_truth"))),
+                _badge("miracle", item.get("miracle_step") is True),
+                _badge("reverse", (item.get("order_score") is not None and item["order_score"] < 0)),
             ]
         )
         rows.append(
@@ -333,12 +236,11 @@ def _record_rows(details: list[dict[str, Any]]) -> str:
             f"<td>{_fmt(item.get('record_index'))}</td>"
             f"<td>{_fmt(item.get('instance_id'))}</td>"
             f"<td>{badges}</td>"
-            f"<td>{_fmt(item.get('chain_node_recall'))}</td>"
-            f"<td>{_fmt(item.get('chain_read_precision'))}</td>"
-            f"<td>{_fmt(item.get('first_anchor_step'))}</td>"
-            f"<td>{_fmt(item.get('first_root_step'))}</td>"
-            f"<td>{_fmt(item.get('steps_anchor_to_root'))}</td>"
-            f"<td>{_fmt(item.get('not_chain_evaluable_reason'))}</td>"
+            f"<td>{_fmt(item.get('hit_recall'))}</td>"
+            f"<td>{_fmt(item.get('hit_precision'))}</td>"
+            f"<td>{_fmt(item.get('order_score'))}</td>"
+            f"<td>{_fmt(item.get('miracle_severity'))}</td>"
+            f"<td>{_fmt(item.get('n_blocks'))}</td>"
             f"<td>{_trace_details(item)}</td>"
             "</tr>"
         )
@@ -374,14 +276,6 @@ th {{ color: #475467; font-size: 12px; background: #f0f3f8; }}
 .graph-grid {{ margin-top: 8px; min-width: 620px; }}
 .graph-table {{ font-size: 12px; }}
 .source-row pre {{ margin: 0; padding: 8px; overflow-x: auto; background: #111827; color: #e5e7eb; border-radius: 4px; }}
-.source-panel pre {{ margin: 8px 0 0; padding: 8px; overflow-x: auto; background: #111827; color: #e5e7eb; border-radius: 4px; }}
-.dependency-table .context-node {{ color: #667085; background: #f8fafc; }}
-.dependency-table .chain-node {{ background: #fff; }}
-.node-details summary {{ cursor: pointer; color: #2453a6; font-weight: 600; }}
-.edge-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }}
-.edge-grid h4 {{ margin: 8px 0; font-size: 12px; color: #344054; }}
-.chain-edge {{ font-weight: 600; }}
-.context-edge {{ color: #667085; border-left: 2px dashed #cbd5e1; padding-left: 6px; }}
 .mini-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }}
 .mini-grid section {{ background: white; border: 1px solid #d9dee8; border-radius: 6px; padding: 12px; }}
 .mini-grid h3, .trace h3 {{ margin: 8px 0; font-size: 13px; color: #344054; }}
@@ -404,7 +298,7 @@ th {{ color: #475467; font-size: 12px; background: #f0f3f8; }}
 <h2 class="section-title">Trend panel</h2>
 <table>
 <thead>
-<tr><th>Data source</th><th>Step</th><th>N</th><th>Chain coverage</th><th>Anchor hit</th><th>Root hit</th><th>Chain hit</th><th>Chain recall</th><th>Anchor -> root</th><th>Anchor before root</th></tr>
+<tr><th>Data source</th><th>Step</th><th>N</th><th>Graph hit</th><th>GT hit</th><th>Recall</th><th>Order</th><th>Miracle</th><th>Loop blocks</th></tr>
 </thead>
 <tbody>
 {_trend_rows(summary)}
@@ -415,7 +309,7 @@ th {{ color: #475467; font-size: 12px; background: #f0f3f8; }}
 <h2 class="section-title">Trace drill-down</h2>
 <table>
 <thead>
-<tr><th>#</th><th>Instance</th><th>Badges</th><th>Chain recall</th><th>Chain precision</th><th>Anchor step</th><th>Root step</th><th>Anchor -> root</th><th>Not-chain reason</th><th>Trace</th></tr>
+<tr><th>#</th><th>Instance</th><th>Badges</th><th>Recall</th><th>Precision</th><th>Order</th><th>Miracle severity</th><th>Blocks</th><th>Trace</th></tr>
 </thead>
 <tbody>
 {_record_rows(details)}
