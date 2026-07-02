@@ -177,6 +177,15 @@ def _sha256_file(path: Path) -> str | None:
         return None
 
 
+def _cache_path_identity(path: Path | None) -> str | None:
+    if path is None:
+        return None
+    try:
+        return str(path.resolve())
+    except OSError:
+        return str(path)
+
+
 def _as_mapping(value: Any) -> dict[str, Any]:
     value = _safe_json_loads(value, value) if isinstance(value, str) else value
     return value if isinstance(value, dict) else {}
@@ -1112,7 +1121,7 @@ def _dashboard_detail_fingerprint_payload(record: dict[str, Any], *, request: Da
         "near_threshold": request.near_threshold,
         "m_max": request.m_max,
         "raw_rollout_sha256": raw_hash,
-        "bonus_map_path": str(bonus_map_file) if bonus_map_file else None,
+        "bonus_map_path": _cache_path_identity(bonus_map_file),
         "bonus_map_sha256": _sha256_file(bonus_map_file) if bonus_map_file else None,
     }
     return payload
@@ -1687,6 +1696,12 @@ def _validated_db_cached_detail(
     raw_hash = metadata.get("raw_rollout_sha256")
     if not raw_hash:
         return None
+    if metadata.get("tracking_mode") != request.tracking_mode:
+        return None
+    if metadata.get("near_threshold") != request.near_threshold:
+        return None
+    if metadata.get("m_max") != request.m_max:
+        return None
     bonus_map_file = _db_bonus_map_file_for_instance(
         request,
         dataset=str(record.get("dataset") or record.get("data_source") or "") or None,
@@ -1701,7 +1716,7 @@ def _validated_db_cached_detail(
         "near_threshold": request.near_threshold,
         "m_max": request.m_max,
         "raw_rollout_sha256": raw_hash,
-        "bonus_map_path": str(bonus_map_file) if bonus_map_file else None,
+        "bonus_map_path": _cache_path_identity(bonus_map_file),
         "bonus_map_sha256": bonus_hash_cache.get(bonus_map_file) if bonus_map_file else None,
     }
     fingerprint = _dashboard_detail_fingerprint_from_payload(payload)
@@ -1808,7 +1823,7 @@ def _validated_build_cached_detail(
         "near_threshold": request.near_threshold,
         "m_max": request.m_max,
         "raw_rollout_sha256": raw_hash,
-        "bonus_map_path": str(bonus_map_file) if bonus_map_file else None,
+        "bonus_map_path": _cache_path_identity(bonus_map_file),
         "bonus_map_sha256": bonus_hash_cache.get(bonus_map_file) if bonus_map_file else None,
     }
     fingerprint = _dashboard_detail_fingerprint_from_payload(payload)
