@@ -57,6 +57,7 @@ from p2a.datasets import (  # noqa: E402
     parse_string_list,
     selector_files,
 )
+from p2a.sandbox_git import append_sanitize  # noqa: E402
 
 
 # ── r2e ───────────────────────────────────────────────────────────────────────
@@ -92,7 +93,10 @@ def cmd_r2e(args) -> int:
         tools_kwargs = {
             "env": {
                 "deployment": {"image": f"{MIRROR}/{repo}_final:{fixed}"},
-                "post_setup_cmd": POST_SETUP_CMD,
+                # Image boots at the FIXED commit; restore the buggy state, then replace
+                # .git with a neutral baseline so the model cannot recover the gold patch
+                # from history (issue #29). Precompute strips this block and keeps history.
+                "post_setup_cmd": append_sanitize(POST_SETUP_CMD, "/testbed", buggy_ref=buggy),
             },
             "reward": {"name": "r2e_gym", "metadata": md},
         }
@@ -153,7 +157,10 @@ def cmd_swebench(args) -> int:
         tools_kwargs = {
             "env": {
                 "deployment": {"image": f"{MIRROR}/swebench-verified:sweb.eval.x86_64.{iid}"},
-                "post_setup_cmd": reset(ex["base_commit"]),
+                # Base checkout (reset) restores intended state; the sanitize tail then
+                # replaces .git with a neutral baseline so the model cannot read the fix
+                # from history (issue #29). Precompute strips the tail and keeps history.
+                "post_setup_cmd": append_sanitize(reset(ex["base_commit"]), "/testbed"),
             },
             "reward": {"name": "swe_bench", "metadata": metadata},
         }
@@ -194,17 +201,18 @@ def _swebench_pro_restore_tests_cmd(before_repo_set_cmd: str) -> str:
 def _swebench_pro_post_setup_cmd(before_repo_set_cmd: str, *, repo_path: str = "/app") -> str:
     lines = [line.strip() for line in str(before_repo_set_cmd or "").splitlines() if line.strip()]
     quoted_repo = shlex.quote(repo_path)
-    return "\n".join(
+    base = "\n".join(
         [
             "set -e",
             f"cd {quoted_repo}",
             f"git config --global --add safe.directory {quoted_repo} >/dev/null 2>&1 || true",
             *lines,
-            "git tag -d $(git tag -l) >/dev/null 2>&1 || true",
-            "git reflog expire --expire=now --all >/dev/null 2>&1 || true",
-            "git gc --prune=now >/dev/null 2>&1 || true",
         ]
     )
+    # Replace the original .git (image history / remote refs / reflogs) with a neutral
+    # baseline after the repo is materialized at its intended state (issue #29). Supersedes
+    # the earlier tag/reflog/gc pruning, which left the object database searchable.
+    return append_sanitize(base, repo_path)
 
 
 def _swebench_pro_missing_selected_files(selected_tests: list[str], expected_nodeids: list[str]) -> list[str]:

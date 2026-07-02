@@ -17,6 +17,8 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from p2a.sandbox_git import strip_sanitize_block
+
 
 _HEX_DIGITS = frozenset("0123456789abcdef")
 
@@ -329,7 +331,10 @@ class UniAgentSandboxAdapter:
             for key, value in sorted(self.startup_env_variables.items())
         ]
         if self.post_setup_cmd:
-            setup_parts.append(self.post_setup_cmd)
+            # Model-facing rows carry a git-sanitize tail (issue #29). Precompute must keep
+            # the original image history for checkout_buggy_commit and callable-diff
+            # extraction, so strip that tail here and never run it on the precompute path.
+            setup_parts.append(strip_sanitize_block(self.post_setup_cmd))
         if setup_parts:
             stdout, stderr, exit_code = self._execute_raw(" && ".join(setup_parts), timeout=300)
             if exit_code != 0:
