@@ -9,6 +9,7 @@ from collections.abc import Callable
 import json
 import os
 from pathlib import Path
+import re
 import shlex
 import time
 from typing import Any
@@ -19,7 +20,8 @@ import yaml
 from p2a.api_providers import make_chat_model, normalize_provider_config, provider_source
 from p2a.bonus_map_scope import parse_bonus_map_instance_filter, select_rows_by_bonus_map_scope
 from p2a.core import BonusMapStore
-from p2a.eval_cache import ensure_db, ingest_artifacts, upsert_experiment, upsert_rollout_record
+from p2a.dashboard_adapter import write_dashboard_detail_cache_for_record
+from p2a.eval_cache import EMPTY_ROLLOUT_ERROR_KIND, ensure_db, ingest_artifacts, rollout_record_error, upsert_experiment, upsert_rollout_record
 from p2a.eval_fault_localization import (
     _json_default,
     iter_records,
@@ -73,14 +75,35 @@ DEFAULT_CONFIG = {
     "bonus_map_instance_filter": {},
 }
 _REDACT_KEYS = ("api_key", "apikey", "token", "secret", "password", "authorization")
+API_QUOTA_ERROR_RE = re.compile(
+    r"("
+    r"insufficient\s+(?:balance|quota|credit|credits|funds)|"
+    r"(?:balance|credit|credits|funds)\s+(?:insufficient|exhausted|depleted)|"
+    r"quota\s+(?:exceeded|exhausted|depleted|reached)|"
+    r"(?:billing|payment)\s+(?:hard\s+)?(?:limit|required|failed)|"
+    r"\bHTTP\s*429\b|\b429\s+Too\s+Many\s+Requests\b|"
+    r"rate\s+limit(?:ed|ing)?|too\s+many\s+requests|toomanyrequests|"
+    r"余额不足|额度不足|配额不足|余额已用尽|额度已用尽|配额已用尽|账户欠费|欠费|请充值"
+    r")",
+    re.IGNORECASE,
+)
+API_SERVER_ERROR_RE = re.compile(
+    r"(?:\bHTTP[/ ]?|\bstatus\s*[=: ]\s*)50[0-4]\b|"
+    r"\b50[0-4]\s+(?:Internal Server Error|Bad Gateway|Service Unavailable|Gateway Timeout)\b|"
+    r"no available account selected",
+    re.IGNORECASE,
+)
 SYSTEM_ERROR_KINDS = {
     "arl_config_missing",
     "arl_shell_forbidden",
     "arl_shell_unavailable",
     "arl_gateway_unreachable",
+    "api_quota_exhausted",
+    "api_server_error",
     "image_pull_failed",
     "network_error",
     "runtime_timeout",
+    EMPTY_ROLLOUT_ERROR_KIND,
 }
 RecordSink = Callable[[dict[str, Any]], Any]
 
@@ -92,6 +115,10 @@ def classify_error(error: BaseException | str | None) -> str | None:
     lowered = text.lower()
     if "arl_gateway_url" in lowered:
         return "arl_config_missing"
+    if API_QUOTA_ERROR_RE.search(text):
+        return "api_quota_exhausted"
+    if API_SERVER_ERROR_RE.search(text):
+        return "api_server_error"
     if "websocket" in lowered and ("403" in lowered or "forbidden" in lowered or "rejected" in lowered):
         return "arl_shell_forbidden"
     if "interactive shell" in lowered or "/shell" in lowered:
@@ -542,7 +569,7 @@ def build_dump_record(
     responses = [trace["response_text"] for trace in traces if trace.get("response_text")]
     termination_reason = trajectory[-1].get("exit_reason") if trajectory else "error" if error else "unknown"
 
-    return {
+    payload = {
         "schema_version": "p2a_third_party_rollout_v1",
         "run_id": run_id,
         "rollout_index": rollout_index,
@@ -569,6 +596,13 @@ def build_dump_record(
         "error_stage": error_stage,
         "system_error": is_system_error_kind(error_kind),
     }
+    derived_error = rollout_record_error(payload)
+    if derived_error and not payload["error"]:
+        payload["error"] = derived_error
+        payload["error_kind"] = EMPTY_ROLLOUT_ERROR_KIND
+        payload["error_stage"] = payload["error_stage"] or "interaction"
+        payload["system_error"] = True
+    return payload
 
 
 class IncrementalRolloutSink:
@@ -585,6 +619,8 @@ class IncrementalRolloutSink:
         model_label: str | None = None,
         dataset_name: str | None = None,
         config_snapshot: dict[str, Any] | None = None,
+        bonus_map_dir: Path | None = None,
+        analysis_cfg: dict[str, Any] | None = None,
     ) -> None:
         self.rollouts_path = rollouts_path
         self.db_path = db_path
@@ -594,8 +630,12 @@ class IncrementalRolloutSink:
         self.model_label = model_label
         self.dataset_name = dataset_name
         self.config_snapshot = config_snapshot or {}
+        self.bonus_map_dir = bonus_map_dir
+        self.analysis_cfg = analysis_cfg or {}
         self.count = 0
         self.n_cached = 0
+        self.n_detail_cached = 0
+        self.n_detail_cache_failed = 0
         self._lock = asyncio.Lock()
 
     def prepare(self) -> None:
@@ -626,7 +666,7 @@ class IncrementalRolloutSink:
         async with self._lock:
             if self.db_path:
                 with ensure_db(self.db_path) as conn:
-                    upsert_rollout_record(
+                    cell_id = upsert_rollout_record(
                         conn,
                         experiment_id=str(self.experiment_id),
                         provider_source=str(self.provider_source_name),
@@ -636,6 +676,28 @@ class IncrementalRolloutSink:
                         record=record,
                         artifact_rollouts=self.rollouts_path,
                     )
+                    if self.bonus_map_dir is not None:
+                        conn.execute("SAVEPOINT dashboard_detail_cache")
+                        try:
+                            cache_result = write_dashboard_detail_cache_for_record(
+                                conn,
+                                cell_id=cell_id,
+                                record=record,
+                                bonus_map_dir=self.bonus_map_dir,
+                                tracking_mode=self.analysis_cfg.get("tracking_mode", "view_and_bash"),
+                                near_threshold=float(self.analysis_cfg.get("near_threshold", 0.5)),
+                                m_max=float(self.analysis_cfg.get("m_max", 3.0)),
+                                index=self.count,
+                            )
+                            conn.execute("RELEASE dashboard_detail_cache")
+                            if cache_result.get("ok"):
+                                self.n_detail_cached += 1
+                            else:
+                                self.n_detail_cache_failed += 1
+                        except Exception:
+                            conn.execute("ROLLBACK TO dashboard_detail_cache")
+                            conn.execute("RELEASE dashboard_detail_cache")
+                            self.n_detail_cache_failed += 1
                     conn.commit()
                 self.n_cached += 1
             with self.rollouts_path.open("a", encoding="utf-8") as fh:
@@ -1013,6 +1075,9 @@ def main() -> int:
         raise ValueError("No rows selected")
     if scope_metadata:
         config.setdefault("experiment", {})["scope"] = scope_metadata
+    analysis_cfg = dict(config.get("analysis") or {})
+    if scope_metadata:
+        analysis_cfg["scope"] = scope_metadata
 
     sink = IncrementalRolloutSink(
         rollouts_path=args.out,
@@ -1023,6 +1088,8 @@ def main() -> int:
         model_label=args.model_label or model_cfg["model_name"],
         dataset_name=args.dataset_name or _data_source(rows[0]),
         config_snapshot=_redact_config(config),
+        bonus_map_dir=args.bonus_map_dir,
+        analysis_cfg=analysis_cfg,
     )
     sink.prepare()
     asyncio.run(
@@ -1039,13 +1106,20 @@ def main() -> int:
             collect_records=False,
         )
     )
-    print(json.dumps({"rollouts": str(args.out), "n_records": sink.count}, indent=2))
+    print(
+        json.dumps(
+            {
+                "rollouts": str(args.out),
+                "n_records": sink.count,
+                "n_detail_cached": sink.n_detail_cached,
+                "n_detail_cache_failed": sink.n_detail_cache_failed,
+            },
+            indent=2,
+        )
+    )
 
     if args.bonus_map_dir:
         details_path = args.details_out or args.out.with_suffix(".details.jsonl")
-        analysis_cfg = dict(config.get("analysis") or {})
-        if scope_metadata:
-            analysis_cfg["scope"] = scope_metadata
         write_analysis(
             rollouts=args.out,
             bonus_map_dir=args.bonus_map_dir,
@@ -1057,7 +1131,17 @@ def main() -> int:
     else:
         details_path = None
     if args.cache_db:
-        print(json.dumps({"cache_db": str(args.cache_db), "n_cached": sink.n_cached}, indent=2))
+        print(
+            json.dumps(
+                {
+                    "cache_db": str(args.cache_db),
+                    "n_cached": sink.n_cached,
+                    "n_detail_cached": sink.n_detail_cached,
+                    "n_detail_cache_failed": sink.n_detail_cache_failed,
+                },
+                indent=2,
+            )
+        )
     return 0
 
 

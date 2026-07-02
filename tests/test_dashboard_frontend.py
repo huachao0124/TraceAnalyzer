@@ -6,8 +6,13 @@ from pathlib import Path
 
 def test_dashboard_frontend_state_and_inspector_rendering(tmp_path):
     app_path = Path(__file__).resolve().parents[1] / "p2a" / "dashboard_static" / "app.js"
+    index_path = app_path.with_name("index.html")
     css_path = app_path.with_name("styles.css")
+    html = index_path.read_text(encoding="utf-8")
     css = css_path.read_text(encoding="utf-8")
+    assert 'id="admin-login" class="admin-login"' in html
+    assert 'id="admin-login-button" type="submit">Log in</button>' in html
+    assert 'data-pattern-filter="error' not in html
     assert ".node-source-code" in css
     assert ".node-source-code {\n  flex: 1 1 auto;" in css
     assert "background: #101827;" in css[css.index(".node-source-code") : css.index(".node-source-code .code-view")]
@@ -22,6 +27,15 @@ def test_dashboard_frontend_state_and_inspector_rendering(tmp_path):
     assert ".trace-rollout-segment.is-resolved" in css
     assert ".trace-rollout-segment.is-unresolved" in css
     assert ".rollout-select-control" in css
+    assert ".trace-global-rollout" in css
+    assert ".trace-pattern-stats" in css
+    assert 'id="trace-pattern-stats"' in html
+    assert 'id="trace-global-rollout-slot"' in html
+    assert 'class="trace-pattern-cycle"' in html
+    assert ".trace-pattern-cycle.is-true .trace-pattern-mark::before" in css
+    assert ".trace-pattern-cycle.is-false .trace-pattern-mark::before" in css
+    assert ".trace-pattern-cycle.is-none .trace-pattern-mark" in css
+    assert html.index('id="trace-pattern-stats"') < html.index('id="trace-global-rollout-slot"') < html.index('class="trace-pattern-filter"')
     snapshot = {
         "schema_version": "p2a_unified_dashboard_v1",
         "sources": [{"kind": "db", "path": "demo.sqlite"}],
@@ -67,6 +81,7 @@ def test_dashboard_frontend_state_and_inspector_rendering(tmp_path):
                 "model_label": "model-a",
                 "target": 2,
                 "done": 2,
+                "cache_pending": 1,
                 "trajectory_count": 2,
                 "resolved_rate": 0.0,
                 "root_hit_rate": 1.0,
@@ -544,8 +559,8 @@ def test_dashboard_frontend_state_and_inspector_rendering(tmp_path):
             vm.createContext(context);
             vm.runInContext(fs.readFileSync(appPath, "utf8"), context);
             function run(expr) { return vm.runInContext(expr, context); }
-            if (run("state.caseFilters.direct") !== false || run("state.caseFilters.latent") !== true || run("state.caseFilters.exposed") !== false || run("state.caseFilters.others") !== false) {
-              throw new Error("default case filter should include only latent");
+            if (run("state.caseFilters.direct") !== true || run("state.caseFilters.latent") !== true || run("state.caseFilters.exposed") !== true || run("state.caseFilters.others") !== true) {
+              throw new Error("default case filter should include all buckets");
             }
             if (run('BONUS_MAP_METRIC_CASE_TYPES.has("standard")') !== false) {
               throw new Error("dashboard should not expose legacy standard as a current case type");
@@ -585,6 +600,37 @@ def test_dashboard_frontend_state_and_inspector_rendering(tmp_path):
             if (!expHtml.includes("Datasets") || !expHtml.includes("Eval cells") || !expHtml.includes("exp-a") || !expHtml.includes("exp-b")) {
               throw new Error("dataset/eval-cell registry did not render");
             }
+            if (!expHtml.includes("1 to rebuild") || !expHtml.includes("has-cache-pending")) {
+              throw new Error("eval-cell registry should expose dashboard cache rebuild state");
+            }
+            run("state.admin.authenticated = true; renderExperiments(state.snapshot);");
+            const adminExpHtml = elements.get("experiment-table").innerHTML;
+            if (!adminExpHtml.includes("admin-delete-target") || !adminExpHtml.includes("admin-rebuild-select") || !adminExpHtml.includes("model_api_name")) {
+              throw new Error("authenticated admin should see checkbox-based delete and rebuild controls");
+            }
+            run("renderAdminPanel(state.snapshot);");
+            const adminPanelHtml = elements.get("admin-panel").innerHTML;
+            if (!adminPanelHtml.includes("DB admin actions") || !adminPanelHtml.includes("Rebuild all") || !adminPanelHtml.includes("Rebuild selected") || !adminPanelHtml.includes("Preview delete")) {
+              throw new Error("admin panel should align rebuild/delete actions without manual targets or typed confirmation");
+            }
+            run(`state.adminRebuildingTargets = [{dataset: "swebench-hard", provider_source: "internal_api", experiment_id: "exp-a", model_label: "model-a"}];
+                 state.adminDeletingTargets = [{dataset: "swebench-hard", provider_source: "internal_api", experiment_id: "exp-b"}];
+                 state.rebuildStatus = {active: true, phase: "warming", last_counts: {run_cells: 1}};
+                 renderAdminPanel(state.snapshot);`);
+            const activeAdminPanelHtml = elements.get("admin-panel").innerHTML;
+            for (const needle of ["Rebuilding now:", "Deleting now:", "experiment=exp-a", "model=model-a", "experiment=exp-b", "Rebuilding (1 run cells)."]) {
+              if (!activeAdminPanelHtml.includes(needle)) {
+                throw new Error(`admin panel should show active admin operation target: ${needle}`);
+              }
+            }
+            run("state.adminRebuildingTargets = []; state.adminDeletingTargets = []; state.rebuildStatus = null;");
+            run("state.adminBusy = 'delete'; state.adminMessage = 'Deleting selected DB rows.'; renderAdminPanel(state.snapshot);");
+            const busyAdminPanelHtml = elements.get("admin-panel").innerHTML;
+            if (!busyAdminPanelHtml.includes("Deleting...") || !busyAdminPanelHtml.includes("Deleting selected DB rows.")) {
+              throw new Error("admin delete panel should show immediate delete progress");
+            }
+            run("state.adminBusy = ''; state.adminMessage = '';");
+            run("state.admin.authenticated = false; renderExperiments(state.snapshot);");
             const firstCell = snapshot.eval_cells[0].eval_cell_key;
             run(`state.selectedEvalCellKey = ${JSON.stringify("PLACEHOLDER")};
                  state.selectedExperimentKey = ${JSON.stringify("PLACEHOLDER")};
@@ -626,9 +672,34 @@ def test_dashboard_frontend_state_and_inspector_rendering(tmp_path):
             for (const needle of ["trace-row is-selected is-mixed", "trace-status-icons", "trace-icon-symptom", "trace-icon-root", "trace-icon-root-edit", "hit symptom", "hit root cause", "edited root cause"]) {
               if (!traceHtml.includes(needle)) throw new Error(`missing compact trace status: ${needle}`);
             }
+            const rolloutToolbarHtml = elements.get("trace-global-rollout-slot").innerHTML;
+            for (const needle of ["trace-global-rollout", 'id="trace-global-rollout-select"', "Rollout view", '<option value="0" selected>Rollout 1</option>']) {
+              if (!rolloutToolbarHtml.includes(needle)) throw new Error(`missing toolbar rollout fragment: ${needle}`);
+            }
+            if (traceHtml.includes('id="trace-global-rollout-select"')) {
+              throw new Error("global rollout selector should live in the trace toolbar, not the left trace pane");
+            }
             for (const needle of ["trace-rollout-strip", "trace-rollout-segment is-resolved is-selected", "trace-rollout-segment is-unresolved", "1/2 success", "selected rollout 1", 'id="trace-rollout-select"', "Rollout 2 · failed"]) {
               if (!traceHtml.includes(needle)) throw new Error(`missing repeated-rollout trace fragment: ${needle}`);
             }
+            if (!traceHtml.includes('<details class="detail-toggle " open><summary>Reasoning</summary>')) {
+              throw new Error("reasoning toggle should be open by default");
+            }
+            const initialPatternStats = elements.get("trace-pattern-stats").innerHTML;
+            for (const needle of ["Rollout</strong> 1", "Pass</strong> 100.0% / 100.0%", "Pass+tags</strong> 100.0% (1/1)", "Instances</strong> 1 / 1"]) {
+              if (!initialPatternStats.includes(needle)) throw new Error(`missing initial pattern stats: ${needle} in ${initialPatternStats}`);
+            }
+            run("state.tracePatternFilters.hit_root_cause = 'false'; state.traceRolloutIndex = 0; renderTracePatternStats(state.snapshot);");
+            const falsePatternStats = elements.get("trace-pattern-stats").innerHTML;
+            for (const needle of ["Rollout</strong> 1", "Pass+tags</strong> 0.0% (0/1)", "Instances</strong> 0 / 1"]) {
+              if (!falsePatternStats.includes(needle)) throw new Error(`missing false-pattern pass-share stats: ${needle} in ${falsePatternStats}`);
+            }
+            run("state.tracePatternFilters.hit_root_cause = true; state.traceRolloutIndex = 1; renderTracePatternStats(state.snapshot);");
+            const filteredPatternStats = elements.get("trace-pattern-stats").innerHTML;
+            for (const needle of ["Rollout</strong> 2", "Pass</strong> - / 0.0%", "Pass+tags</strong> - (0/0)", "Instances</strong> 0 / 1"]) {
+              if (!filteredPatternStats.includes(needle)) throw new Error(`missing filtered pattern stats: ${needle} in ${filteredPatternStats}`);
+            }
+            run("state.tracePatternFilters.hit_root_cause = false; state.traceRolloutIndex = 0; renderTracePatternStats(state.snapshot);");
             if (run("rowKey(state.snapshot.details[0])") !== `${firstCell}::case-a::idx-0`) {
               throw new Error(`rollout 0 trace key should include rollout index: ${run("rowKey(state.snapshot.details[0])")}`);
             }
@@ -638,10 +709,17 @@ def test_dashboard_frontend_state_and_inspector_rendering(tmp_path):
             if (run("groupedTraceDetails(state.snapshot).find((group) => group.key.endsWith('::case-a')).details.length") !== 2) {
               throw new Error("left trace list should group repeated rollouts under one instance row");
             }
-            run("state.selectedTraceKey = rowKey(state.snapshot.details[1]); renderTraceInspector(state.snapshot);");
+            run("state.traceRolloutIndex = 1; state.selectedTraceKey = rowKey(state.snapshot.details[1]); renderTraceInspector(state.snapshot);");
             const rolloutTwoHtml = elements.get("trace-inspector").innerHTML;
+            const rolloutTwoToolbarHtml = elements.get("trace-global-rollout-slot").innerHTML;
+            if (!rolloutTwoToolbarHtml.includes('<option value="1" selected>Rollout 2</option>')) {
+              throw new Error("toolbar rollout selector should switch to rollout 2");
+            }
             for (const needle of ["model-a · run-a-1", "selected rollout 2", "Rollout 2 · failed", 'option value="' + firstCell + '::case-a::idx-1" selected']) {
               if (!rolloutTwoHtml.includes(needle)) throw new Error(`rollout selector did not switch detail: ${needle}`);
+            }
+            if (!rolloutTwoHtml.includes("trace-rollout-segment is-unresolved is-selected")) {
+              throw new Error("global rollout switch should update left-row rollout thumbnail selection");
             }
             run("state.selectedTraceKey = rowKey(state.snapshot.details[0]); renderTraceInspector(state.snapshot);");
             if (run(`canonicalNodeRole("pre_symptom")`) !== "test_adapter") {
@@ -929,7 +1007,7 @@ def test_dashboard_frontend_state_and_inspector_rendering(tmp_path):
               if (legendHtml.includes(needle)) throw new Error(`trajectory legend should not include long prose: ${needle}`);
             }
             const modelHtml = elements.get("model-table").innerHTML;
-            for (const needle of ["KPI groups", "metric-group-checkbox", "metric-group-graph", "metric-group-path", "Metric definitions", "Graph", "Outcome", "Path", "Pattern", "Purpose Blocks", "Efficiency", "Graph P.", "Graph R.", "Graph F1", "Path P.", "Path R.", "Path F1", "Symptom hit", "Root cause hit", "Evaluator-resolved pass rate", "Completed cases over planned cases"]) {
+            for (const needle of ["KPI groups", "metric-group-checkbox", "metric-group-graph", "metric-group-path", "Metric definitions", "Filter totals", "Graph", "Outcome", "Path", "Pattern", "Purpose Blocks", "Efficiency", "Total instances", "Done traces", "Error traces", "ToDo traces", "Graph P.", "Graph R.", "Graph F1", "Path P.", "Path R.", "Path F1", "Symptom hit", "Root cause hit", "Evaluator-resolved pass rate", "Instances matching the current case filter"]) {
               if (!modelHtml.includes(needle)) throw new Error(`missing macro glossary fragment: ${needle}`);
             }
             for (const needle of ["Effect and Evidence", "Graph Hits", "Dependency Path", "Exploration Behavior", "Path-read hit ratio", "Trace P.", "Trace R.", "Trace F1", "Trace precision", "Trace recall", "Path node precision", "Path node recall", "Path read precision", "Path hit ratio", "Graph hit ratio", "Read recall", "Not defined: no canonical required-read set", "Scored read actions that hit useful"]) {
@@ -939,8 +1017,18 @@ def test_dashboard_frontend_state_and_inspector_rendering(tmp_path):
             if (!allColumnHeaders.includes("Graph P.") || !allColumnHeaders.includes("Path P.") || !allColumnHeaders.includes("Path F1")) {
               throw new Error("default KPI columns should include all metric groups");
             }
+            if (allColumnHeaders.includes("Total instances") || allColumnHeaders.includes("Done traces") || allColumnHeaders.includes("Error traces") || allColumnHeaders.includes("ToDo traces")) {
+              throw new Error(`filter totals should be hidden by default: ${allColumnHeaders}`);
+            }
+            if (!allColumnHeaders.startsWith("|Experiment|Kind|Model|")) {
+              throw new Error(`fixed metric columns should be Experiment, Kind, Model: ${allColumnHeaders}`);
+            }
+            const defaultPassK = run("selectedRolloutK({rollouts_per_instance: 3})");
+            const defaultPassValue = run("passAtValue({rollouts_per_instance: 3, pass_at: {'1': 0.25, '3': 0.75}, pass_at_n: 0.75})");
+            if (defaultPassK !== 1 || defaultPassValue !== 0.25) {
+              throw new Error(`Pass@K should default to k=1, got k=${defaultPassK} value=${defaultPassValue}`);
+            }
             const expectedOrder = [
-              "Done",
               "Graph P.", "Graph R.", "Graph F1",
               "Pass@K", "Avg@K", "Symptom hit", "Root cause hit", "First symptom", "First root cause",
               "Path P.", "Path R.", "Path F1",
@@ -989,10 +1077,15 @@ def test_dashboard_frontend_state_and_inspector_rendering(tmp_path):
             if (!othersModelHtml.includes("model-b") || othersModelHtml.includes("model-a")) {
               throw new Error("others case filter did not use backend filtered model rows");
             }
-            if (!othersModelHtml.includes("99")) {
+            if (othersModelHtml.includes("99")) {
+              throw new Error("filter totals should remain hidden until explicitly enabled");
+            }
+            run("state.metricGroupFilters.filter_totals = true; render();");
+            const othersTotalsHtml = elements.get("model-table").innerHTML;
+            if (!othersTotalsHtml.includes("99")) {
               throw new Error("others case filter should use full-population backend metrics");
             }
-            if (!othersModelHtml.includes("case types: others")) {
+            if (!othersTotalsHtml.includes("case types: others")) {
               throw new Error("case filter scope note missing");
             }
             run("state.caseFilters.direct = true; state.caseFilters.latent = true; state.caseFilters.exposed = true; state.caseFilters.others = false; render();");
@@ -1016,6 +1109,383 @@ def test_dashboard_frontend_state_and_inspector_rendering(tmp_path):
             run("render();");
             const after = run("state.selectedTraceKey + '|' + state.selectedStepIndex");
             if (before !== after) throw new Error("refresh render did not preserve selected trace/step");
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    subprocess.run(["node", str(harness), str(app_path), str(snapshot_path)], check=True)
+
+
+def test_dashboard_lazy_detail_loading_terminates_on_bad_tail_page(tmp_path):
+    app_path = Path(__file__).resolve().parents[1] / "p2a" / "dashboard_static" / "app.js"
+    snapshot = {
+        "schema_version": "p2a_unified_dashboard_v1",
+        "sources": [],
+        "summary": {"counts": {"n_records": 2}, "rates": {}, "averages": {}, "distributions": {}, "trends": []},
+        "datasets": [{"dataset": "ds", "n_instances": 1, "n_eval_cells": 1, "n_trajectories": 2}],
+        "eval_cells": [
+            {
+                "eval_cell_key": "cell",
+                "experiment_key": "cell",
+                "source_kind": "third_party_api",
+                "experiment_id": "exp",
+                "provider_source": "internal_api",
+                "dataset": "ds",
+                "model_api_name": "model-api",
+                "model_label": "model",
+                "target": 1,
+                "done_rollouts": 2,
+                "errors": 0,
+                "pending": 0,
+                "detail_count": 1,
+            }
+        ],
+        "model_metrics": [],
+        "details": [
+            {
+                "cell_id": 101,
+                "eval_cell_key": "cell",
+                "experiment_key": "cell",
+                "source_kind": "third_party_api",
+                "experiment_id": "exp",
+                "provider_source": "internal_api",
+                "dataset": "ds",
+                "model_api_name": "model-api",
+                "model_label": "model",
+                "instance_id": "case-a",
+                "rollout_index": 0,
+                "record_index": 0,
+                "raw_available": True,
+                "resolved": True,
+                "step_inspection": [{"step_index": 0}],
+            }
+        ],
+    }
+    snapshot_path = tmp_path / "snapshot.json"
+    snapshot_path.write_text(json.dumps(snapshot), encoding="utf-8")
+    harness = tmp_path / "frontend_lazy_details.cjs"
+    harness.write_text(
+        textwrap.dedent(
+            """
+            const fs = require("fs");
+            const vm = require("vm");
+            const appPath = process.argv[2];
+            const baseSnapshot = JSON.parse(fs.readFileSync(process.argv[3], "utf8"));
+            class Element {
+              constructor(id) {
+                this.id = id;
+                this.innerHTML = "";
+                this.textContent = "";
+                this.value = "";
+                this.checked = false;
+                this.hidden = false;
+                this.dataset = {};
+                this.scrollLeft = 0;
+                this.scrollTop = 0;
+                this.classList = {toggle(){}, add(){}, remove(){}, contains(){ return false; }};
+              }
+              addEventListener() {}
+            }
+            const elements = new Map();
+            const document = {
+              getElementById(id) { if (!elements.has(id)) elements.set(id, new Element(id)); return elements.get(id); },
+              querySelectorAll() { return []; },
+              querySelector() { return null; },
+            };
+            let mode = "duplicate";
+            let detailRequests = [];
+            const duplicateDetail = {
+              cell_id: 102,
+              eval_cell_key: "cell",
+              experiment_key: "cell",
+              source_kind: "third_party_api",
+              experiment_id: "exp",
+              provider_source: "internal_api",
+              dataset: "ds",
+              model_api_name: "model-api",
+              model_label: "model",
+              instance_id: "case-a",
+              rollout_index: 0,
+              record_index: 1,
+              raw_available: true,
+              resolved: false,
+              step_inspection: [{step_index: 0}],
+            };
+            const context = {
+              window: {
+                __P2A_DASHBOARD_SNAPSHOT__: JSON.parse(JSON.stringify(baseSnapshot)),
+                location: {hash: ""},
+                addEventListener() {},
+                setTimeout(fn) { fn(); return 1; },
+              },
+              document,
+              console,
+              URLSearchParams,
+              setInterval: () => 1,
+              clearInterval: () => {},
+              fetch: async (url) => {
+                const text = String(url);
+                if (text.startsWith("/api/details")) {
+                  detailRequests.push(text);
+                  return {
+                    ok: true,
+                    json: async () => ({
+                      ok: true,
+                      details: mode === "duplicate" ? [duplicateDetail] : [],
+                      offset: 1,
+                      limit: 5,
+                    }),
+                  };
+                }
+                return {ok: false, json: async () => ({})};
+              },
+            };
+            vm.createContext(context);
+            vm.runInContext(fs.readFileSync(appPath, "utf8"), context);
+            function run(expr) { return vm.runInContext(expr, context); }
+            async function runAsync(expr) { return await vm.runInContext(expr, context); }
+            function resetSnapshot() {
+              context.detailRequests = detailRequests = [];
+              run(`state.snapshot = ${JSON.stringify(baseSnapshot)};
+                   state.selectedDataset = "ds";
+                   state.selectedEvalCellKey = "cell";
+                   state.selectedExperimentKey = "cell";
+                   state.selectedTraceKey = null;
+                   state.detailLoadedCellKeys.clear();
+                   state.detailLoadBusyKeys.clear();
+                   state.detailLoadErrors = {};
+                   state.detailLoadProgress = {};
+                   state.metricLoadedDatasets.add("ds");`);
+            }
+            (async () => {
+              resetSnapshot();
+              run("state.detailLoadBusyKeys.add('cell'); state.detailLoadProgress.cell = {loaded: 1, total: 2}; renderTraceInspector(state.snapshot);");
+              const partialHtml = run("document.getElementById('trace-inspector').innerHTML");
+              if (!partialHtml.includes("trace-load-banner") || !partialHtml.includes("trace-left") || !partialHtml.includes("case-a")) {
+                throw new Error(`busy detail loading should render already loaded traces: ${partialHtml}`);
+              }
+              resetSnapshot();
+              mode = "duplicate";
+              await runAsync("loadCellDetails('cell')");
+              const keys = run("state.snapshot.details.map(rowKey)");
+              if (keys.length !== 2 || !keys.includes("cell::case-a::cell-101") || !keys.includes("cell::case-a::cell-102")) {
+                throw new Error(`DB cell_id should disambiguate duplicate rollout indexes: ${JSON.stringify(keys)}`);
+              }
+              if (run("loadedDetailCountForCell(state.snapshot, 'cell')") !== 2 || run("state.detailLoadedCellKeys.has('cell')") !== true) {
+                throw new Error("duplicate rollout-index detail loading should reach the expected count");
+              }
+              const cellLocator = run("locatorForDetail(state.snapshot.details.find((item) => item.cell_id === 102), 'rollout')");
+              if (!cellLocator.includes("cell_id=102") || cellLocator.includes("rollout_index=0")) {
+                throw new Error(`DB detail locator should use cell_id: ${cellLocator}`);
+              }
+              resetSnapshot();
+              mode = "empty";
+              await runAsync("loadCellDetails('cell')");
+              const placeholders = run("state.snapshot.details.filter((item) => item.dashboard_detail_load_error === true)");
+              if (run("loadedDetailCountForCell(state.snapshot, 'cell')") !== 2 || placeholders.length !== 1 || run("state.detailLoadedCellKeys.has('cell')") !== true) {
+                throw new Error(`empty tail page should create one terminal error placeholder: ${JSON.stringify(placeholders)}`);
+              }
+              if (!String(placeholders[0].error || "").includes("1/2")) {
+                throw new Error(`placeholder should explain the incomplete load: ${placeholders[0].error}`);
+              }
+            })().catch((error) => {
+              console.error(error);
+              process.exitCode = 1;
+            });
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    subprocess.run(["node", str(harness), str(app_path), str(snapshot_path)], check=True)
+
+
+def test_dashboard_refresh_drops_selected_cell_details_but_preserves_others(tmp_path):
+    app_path = Path(__file__).resolve().parents[1] / "p2a" / "dashboard_static" / "app.js"
+    harness = tmp_path / "frontend_refresh_preserve.cjs"
+    harness.write_text(
+        textwrap.dedent(
+            """
+            const fs = require("fs");
+            const vm = require("vm");
+            const appPath = process.argv[2];
+            class Element {
+              constructor(id) {
+                this.id = id;
+                this.innerHTML = "";
+                this.textContent = "";
+                this.value = "";
+                this.checked = false;
+                this.hidden = false;
+                this.dataset = {};
+                this.scrollLeft = 0;
+                this.scrollTop = 0;
+                this.classList = {toggle(){}, add(){}, remove(){}, contains(){ return false; }};
+              }
+              addEventListener() {}
+            }
+            const elements = new Map();
+            const document = {
+              getElementById(id) { if (!elements.has(id)) elements.set(id, new Element(id)); return elements.get(id); },
+              querySelectorAll() { return []; },
+              querySelector() { return null; },
+            };
+            const baseRows = [
+              {eval_cell_key: "cell-a", experiment_key: "cell-a", dataset: "ds", model_label: "model-a", experiment_id: "exp-a", provider_source: "internal_api", model_api_name: "model-a", done_rollouts: 1},
+              {eval_cell_key: "cell-b", experiment_key: "cell-b", dataset: "ds", model_label: "model-b", experiment_id: "exp-b", provider_source: "internal_api", model_api_name: "model-b", done_rollouts: 1},
+            ];
+            const previousSnapshot = {
+              datasets: [{dataset: "ds"}],
+              eval_cells: baseRows,
+              model_metrics: baseRows,
+              details: [
+                {eval_cell_key: "cell-a", experiment_key: "cell-a", dataset: "ds", instance_id: "case-a", rollout_index: 0, raw_available: true, step_inspection: [{step_index: 0}]},
+                {eval_cell_key: "cell-b", experiment_key: "cell-b", dataset: "ds", instance_id: "case-b", rollout_index: 0, raw_available: true, step_inspection: [{step_index: 0}]},
+              ],
+            };
+            const nextSnapshot = {datasets: [{dataset: "ds"}], eval_cells: baseRows, model_metrics: baseRows, details: []};
+            const context = {
+              window: {
+                __P2A_DASHBOARD_SNAPSHOT__: JSON.parse(JSON.stringify(previousSnapshot)),
+                location: {hash: ""},
+                addEventListener() {},
+                setTimeout(fn) { return 1; },
+              },
+              document,
+              console,
+              URLSearchParams,
+              setInterval: () => 1,
+              clearInterval: () => {},
+              fetch: async () => ({ok: true, json: async () => ({ok: true, admin: false, admin_enabled: false})}),
+            };
+            vm.createContext(context);
+            vm.runInContext(fs.readFileSync(appPath, "utf8"), context);
+            function run(expr) { return vm.runInContext(expr, context); }
+            context.previousSnapshot = previousSnapshot;
+            context.nextSnapshot = JSON.parse(JSON.stringify(nextSnapshot));
+            run("preserveLoadedDetails(nextSnapshot, previousSnapshot, {dropCellKeys: ['cell-a']})");
+            const kept = context.nextSnapshot.details.map((detail) => detail.eval_cell_key + ":" + detail.instance_id);
+            if (JSON.stringify(kept) !== JSON.stringify(["cell-b:case-b"])) {
+              throw new Error(`manual refresh should reload selected cell while preserving others: ${JSON.stringify(kept)}`);
+            }
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    subprocess.run(["node", str(harness), str(app_path)], check=True)
+
+
+def test_dashboard_metrics_falls_back_to_eval_cells_when_endpoint_unavailable(tmp_path):
+    app_path = Path(__file__).resolve().parents[1] / "p2a" / "dashboard_static" / "app.js"
+    snapshot = {
+        "schema_version": "p2a_unified_dashboard_v1",
+        "sources": [],
+        "summary": {"counts": {"n_records": 3}, "rates": {}, "averages": {}, "distributions": {}, "trends": []},
+        "datasets": [{"dataset": "swebench-verified", "n_instances": 73, "n_eval_cells": 1, "n_trajectories": 219}],
+        "eval_cells": [
+            {
+                "eval_cell_key": "cell",
+                "experiment_key": "cell",
+                "source_kind": "third_party_api",
+                "experiment_id": "exp",
+                "provider_source": "internal_api",
+                "dataset": "swebench-verified",
+                "model_api_name": "deepseek-v4",
+                "model_label": "deepseek-v4",
+                "target": 73,
+                "target_rollouts": 219,
+                "done_rollouts": 218,
+                "errors": 1,
+                "pending": 0,
+                "cache_ready": 219,
+                "cache_pending": 0,
+            }
+        ],
+        "model_metrics": [],
+        "case_filter_model_metrics": {},
+        "details": [],
+    }
+    snapshot_path = tmp_path / "snapshot.json"
+    snapshot_path.write_text(json.dumps(snapshot), encoding="utf-8")
+    harness = tmp_path / "frontend_metrics_501.cjs"
+    harness.write_text(
+        textwrap.dedent(
+            """
+            const fs = require("fs");
+            const vm = require("vm");
+            const appPath = process.argv[2];
+            const snapshot = JSON.parse(fs.readFileSync(process.argv[3], "utf8"));
+            class Element {
+              constructor(id) {
+                this.id = id;
+                this.innerHTML = "";
+                this.textContent = "";
+                this.value = "";
+                this.checked = false;
+                this.hidden = false;
+                this.dataset = {};
+                this.scrollLeft = 0;
+                this.scrollTop = 0;
+                this.classList = {toggle(){}, add(){}, remove(){}, contains(){ return false; }};
+              }
+              addEventListener() {}
+            }
+            const elements = new Map();
+            const document = {
+              getElementById(id) { if (!elements.has(id)) elements.set(id, new Element(id)); return elements.get(id); },
+              querySelectorAll() { return []; },
+              querySelector() { return null; },
+            };
+            const context = {
+              window: {
+                __P2A_DASHBOARD_SNAPSHOT__: snapshot,
+                location: {hash: ""},
+                addEventListener() {},
+                setTimeout(fn) { fn(); return 1; },
+              },
+              document,
+              console,
+              URLSearchParams,
+              setInterval: () => 1,
+              clearInterval: () => {},
+              fetch: async (url) => {
+                if (String(url).startsWith("/api/metrics")) {
+                  return {ok: false, status: 501, json: async () => ({})};
+                }
+                return {ok: false, status: 404, json: async () => ({})};
+              },
+            };
+            vm.createContext(context);
+            vm.runInContext(fs.readFileSync(appPath, "utf8"), context);
+            function run(expr) { return vm.runInContext(expr, context); }
+            async function runAsync(expr) { return await vm.runInContext(expr, context); }
+            (async () => {
+              run(`state.snapshot = ${JSON.stringify(snapshot)};
+                   state.selectedDataset = "swebench-verified";
+                   state.caseFilters = {direct: true, latent: true, exposed: true, others: true};
+                   state.metricLoadedDatasets.clear();
+                   state.metricLoadBusyDatasets.clear();
+                   state.metricLoadErrors = {};
+                   state.metricLoadNotices = {};`);
+              await runAsync("loadDatasetMetrics('swebench-verified')");
+              run("renderModels(state.snapshot)");
+              const html = elements.get("model-table").innerHTML;
+              if (!html.includes("deepseek-v4") || !html.includes("Cached metrics endpoint is unavailable; showing snapshot metrics.")) {
+                throw new Error(`Metrics panel should render eval-cell fallback rows after 501: ${html}`);
+              }
+              if (html.includes("Cached metrics failed to load") || run("state.metricLoadErrors['swebench-verified']") !== undefined) {
+                throw new Error("HTTP 501 should be treated as unavailable lazy metrics, not a blocking metrics error");
+              }
+              const rows = run("activeModelMetrics(state.snapshot)");
+              if (rows.length !== 1 || rows[0].target_rollouts !== 219 || rows[0].done_rollouts !== 218 || rows[0].errors !== 1) {
+                throw new Error(`Eval-cell fallback metrics should preserve run counts: ${JSON.stringify(rows)}`);
+              }
+            })().catch((error) => {
+              console.error(error);
+              process.exitCode = 1;
+            });
             """
         ),
         encoding="utf-8",
@@ -1160,6 +1630,21 @@ def test_dashboard_frontend_pattern_filters_and_permalinks(tmp_path):
             vm.createContext(context);
             vm.runInContext(fs.readFileSync(appPath, "utf8"), context);
             function run(expr) { return vm.runInContext(expr, context); }
+            const fallbackSnapshot = {
+              datasets: [{dataset: "ds"}],
+              eval_cells: [{eval_cell_key: "cell", experiment_key: "cell", dataset: "ds", model_label: "model", experiment_id: "exp", provider_source: "internal_api"}],
+              model_metrics: [],
+              details: [
+                {eval_cell_key: "cell", experiment_key: "cell", dataset: "ds", model_label: "model", experiment_id: "exp", provider_source: "internal_api", instance_id: "empty", record_index: 0, dashboard_cache_pending: true},
+                {eval_cell_key: "cell", experiment_key: "cell", dataset: "ds", model_label: "model", experiment_id: "exp", provider_source: "internal_api", instance_id: "raw", record_index: 1, raw_available: true, step_inspection: [{step_index: 0}]},
+              ],
+            };
+            run("state.caseFilters = {direct: true, latent: true, exposed: true, others: true}; state.selectedDataset = 'ds'; state.selectedEvalCellKey = 'cell'; state.selectedTraceKey = null;");
+            context.fallbackSnapshot = fallbackSnapshot;
+            run("ensureSelection(fallbackSnapshot);");
+            if (run("state.selectedTraceKey") !== run("rowKey(fallbackSnapshot.details[1])") || run("rowKey(selectedDetail(fallbackSnapshot))") !== run("rowKey(fallbackSnapshot.details[1])")) {
+              throw new Error("trace selection should prefer raw details over empty pending placeholders");
+            }
             run("state.caseFilters = {direct: true, latent: true, exposed: true, others: true}; state.selectedDataset = 'ds'; state.selectedEvalCellKey = 'cell';");
             run("state.tracePatternFilters.miracle = true; state.tracePatternFilters.reverse = true;");
             const grouped = run("groupedTraceDetails(state.snapshot).map((group) => [group.key, group.details.map(rowKey)]);");
@@ -1168,6 +1653,21 @@ def test_dashboard_frontend_pattern_filters_and_permalinks(tmp_path):
             }
             if (run("tracePatternMatches(state.snapshot.details[1], 'miracle')") !== false) {
               throw new Error("undefined miracle marker should not match");
+            }
+            const cycleStates = run("[null, 'true', 'false', 'none'].map(nextTracePatternFilterValue)");
+            if (JSON.stringify(cycleStates) !== JSON.stringify(["true", "false", "none", null])) {
+              throw new Error(`pattern button should cycle neutral -> true -> false -> none -> neutral: ${JSON.stringify(cycleStates)}`);
+            }
+            if (run("tracePatternMatches({miracle_step: false}, 'miracle', 'false')") !== true) {
+              throw new Error("false pattern filter should match explicit false marker");
+            }
+            if (run("tracePatternMatches({miracle_step: null}, 'miracle', 'none')") !== true) {
+              throw new Error("none pattern filter should match unavailable marker");
+            }
+            run("state.tracePatternFilters = {miracle: 'none', reverse: null, loop: null, hit_symptom: null, hit_root_cause: null, edited_root_cause: null};");
+            const noneGroups = run("groupedTraceDetails(state.snapshot).map((group) => [group.key, group.details.map(rowKey)]);");
+            if (noneGroups.length !== 2 || noneGroups.some((group) => group[1].some((key) => key.endsWith("id-stable-rollout")))) {
+              throw new Error(`none pattern filter should keep only unavailable miracle markers: ${JSON.stringify(noneGroups)}`);
             }
             const stepHash = run("state.selectedTraceKey = rowKey(state.snapshot.details[0]); state.selectedStepIndex = 4; locatorForDetail(state.snapshot.details[0], 'step');");
             if (!stepHash.includes("rollout_id=stable-rollout") || stepHash.includes("record_index") || !stepHash.includes("step_index=4")) {

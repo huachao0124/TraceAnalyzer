@@ -54,6 +54,19 @@ def test_structured_execute_bash_tool_call():
     assert {"file_path": "bar.py", "start_line": 5, "end_line": 9} in reads
 
 
+def test_structured_execute_bash_unwraps_text_command_and_ignores_unknown_shapes():
+    tool_calls = [
+        {"function": {"name": "execute_bash", "arguments": {"command": {"cmd": "cat /testbed/foo.py"}}}},
+        {"function": {"name": "execute_bash", "arguments": {"command": {"$text": "cat /testbed/bar.py"}}}},
+        {"function": {"name": "execute_bash", "arguments": ["cat /testbed/bar.py"]}},
+    ]
+
+    assert parse_read_actions_from_tool_calls(tool_calls) == [
+        {"file_path": "bar.py", "start_line": 1, "end_line": 999999}
+    ]
+    assert _parse_bash_read_commands_from_str({"cmd": "cat /testbed/foo.py"}) == []
+
+
 def test_app_paths_normalize_like_repo_relative_paths():
     tool_calls = [
         {"function": {"name": "execute_bash", "arguments": {"command": "cat /app/pkg/root.py"}}},

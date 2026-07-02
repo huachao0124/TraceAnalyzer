@@ -5,6 +5,7 @@ const state = {
   selectedEvalCellKey: null,
   selectedExperimentKey: null,
   selectedTraceKey: null,
+  traceGlobalRolloutIndex: 0,
   selectedStepIndex: 0,
   selectedGraphNodeKey: null,
   activeTracePanel: "steps",
@@ -12,9 +13,23 @@ const state = {
   traceQuery: "",
   refreshTimer: null,
   loadingSnapshot: false,
-  caseFilters: { direct: false, latent: true, exposed: false, others: false },
+  queuedSnapshotOptions: null,
+  rebuildStatus: null,
+  rebuildStatusTimer: null,
+  detailLoadBusyKeys: new Set(),
+  detailLoadedCellKeys: new Set(),
+  detailLoadErrors: {},
+  detailLoadProgress: {},
+  metricLoadedDatasets: new Set(),
+  metricLoadBusyDatasets: new Set(),
+  metricLoadErrors: {},
+  metricLoadNotices: {},
+  snapshotBusy: "",
+  operationMessage: "",
+  operationTone: "",
+  caseFilters: { direct: true, latent: true, exposed: true, others: true },
   metricGroupFilters: {
-    scope: true,
+    filter_totals: false,
     graph: true,
     outcome: true,
     path: true,
@@ -24,39 +39,43 @@ const state = {
   },
   showGraphContext: false,
   graphEdgeFilters: { path: true, graph: false, trace: true },
-  passAtK: null,
+  passAtK: 1,
   tracePatternFilters: {
-    miracle: false,
-    reverse: false,
-    loop: false,
-    hit_symptom: false,
-    hit_root_cause: false,
-    edited_root_cause: false,
-    error_spiral: false,
+    miracle: null,
+    reverse: null,
+    loop: null,
+    hit_symptom: null,
+    hit_root_cause: null,
+    edited_root_cause: null,
   },
   permalinkNotice: "",
   permalinkMissing: false,
   pendingLocator: null,
-  suppressHashUpdate: false,
-  ignoreNextHashChange: false,
   admin: { enabled: false, authenticated: false },
   adminDeleteKeys: new Set(),
+  adminRebuildKeys: new Set(),
+  adminDeletingTargets: [],
+  adminRebuildingTargets: [],
   adminManualTarget: null,
   adminPreview: null,
   adminMessage: "",
+  adminBusy: "",
 };
 
 const BONUS_MAP_METRIC_CASE_TYPES = new Set(["direct", "latent", "exposed"]);
 const CASE_FILTER_BUCKETS = ["direct", "latent", "exposed", "others"];
-const TRACE_PATTERN_FILTERS = ["miracle", "reverse", "loop", "hit_symptom", "hit_root_cause", "edited_root_cause", "error_spiral"];
+const TRACE_PATTERN_FILTERS = ["miracle", "reverse", "loop", "hit_symptom", "hit_root_cause", "edited_root_cause"];
+const TRACE_PATTERN_FILTER_VALUES = ["true", "false", "none"];
 
 const MACRO_METRIC_GROUPS = [
   {
-    key: "scope",
-    title: "Scope",
+    key: "filter_totals",
+    title: "Filter totals",
     items: [
-      ["Done", "Completed cases over planned cases."],
-      ["Errors", "Runs that ended with an execution or system error."],
+      ["Total instances", "Instances matching the current case filter."],
+      ["Done traces", "Completed traces matching the current case filter."],
+      ["Error traces", "Traces in the current case filter that ended with an error."],
+      ["ToDo traces", "Traces in the current case filter that have not completed."],
     ],
   },
   {
@@ -212,8 +231,8 @@ function pct(value) {
 }
 
 function selectedRolloutK(row) {
-  const rolloutN = Number(row?.rollouts_per_instance || 1);
-  return Math.max(1, Math.min(Number(state.passAtK || rolloutN), rolloutN));
+  const n = rolloutN(row) || 1;
+  return Math.max(1, Math.min(Number(state.passAtK || 1), n));
 }
 
 function avgAtValue(row, key) {
@@ -236,9 +255,9 @@ function withStd(row, key, formatter = fmt, digits = 3) {
 }
 
 function passAtValue(row) {
-  const rolloutN = Number(row?.rollouts_per_instance || 1);
+  const n = rolloutN(row) || 1;
   const k = selectedRolloutK(row);
-  return row?.pass_at?.[String(k)] ?? (k === rolloutN ? row?.pass_at_n : null);
+  return row?.pass_at?.[String(k)] ?? (k === n ? row?.pass_at_n : null);
 }
 
 function pathF1Value(row) {
@@ -470,7 +489,10 @@ function setTracePanelOpen(panel, open) {
 }
 
 function rowKey(detail) {
-  const rolloutId = detail?.rollout_id ? `id-${detail.rollout_id}` : `idx-${rolloutIndex(detail)}`;
+  const cellId = detail?.cell_id;
+  const rolloutId = detail?.rollout_id
+    ? `id-${detail.rollout_id}`
+    : (cellId !== null && cellId !== undefined && cellId !== "" ? `cell-${cellId}` : `idx-${rolloutIndex(detail)}`);
   return `${traceInstanceKey(detail)}::${rolloutId}`;
 }
 
@@ -482,9 +504,30 @@ function traceInstanceKey(detail) {
   return `${detailCellKey(detail) || "cell"}::${traceInstanceId(detail)}`;
 }
 
+function normalizeRolloutIndex(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? Math.trunc(number) : 0;
+}
+
 function rolloutIndex(detail) {
-  const value = Number(detail?.rollout_index);
-  return Number.isFinite(value) && value >= 0 ? Math.trunc(value) : 0;
+  return normalizeRolloutIndex(detail?.rollout_index);
+}
+
+function traceGlobalRolloutIndex() {
+  return normalizeRolloutIndex(state.traceGlobalRolloutIndex);
+}
+
+function setTraceGlobalRolloutIndex(value) {
+  state.traceGlobalRolloutIndex = normalizeRolloutIndex(value);
+}
+
+function maxRolloutIndex(details) {
+  return (details || []).reduce((maxValue, detail) => Math.max(maxValue, rolloutIndex(detail)), 0);
+}
+
+function clampTraceGlobalRolloutIndex(details) {
+  const maxIndex = maxRolloutIndex(details);
+  if (traceGlobalRolloutIndex() > maxIndex) setTraceGlobalRolloutIndex(maxIndex);
 }
 
 function compareTraceDetails(a, b) {
@@ -501,12 +544,143 @@ function detailsForInstance(details, instanceKey) {
     .sort(compareTraceDetails);
 }
 
+function detailForRolloutIndex(details, index = traceGlobalRolloutIndex()) {
+  const sorted = [...(details || [])].sort(compareTraceDetails);
+  return sorted.find((detail) => rolloutIndex(detail) === index) || sorted[0] || null;
+}
+
+function detailHasRawTrace(detail) {
+  return Boolean(
+    detail?.raw_available
+    || (detail?.messages || []).length
+    || (detail?.trajectory || []).length
+    || (detail?.step_details || []).length
+    || (detail?.step_inspection || []).length
+  );
+}
+
+function detailsForCell(snapshot, key) {
+  return (snapshot?.details || []).filter((detail) => detailCellKey(detail) === key);
+}
+
+function rawDetailCountForCell(snapshot, key) {
+  return detailsForCell(snapshot, key).filter(detailHasRawTrace).length;
+}
+
+function loadedDetailCountForCell(snapshot, key) {
+  return detailsForCell(snapshot, key).length;
+}
+
+function currentCellKeys(snapshot) {
+  return new Set(experimentRows(snapshot).map(cellKey).filter(Boolean));
+}
+
+function syncDetailLoadState(snapshot) {
+  const keys = currentCellKeys(snapshot);
+  [...state.detailLoadedCellKeys].forEach((key) => {
+    if (!keys.has(key)) state.detailLoadedCellKeys.delete(key);
+  });
+  Object.keys(state.detailLoadErrors).forEach((key) => {
+    if (!keys.has(key)) delete state.detailLoadErrors[key];
+  });
+  Object.keys(state.detailLoadProgress).forEach((key) => {
+    if (!keys.has(key)) delete state.detailLoadProgress[key];
+  });
+}
+
+function preserveLoadedDetails(nextSnapshot, previousSnapshot, options = {}) {
+  if (!nextSnapshot || !previousSnapshot) {
+    syncDetailLoadState(nextSnapshot);
+    return;
+  }
+  const keys = currentCellKeys(nextSnapshot);
+  const dropKeys = new Set(options.dropCellKeys || []);
+  const rawByCell = new Map();
+  (previousSnapshot.details || []).forEach((detail) => {
+    const key = detailCellKey(detail);
+    if (!keys.has(key) || dropKeys.has(key) || !detailHasRawTrace(detail)) return;
+    if (!rawByCell.has(key)) rawByCell.set(key, []);
+    rawByCell.get(key).push(detail);
+  });
+  rawByCell.forEach((details, key) => mergeCellDetails(nextSnapshot, key, details));
+  syncDetailLoadState(nextSnapshot);
+}
+
 function datasetRows(snapshot) {
   if (snapshot?.datasets?.length) return snapshot.datasets;
   const names = new Set();
   (snapshot?.eval_cells || snapshot?.experiments || []).forEach((row) => names.add(row.dataset || "unknown-dataset"));
   (snapshot?.details || []).forEach((row) => names.add(row.dataset || row.data_source || "unknown-dataset"));
   return [...names].sort().map((dataset) => ({ dataset }));
+}
+
+function activeDatasetStats(snapshot) {
+  if (allCaseFiltersEnabled()) return null;
+  const key = activeCaseFilterKey();
+  const stats = key ? snapshot?.case_filter_dataset_stats?.[key] : null;
+  if (stats?.datasets?.length) return stats;
+  return computedCaseFilterDatasetStats(snapshot);
+}
+
+function computedCaseFilterDatasetStats(snapshot) {
+  const rows = new Map();
+  const ensureRow = (dataset) => {
+    const key = dataset || "unknown-dataset";
+    if (!rows.has(key)) {
+      rows.set(key, {
+        dataset: key,
+        instances: new Set(),
+        cells: new Set(),
+        traces: 0,
+        models: new Set(),
+        sourceKinds: new Set(),
+      });
+    }
+    return rows.get(key);
+  };
+  datasetRows(snapshot).forEach((row) => ensureRow(row.dataset));
+  caseFilteredDetails(snapshot).forEach((detail) => {
+    const row = ensureRow(detail.dataset || detail.data_source);
+    row.instances.add(traceInstanceId(detail));
+    row.cells.add(detailCellKey(detail));
+    row.traces += 1;
+    if (detail.model_label) row.models.add(String(detail.model_label));
+    if (detail.source_kind) row.sourceKinds.add(String(detail.source_kind));
+  });
+  const datasets = [...rows.values()].map((row) => ({
+    dataset: row.dataset,
+    n_instances: row.instances.size,
+    n_eval_cells: row.cells.size,
+    n_trajectories: row.traces,
+    models: [...row.models].sort(),
+    source_kinds: [...row.sourceKinds].sort(),
+  })).sort((a, b) => String(a.dataset).localeCompare(String(b.dataset)));
+  return {
+    datasets,
+    totals: {
+      n_datasets: datasets.length,
+      n_instances: sum(datasets.map((row) => row.n_instances || 0)),
+      n_eval_cells: sum(datasets.map((row) => row.n_eval_cells || 0)),
+      n_trajectories: sum(datasets.map((row) => row.n_trajectories || 0)),
+    },
+  };
+}
+
+function overviewDatasetRows(snapshot) {
+  const stats = activeDatasetStats(snapshot);
+  return stats?.datasets || datasetRows(snapshot);
+}
+
+function overviewDatasetTotals(snapshot) {
+  const stats = activeDatasetStats(snapshot);
+  if (stats?.totals) return stats.totals;
+  const rows = datasetRows(snapshot);
+  return {
+    n_datasets: rows.length,
+    n_instances: sum(rows.map((row) => row.n_instances || 0)),
+    n_eval_cells: sum(rows.map((row) => row.n_eval_cells || 0)),
+    n_trajectories: sum(rows.map((row) => row.n_trajectories || 0)),
+  };
 }
 
 function experimentRows(snapshot) {
@@ -631,6 +805,34 @@ function blockMiracleMarker(item) {
 }
 
 function activeDetails(snapshot) {
+  return caseFilteredDetails(snapshot);
+}
+
+function resetLoadedCellDetails() {
+  state.detailLoadBusyKeys.clear();
+  state.detailLoadedCellKeys.clear();
+  state.detailLoadErrors = {};
+  state.detailLoadProgress = {};
+}
+
+function resetLoadedMetrics() {
+  state.metricLoadedDatasets.clear();
+  state.metricLoadBusyDatasets.clear();
+  state.metricLoadErrors = {};
+  state.metricLoadNotices = {};
+}
+
+function deferTask(fn) {
+  if (typeof window !== "undefined" && typeof window.setTimeout === "function") {
+    window.setTimeout(fn, 0);
+  } else if (typeof setTimeout === "function") {
+    setTimeout(fn, 0);
+  } else {
+    fn();
+  }
+}
+
+function caseFilteredDetails(snapshot) {
   const details = snapshot?.details || [];
   return details.filter(caseFilterEnabled);
 }
@@ -738,6 +940,22 @@ function mergeMissingMetricFields(rows, fallbackRows) {
   });
 }
 
+function snapshotModelMetricRows(snapshot) {
+  const rows = snapshot?.model_metrics || [];
+  if (rows.length) return rows;
+  return experimentRows(snapshot).map((row) => ({
+    ...row,
+    target: numeric(row.target) ?? 0,
+    target_rollouts: runTotalCount(row),
+    done: numeric(row.done) ?? runDoneCount(row),
+    done_rollouts: runDoneCount(row),
+    errors: runErrorCount(row),
+    pending: runPendingCount(row),
+    detail_cache_ready_rollouts: row.cache_ready,
+    detail_cache_pending_rollouts: row.cache_pending,
+  }));
+}
+
 function activeModelMetrics(snapshot) {
   const details = activeDetails(snapshot);
   const fallbackRows = details.length ? metricsFromDetails(details, snapshot) : [];
@@ -745,14 +963,14 @@ function activeModelMetrics(snapshot) {
     const rows = snapshot?.path_metric_model_metrics || snapshot?.dynamic_traceable_model_metrics || [];
     if (rows.length) return mergeMissingMetricFields(rows, fallbackRows);
   }
-  if (allCaseFiltersEnabled()) return mergeMissingMetricFields(snapshot?.model_metrics || [], fallbackRows);
+  if (allCaseFiltersEnabled()) return mergeMissingMetricFields(snapshotModelMetricRows(snapshot), fallbackRows);
   const caseFilterRows = snapshot?.case_filter_model_metrics?.[activeCaseFilterKey()] || [];
   if (caseFilterRows.length) return mergeMissingMetricFields(caseFilterRows, fallbackRows);
   return fallbackRows;
 }
 
 function selectedDatasetRow(snapshot) {
-  return datasetRows(snapshot).find((row) => row.dataset === state.selectedDataset) || null;
+  return overviewDatasetRows(snapshot).find((row) => row.dataset === state.selectedDataset) || null;
 }
 
 function selectedExperiment(snapshot) {
@@ -790,11 +1008,6 @@ function ensureSelection(snapshot) {
   if (!state.selectedEvalCellKey || !cells.some((row) => cellKey(row) === state.selectedEvalCellKey)) {
     state.selectedEvalCellKey = cells.length === 1 ? cellKey(cells[0]) : null;
   }
-  if (!state.selectedEvalCellKey && state.selectedDataset) {
-    const visibleCellKeys = new Set(cells.map(cellKey));
-    const visibleRow = activeModelMetrics(snapshot).find((row) => row.dataset === state.selectedDataset && visibleCellKeys.has(cellKey(row)));
-    if (visibleRow) state.selectedEvalCellKey = cellKey(visibleRow);
-  }
   state.selectedExperimentKey = state.selectedEvalCellKey;
   if (!state.selectedEvalCellKey) {
     state.selectedTraceKey = null;
@@ -811,8 +1024,11 @@ function ensureSelection(snapshot) {
     resetTracePanels();
     return;
   }
+  clampTraceGlobalRolloutIndex(details);
   if (!state.selectedTraceKey || !details.some((detail) => rowKey(detail) === state.selectedTraceKey)) {
-    state.selectedTraceKey = rowKey(details[0]);
+    const preferred = details.find((detail) => detail.raw_available || (detail.step_details || []).length || (detail.step_inspection || []).length) || details[0];
+    const selected = detailForRolloutIndex(detailsForInstance(details, traceInstanceKey(preferred)));
+    state.selectedTraceKey = rowKey(selected || preferred);
     state.selectedStepIndex = 0;
     state.selectedGraphNodeKey = null;
     resetTracePanels();
@@ -820,28 +1036,55 @@ function ensureSelection(snapshot) {
 }
 
 async function loadSnapshot(options = {}) {
-  if (state.loadingSnapshot) return;
-  state.loadingSnapshot = true;
+  if (state.loadingSnapshot) {
+    if (options.queueIfBusy) state.queuedSnapshotOptions = options;
+    return;
+  }
+  const showOperation = options.silent !== true;
   const scrollState = captureInspectorScroll();
+  const dropCellKeys = options.dropSelectedDetails && state.selectedEvalCellKey ? [state.selectedEvalCellKey] : [];
   let shouldRender = false;
   if (window.__P2A_DASHBOARD_SNAPSHOT__) {
     state.snapshot = window.__P2A_DASHBOARD_SNAPSHOT__;
     window.__P2A_DASHBOARD_SNAPSHOT__ = null;
-    state.loadingSnapshot = false;
     render({ scrollState });
     return;
   }
+  state.loadingSnapshot = true;
+  state.snapshotBusy = options.busy || "refresh";
+  if (showOperation) {
+    state.operationTone = "";
+    state.operationMessage = options.startMessage || "Refreshing snapshot...";
+    syncSnapshotControls();
+    renderOperationStatus();
+  }
   try {
-    const response = await fetch(options.force ? "/api/snapshot?force=1" : "/api/snapshot", { cache: "no-store" });
+    const response = await fetch("/api/snapshot", { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const previousSnapshot = state.snapshot;
     state.snapshot = await response.json();
+    preserveLoadedDetails(state.snapshot, previousSnapshot, { dropCellKeys });
+    state.detailLoadErrors = {};
+    resetLoadedMetrics();
+    if (showOperation) {
+      state.operationTone = "ok";
+      state.operationMessage = options.successMessage || "Refresh finished.";
+    }
     shouldRender = true;
-  } catch (_error) {
+  } catch (error) {
+    if (showOperation) {
+      state.operationTone = "bad";
+      state.operationMessage = options.errorMessage || `Snapshot refresh failed: ${error.message || error}`;
+    }
     if (!state.snapshot) {
       try {
         const response = await fetch("snapshot.json", { cache: "no-store" });
         if (response.ok) {
+          const previousSnapshot = state.snapshot;
           state.snapshot = await response.json();
+          preserveLoadedDetails(state.snapshot, previousSnapshot, { dropCellKeys });
+          state.detailLoadErrors = {};
+          resetLoadedMetrics();
           shouldRender = true;
         }
       } catch (_fallback) {
@@ -851,9 +1094,19 @@ async function loadSnapshot(options = {}) {
     }
   } finally {
     state.loadingSnapshot = false;
+    state.snapshotBusy = "";
+    if (showOperation) {
+      syncSnapshotControls();
+      renderOperationStatus();
+    }
   }
   if (!state.snapshot) shouldRender = true;
   if (shouldRender) render({ scrollState });
+  if (state.queuedSnapshotOptions) {
+    const queuedOptions = state.queuedSnapshotOptions;
+    state.queuedSnapshotOptions = null;
+    window.setTimeout(() => loadSnapshot(queuedOptions), 0);
+  }
 }
 
 function renderSources(snapshot) {
@@ -861,6 +1114,43 @@ function renderSources(snapshot) {
   const text = sources.map((item) => `${item.kind}: ${item.path}`).join("  |  ");
   const status = snapshot?.snapshot_status?.stale ? `  |  stale: ${snapshot.snapshot_status.reason || "snapshot unavailable"}` : "";
   document.getElementById("source-line").textContent = (text || "No source loaded") + status;
+}
+
+function renderOperationStatus() {
+  const el = document.getElementById("operation-status");
+  if (!el) return;
+  const isRebuildMessage = String(state.operationMessage || "").startsWith("Rebuild");
+  const message = isRebuildMessage ? "" : state.operationMessage || "";
+  el.hidden = !message;
+  el.textContent = message;
+  el.className = `operation-status ${state.operationTone || ""}`.trim();
+}
+
+function syncSnapshotControls() {
+  const refresh = document.getElementById("refresh-button");
+  if (refresh) {
+    refresh.disabled = state.loadingSnapshot;
+    refresh.textContent = state.loadingSnapshot ? "Refreshing..." : "Refresh";
+  }
+}
+
+function rebuildStatusMessage() {
+  const status = state.rebuildStatus;
+  if (!status) return "";
+  const counts = status.last_counts || {};
+  const cells = counts.run_cells === undefined ? "" : ` (${counts.run_cells} run cells)`;
+  if (status.active) {
+    const phaseLabels = {
+      queued: "Queued",
+      waiting: "Waiting",
+      clearing: "Clearing cache",
+      warming: "Rebuilding",
+    };
+    const phase = phaseLabels[status.phase] || "Running";
+    return `${phase}${cells}.`;
+  }
+  if (status.phase === "failed") return `Last rebuild failed: ${status.last_error || "unknown error"}`;
+  return "";
 }
 
 function metricCard(label, value, formatter = fmt) {
@@ -875,7 +1165,7 @@ function renderSelectedExperiment(snapshot) {
     : "None";
   const label = `Dataset: ${dataset} | Eval cell: ${cell}`;
   const filters = [];
-  if (selected?.selected_scope) filters.push(`scope: ${scopeSummary(selected)}`);
+  if (selected?.selected_scope) filters.push(`run selection: ${scopeSummary(selected)}`);
   if (!allCaseFiltersEnabled()) filters.push(`case types: ${activeCaseFilterLabels()}`);
   const patternTags = activeTracePatternFilters();
   if (patternTags.length) filters.push(`patterns: ${patternTags.join("+")}`);
@@ -890,23 +1180,83 @@ function renderSelectedExperiment(snapshot) {
 function renderSummary(snapshot) {
   const counts = snapshot?.summary?.counts || {};
   const selectedDataset = selectedDatasetRow(snapshot);
+  const totals = overviewDatasetTotals(snapshot);
+  const scopedInstances = selectedDataset ? selectedDataset.n_instances || 0 : totals.n_instances || 0;
+  const scopedTraces = selectedDataset ? selectedDataset.n_trajectories || 0 : totals.n_trajectories || 0;
+  const scopedCells = selectedDataset ? selectedDataset.n_eval_cells || 0 : totals.n_eval_cells || 0;
   const cards = [
-    ["Datasets", datasetRows(snapshot).length, fmt],
-    ["Eval cells", experimentRows(snapshot).length, fmt],
-    ["Dataset instances", selectedDataset?.n_instances ?? "-", fmt],
-    ["Trajectories", selectedDataset?.n_trajectories ?? counts.n_records, fmt],
-    ["Models", (snapshot.model_metrics || []).length, fmt],
+    ["Datasets", overviewDatasetRows(snapshot).length, fmt],
+    ["Eval cells", scopedCells, fmt],
+    ["Instances", scopedInstances, fmt],
+    ["Traces", scopedTraces, fmt],
+    ["Models", snapshotModelMetricRows(snapshot).length, fmt],
     ["Runs", (snapshot.runs || []).length, fmt],
     ["Raw records", snapshot.raw_record_count ?? 0, fmt],
-    ["Loaded details", snapshot.detail_count ?? counts.n_records, fmt],
+    ["Loaded details", activeDetails(snapshot).length || counts.n_records || 0, fmt],
   ];
   document.getElementById("summary-grid").innerHTML = cards.map(([label, value, formatter]) => metricCard(label, value, formatter)).join("");
 }
 
-function progress(row) {
-  const done = row.done ?? row.detail_count ?? 0;
-  const target = row.target ?? row.detail_count ?? 0;
-  return `${done}/${target}`;
+function runDoneCount(row) {
+  const explicit = numeric(row.done_rollouts);
+  if (explicit !== null) return explicit;
+  const total = runTotalCount(row);
+  const failures = runErrorCount(row);
+  const pending = runPendingCount(row);
+  if ((failures || pending) && total > 0) return Math.max(0, total - failures - pending);
+  return numeric(row.done) ?? 0;
+}
+
+function runTotalCount(row) {
+  return numeric(row.target_rollouts) ?? numeric(row.target) ?? numeric(row.detail_count) ?? 0;
+}
+
+function rolloutN(row) {
+  const explicit = numeric(row.rollouts_per_instance);
+  if (explicit !== null && explicit > 0) return explicit;
+  const instances = numeric(row.target);
+  const traces = numeric(row.target_rollouts) ?? numeric(row.detail_count);
+  if (instances && traces !== null) return Math.max(1, Math.round(traces / instances));
+  return null;
+}
+
+function runErrorCount(row) {
+  return numeric(row.errors) ?? 0;
+}
+
+function runPendingCount(row) {
+  return numeric(row.pending) ?? 0;
+}
+
+function cacheStatus(row) {
+  const total = runDoneCount(row);
+  const errors = runErrorCount(row);
+  const hasReady = Object.prototype.hasOwnProperty.call(row, "cache_ready");
+  const hasPending = Object.prototype.hasOwnProperty.call(row, "cache_pending");
+  const ready = hasReady ? numeric(row.cache_ready) : null;
+  const pending = hasPending ? numeric(row.cache_pending) : null;
+  if (pending !== null && pending > 0) {
+    if (ready !== null && total > 0) return `${ready}/${total} cached`;
+    return `${pending} to rebuild`;
+  }
+  if (ready !== null && total > 0 && ready < total) return `${ready}/${total} cached`;
+  if (ready !== null && total > 0) return `${ready}/${total} cached`;
+  if (ready === null && pending === null && total > 0) return "unknown";
+  if (total <= 0 && errors > 0) return "no completed traces";
+  return "ready";
+}
+
+function rebuildQueuedMessage(result) {
+  const jobs = numeric(result?.queued_jobs);
+  if (jobs !== null && jobs > 1) return `Rebuild queued for ${jobs} targets.`;
+  const cells = numeric(result?.counts?.run_cells);
+  return cells === null ? "Rebuild queued." : `Rebuild queued for ${cells} run cells.`;
+}
+
+function applyQueuedRebuildStatus(result) {
+  state.rebuildStatus = result?.rebuild_status || { active: true, phase: "queued", queued: 1, running: 0 };
+  syncAdminRebuildTargetsFromStatus();
+  scheduleRebuildStatusPoll();
 }
 
 function scopeSummary(row) {
@@ -921,8 +1271,34 @@ function scopeSummary(row) {
   return `${caseTypes}${pattern} · selected ${selectedBeforeWindow}/${sourceSize} · planned ${selectedSize}`;
 }
 
+function metricRowForCell(rows, row) {
+  const key = cellKey(row);
+  return (rows || []).find((item) => cellKey(item) === key) || null;
+}
+
+function evalCellFilterStats(snapshot, row) {
+  const filterKey = activeCaseFilterKey();
+  if (!filterKey) return { instances: 0, traces: 0 };
+  const metricRows = allCaseFiltersEnabled()
+    ? snapshotModelMetricRows(snapshot)
+    : snapshot?.case_filter_model_metrics?.[filterKey] || [];
+  const metric = metricRowForCell(metricRows, row);
+  if (metric) {
+    const instances = numeric(metric.target);
+    const traces = numeric(metric.target_rollouts) ?? numeric(metric.target);
+    return { instances: instances ?? 0, traces: traces ?? 0 };
+  }
+  if (allCaseFiltersEnabled()) {
+    return { instances: numeric(row.target) ?? 0, traces: runTotalCount(row) };
+  }
+  const key = cellKey(row);
+  const details = caseFilteredDetails(snapshot).filter((detail) => detailCellKey(detail) === key);
+  const instances = new Set(details.map(traceInstanceId).filter(Boolean));
+  return { instances: instances.size, traces: details.length };
+}
+
 function renderExperiments(snapshot) {
-  const datasetRowsHtml = datasetRows(snapshot).map((row) => {
+  const datasetRowsHtml = overviewDatasetRows(snapshot).map((row) => {
     const selected = row.dataset === state.selectedDataset;
     return `<tr class="clickable ${selected ? "is-selected" : ""}" data-dataset="${esc(row.dataset)}">
       <td><button class="select-dataset" type="button" data-dataset="${esc(row.dataset)}">${selected ? "Selected" : "Select"}</button></td>
@@ -940,25 +1316,40 @@ function renderExperiments(snapshot) {
     const selected = key === state.selectedEvalCellKey;
     const deleteTarget = { experiment_id: row.experiment_id, provider_source: row.provider_source, dataset: row.dataset };
     const deleteKey = deleteTargetKey(deleteTarget);
-    const adminCell = state.admin.authenticated
-      ? `<td><input class="admin-delete-target" type="checkbox" data-delete-target="${esc(deleteKey)}" ${state.adminDeleteKeys.has(deleteKey) ? "checked" : ""}></td>`
+    const rebuildTarget = {
+      experiment_id: row.experiment_id,
+      provider_source: row.provider_source,
+      dataset: row.dataset,
+      model_api_name: row.model_api_name,
+      model_label: row.model_label,
+    };
+    const rebuildKey = deleteTargetKey(rebuildTarget);
+    const cachePending = Number(row.cache_pending || 0) > 0;
+    const adminCells = state.admin.authenticated
+      ? `<td><input class="admin-delete-target" type="checkbox" data-delete-target="${esc(deleteKey)}" ${state.adminDeleteKeys.has(deleteKey) ? "checked" : ""}></td>
+         <td><input class="admin-rebuild-select" type="checkbox" data-rebuild-target="${esc(rebuildKey)}" ${state.adminRebuildKeys.has(rebuildKey) ? "checked" : ""}></td>`
       : "";
-    return `<tr class="clickable ${selected ? "is-selected" : ""}" data-eval-cell-key="${esc(key)}">
-      ${adminCell}
+    const filterStats = evalCellFilterStats(snapshot, row);
+    return `<tr class="clickable ${selected ? "is-selected" : ""} ${cachePending ? "has-cache-pending" : ""}" data-eval-cell-key="${esc(key)}">
+      ${adminCells}
       <td><button class="select-cell" type="button" data-eval-cell-key="${esc(key)}">${selected ? "Selected" : "Inspect"}</button></td>
       <td>${esc(row.source_kind)}</td>
       <td>${esc(row.experiment_id)}</td>
       <td>${esc(row.provider_source)}</td>
       <td>${esc(row.dataset)}</td>
       <td>${esc(row.model_label)}</td>
-      <td>${esc(scopeSummary(row))}</td>
-      <td>${esc(progress(row))}</td>
-      <td>${esc(row.trajectory_count ?? 0)}</td>
+      <td>${esc(rolloutN(row) ?? "-")}</td>
+      <td>${esc(filterStats.instances)}</td>
+      <td>${esc(row.target ?? "-")}</td>
+      <td>${esc(runDoneCount(row))}</td>
+      <td>${runErrorCount(row) ? badge(String(runErrorCount(row)), true, "bad") : "0"}</td>
+      <td>${runPendingCount(row) ? badge(String(runPendingCount(row)), true, "warn") : "0"}</td>
+      <td class="cache-cell">${esc(cacheStatus(row))}</td>
     </tr>`;
   });
   document.getElementById("experiment-table").innerHTML = `
-    <section class="subsection"><h3>Datasets</h3>${table(["", "Dataset", "Instances", "Eval cells", "Trajectories", "Models", "Sources"], datasetRowsHtml)}</section>
-    <section class="subsection"><h3>Eval cells${state.selectedDataset ? ` in ${esc(state.selectedDataset)}` : ""}</h3>${table([...(state.admin.authenticated ? ["Delete"] : []), "", "Kind", "Experiment", "Provider", "Dataset", "Model", "Scope", "Done", "Traj"], rows)}</section>`;
+    <section class="subsection"><h3>Datasets</h3>${table(["", "Dataset", "Filtered instances", "Eval cells", "Filtered traces", "Models", "Sources"], datasetRowsHtml)}</section>
+    <section class="subsection"><h3>Eval cells${state.selectedDataset ? ` in ${esc(state.selectedDataset)}` : ""}</h3>${table([...(state.admin.authenticated ? ["Delete", "Rebuild"] : []), "", "Kind", "Experiment", "Provider", "Dataset", "Model", "Rollout N", "Filtered instances", "Total instances", "Done traces", "Error traces", "ToDo traces", "Detail cache"], rows)}</section>`;
   document.querySelectorAll(".select-dataset, #experiment-table tr[data-dataset]").forEach((el) => {
     el.addEventListener("click", () => {
       const dataset = el.dataset.dataset;
@@ -1001,6 +1392,17 @@ function renderExperiments(snapshot) {
       if (!key) return;
       if (event.target.checked) state.adminDeleteKeys.add(key);
       else state.adminDeleteKeys.delete(key);
+      state.adminPreview = null;
+      renderAdminPanel(snapshot);
+    });
+  });
+  document.querySelectorAll(".admin-rebuild-select").forEach((input) => {
+    input.addEventListener("click", (event) => event.stopPropagation());
+    input.addEventListener("change", (event) => {
+      const key = event.target.dataset.rebuildTarget;
+      if (!key) return;
+      if (event.target.checked) state.adminRebuildKeys.add(key);
+      else state.adminRebuildKeys.delete(key);
       state.adminPreview = null;
       renderAdminPanel(snapshot);
     });
@@ -1067,10 +1469,13 @@ function kpiColumns(hasCacheWrite) {
       html: true,
       value: (_row, key) => `<button class="select-kpi-cell" type="button" data-eval-cell-key="${esc(key)}">${key === state.selectedEvalCellKey ? "Selected" : "Select"}</button>`,
     },
-    { header: "Model", fixed: true, value: (row) => row.model_label },
-    { header: "Kind", fixed: true, value: (row) => row.source_kind },
     { header: "Experiment", fixed: true, value: (row) => row.experiment_id },
-    { header: "Done", group: "scope", value: (row) => progress(row) },
+    { header: "Kind", fixed: true, value: (row) => row.source_kind },
+    { header: "Model", fixed: true, value: (row) => row.model_label },
+    { header: "Total instances", group: "filter_totals", value: (row) => numeric(row.target) ?? 0 },
+    { header: "Done traces", group: "filter_totals", value: (row) => runDoneCount(row) },
+    { header: "Error traces", group: "filter_totals", value: (row) => runErrorCount(row) },
+    { header: "ToDo traces", group: "filter_totals", value: (row) => runPendingCount(row) },
     { header: "Graph P.", group: "graph", value: (row) => withStd(row, "avg_read_precision", pct) },
     { header: "Graph R.", group: "graph", value: (row) => withStd(row, "avg_node_recall", pct) },
     { header: "Graph F1", group: "graph", value: (row) => withStd(row, "avg_hit_f1", pct) },
@@ -1107,12 +1512,12 @@ function kpiColumns(hasCacheWrite) {
 }
 
 function maxRolloutN(rows) {
-  return Math.max(1, ...rows.map((row) => Number(row.rollouts_per_instance || 1)).filter(Number.isFinite));
+  return Math.max(1, ...rows.map((row) => rolloutN(row) || 1).filter(Number.isFinite));
 }
 
 function renderPassAtControl(rows) {
   const maxN = maxRolloutN(rows);
-  if (!state.passAtK || state.passAtK > maxN) state.passAtK = maxN;
+  if (!state.passAtK || state.passAtK > maxN) state.passAtK = 1;
   const options = Array.from({ length: maxN }, (_item, index) => index + 1)
     .map((k) => `<option value="${k}" ${Number(state.passAtK) === k ? "selected" : ""}>${k}</option>`)
     .join("");
@@ -1124,14 +1529,26 @@ function renderModels(snapshot) {
     document.getElementById("model-table").innerHTML = '<div class="empty">Select a dataset in Overview before comparing Metrics.</div>';
     return;
   }
+  const metricLoading = state.metricLoadBusyDatasets.has(state.selectedDataset);
+  const metricError = state.metricLoadErrors[state.selectedDataset];
+  const metricNotice = state.metricLoadNotices[state.selectedDataset];
+  if (!state.metricLoadedDatasets.has(state.selectedDataset) && !metricLoading && !metricError) {
+    deferTask(() => loadDatasetMetrics(state.selectedDataset));
+  }
   const rows = activeModelMetrics(snapshot).filter((row) => row.dataset === state.selectedDataset);
   const hasCacheWrite = rows.some((row) => row.cache_write_rate !== null && row.cache_write_rate !== undefined);
   const columns = kpiColumns(hasCacheWrite);
   const scopeBits = [];
   scopeBits.push(`case types: ${activeCaseFilterLabels()}`);
   const scopeNote = `Metrics and Traces both use the current global filters (${scopeBits.join("; ")}).`;
+  const loadNote = metricLoading
+    ? '<div class="inline-status">Loading cached metrics...</div>'
+    : (metricError
+      ? `<div class="inline-status is-error">Cached metrics failed to load: ${esc(metricError)}</div>`
+      : (metricNotice ? `<div class="inline-status">${esc(metricNotice)}</div>` : ""));
   document.getElementById("model-table").innerHTML = `
     <div class="panel-note">Metrics are scoped to dataset <strong>${esc(state.selectedDataset)}</strong>. ${esc(scopeNote)} Graph metrics score reads against the captured dependency Graph; Path metrics score the issue symptom-to-root-cause Path; Trace metrics describe the agent trajectory.</div>
+    ${loadNote}
     ${renderPassAtControl(rows)}
     ${renderMetricGroupControls()}
     ${metricDefinitions("Metric definitions", MACRO_METRIC_GROUPS)}
@@ -1216,8 +1633,41 @@ function traceBlob(detail) {
   }).toLowerCase();
 }
 
+function normalizeTracePatternFilterValue(value) {
+  if (value === true || value === "true") return "true";
+  if (value === "false") return "false";
+  if (value === "none") return "none";
+  return null;
+}
+
+function nextTracePatternFilterValue(value) {
+  const current = normalizeTracePatternFilterValue(value);
+  if (!current) return "true";
+  if (current === "true") return "false";
+  if (current === "false") return "none";
+  return null;
+}
+
+function activeTracePatternFilterEntries() {
+  return TRACE_PATTERN_FILTERS.map((tag) => ({
+    tag,
+    value: normalizeTracePatternFilterValue(state.tracePatternFilters?.[tag]),
+  })).filter((item) => item.value);
+}
+
 function activeTracePatternFilters() {
-  return TRACE_PATTERN_FILTERS.filter((key) => state.tracePatternFilters?.[key] === true);
+  return activeTracePatternFilterEntries().map(({ tag, value }) => (value === "true" ? tag : `${tag}:${value}`));
+}
+
+function booleanPatternValue(value) {
+  if (value === true) return true;
+  if (value === false) return false;
+  return null;
+}
+
+function pathProjectionAvailable(detail) {
+  const projection = pathProjection(detail);
+  return ["path_nodes", "chain_nodes", "context_nodes", "path_edges", "chain_edges"].some((key) => projection[key] !== undefined);
 }
 
 function pathNodeHasRoleHit(detail, roles) {
@@ -1232,24 +1682,49 @@ function pathNodeHasRoleHit(detail, roles) {
   });
 }
 
-function tracePatternMatches(detail, tag) {
+function pathNodeRoleHitValue(detail, roles, directKey) {
+  const direct = booleanPatternValue(detail?.[directKey]);
+  if (direct !== null) return direct;
+  if (!pathProjectionAvailable(detail)) return null;
+  return pathNodeHasRoleHit(detail, roles);
+}
+
+function tracePatternValue(detail, tag) {
   if (tag === "miracle") {
-    return combinedMiracleMarker(detail) === true || blockMiracleMarker(detail) === true;
+    return combinedMiracleMarker(detail);
   }
   if (tag === "reverse") {
-    return combinedReverseMarker(detail) === true || blockReverseMarker(detail) === true;
+    return combinedReverseMarker(detail);
   }
-  if (tag === "loop") return (detail.bad_patterns || {}).has_loop === true;
-  if (tag === "error_spiral") return (detail.bad_patterns || {}).error_spiral === true;
-  if (tag === "hit_symptom") return pathNodeHasRoleHit(detail, ["symptom"]);
-  if (tag === "hit_root_cause") return pathNodeHasRoleHit(detail, ["root_cause"]);
-  if (tag === "edited_root_cause") return detail.edited_root_cause === true;
+  if (tag === "loop") {
+    const badPattern = booleanPatternValue((detail.bad_patterns || {}).has_loop);
+    if (badPattern !== null) return badPattern;
+    if (Array.isArray(detail.purpose_blocks)) return detail.purpose_blocks.some((block) => block?.loop === true);
+    return null;
+  }
+  if (tag === "hit_symptom") return pathNodeRoleHitValue(detail, ["symptom"], "anchor_hit");
+  if (tag === "hit_root_cause") return pathNodeRoleHitValue(detail, ["root_cause"], "root_hit");
+  if (tag === "edited_root_cause") {
+    const direct = booleanPatternValue(detail?.edited_root_cause);
+    if (direct !== null) return direct;
+    if (Array.isArray(detail?.step_inspection)) return detail.step_inspection.some((step) => step?.edited_root_cause === true);
+    return null;
+  }
+  return null;
+}
+
+function tracePatternMatches(detail, tag, value = "true") {
+  const marker = tracePatternValue(detail, tag);
+  const expected = normalizeTracePatternFilterValue(value) || "true";
+  if (expected === "none") return marker === null;
+  if (expected === "true") return marker === true;
+  if (expected === "false") return marker === false;
   return false;
 }
 
 function tracePatternFilterEnabled(detail) {
-  const active = activeTracePatternFilters();
-  return !active.length || active.every((tag) => tracePatternMatches(detail, tag));
+  const active = activeTracePatternFilterEntries();
+  return !active.length || active.every(({ tag, value }) => tracePatternMatches(detail, tag, value));
 }
 
 function filteredDetails(snapshot) {
@@ -1261,15 +1736,59 @@ function filteredDetails(snapshot) {
     .filter((detail) => !query || traceBlob(detail).includes(query));
 }
 
-function selectedDetail(snapshot) {
-  const details = filteredDetails(snapshot);
-  return details.find((detail) => rowKey(detail) === state.selectedTraceKey) || details[0] || null;
+function currentRolloutBatchDetails(snapshot) {
+  if (!state.selectedEvalCellKey) return [];
+  const index = traceGlobalRolloutIndex();
+  return activeDetails(snapshot)
+    .filter((detail) => detailCellKey(detail) === state.selectedEvalCellKey)
+    .filter((detail) => rolloutIndex(detail) === index);
 }
 
-function locatorForDetail(detail, level = "step") {
+function tracePatternStats(snapshot) {
+  const full = currentRolloutBatchDetails(snapshot);
+  const selected = full.filter(tracePatternFilterEnabled);
+  const fullInstances = new Set(full.map(traceInstanceId).filter(Boolean));
+  const selectedInstances = new Set(selected.map(traceInstanceId).filter(Boolean));
+  const fullPassedInstances = new Set(full.filter(traceResolved).map(traceInstanceId).filter(Boolean));
+  const selectedPassedInstances = new Set(selected.filter(traceResolved).map(traceInstanceId).filter(Boolean));
+  return {
+    rollout: traceGlobalRolloutIndex() + 1,
+    full,
+    selected,
+    fullPassRate: rate(full.map(traceResolved)),
+    selectedPassRate: rate(selected.map(traceResolved)),
+    fullInstances: fullInstances.size,
+    selectedInstances: selectedInstances.size,
+    fullPassedInstances: fullPassedInstances.size,
+    selectedPassedInstances: selectedPassedInstances.size,
+    selectedPassShareOfPassed: fullPassedInstances.size ? selectedPassedInstances.size / fullPassedInstances.size : null,
+  };
+}
+
+function renderTracePatternStats(snapshot) {
+  const el = document.getElementById("trace-pattern-stats");
+  if (!el) return;
+  if (!state.selectedEvalCellKey) {
+    el.innerHTML = '<span><strong>Rollout</strong> -</span><span><strong>Pass</strong> - / -</span><span><strong>Pass+tags</strong> - (0/0)</span><span><strong>Instances</strong> 0 / 0</span>';
+    return;
+  }
+  const stats = tracePatternStats(snapshot);
+  el.innerHTML = `<span><strong>Rollout</strong> ${esc(stats.rollout)}</span><span><strong>Pass</strong> ${esc(pct(stats.selectedPassRate))} / ${esc(pct(stats.fullPassRate))}</span><span><strong>Pass+tags</strong> ${esc(pct(stats.selectedPassShareOfPassed))} (${esc(stats.selectedPassedInstances)}/${esc(stats.fullPassedInstances)})</span><span><strong>Instances</strong> ${esc(stats.selectedInstances)} / ${esc(stats.fullInstances)}</span>`;
+}
+
+function selectedDetail(snapshot) {
+  const details = filteredDetails(snapshot);
+  const selected = details.find((detail) => rowKey(detail) === state.selectedTraceKey);
+  if (selected) return selected;
+  const preferred = details.find((detail) => detail.raw_available || (detail.step_details || []).length || (detail.step_inspection || []).length) || details[0];
+  return preferred ? detailForRolloutIndex(detailsForInstance(details, traceInstanceKey(preferred))) : null;
+}
+
+function locatorForDetail(detail, level = "step", options = {}) {
   if (!detail) return null;
   const params = new URLSearchParams();
   params.set("p2a", "1");
+  if (options.tab) params.set("tab", options.tab);
   if (detail.experiment_id) params.set("experiment_id", detail.experiment_id);
   if (detail.provider_source) params.set("provider_source", detail.provider_source);
   if (detail.model_api_name) params.set("model_api_name", detail.model_api_name);
@@ -1277,6 +1796,7 @@ function locatorForDetail(detail, level = "step") {
   if (level !== "experiment" && detail.instance_id) params.set("instance_id", detail.instance_id);
   if (level !== "experiment" && level !== "instance") {
     if (detail.rollout_id !== null && detail.rollout_id !== undefined && detail.rollout_id !== "") params.set("rollout_id", detail.rollout_id);
+    else if (detail.cell_id !== null && detail.cell_id !== undefined && detail.cell_id !== "") params.set("cell_id", String(detail.cell_id));
     else params.set("rollout_index", String(rolloutIndex(detail)));
   }
   if (level === "step") params.set("step_index", String(state.selectedStepIndex || 0));
@@ -1295,7 +1815,7 @@ function parseLocator(text) {
 
 function clearReachabilityFilters() {
   CASE_FILTER_BUCKETS.forEach((key) => { state.caseFilters[key] = true; });
-  TRACE_PATTERN_FILTERS.forEach((key) => { state.tracePatternFilters[key] = false; });
+  TRACE_PATTERN_FILTERS.forEach((key) => { state.tracePatternFilters[key] = null; });
   state.traceQuery = "";
 }
 
@@ -1310,11 +1830,9 @@ function applyLocator(snapshot, locator) {
     && (!locator.dataset || row.dataset === locator.dataset)
   ));
   if (!cell) {
-    state.permalinkNotice = "Link target was not found in the loaded experiments.";
+    state.permalinkNotice = "URL target was not found in the loaded experiments.";
     state.permalinkMissing = true;
     state.selectedDataset = null;
-    state.permalinkMissing = false;
-    state.permalinkNotice = "";
     state.selectedEvalCellKey = null;
     state.selectedExperimentKey = null;
     state.selectedTraceKey = null;
@@ -1324,27 +1842,46 @@ function applyLocator(snapshot, locator) {
   state.selectedDataset = cell.dataset || locator.dataset || null;
   state.selectedEvalCellKey = cellKey(cell);
   state.selectedExperimentKey = state.selectedEvalCellKey;
-  const needsTrace = Boolean(locator.instance_id || locator.rollout_id || locator.rollout_index !== undefined || locator.step_index !== undefined);
+  const needsTrace = Boolean(locator.instance_id || locator.rollout_id || locator.cell_id || locator.rollout_index !== undefined || locator.step_index !== undefined);
   const allDetails = activeDetails(snapshot).filter((detail) => detailCellKey(detail) === state.selectedEvalCellKey);
   const detail = needsTrace
     ? allDetails.find((item) => {
       if (locator.instance_id && String(item.instance_id) !== String(locator.instance_id)) return false;
       if (locator.rollout_id) return String(item.rollout_id || "") === String(locator.rollout_id);
+      if (locator.cell_id) return String(item.cell_id || "") === String(locator.cell_id);
       if (locator.rollout_index !== undefined) return rolloutIndex(item) === Number(locator.rollout_index);
       return true;
     })
     : null;
-  if (!detail && locator.instance_id) {
-    state.permalinkNotice = "Link target was not found; it may have been deleted or not loaded in this snapshot.";
+  if (!detail && needsTrace) {
+    const expected = expectedCellDetailCount(snapshot, state.selectedEvalCellKey);
+    const loaded = loadedDetailCountForCell(snapshot, state.selectedEvalCellKey);
+    const canStillLoad = state.detailLoadBusyKeys.has(state.selectedEvalCellKey)
+      || (selectedCellCanHaveDetails(snapshot, state.selectedEvalCellKey) && loaded < expected);
+    if (canStillLoad) {
+      state.pendingLocator = locator;
+      state.permalinkMissing = false;
+      state.permalinkNotice = "Loading URL target trajectory details...";
+      state.selectedTraceKey = null;
+      if (locator.rollout_index !== undefined) setTraceGlobalRolloutIndex(locator.rollout_index);
+      state.selectedStepIndex = Number(locator.step_index || 0);
+      state.selectedGraphNodeKey = locator.graph_node || null;
+      setTab(locator.tab === "traces" || needsTrace ? "traces" : "overview");
+      return true;
+    }
+    state.permalinkNotice = "URL target was not found; it may have been deleted or not loaded in this snapshot.";
     state.permalinkMissing = true;
     state.selectedTraceKey = null;
     return false;
   }
-  if (detail) state.selectedTraceKey = rowKey(detail);
+  if (detail) {
+    state.selectedTraceKey = rowKey(detail);
+    setTraceGlobalRolloutIndex(rolloutIndex(detail));
+  }
   state.selectedStepIndex = Number(locator.step_index || 0);
   state.selectedGraphNodeKey = locator.graph_node || null;
   state.permalinkNotice = "";
-  setTab(detail ? "traces" : "overview");
+  setTab(locator.tab === "traces" && (detail || needsTrace) ? "traces" : "overview");
   return true;
 }
 
@@ -1352,14 +1889,13 @@ function applyPendingLocator(snapshot) {
   if (!state.pendingLocator) return;
   const locator = state.pendingLocator;
   state.pendingLocator = null;
-  state.suppressHashUpdate = true;
   applyLocator(snapshot, locator);
   syncFilterControls();
 }
 
 function currentDashboardUrl(level = "step") {
   const detail = selectedDetail(state.snapshot);
-  const locator = locatorForDetail(detail, level);
+  const locator = locatorForDetail(detail, level, { tab: level === "experiment" ? "overview" : "traces" });
   if (!locator) return "";
   if (typeof window === "undefined" || !window.location) return locator;
   return `${window.location.origin || ""}${window.location.pathname || ""}${locator}`;
@@ -1374,28 +1910,64 @@ function syncFilterControls() {
     const tag = input.dataset.patternFilter;
     if (tag) input.checked = state.tracePatternFilters[tag] === true;
   });
+  document.querySelectorAll(".trace-pattern-cycle").forEach((button) => {
+    const tag = button.dataset.patternFilter;
+    const value = tag ? normalizeTracePatternFilterValue(state.tracePatternFilters[tag]) : null;
+    const label = button.dataset.patternLabel || tag || "pattern";
+    button.classList.toggle("is-true", value === "true");
+    button.classList.toggle("is-false", value === "false");
+    button.classList.toggle("is-none", value === "none");
+    button.setAttribute("aria-pressed", value ? "true" : "false");
+    button.setAttribute("data-pattern-state", value || "");
+    const titleSuffix = value === "true" ? "true" : value === "false" ? "false" : value === "none" ? "unavailable" : "not filtered";
+    button.setAttribute("title", `${label}: ${titleSuffix}`);
+    button.setAttribute("aria-label", `${label}: ${titleSuffix}`);
+  });
   const traceSearch = document.getElementById("trace-search");
   if (traceSearch) traceSearch.value = state.traceQuery || "";
 }
 
-function syncHashToSelection() {
-  if (state.suppressHashUpdate) {
-    state.suppressHashUpdate = false;
-    return;
+async function writeClipboardText(text) {
+  if (!text) return false;
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (_error) {
+      // Fall back for plain HTTP dashboard sessions.
+    }
   }
-  if (typeof window === "undefined" || !window.location || !state.selectedEvalCellKey) return;
-  const locator = locatorForDetail(selectedDetail(state.snapshot), "step");
-  if (locator && window.location.hash !== locator) {
-    state.ignoreNextHashChange = true;
-    window.location.hash = locator;
+  if (typeof document === "undefined" || typeof document.createElement !== "function") return false;
+  const parent = document.body || document.documentElement;
+  if (!parent?.appendChild) return false;
+  const input = document.createElement("textarea");
+  input.value = text;
+  input.setAttribute("readonly", "");
+  input.style.position = "fixed";
+  input.style.left = "-10000px";
+  input.style.top = "-10000px";
+  parent.appendChild(input);
+  input.focus?.();
+  input.select?.();
+  input.setSelectionRange?.(0, text.length);
+  let copied = false;
+  try {
+    copied = typeof document.execCommand === "function" && document.execCommand("copy");
+  } catch (_error) {
+    copied = false;
   }
+  input.remove?.();
+  if (input.parentNode?.removeChild) input.parentNode.removeChild(input);
+  return copied;
 }
 
-function copyDashboardLink(level) {
+async function copyDashboardLink(level) {
   const url = currentDashboardUrl(level);
   if (!url) return;
-  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) navigator.clipboard.writeText(url).catch(() => {});
-  state.permalinkNotice = `Copied ${level} link.`;
+  state.permalinkNotice = `Copying ${level} URL...`;
+  renderSelectedExperiment(state.snapshot);
+  const copied = await writeClipboardText(url);
+  state.permalinkNotice = copied ? `Copied ${level} URL.` : `Copy failed; URL: ${url}`;
   renderSelectedExperiment(state.snapshot);
 }
 
@@ -1404,6 +1976,8 @@ function deleteTargetKey(target) {
     experiment_id: target.experiment_id || "",
     provider_source: target.provider_source || "",
     dataset: target.dataset || "",
+    model_api_name: target.model_api_name || "",
+    model_label: target.model_label || "",
   });
 }
 
@@ -1413,6 +1987,46 @@ function deleteTargetFromKey(key) {
   } catch (_error) {
     return {};
   }
+}
+
+function adminTargetLabel(target) {
+  if (target?.scope === "all") return "all eval cells";
+  const parts = [
+    target?.dataset ? `dataset=${target.dataset}` : "",
+    target?.provider_source ? `source=${target.provider_source}` : "",
+    target?.experiment_id ? `experiment=${target.experiment_id}` : "",
+    target?.model_label ? `model=${target.model_label}` : target?.model_api_name ? `model=${target.model_api_name}` : "",
+  ].filter(Boolean);
+  return parts.length ? parts.join(" / ") : "all eval cells";
+}
+
+function renderAdminTargetList(targets, emptyText) {
+  const items = (targets || []).map((target) => `<code>${esc(adminTargetLabel(target))}</code>`);
+  return items.join("") || `<span class="muted">${esc(emptyText)}</span>`;
+}
+
+function rebuildStatusTarget(status) {
+  const scope = status?.last_scope;
+  if (!scope || typeof scope !== "object") return null;
+  const target = {
+    experiment_id: String(scope.experiment_id || "").trim(),
+    provider_source: String(scope.provider_source || "").trim(),
+    dataset: String(scope.dataset || "").trim(),
+    model_api_name: String(scope.model_api_name || "").trim(),
+    model_label: String(scope.model_label || "").trim(),
+  };
+  return Object.values(target).some(Boolean) ? target : { scope: "all" };
+}
+
+function syncAdminRebuildTargetsFromStatus() {
+  if (state.rebuildStatus?.active === true) {
+    if (!state.adminRebuildingTargets.length) {
+      const target = rebuildStatusTarget(state.rebuildStatus);
+      state.adminRebuildingTargets = target ? [target] : [];
+    }
+    return;
+  }
+  state.adminRebuildingTargets = [];
 }
 
 function selectedDeleteTargets() {
@@ -1433,6 +2047,25 @@ function selectedDeleteTargets() {
   });
 }
 
+function selectedRebuildTargets() {
+  const targets = [...state.adminRebuildKeys].map(deleteTargetFromKey);
+  const seen = new Set();
+  return targets.filter((target) => {
+    const clean = {
+      experiment_id: String(target.experiment_id || "").trim(),
+      provider_source: String(target.provider_source || "").trim(),
+      dataset: String(target.dataset || "").trim(),
+      model_api_name: String(target.model_api_name || "").trim(),
+      model_label: String(target.model_label || "").trim(),
+    };
+    if (!clean.experiment_id && !clean.provider_source && !clean.dataset && !clean.model_api_name && !clean.model_label) return false;
+    const key = deleteTargetKey(clean);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return clean;
+  });
+}
+
 async function apiPost(path, payload) {
   const response = await fetch(path, {
     method: "POST",
@@ -1445,6 +2078,264 @@ async function apiPost(path, payload) {
   return body;
 }
 
+function cellDetailsUrl(cell, { offset = 0, limit = 50 } = {}) {
+  const params = new URLSearchParams();
+  ["experiment_id", "provider_source", "dataset", "model_api_name", "model_label"].forEach((field) => {
+    if (cell?.[field]) params.set(field, cell[field]);
+  });
+  params.set("offset", String(offset));
+  params.set("limit", String(limit));
+  return `/api/details?${params.toString()}`;
+}
+
+function datasetMetricsUrl(dataset) {
+  const params = new URLSearchParams();
+  if (dataset) params.set("dataset", dataset);
+  return `/api/metrics?${params.toString()}`;
+}
+
+function mergeModelMetrics(snapshot, rows) {
+  if (!snapshot || !Array.isArray(rows)) return;
+  const merged = new Map((snapshot.model_metrics || []).map((row) => [cellKey(row), row]));
+  rows.forEach((row) => {
+    const key = cellKey(row);
+    if (!key) return;
+    merged.set(key, { ...(merged.get(key) || {}), ...row });
+  });
+  snapshot.model_metrics = [...merged.values()].sort((a, b) => (
+    String(a.dataset || "").localeCompare(String(b.dataset || ""))
+    || String(a.model_label || "").localeCompare(String(b.model_label || ""))
+  ));
+  snapshot.eval_cells = (snapshot.eval_cells || []).map((cell) => {
+    const row = merged.get(cellKey(cell));
+    if (!row) return cell;
+    return {
+      ...cell,
+      cache_ready: row.detail_cache_ready_rollouts ?? cell.cache_ready,
+      cache_pending: row.detail_cache_pending_rollouts ?? cell.cache_pending,
+      resolved_rate: row.resolved_rate ?? cell.resolved_rate,
+      root_hit_rate: row.root_hit_rate ?? row.ground_truth_hit_rate ?? cell.root_hit_rate,
+      path_node_recall: row.avg_path_node_recall ?? row.avg_node_recall ?? cell.path_node_recall,
+      chain_node_recall: row.avg_chain_node_recall ?? row.avg_node_recall ?? cell.chain_node_recall,
+      read_precision: row.avg_path_read_precision ?? row.avg_read_precision ?? cell.read_precision,
+    };
+  });
+}
+
+function mergeCellDetails(snapshot, key, details) {
+  if (!snapshot) return;
+  const incoming = Array.isArray(details) ? details : [];
+  const others = (snapshot.details || []).filter((detail) => detailCellKey(detail) !== key);
+  const merged = new Map();
+  (snapshot.details || []).forEach((detail) => {
+    if (detailCellKey(detail) === key) merged.set(rowKey(detail), detail);
+  });
+  incoming.forEach((detail) => {
+    const id = rowKey(detail);
+    merged.set(id, { ...(merged.get(id) || {}), ...detail });
+  });
+  snapshot.details = [...others, ...merged.values()].sort(compareTraceDetails);
+  snapshot.detail_count = (snapshot.details || []).length;
+}
+
+function missingDetailPlaceholder(cell, key, index, message) {
+  return {
+    eval_cell_key: key,
+    experiment_key: key,
+    source_kind: cell?.source_kind || "",
+    experiment_id: cell?.experiment_id || "",
+    provider_source: cell?.provider_source || "",
+    dataset: cell?.dataset || "",
+    data_source: cell?.dataset || "",
+    model_api_name: cell?.model_api_name || "",
+    model_label: cell?.model_label || "",
+    instance_id: `missing-detail-${index + 1}`,
+    rollout_id: `missing-detail-${index + 1}`,
+    rollout_index: index,
+    record_index: index,
+    resolved: false,
+    error: message,
+    system_error: true,
+    dashboard_detail_load_error: true,
+    raw_available: false,
+    issue_description: message,
+    not_path_evaluable_reason: "detail_load_error",
+    not_chain_evaluable_reason: "detail_load_error",
+    step_details: [],
+    step_inspection: [],
+  };
+}
+
+function fillMissingDetails(snapshot, key, cell, total, message) {
+  const loaded = loadedDetailCountForCell(snapshot, key);
+  const missing = Math.max(0, Number(total || 0) - loaded);
+  if (!missing) return;
+  const placeholders = Array.from(
+    { length: missing },
+    (_item, offset) => missingDetailPlaceholder(cell, key, loaded + offset, message)
+  );
+  mergeCellDetails(snapshot, key, placeholders);
+}
+
+function selectedCellCanHaveDetails(snapshot, key) {
+  const row = experimentRows(snapshot).find((item) => cellKey(item) === key);
+  if (!row) return false;
+  return runDoneCount(row) + Number(row.detail_count || 0) > 0;
+}
+
+function expectedCellDetailCount(snapshot, key) {
+  const row = experimentRows(snapshot).find((item) => cellKey(item) === key);
+  if (!row) return 0;
+  return runDoneCount(row) || Number(row.detail_count || 0);
+}
+
+function renderDetailLoadProgress(key) {
+  const progress = state.detailLoadProgress[key] || {};
+  const loaded = Number(progress.loaded || 0);
+  const total = Number(progress.total || 0);
+  const max = total > 0 ? ` max="${esc(total)}" value="${esc(Math.min(loaded, total))}"` : "";
+  const label = total > 0 ? `Loading trajectory details ${fmt(Math.min(loaded, total))}/${fmt(total)}...` : "Loading trajectory details...";
+  return `<div class="trace-load-progress"><progress${max}></progress><span>${esc(label)}</span></div>`;
+}
+
+function cellNeedsDetailLoad(snapshot, key) {
+  if (!key || state.detailLoadBusyKeys.has(key)) return false;
+  if (state.detailLoadErrors[key]) return false;
+  if (!selectedCellCanHaveDetails(snapshot, key)) return false;
+  const expected = expectedCellDetailCount(snapshot, key);
+  if (expected <= 0) return false;
+  const loaded = loadedDetailCountForCell(snapshot, key);
+  return loaded < expected;
+}
+
+async function loadCellDetails(key) {
+  if (!state.snapshot || !key || state.detailLoadBusyKeys.has(key)) return;
+  const cell = experimentRows(state.snapshot).find((row) => cellKey(row) === key);
+  if (!cell) return;
+  const total = expectedCellDetailCount(state.snapshot, key);
+  const pageSize = 5;
+  let loaded = loadedDetailCountForCell(state.snapshot, key);
+  let offset = loaded;
+  let exhausted = false;
+  if (total > 0 && loaded >= total) {
+    state.detailLoadedCellKeys.add(key);
+    return;
+  }
+  state.detailLoadBusyKeys.add(key);
+  state.detailLoadProgress[key] = { loaded, total };
+  delete state.detailLoadErrors[key];
+  renderTraceInspector(state.snapshot);
+  try {
+    while (loaded < Math.max(total, 1) && offset < Math.max(total, 1)) {
+      const before = loaded;
+      const requestOffset = offset;
+      const response = await fetch(cellDetailsUrl(cell, { offset: requestOffset, limit: pageSize }), { cache: "no-store", credentials: "same-origin" });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.detail || body.error || `HTTP ${response.status}`);
+      const details = Array.isArray(body.details) ? body.details : [];
+      const responseOffset = Number(body.offset);
+      mergeCellDetails(state.snapshot, key, details);
+      loaded = loadedDetailCountForCell(state.snapshot, key);
+      offset = Math.max(
+        Number.isFinite(responseOffset) ? responseOffset + details.length : requestOffset + details.length,
+        loaded
+      );
+      state.detailLoadProgress[key] = { loaded: total > 0 ? Math.min(loaded, total) : loaded, total };
+      renderTraceInspector(state.snapshot);
+      if (!details.length || details.length < pageSize) exhausted = true;
+      if (exhausted || total <= 0 || offset <= requestOffset) break;
+      if (loaded <= before && offset >= total) break;
+    }
+    if (total > 0 && loaded < total && (offset >= total || exhausted)) {
+      fillMissingDetails(
+        state.snapshot,
+        key,
+        cell,
+        total,
+        `Trajectory detail loading ended after ${loaded}/${total} traces; ${total - loaded} trace detail could not be loaded.`
+      );
+      loaded = loadedDetailCountForCell(state.snapshot, key);
+    }
+    if (total <= 0 || loaded >= total) state.detailLoadedCellKeys.add(key);
+  } catch (error) {
+    state.detailLoadErrors[key] = String(error.message || error);
+  } finally {
+    state.detailLoadBusyKeys.delete(key);
+    delete state.detailLoadProgress[key];
+    render();
+  }
+}
+
+async function loadDatasetMetrics(dataset) {
+  if (!state.snapshot || !dataset || state.metricLoadBusyDatasets.has(dataset) || state.metricLoadedDatasets.has(dataset)) return;
+  state.metricLoadBusyDatasets.add(dataset);
+  delete state.metricLoadErrors[dataset];
+  delete state.metricLoadNotices[dataset];
+  try {
+    const response = await fetch(datasetMetricsUrl(dataset), { cache: "no-store", credentials: "same-origin" });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok && (response.status === 404 || response.status === 501)) {
+      state.metricLoadNotices[dataset] = "Cached metrics endpoint is unavailable; showing snapshot metrics.";
+      state.metricLoadedDatasets.add(dataset);
+      return;
+    }
+    if (!response.ok) throw new Error(body.detail || body.error || `HTTP ${response.status}`);
+    mergeModelMetrics(state.snapshot, body.model_metrics || []);
+    state.metricLoadedDatasets.add(dataset);
+  } catch (error) {
+    state.metricLoadErrors[dataset] = String(error.message || error);
+  } finally {
+    state.metricLoadBusyDatasets.delete(dataset);
+    renderModels(state.snapshot);
+    renderExperiments(state.snapshot);
+  }
+}
+
+async function loadRebuildStatus() {
+  if (!state.admin.authenticated) {
+    state.rebuildStatus = null;
+    state.adminRebuildingTargets = [];
+    stopRebuildStatusPoll();
+    syncSnapshotControls();
+    renderOperationStatus();
+    renderAdminPanel(state.snapshot);
+    return;
+  }
+  const wasActive = state.rebuildStatus?.active === true;
+  try {
+    const response = await fetch("/api/rebuild/status", { cache: "no-store", credentials: "same-origin" });
+    if (!response.ok) return;
+    const payload = await response.json();
+    state.rebuildStatus = payload.status || null;
+    syncAdminRebuildTargetsFromStatus();
+    syncSnapshotControls();
+    renderOperationStatus();
+    renderAdminPanel(state.snapshot);
+    const isActive = state.rebuildStatus?.active === true;
+    if (isActive) scheduleRebuildStatusPoll();
+    else {
+      stopRebuildStatusPoll();
+      if (wasActive) loadSnapshot({ silent: true, queueIfBusy: true });
+    }
+  } catch (_error) {
+    // Keep the last visible status until the next successful poll.
+  }
+}
+
+function scheduleRebuildStatusPoll() {
+  if (state.rebuildStatusTimer) return;
+  state.rebuildStatusTimer = window.setTimeout(() => {
+    state.rebuildStatusTimer = null;
+    loadRebuildStatus();
+  }, 2000);
+}
+
+function stopRebuildStatusPoll() {
+  if (!state.rebuildStatusTimer) return;
+  window.clearTimeout(state.rebuildStatusTimer);
+  state.rebuildStatusTimer = null;
+}
+
 async function loadAdminStatus() {
   try {
     const response = await fetch("/api/auth/status", { cache: "no-store", credentials: "same-origin" });
@@ -1454,10 +2345,51 @@ async function loadAdminStatus() {
     state.admin.authenticated = payload.admin === true;
     syncAdminControls();
     renderAdminPanel(state.snapshot);
+    loadRebuildStatus();
   } catch (_error) {
     state.admin.enabled = false;
     state.admin.authenticated = false;
+    state.rebuildStatus = null;
+    state.adminRebuildingTargets = [];
+    syncAdminControls();
+    renderOperationStatus();
   }
+}
+
+async function loginAdmin() {
+  try {
+    const password = document.getElementById("admin-password")?.value || "";
+    await apiPost("/api/auth/login", { password });
+    state.admin.enabled = true;
+    state.admin.authenticated = true;
+    state.adminMessage = "";
+    syncAdminControls();
+    loadRebuildStatus();
+    render();
+  } catch (error) {
+    state.adminMessage = String(error.message || error);
+    syncAdminControls();
+    renderAdminPanel(state.snapshot);
+  }
+}
+
+async function logoutAdmin() {
+  try {
+    await apiPost("/api/auth/logout", {});
+  } catch (_error) {
+    // Local session state is still cleared if the server already forgot the token.
+  }
+  state.admin.authenticated = false;
+  state.adminDeleteKeys.clear();
+  state.adminRebuildKeys.clear();
+  state.adminDeletingTargets = [];
+  state.adminRebuildingTargets = [];
+  state.adminPreview = null;
+  state.rebuildStatus = null;
+  state.adminMessage = "";
+  syncAdminControls();
+  renderOperationStatus();
+  render();
 }
 
 function syncAdminControls() {
@@ -1465,11 +2397,27 @@ function syncAdminControls() {
   const loginButton = document.getElementById("admin-login-button");
   const logoutButton = document.getElementById("admin-logout-button");
   const password = document.getElementById("admin-password");
+  const status = document.getElementById("admin-status");
   if (!form) return;
-  form.hidden = !state.admin.enabled && !state.admin.authenticated;
-  if (loginButton) loginButton.hidden = state.admin.authenticated;
+  form.hidden = false;
+  if (loginButton) {
+    loginButton.hidden = state.admin.authenticated || !state.admin.enabled;
+    loginButton.disabled = false;
+    loginButton.textContent = "Log in";
+  }
   if (logoutButton) logoutButton.hidden = !state.admin.authenticated;
-  if (password) password.hidden = state.admin.authenticated;
+  if (password) {
+    password.hidden = state.admin.authenticated || !state.admin.enabled;
+    password.disabled = false;
+    password.placeholder = "Admin password";
+  }
+  if (status) {
+    status.textContent = state.adminMessage || (state.admin.authenticated
+      ? "Admin unlocked"
+      : state.admin.enabled
+        ? "Enter admin password"
+        : "Admin not configured by server");
+  }
 }
 
 function renderAdminPanel(snapshot) {
@@ -1481,58 +2429,126 @@ function renderAdminPanel(snapshot) {
     return;
   }
   panel.hidden = false;
-  const targets = selectedDeleteTargets();
+  const deleteTargets = selectedDeleteTargets();
+  const rebuildTargets = selectedRebuildTargets();
   const preview = state.adminPreview;
   const counts = preview?.counts || {};
+  const busy = state.adminBusy;
+  const rebuildMessage = rebuildStatusMessage();
+  const deletingTargets = state.adminDeletingTargets || [];
+  const rebuildingTargets = state.adminRebuildingTargets || [];
+  const progressHtml = [
+    rebuildingTargets.length
+      ? `<div class="admin-targets"><span>Rebuilding now:</span> ${renderAdminTargetList(rebuildingTargets, "")}</div>`
+      : "",
+    deletingTargets.length
+      ? `<div class="admin-targets"><span>Deleting now:</span> ${renderAdminTargetList(deletingTargets, "")}</div>`
+      : "",
+    rebuildMessage ? `<div class="rebuild-inline-status ${state.rebuildStatus?.phase === "failed" ? "bad" : ""}">${esc(rebuildMessage)}</div>` : "",
+  ].join("");
   panel.innerHTML = `
-    <h2>Admin deletion</h2>
-    <form id="admin-target-form" class="admin-target-form">
-      <input id="admin-target-experiment" type="text" placeholder="experiment_id">
-      <input id="admin-target-provider" type="text" placeholder="provider_source">
-      <input id="admin-target-dataset" type="text" placeholder="dataset">
-      <button type="submit">Add target</button>
-    </form>
-    <div class="admin-targets">${targets.map((target) => `<code>${esc(deleteTargetKey(target))}</code>`).join("") || '<span class="muted">No delete target selected.</span>'}</div>
+    <h2>DB admin actions</h2>
+    ${progressHtml ? `<div class="admin-progress">${progressHtml}</div>` : ""}
     <div class="admin-actions">
-      <button id="admin-preview-delete" type="button" ${targets.length ? "" : "disabled"}>Preview delete</button>
-      <input id="admin-confirmation" type="text" placeholder="${esc(preview?.confirmation_phrase || "confirmation phrase")}">
-      <button id="admin-confirm-delete" type="button" ${preview ? "" : "disabled"}>Delete</button>
+      <button id="admin-rebuild-all" type="button" ${!busy ? "" : "disabled"}>${busy === "rebuild-all" ? "Queueing..." : "Rebuild all"}</button>
+      <button id="admin-rebuild-selected" type="button" ${rebuildTargets.length && !busy ? "" : "disabled"}>${busy === "rebuild" ? "Queueing..." : "Rebuild selected"}</button>
+      <button id="admin-preview-delete" type="button" ${deleteTargets.length && !busy ? "" : "disabled"}>${busy === "preview-delete" ? "Previewing..." : "Preview delete"}</button>
+      <button id="admin-confirm-delete" type="button" ${preview && !busy ? "" : "disabled"}>${busy === "delete" ? "Deleting..." : "Delete"}</button>
     </div>
     <div class="admin-message">${esc(state.adminMessage || "")}</div>
-    ${preview ? `<div class="panel-note">Preview: ${esc(counts.run_cells || 0)} run cells, ${esc(counts.raw_rollouts || 0)} raw rollouts, ${esc(counts.quantitative_metrics || 0)} metrics, ${esc(counts.experiments || 0)} experiments. Phrase: <code>${esc(preview.confirmation_phrase)}</code></div>` : ""}
+    ${preview ? `<div class="panel-note">Preview: ${esc(counts.run_cells || 0)} run cells, ${esc(counts.raw_rollouts || 0)} raw rollouts, ${esc(counts.quantitative_metrics || 0)} metrics, ${esc(counts.experiments || 0)} experiments.</div>` : ""}
   `;
-  document.getElementById("admin-target-form")?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const target = {
-      experiment_id: document.getElementById("admin-target-experiment")?.value || "",
-      provider_source: document.getElementById("admin-target-provider")?.value || "",
-      dataset: document.getElementById("admin-target-dataset")?.value || "",
-    };
-    state.adminManualTarget = target;
-    state.adminPreview = null;
-    renderAdminPanel(snapshot);
+  document.getElementById("admin-rebuild-all")?.addEventListener("click", async () => {
+    let queued = false;
+    try {
+      state.adminBusy = "rebuild-all";
+      state.adminRebuildingTargets = [{ scope: "all" }];
+      state.adminMessage = "Rebuild queued; clearing all dashboard detail cache in the background.";
+      renderAdminPanel(snapshot);
+      const result = await apiPost("/api/rebuild", {});
+      queued = true;
+      applyQueuedRebuildStatus(result);
+      state.adminPreview = null;
+      state.adminMessage = rebuildQueuedMessage(result);
+      await loadSnapshot({
+        silent: true,
+        queueIfBusy: true,
+      });
+    } catch (error) {
+      if (!queued && state.rebuildStatus?.active !== true) state.adminRebuildingTargets = [];
+      state.adminMessage = String(error.message || error);
+    } finally {
+      state.adminBusy = "";
+      renderAdminPanel(state.snapshot || snapshot);
+      renderExperiments(state.snapshot || snapshot);
+      loadRebuildStatus();
+    }
+  });
+  document.getElementById("admin-rebuild-selected")?.addEventListener("click", async () => {
+    const targets = selectedRebuildTargets();
+    let queued = false;
+    try {
+      state.adminBusy = "rebuild";
+      state.adminRebuildingTargets = targets;
+      state.adminMessage = "Rebuild queued; clearing selected cache in the background.";
+      renderAdminPanel(snapshot);
+      const result = await apiPost("/api/rebuild", { targets });
+      queued = true;
+      applyQueuedRebuildStatus(result);
+      state.adminPreview = null;
+      state.adminMessage = rebuildQueuedMessage(result);
+      await loadSnapshot({
+        silent: true,
+        queueIfBusy: true,
+      });
+    } catch (error) {
+      if (!queued && state.rebuildStatus?.active !== true) state.adminRebuildingTargets = [];
+      state.adminMessage = String(error.message || error);
+    } finally {
+      state.adminBusy = "";
+      renderAdminPanel(state.snapshot || snapshot);
+      renderExperiments(state.snapshot || snapshot);
+      loadRebuildStatus();
+    }
   });
   document.getElementById("admin-preview-delete")?.addEventListener("click", async () => {
+    const targets = selectedDeleteTargets();
     try {
-      state.adminPreview = await apiPost("/api/delete/preview", { targets: selectedDeleteTargets() });
+      state.adminBusy = "preview-delete";
+      state.adminMessage = "Previewing selected DB rows...";
+      renderAdminPanel(snapshot);
+      state.adminPreview = await apiPost("/api/delete/preview", { targets });
       state.adminMessage = "";
     } catch (error) {
       state.adminMessage = String(error.message || error);
+    } finally {
+      state.adminBusy = "";
     }
     renderAdminPanel(snapshot);
   });
   document.getElementById("admin-confirm-delete")?.addEventListener("click", async () => {
+    const targets = selectedDeleteTargets();
     try {
-      const confirmation = document.getElementById("admin-confirmation")?.value || "";
-      const result = await apiPost("/api/delete", { targets: selectedDeleteTargets(), confirmation });
-      state.adminMessage = `Deleted ${result.counts?.run_cells || 0} run cells; backup ${result.backup_path || "-"}`;
+      state.adminBusy = "delete";
+      state.adminDeletingTargets = targets;
+      state.adminMessage = "Deleting selected DB rows...";
+      renderAdminPanel(snapshot);
+      const result = await apiPost("/api/delete", { targets });
+      state.adminMessage = `Deleted ${result.counts?.run_cells || 0} run cells.`;
       state.adminDeleteKeys.clear();
+      state.adminRebuildKeys.clear();
       state.adminManualTarget = null;
       state.adminPreview = null;
-      await loadSnapshot({ force: true });
+      await loadSnapshot({
+        silent: true,
+      });
     } catch (error) {
       state.adminMessage = String(error.message || error);
       renderAdminPanel(snapshot);
+    } finally {
+      state.adminBusy = "";
+      state.adminDeletingTargets = [];
+      renderAdminPanel(state.snapshot || snapshot);
     }
   });
 }
@@ -2374,9 +3390,9 @@ function renderTraceTitleCard(detail, snapshot) {
         <div class="run-meta">${esc(detail.model_label || "-")} · ${esc(detail.run_id || "-")}</div>
       </div>
       <div class="trace-title-actions">
-        <button class="copy-link" type="button" data-copy-link="experiment">Experiment link</button>
-        <button class="copy-link" type="button" data-copy-link="instance">Instance link</button>
-        <button class="copy-link" type="button" data-copy-link="rollout">Rollout link</button>
+        <button class="copy-link" type="button" data-copy-link="experiment">Copy experiment URL</button>
+        <button class="copy-link" type="button" data-copy-link="instance">Copy instance URL</button>
+        <button class="copy-link" type="button" data-copy-link="rollout">Copy rollout URL</button>
         ${renderRolloutSelector(detail, snapshot)}
         ${traceStatusIcons(detail)}
       </div>
@@ -2555,13 +3571,14 @@ function traceRolloutOutcome(detail) {
 }
 
 function selectedRolloutForGroup(details) {
-  return details.find((detail) => rowKey(detail) === state.selectedTraceKey) || details[0] || null;
+  return detailForRolloutIndex(details);
 }
 
 function traceRolloutSegments(details) {
+  const selectedRollout = selectedRolloutForGroup(details);
   const segments = details.map((detail) => {
     const resolved = traceResolved(detail);
-    const selected = rowKey(detail) === state.selectedTraceKey;
+    const selected = selectedRollout && rowKey(detail) === rowKey(selectedRollout);
     const label = `Rollout ${rolloutIndex(detail) + 1}: ${traceRolloutOutcome(detail)}`;
     return `<span class="trace-rollout-segment ${resolved ? "is-resolved" : "is-unresolved"} ${selected ? "is-selected" : ""}" title="${esc(label)}" aria-label="${esc(label)}"></span>`;
   }).join("");
@@ -2578,6 +3595,49 @@ function groupedTraceDetails(snapshot) {
   return [...groups.values()];
 }
 
+function selectableRolloutDetails(snapshot) {
+  if (!state.selectedEvalCellKey) return [];
+  return activeDetails(snapshot).filter((detail) => detailCellKey(detail) === state.selectedEvalCellKey);
+}
+
+function renderGlobalRolloutSelector(snapshot) {
+  const details = selectableRolloutDetails(snapshot);
+  const maxIndex = details.reduce((maxValue, detail) => Math.max(maxValue, rolloutIndex(detail)), 0);
+  if (maxIndex <= 0) return "";
+  const current = Math.min(traceGlobalRolloutIndex(), maxIndex);
+  const options = Array.from({ length: maxIndex + 1 }, (_, index) => {
+    return `<option value="${esc(index)}" ${index === current ? "selected" : ""}>Rollout ${esc(index + 1)}</option>`;
+  }).join("");
+  return `<label class="trace-global-rollout">
+    <span>Rollout view</span>
+    <select id="trace-global-rollout-select">${options}</select>
+  </label>`;
+}
+
+function handleTraceGlobalRolloutChange(event) {
+  const scrollState = captureInspectorScroll();
+  const current = selectedDetail(state.snapshot);
+  const instanceKey = current ? traceInstanceKey(current) : null;
+  setTraceGlobalRolloutIndex(event.target.value);
+  const details = filteredDetails(state.snapshot);
+  const nextDetail = instanceKey
+    ? detailForRolloutIndex(detailsForInstance(details, instanceKey))
+    : detailForRolloutIndex(details);
+  if (nextDetail) state.selectedTraceKey = rowKey(nextDetail);
+  state.selectedStepIndex = 0;
+  state.selectedGraphNodeKey = null;
+  resetTracePanels();
+  renderTraceInspector(state.snapshot);
+  restoreInspectorScroll({ ...scrollState, middle: 0, right: 0 });
+}
+
+function renderTraceGlobalRolloutControl(snapshot) {
+  const el = document.getElementById("trace-global-rollout-slot");
+  if (!el) return;
+  el.innerHTML = renderGlobalRolloutSelector(snapshot);
+  document.getElementById("trace-global-rollout-select")?.addEventListener("change", handleTraceGlobalRolloutChange);
+}
+
 function renderTraceList(snapshot) {
   const rows = groupedTraceDetails(snapshot).map((group) => {
     const selectedDetail = selectedRolloutForGroup(group.details);
@@ -2586,14 +3646,14 @@ function renderTraceList(snapshot) {
     const total = group.details.length;
     const id = traceInstanceId(selectedDetail);
     const statusClass = resolvedCount === total ? "is-resolved" : resolvedCount === 0 ? "is-unresolved" : "is-mixed";
-    return `<button class="trace-row ${selected ? "is-selected" : ""} ${statusClass}" type="button" data-trace-key="${esc(rowKey(selectedDetail))}" data-instance-key="${esc(group.key)}" aria-label="${esc(`${id} ${resolvedCount}/${total} successful rollouts`)}">
+    return `<button class="trace-row ${selected ? "is-selected" : ""} ${statusClass}" type="button" data-trace-key="${esc(rowKey(selectedDetail))}" data-instance-key="${esc(group.key)}" data-rollout-index="${esc(rolloutIndex(selectedDetail))}" aria-label="${esc(`${id} ${resolvedCount}/${total} successful rollouts`)}">
       ${traceRolloutSegments(group.details)}
       <span class="trace-id">${esc(id)}</span>
       <span class="trace-meta">${esc(`${resolvedCount}/${total} success · selected rollout ${rolloutIndex(selectedDetail) + 1} · ${traceSummary(selectedDetail)}`)}</span>
       ${traceStatusIcons(selectedDetail)}
     </button>`;
   });
-  return rows.join("") || '<div class="empty">No instances in the selected experiment.</div>';
+  return `<div class="trace-list">${rows.join("") || '<div class="empty">No instances in the selected experiment.</div>'}</div>`;
 }
 
 function renderTraceLegend() {
@@ -2824,7 +3884,7 @@ function renderStepDetail(detail) {
     return `<section class="step-detail"><h3>Trajectory detail</h3><div class="empty">Raw step content was not captured for this artifact.</div></section>`;
   }
   return `<section class="step-detail">
-    <div class="step-detail-head"><h3>Step ${esc(displayStepLabel(step, detail, Number(step.trace_index ?? step.step_index ?? 0)))}</h3><button class="copy-link" type="button" data-copy-link="step">Step link</button></div>
+    <div class="step-detail-head"><h3>Step ${esc(displayStepLabel(step, detail, Number(step.trace_index ?? step.step_index ?? 0)))}</h3><button class="copy-link" type="button" data-copy-link="step">Copy step URL</button></div>
     <div class="detail-badges">
       ${step.execution_error || step.status === "error" ? badge("execution error", true, "bad") : ""}
       ${step.parse_error ? badge("parse error", true, "bad") : ""}
@@ -2833,7 +3893,7 @@ function renderStepDetail(detail) {
     <div class="detail-grid">
       ${renderStepNodeHits(step, detail)}
       <section><h4>Tool calls</h4>${renderToolCalls(step)}</section>
-      ${renderToggle("Reasoning", step.reasoning_text || "(empty)")}
+      ${renderToggle("Reasoning", step.reasoning_text || "(empty)", "", true)}
       ${renderToggle("Chat", step.chat_text || step.response_text || "(empty)")}
       ${hasInlineDiff(step) ? renderDiff(step.old_str, step.new_str) : ""}
       ${renderToggle("Action", step.raw_action || step.tool_calls || [])}
@@ -2843,11 +3903,32 @@ function renderStepDetail(detail) {
 }
 
 function renderTraceInspector(snapshot) {
-  const detail = selectedDetail(snapshot);
+  renderTracePatternStats(snapshot);
+  renderTraceGlobalRolloutControl(snapshot);
   if (!state.selectedEvalCellKey) {
     document.getElementById("trace-inspector").innerHTML = '<div class="empty">Select a dataset and eval cell/model before inspecting trajectories.</div>';
     return;
   }
+  const detailsLoading = state.detailLoadBusyKeys.has(state.selectedEvalCellKey);
+  if (detailsLoading && loadedDetailCountForCell(snapshot, state.selectedEvalCellKey) <= 0) {
+    document.getElementById("trace-inspector").innerHTML = renderDetailLoadProgress(state.selectedEvalCellKey);
+    return;
+  }
+  if (cellNeedsDetailLoad(snapshot, state.selectedEvalCellKey)) {
+    state.detailLoadProgress[state.selectedEvalCellKey] = {
+      loaded: 0,
+      total: expectedCellDetailCount(snapshot, state.selectedEvalCellKey),
+    };
+    deferTask(() => loadCellDetails(state.selectedEvalCellKey));
+    document.getElementById("trace-inspector").innerHTML = renderDetailLoadProgress(state.selectedEvalCellKey);
+    return;
+  }
+  const detailError = state.detailLoadErrors[state.selectedEvalCellKey];
+  if (detailError) {
+    document.getElementById("trace-inspector").innerHTML = `<div class="empty">Trajectory details failed to load: ${esc(detailError)}</div>`;
+    return;
+  }
+  const detail = selectedDetail(snapshot);
   if (!detail) {
     document.getElementById("trace-inspector").innerHTML = '<div class="empty">No trajectory details are available for this experiment.</div>';
     return;
@@ -2857,7 +3938,9 @@ function renderTraceInspector(snapshot) {
   if (!selectedSteps.has(Number(state.selectedStepIndex))) {
     state.selectedStepIndex = Number([...selectedSteps.keys()][0] ?? 0);
   }
+  const detailLoadBanner = detailsLoading ? `<div class="trace-load-banner">${renderDetailLoadProgress(state.selectedEvalCellKey)}</div>` : "";
   document.getElementById("trace-inspector").innerHTML = `
+    ${detailLoadBanner}
     <aside id="trace-left-pane" class="trace-left">${renderTraceList(snapshot)}</aside>
     <section class="trace-workspace">
       <div class="trace-overview">${renderTraceTitleCard(detail, snapshot)}</div>
@@ -2946,6 +4029,7 @@ function render(options = {}) {
   ensureSelection(snapshot);
   syncFilterControls();
   renderSources(snapshot);
+  renderOperationStatus();
   renderSelectedExperiment(snapshot);
   renderSummary(snapshot);
   renderAdminPanel(snapshot);
@@ -2956,9 +4040,9 @@ function render(options = {}) {
   renderRuns(snapshot);
   document.getElementById("trace-legend").innerHTML = renderTraceLegend();
   renderTraceInspector(snapshot);
+  renderTracePatternStats(snapshot);
   restoreTableScroll(tableScrollState);
   restoreInspectorScroll(options.scrollState);
-  syncHashToSelection();
 }
 
 function setTab(tabName) {
@@ -2969,8 +4053,7 @@ function setTab(tabName) {
 
 function configureEvents() {
   document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click", () => setTab(tab.dataset.tab)));
-  document.getElementById("refresh-button").addEventListener("click", loadSnapshot);
-  document.getElementById("rebuild-button").addEventListener("click", () => loadSnapshot({ force: true }));
+  document.getElementById("refresh-button").addEventListener("click", () => loadSnapshot({ dropSelectedDetails: true }));
   document.querySelectorAll(".case-filter-checkbox").forEach((input) => {
     input.addEventListener("change", (event) => {
       const bucket = event.target.dataset.caseFilter;
@@ -2997,39 +4080,20 @@ function configureEvents() {
     event.preventDefault();
     const locator = parseLocator(document.getElementById("permalink-input")?.value || "");
     if (!locator) {
-      state.permalinkNotice = "Link format was not recognized.";
+      state.permalinkNotice = "URL format was not recognized.";
       renderSelectedExperiment(state.snapshot);
       return;
     }
     state.pendingLocator = locator;
     render();
   });
-  document.getElementById("admin-login")?.addEventListener("submit", async (event) => {
+  document.getElementById("admin-login")?.addEventListener("submit", (event) => {
     event.preventDefault();
-    try {
-      const password = document.getElementById("admin-password")?.value || "";
-      await apiPost("/api/auth/login", { password });
-      state.admin.enabled = true;
-      state.admin.authenticated = true;
-      state.adminMessage = "";
-      syncAdminControls();
-      render();
-    } catch (error) {
-      state.adminMessage = String(error.message || error);
-      renderAdminPanel(state.snapshot);
-    }
+    loginAdmin();
   });
-  document.getElementById("admin-logout-button")?.addEventListener("click", async () => {
-    try {
-      await apiPost("/api/auth/logout", {});
-    } catch (_error) {
-      // Local session state is still cleared if the server already forgot the token.
-    }
-    state.admin.authenticated = false;
-    state.adminDeleteKeys.clear();
-    state.adminPreview = null;
-    syncAdminControls();
-    render();
+  document.getElementById("admin-logout-button")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    logoutAdmin();
   });
   document.getElementById("trace-search").addEventListener("input", (event) => {
     state.traceQuery = event.target.value;
@@ -3051,16 +4115,25 @@ function configureEvents() {
       render();
     });
   });
+  document.querySelectorAll(".trace-pattern-cycle").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      const tag = event.currentTarget.dataset.patternFilter;
+      if (!tag || !TRACE_PATTERN_FILTERS.includes(tag)) return;
+      const value = nextTracePatternFilterValue(state.tracePatternFilters[tag]);
+      state.tracePatternFilters[tag] = TRACE_PATTERN_FILTER_VALUES.includes(value) ? value : null;
+      state.selectedTraceKey = null;
+      state.selectedStepIndex = 0;
+      state.selectedGraphNodeKey = null;
+      resetTracePanels();
+      render();
+    });
+  });
   document.getElementById("auto-refresh").addEventListener("change", (event) => {
     if (event.target.checked) startAutoRefresh();
     else stopAutoRefresh();
   });
   if (typeof window !== "undefined") {
     window.addEventListener?.("hashchange", () => {
-      if (state.ignoreNextHashChange) {
-        state.ignoreNextHashChange = false;
-        return;
-      }
       state.pendingLocator = parseLocator(window.location?.hash || "");
       render();
     });
@@ -3069,7 +4142,11 @@ function configureEvents() {
 
 function startAutoRefresh() {
   stopAutoRefresh();
-  state.refreshTimer = setInterval(loadSnapshot, 3000);
+  state.refreshTimer = setInterval(() => {
+    loadSnapshot({ silent: true, queueIfBusy: true });
+    loadRebuildStatus();
+  }, 3000);
+  loadRebuildStatus();
 }
 
 function stopAutoRefresh() {

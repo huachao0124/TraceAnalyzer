@@ -117,6 +117,55 @@ def _json_arguments(value: Any) -> str:
         return json.dumps({"_value": str(value)}, ensure_ascii=False)
 
 
+_TEXT_TOOL_ARGUMENT_KEYS = {
+    "command",
+    "path",
+    "file",
+    "old_str",
+    "new_str",
+    "insert_line",
+    "content",
+}
+_JSON_TEXT_TOOL_ARGUMENT_KEYS = {"view_range"}
+
+
+def _coerce_text_wrapped_tool_value(key: str, value: Any) -> Any:
+    if not isinstance(value, dict) or "$text" not in value:
+        return value
+    text = value.get("$text")
+    if not isinstance(text, str):
+        return value
+    if key in _JSON_TEXT_TOOL_ARGUMENT_KEYS:
+        try:
+            return json.loads(text)
+        except (json.JSONDecodeError, ValueError, TypeError):
+            return text
+    if key in _TEXT_TOOL_ARGUMENT_KEYS:
+        return text
+    return value
+
+
+def normalize_tool_arguments(name: Any, arguments: Any) -> Any:
+    if isinstance(arguments, str):
+        return arguments
+    if not isinstance(arguments, dict):
+        return arguments
+    return {
+        key: _coerce_text_wrapped_tool_value(str(key), value)
+        for key, value in arguments.items()
+    }
+
+
+def _normalize_tool_arguments_for_json(name: Any, arguments: Any) -> Any:
+    if isinstance(arguments, str):
+        try:
+            parsed = json.loads(arguments)
+        except (json.JSONDecodeError, ValueError, TypeError):
+            return arguments
+        return normalize_tool_arguments(name, parsed)
+    return normalize_tool_arguments(name, arguments)
+
+
 def _metadata_for_index(
     metadata_by_index: dict[Any, Any] | None, index: int
 ) -> dict[str, Any]:
@@ -219,7 +268,12 @@ def to_prompt_history(
                         "type": tool_call.get("type", "function"),
                         "function": {
                             "name": fn.get("name", ""),
-                            "arguments": _json_arguments(fn.get("arguments", {})),
+                            "arguments": _json_arguments(
+                                _normalize_tool_arguments_for_json(
+                                    fn.get("name", ""),
+                                    fn.get("arguments", {}),
+                                )
+                            ),
                         },
                     }
                 )
@@ -416,7 +470,10 @@ def recover_native_tool_calls(text: str) -> tuple[str, list[dict[str, Any]], boo
                         "type": "function",
                         "function": {
                             "name": name,
-                            "arguments": json.dumps(args, ensure_ascii=False),
+                            "arguments": json.dumps(
+                                normalize_tool_arguments(name, args),
+                                ensure_ascii=False,
+                            ),
                         },
                     }
                 )
@@ -448,7 +505,12 @@ def _parse_tool_calls(raw_calls: Any) -> list[dict[str, Any]]:
             "type": raw.get("type", "function"),
             "function": {
                 "name": fn.get("name", ""),
-                "arguments": _json_arguments(fn.get("arguments", {})),
+                "arguments": _json_arguments(
+                    _normalize_tool_arguments_for_json(
+                        fn.get("name", ""),
+                        fn.get("arguments", {}),
+                    )
+                ),
             },
         }
         if raw.get("signature"):
@@ -559,7 +621,12 @@ def responses_api_response_to_payload(response: Any) -> dict[str, Any]:
                     "type": "function",
                     "function": {
                         "name": str(_field(item, "name") or ""),
-                        "arguments": _json_arguments(_field(item, "arguments")),
+                        "arguments": _json_arguments(
+                            _normalize_tool_arguments_for_json(
+                                _field(item, "name") or "",
+                                _field(item, "arguments"),
+                            )
+                        ),
                     },
                 }
             )

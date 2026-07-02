@@ -40,8 +40,6 @@ def _validate_managed_session_signature(callable_obj: Any, kwargs: dict[str, Any
     if any(param.kind == inspect.Parameter.VAR_KEYWORD for param in parameters.values()):
         return
     unsupported: list[str] = []
-    if kwargs.get("namespace") not in (None, "", "default") and "namespace" not in parameters:
-        unsupported.append("namespace")
     if kwargs.get("max_replicas") is not None and "max_replicas" not in parameters:
         unsupported.append("max_replicas")
     if unsupported:

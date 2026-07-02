@@ -374,6 +374,17 @@ def _parse_sweagent_views(text: str) -> list[dict]:
     return reads
 
 
+def _coerce_text_wrapped_value(value: object) -> object:
+    if isinstance(value, dict) and isinstance(value.get("$text"), str):
+        return value["$text"]
+    return value
+
+
+def _command_arg(args: dict) -> str:
+    command = _coerce_text_wrapped_value(args.get("command", ""))
+    return command if isinstance(command, str) else ""
+
+
 def parse_read_actions_from_tool_calls(tool_calls: list[dict]) -> list[dict]:
     """Parse read actions from structured tool_calls data (Uni-Agent native format).
 
@@ -393,9 +404,12 @@ def parse_read_actions_from_tool_calls(tool_calls: list[dict]) -> list[dict]:
                 args_raw = json.loads(args_raw)
             except (json.JSONDecodeError, ValueError):
                 continue
+        if not isinstance(args_raw, dict):
+            continue
 
-        if name == "str_replace_editor" and args_raw.get("command") == "view":
-            path = _normalize_path(args_raw.get("path", ""))
+        if name == "str_replace_editor" and _command_arg(args_raw) == "view":
+            path_value = _coerce_text_wrapped_value(args_raw.get("path", ""))
+            path = _normalize_path(path_value if isinstance(path_value, str) else "")
             view_range = args_raw.get("view_range")
             if view_range and len(view_range) == 2:
                 start_line = int(view_range[0])
@@ -405,7 +419,7 @@ def parse_read_actions_from_tool_calls(tool_calls: list[dict]) -> list[dict]:
             reads.append({"file_path": path, "start_line": start_line, "end_line": end_line})
 
         elif name == "execute_bash":
-            cmd = args_raw.get("command", "")
+            cmd = _command_arg(args_raw)
             if cmd:
                 reads.extend(_parse_bash_read_commands_from_str(cmd))
 
@@ -425,7 +439,13 @@ def _tool_call_function(tool_call: Any) -> tuple[str, dict]:
             args_raw = json.loads(args_raw)
         except (json.JSONDecodeError, ValueError):
             args_raw = {}
-    return name, args_raw if isinstance(args_raw, dict) else {}
+    if not isinstance(args_raw, dict):
+        return name, {}
+    args = dict(args_raw)
+    for key in ("command", "path", "file", "old_str", "new_str"):
+        if key in args:
+            args[key] = _coerce_text_wrapped_value(args[key])
+    return name, args
 
 
 def _write_action(file_path: str, *, start_line: int = 1, end_line: int = 999999, command: str | None = None) -> dict:
@@ -568,14 +588,14 @@ def parse_write_actions_from_tool_calls(tool_calls: list[dict]) -> list[dict]:
     writes: list[dict] = []
     for tc in tool_calls:
         name, args = _tool_call_function(tc)
-        command = str(args.get("command", "") or "")
+        command = _command_arg(args)
         if name in {"str_replace_editor", "file_editor"} and command and command != "view":
             path = args.get("path") or args.get("file")
             if isinstance(path, str) and path:
                 writes.append(_write_action(path, command=command))
         elif name == "execute_bash":
-            cmd = args.get("command", "")
-            if isinstance(cmd, str) and cmd:
+            cmd = _command_arg(args)
+            if cmd:
                 writes.extend(_extract_writes_from_command(cmd))
     return writes
 
@@ -620,7 +640,7 @@ def normalize_action(step_trace: dict, tracking_mode: str = "view_and_bash") -> 
         return {"family": "other", "target_path": None}
 
     name, args = _tool_call_function(tool_call)
-    command = str(args.get("command", "") or "")
+    command = _command_arg(args)
     path = args.get("path")
     if isinstance(path, str) and path:
         target_path = _normalize_path(path)
@@ -678,6 +698,8 @@ def segment_purpose_blocks(step_traces: list[dict], tracking_mode: str = "view_a
 
 def _parse_bash_read_commands_from_str(cmd: str) -> list[dict]:
     """Parse file-viewing bash commands from a single command string."""
+    if not isinstance(cmd, str):
+        return []
     return _extract_reads_from_command(cmd)
 
 

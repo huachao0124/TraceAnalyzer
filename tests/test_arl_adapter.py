@@ -123,8 +123,7 @@ class ArlAdapterTests(unittest.TestCase):
             set(_supported_kwargs(new_sdk, kwargs)),
             {"image", "experiment_id", "gateway_url", "timeout", "resources", "workspace_dir", "profile", "api_key"},
         )
-        with self.assertRaisesRegex(RuntimeError, "namespace"):
-            _validate_managed_session_signature(new_sdk, {**kwargs, "namespace": "p2a"})
+        _validate_managed_session_signature(new_sdk, {**kwargs, "namespace": "p2a", "max_replicas": None})
         with self.assertRaisesRegex(RuntimeError, "max_replicas"):
             _validate_managed_session_signature(new_sdk, {**kwargs, "namespace": "default", "max_replicas": 2})
 

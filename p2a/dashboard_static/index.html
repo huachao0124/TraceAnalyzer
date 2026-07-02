@@ -11,22 +11,23 @@
   <div>
     <h1>P2A unified dashboard</h1>
     <div id="source-line" class="source-line"></div>
+    <div id="operation-status" class="operation-status" hidden></div>
   </div>
   <div class="top-actions">
     <fieldset class="case-filter" aria-label="Case filter">
       <legend>Case filter</legend>
-      <label class="toggle"><input class="case-filter-checkbox" id="case-filter-direct" type="checkbox" data-case-filter="direct"> Direct</label>
+      <label class="toggle"><input class="case-filter-checkbox" id="case-filter-direct" type="checkbox" data-case-filter="direct" checked> Direct</label>
       <label class="toggle"><input class="case-filter-checkbox" id="case-filter-latent" type="checkbox" data-case-filter="latent" checked> Latent</label>
-      <label class="toggle"><input class="case-filter-checkbox" id="case-filter-exposed" type="checkbox" data-case-filter="exposed"> Exposed</label>
-      <label class="toggle"><input class="case-filter-checkbox" id="case-filter-others" type="checkbox" data-case-filter="others"> Others</label>
+      <label class="toggle"><input class="case-filter-checkbox" id="case-filter-exposed" type="checkbox" data-case-filter="exposed" checked> Exposed</label>
+      <label class="toggle"><input class="case-filter-checkbox" id="case-filter-others" type="checkbox" data-case-filter="others" checked> Others</label>
     </fieldset>
     <button id="refresh-button" type="button">Refresh</button>
-    <button id="rebuild-button" type="button">Rebuild</button>
     <label class="toggle"><input id="auto-refresh" type="checkbox"> Live</label>
-    <form id="admin-login" class="admin-login" hidden>
+    <form id="admin-login" class="admin-login">
       <input id="admin-password" type="password" autocomplete="current-password" placeholder="Admin password">
-      <button id="admin-login-button" type="submit">Admin</button>
+      <button id="admin-login-button" type="submit">Log in</button>
       <button id="admin-logout-button" type="button" hidden>Logout</button>
+      <span id="admin-status" class="admin-status"></span>
     </form>
   </div>
 </header>
@@ -39,12 +40,12 @@
 <main>
   <section class="selected-bar">
     <div>
-      <div class="selected-label">Selected scope</div>
+      <div class="selected-label">Current selection</div>
       <div id="selected-experiment">None</div>
     </div>
     <button id="clear-experiment" type="button">Clear</button>
     <form id="permalink-jump" class="permalink-jump">
-      <input id="permalink-input" type="text" placeholder="Paste dashboard link">
+      <input id="permalink-input" type="text" placeholder="Paste dashboard URL">
       <button type="submit">Go</button>
     </form>
   </section>
@@ -75,15 +76,28 @@
     <section class="section trace-toolbar">
       <h2>Trace drill-down</h2>
       <input id="trace-search" type="search" placeholder="Filter by instance, file, or pattern">
+      <div id="trace-pattern-stats" class="trace-pattern-stats" aria-live="polite"></div>
+      <div id="trace-global-rollout-slot" class="trace-global-rollout-slot"></div>
       <fieldset class="trace-pattern-filter" aria-label="Trace pattern filter">
         <legend>Pattern tags</legend>
-        <label class="toggle"><input class="trace-pattern-checkbox" type="checkbox" data-pattern-filter="miracle"> ✨</label>
-        <label class="toggle"><input class="trace-pattern-checkbox" type="checkbox" data-pattern-filter="reverse"> 🌀</label>
-        <label class="toggle"><input class="trace-pattern-checkbox" type="checkbox" data-pattern-filter="loop"> 🔁</label>
-        <label class="toggle"><input class="trace-pattern-checkbox" type="checkbox" data-pattern-filter="hit_symptom"> 🔎</label>
-        <label class="toggle"><input class="trace-pattern-checkbox" type="checkbox" data-pattern-filter="hit_root_cause"> 🎯</label>
-        <label class="toggle"><input class="trace-pattern-checkbox" type="checkbox" data-pattern-filter="edited_root_cause"> ✎</label>
-        <label class="toggle"><input class="trace-pattern-checkbox" type="checkbox" data-pattern-filter="error_spiral"> error</label>
+        <div class="trace-pattern-control" aria-label="Miracle pattern filter">
+          <button class="trace-pattern-cycle" type="button" data-pattern-filter="miracle" data-pattern-label="miracle" aria-pressed="false" title="miracle"><span class="trace-pattern-icon">✨</span><span class="trace-pattern-mark" aria-hidden="true"></span></button>
+        </div>
+        <div class="trace-pattern-control" aria-label="Reverse pattern filter">
+          <button class="trace-pattern-cycle" type="button" data-pattern-filter="reverse" data-pattern-label="reverse" aria-pressed="false" title="reverse"><span class="trace-pattern-icon">🌀</span><span class="trace-pattern-mark" aria-hidden="true"></span></button>
+        </div>
+        <div class="trace-pattern-control" aria-label="Loop pattern filter">
+          <button class="trace-pattern-cycle" type="button" data-pattern-filter="loop" data-pattern-label="loop" aria-pressed="false" title="loop"><span class="trace-pattern-icon">🔁</span><span class="trace-pattern-mark" aria-hidden="true"></span></button>
+        </div>
+        <div class="trace-pattern-control" aria-label="Hit symptom pattern filter">
+          <button class="trace-pattern-cycle" type="button" data-pattern-filter="hit_symptom" data-pattern-label="hit symptom" aria-pressed="false" title="hit symptom"><span class="trace-pattern-icon">🔎</span><span class="trace-pattern-mark" aria-hidden="true"></span></button>
+        </div>
+        <div class="trace-pattern-control" aria-label="Hit root cause pattern filter">
+          <button class="trace-pattern-cycle" type="button" data-pattern-filter="hit_root_cause" data-pattern-label="hit root cause" aria-pressed="false" title="hit root cause"><span class="trace-pattern-icon">🎯</span><span class="trace-pattern-mark" aria-hidden="true"></span></button>
+        </div>
+        <div class="trace-pattern-control" aria-label="Edited root cause pattern filter">
+          <button class="trace-pattern-cycle" type="button" data-pattern-filter="edited_root_cause" data-pattern-label="edited root cause" aria-pressed="false" title="edited root cause"><span class="trace-pattern-icon">✎</span><span class="trace-pattern-mark" aria-hidden="true"></span></button>
+        </div>
       </fieldset>
     </section>
     <div id="trace-legend"></div>

@@ -294,6 +294,66 @@ def test_internal_response_preserves_reasoning_metadata_and_tool_signature():
     assert info["text_blocks"] == [{"value": "inspect", "signature": "text-sig"}]
 
 
+def test_internal_response_unwraps_minimax_text_wrapped_command():
+    payload = {
+        "answer": [
+            {
+                "type": "tool_calls",
+                "tool_calls": [
+                    {
+                        "id": "call-minimax",
+                        "type": "function",
+                        "function": {
+                            "name": "execute_bash",
+                            "arguments": {
+                                "command": {
+                                    "$text": "cat /testbed/a.py",
+                                },
+                            },
+                        },
+                    },
+                    {
+                        "id": "call-minimax-json",
+                        "type": "function",
+                        "function": {
+                            "name": "execute_bash",
+                            "arguments": json.dumps(
+                                {"command": {"$text": "sed -n '1,20p' /testbed/b.py"}}
+                            ),
+                        },
+                    },
+                ],
+            }
+        ],
+    }
+
+    _content, tool_calls, _info = parse_internal_response(payload)
+
+    assert json.loads(tool_calls[0]["function"]["arguments"]) == {
+        "command": "cat /testbed/a.py"
+    }
+    assert json.loads(tool_calls[1]["function"]["arguments"]) == {
+        "command": "sed -n '1,20p' /testbed/b.py"
+    }
+
+
+def test_prompt_history_unwraps_text_wrapped_tool_arguments():
+    messages = _messages_with_tool_tail()[:-1]
+    messages[-1]["tool_calls"][0]["function"] = {
+        "name": "execute_bash",
+        "arguments": {"command": {"$text": "pytest -q"}},
+    }
+
+    _prompt, history = to_prompt_history(
+        messages,
+        model_name="minimax_m3-passthrough",
+        api_module=_FakeApiModule,
+    )
+
+    tool_call = history[-1]["content"][-1]["tool_calls"][0]
+    assert json.loads(tool_call["function"]["arguments"]) == {"command": "pytest -q"}
+
+
 def test_responses_api_raw_output_preserves_reasoning_summary():
     payload = responses_api_response_to_payload(
         {
