@@ -515,15 +515,18 @@ trace payloads. The raw DB stores raw trace content once in structured
 `messages_json`, `trajectory_json`, and `p2a_step_traces_json` columns;
 `rollout_json` is slim metadata and must not duplicate the full trace. Data
 flows one way from raw DB to build DB only during admin rebuild, explicit
-build-DB migration, or incremental rollout caching. Dashboard static reads use
-the build DB when all completed/error rollouts in an eval cell have valid
-materialized rows. If any
-completed/error rollout in that cell is missing valid build data, Metrics shows
-only basic progress, pass/resolved, token/cost, and length metrics; symptom/root,
-Path, pattern, order, miracle, and purpose-block KPIs stay empty until the cell
-is fully materialized. The Traces tab lists only rollouts that actually have raw
-trace content; planned-but-unrolled cells are omitted, and traces without
-materialized detail render without pattern tags. If `--bonus-map-dir` is omitted,
+build-DB migration, or incremental rollout caching. Structured rollout/system
+failures update only `run_cells.status/error` for overview and rerun
+eligibility; they do not write `raw_rollouts`, `quantitative_metrics`, or
+dashboard build-DB detail/metric rows. Dashboard static reads use the build DB
+when all completed non-error rollouts in an eval cell have valid materialized
+rows. If any completed non-error rollout in that cell is missing valid build
+data, Metrics shows only basic progress, pass/resolved, token/cost, and length
+metrics; symptom/root, Path, pattern, order, miracle, and purpose-block KPIs
+stay empty until the cell is fully materialized. The Traces tab lists only
+rollouts that actually have raw trace content; planned-but-unrolled cells are
+omitted, and traces without materialized detail render without pattern tags. If
+`--bonus-map-dir` is omitted,
 the dashboard tries `data/bonus_maps/<dataset>` under the artifact root and uses
 it only when it contains matching instance maps. If old DB rows do not carry
 issue descriptions or golden patches, the dashboard fills them from

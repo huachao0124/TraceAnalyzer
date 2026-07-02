@@ -137,9 +137,14 @@ touching this tree. The research-level `CLAUDE.md` is at the repo root.
   incremental rollout caching; dashboard read paths treat the build DB as
   read-only. Starting or restarting the dashboard server must not migrate,
   rebuild, or otherwise materialize build DB data.
+- Structured rollout/system failures are rerunnable error states, not cached
+  traces. Error cases should update only `run_cells.status/error` for overview
+  and rerun eligibility; they must not write `raw_rollouts`,
+  `quantitative_metrics`, or dashboard build-DB detail/metric rows. Dashboard
+  cache readiness is counted over completed non-error rollouts only.
 - For dashboard DB reads, use build DB materialized data when it is complete and
-  fingerprint-valid for every completed/error rollout in an eval cell. If any
-  such rollout is missing valid build data, expose only basic progress,
+  fingerprint-valid for every completed non-error rollout in an eval cell. If
+  any such rollout is missing valid build data, expose only basic progress,
   pass/resolved, token/cost, and length metrics for that cell. Symptom/root,
   Path, pattern, order, miracle, and purpose-block KPIs remain null/hidden until
   the cell is fully materialized. The Traces view should list only rollouts that
@@ -157,6 +162,11 @@ touching this tree. The research-level `CLAUDE.md` is at the repo root.
   cleanly when older artifacts do not contain them.
 - When public-facing semantics change, update the README and, where research
   claims are affected, keep the proposal/report documents synchronized.
+
+## Unit Test Policy
+
+Do not write or modify unit tests unless they are strictly necessary and the user
+has explicitly approved that test work first.
 
 ## Dashboard service deployment
 

@@ -87,12 +87,19 @@ API_QUOTA_ERROR_RE = re.compile(
     r")",
     re.IGNORECASE,
 )
+API_SERVER_ERROR_RE = re.compile(
+    r"(?:\bHTTP[/ ]?|\bstatus\s*[=: ]\s*)50[0-4]\b|"
+    r"\b50[0-4]\s+(?:Internal Server Error|Bad Gateway|Service Unavailable|Gateway Timeout)\b|"
+    r"no available account selected",
+    re.IGNORECASE,
+)
 SYSTEM_ERROR_KINDS = {
     "arl_config_missing",
     "arl_shell_forbidden",
     "arl_shell_unavailable",
     "arl_gateway_unreachable",
     "api_quota_exhausted",
+    "api_server_error",
     "image_pull_failed",
     "network_error",
     "runtime_timeout",
@@ -110,6 +117,8 @@ def classify_error(error: BaseException | str | None) -> str | None:
         return "arl_config_missing"
     if API_QUOTA_ERROR_RE.search(text):
         return "api_quota_exhausted"
+    if API_SERVER_ERROR_RE.search(text):
+        return "api_server_error"
     if "websocket" in lowered and ("403" in lowered or "forbidden" in lowered or "rejected" in lowered):
         return "arl_shell_forbidden"
     if "interactive shell" in lowered or "/shell" in lowered:
@@ -670,7 +679,7 @@ class IncrementalRolloutSink:
                     if self.bonus_map_dir is not None:
                         conn.execute("SAVEPOINT dashboard_detail_cache")
                         try:
-                            write_dashboard_detail_cache_for_record(
+                            cache_result = write_dashboard_detail_cache_for_record(
                                 conn,
                                 cell_id=cell_id,
                                 record=record,
@@ -681,7 +690,10 @@ class IncrementalRolloutSink:
                                 index=self.count,
                             )
                             conn.execute("RELEASE dashboard_detail_cache")
-                            self.n_detail_cached += 1
+                            if cache_result.get("ok"):
+                                self.n_detail_cached += 1
+                            else:
+                                self.n_detail_cache_failed += 1
                         except Exception:
                             conn.execute("ROLLBACK TO dashboard_detail_cache")
                             conn.execute("RELEASE dashboard_detail_cache")

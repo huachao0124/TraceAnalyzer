@@ -1293,6 +1293,8 @@ def write_dashboard_detail_cache_for_record(
     ).fetchone()
     if cell_row is None:
         return {"ok": False, "reason": "raw_cell_missing"}
+    if str(cell_row["status"] or "") != DONE_STATUS:
+        return {"ok": False, "reason": "raw_cell_not_done"}
     raw_hash = cell_row["rollout_sha256"] or _sha256_text(json_dumps(_scoreable_record(record)))
     request = DashboardRequest(
         db_path=Path(raw_db_value),
@@ -3030,7 +3032,7 @@ def _materialized_model_metrics_rows(
     counts: dict[str, dict[str, int]] = defaultdict(lambda: {"ready": 0, "pending": 0})
     valid_details: list[dict[str, Any]] = []
     for detail in cached_details:
-        if detail.get("cell_status") not in {DONE_STATUS, ERROR_STATUS}:
+        if detail.get("cell_status") != DONE_STATUS:
             continue
         key = _eval_cell_key(detail)
         if detail.get("dashboard_cache_pending"):
@@ -3098,7 +3100,7 @@ def _build_cache_counts_by_key(
     cached_details = _load_db_cached_details(conn, cache_request, build_conn=build_conn)
     counts: dict[str, dict[str, int]] = defaultdict(lambda: {"ready": 0, "pending": 0})
     for detail in cached_details:
-        if detail.get("cell_status") not in {DONE_STATUS, ERROR_STATUS}:
+        if detail.get("cell_status") != DONE_STATUS:
             continue
         key = _eval_cell_key(detail)
         if detail.get("dashboard_cache_pending"):
@@ -3422,7 +3424,7 @@ def _merge_build_model_rows(
         key = base["eval_cell_key"]
         row = dict(base)
         build_row = build_by_key.get(key)
-        completed_rollouts = int(base.get("done_rollouts") or 0) + int(base.get("errors") or 0)
+        completed_rollouts = int(base.get("done_rollouts") or 0)
         counts = build_cache_counts.get(key, {"ready": 0, "pending": 0})
         build_coverage = int(counts.get("ready") or 0) + int(counts.get("pending") or 0)
         build_counts_match = bool(build_row) and int(build_row.get("detail_cache_ready_rollouts") or 0) == int(
@@ -3451,7 +3453,7 @@ def _build_model_metrics_are_stale(
             if build_coverage:
                 return True
             continue
-        completed_rollouts = int(base.get("done_rollouts") or 0) + int(base.get("errors") or 0)
+        completed_rollouts = int(base.get("done_rollouts") or 0)
         build_counts_match = int(build_row.get("detail_cache_ready_rollouts") or 0) == int(counts.get("ready") or 0) and int(
             build_row.get("detail_cache_pending_rollouts") or 0
         ) == int(counts.get("pending") or 0)

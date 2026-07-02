@@ -882,6 +882,7 @@ def completed_instance_ids(
           AND c.model_api_name = ?
           AND c.dataset = ?
           AND c.status = ?
+          AND r.cell_id IS NOT NULL
           AND NOT ({EMPTY_ROLLOUT_SQL})
         """,
         (experiment_id, provider_source, model_api_name, dataset, DONE_STATUS),
@@ -907,6 +908,7 @@ def completed_rollout_keys(
           AND c.model_api_name = ?
           AND c.dataset = ?
           AND c.status = ?
+          AND r.cell_id IS NOT NULL
           AND NOT ({EMPTY_ROLLOUT_SQL})
         """,
         (experiment_id, provider_source, model_api_name, dataset, DONE_STATUS),
@@ -1096,6 +1098,11 @@ def upsert_rollout_record(
             cell_id,
         ),
     )
+
+    if record_error:
+        conn.execute("DELETE FROM raw_rollouts WHERE cell_id = ?", (cell_id,))
+        conn.execute("DELETE FROM quantitative_metrics WHERE cell_id = ?", (cell_id,))
+        return cell_id
 
     token_usage = record.get("token_usage") if isinstance(record.get("token_usage"), dict) else {}
     cache_metrics = record.get("metrics") if isinstance(record.get("metrics"), dict) else {}
@@ -1759,7 +1766,7 @@ def aggregate_model_metrics(
         errors = [row for row in group if row["status"] == ERROR_STATUS]
         metric_rows = done
         k_metric_rows = [_k_metric_row(row) for row in group if row["status"] in {DONE_STATUS, ERROR_STATUS}]
-        cache_scope_rows = [row for row in group if row["status"] in {DONE_STATUS, ERROR_STATUS}]
+        cache_scope_rows = [row for row in group if row["status"] == DONE_STATUS]
         detail_cache_ready = sum(1 for row in cache_scope_rows if row.get("fingerprint"))
         detail_cache_pending = max(0, len(cache_scope_rows) - detail_cache_ready)
         rollout_n = _rollout_n(group)

@@ -5,7 +5,7 @@ const state = {
   selectedEvalCellKey: null,
   selectedExperimentKey: null,
   selectedTraceKey: null,
-  traceRolloutIndex: 0,
+  traceGlobalRolloutIndex: 0,
   selectedStepIndex: 0,
   selectedGraphNodeKey: null,
   activeTracePanel: "steps",
@@ -504,14 +504,30 @@ function traceInstanceKey(detail) {
   return `${detailCellKey(detail) || "cell"}::${traceInstanceId(detail)}`;
 }
 
+function normalizeRolloutIndex(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? Math.trunc(number) : 0;
+}
+
 function rolloutIndex(detail) {
-  const value = Number(detail?.rollout_index);
-  return Number.isFinite(value) && value >= 0 ? Math.trunc(value) : 0;
+  return normalizeRolloutIndex(detail?.rollout_index);
 }
 
 function traceGlobalRolloutIndex() {
-  const value = Number(state.traceRolloutIndex);
-  return Number.isFinite(value) && value >= 0 ? Math.trunc(value) : 0;
+  return normalizeRolloutIndex(state.traceGlobalRolloutIndex);
+}
+
+function setTraceGlobalRolloutIndex(value) {
+  state.traceGlobalRolloutIndex = normalizeRolloutIndex(value);
+}
+
+function maxRolloutIndex(details) {
+  return (details || []).reduce((maxValue, detail) => Math.max(maxValue, rolloutIndex(detail)), 0);
+}
+
+function clampTraceGlobalRolloutIndex(details) {
+  const maxIndex = maxRolloutIndex(details);
+  if (traceGlobalRolloutIndex() > maxIndex) setTraceGlobalRolloutIndex(maxIndex);
 }
 
 function compareTraceDetails(a, b) {
@@ -1008,9 +1024,11 @@ function ensureSelection(snapshot) {
     resetTracePanels();
     return;
   }
+  clampTraceGlobalRolloutIndex(details);
   if (!state.selectedTraceKey || !details.some((detail) => rowKey(detail) === state.selectedTraceKey)) {
     const preferred = details.find((detail) => detail.raw_available || (detail.step_details || []).length || (detail.step_inspection || []).length) || details[0];
-    state.selectedTraceKey = rowKey(preferred);
+    const selected = detailForRolloutIndex(detailsForInstance(details, traceInstanceKey(preferred)));
+    state.selectedTraceKey = rowKey(selected || preferred);
     state.selectedStepIndex = 0;
     state.selectedGraphNodeKey = null;
     resetTracePanels();
@@ -1211,7 +1229,8 @@ function runPendingCount(row) {
 }
 
 function cacheStatus(row) {
-  const total = runDoneCount(row) + runErrorCount(row);
+  const total = runDoneCount(row);
+  const errors = runErrorCount(row);
   const hasReady = Object.prototype.hasOwnProperty.call(row, "cache_ready");
   const hasPending = Object.prototype.hasOwnProperty.call(row, "cache_pending");
   const ready = hasReady ? numeric(row.cache_ready) : null;
@@ -1223,6 +1242,7 @@ function cacheStatus(row) {
   if (ready !== null && total > 0 && ready < total) return `${ready}/${total} cached`;
   if (ready !== null && total > 0) return `${ready}/${total} cached`;
   if (ready === null && pending === null && total > 0) return "unknown";
+  if (total <= 0 && errors > 0) return "no completed traces";
   return "ready";
 }
 
@@ -1843,7 +1863,7 @@ function applyLocator(snapshot, locator) {
       state.permalinkMissing = false;
       state.permalinkNotice = "Loading URL target trajectory details...";
       state.selectedTraceKey = null;
-      if (locator.rollout_index !== undefined) state.traceRolloutIndex = rolloutIndex({ rollout_index: locator.rollout_index });
+      if (locator.rollout_index !== undefined) setTraceGlobalRolloutIndex(locator.rollout_index);
       state.selectedStepIndex = Number(locator.step_index || 0);
       state.selectedGraphNodeKey = locator.graph_node || null;
       setTab(locator.tab === "traces" || needsTrace ? "traces" : "overview");
@@ -1856,7 +1876,7 @@ function applyLocator(snapshot, locator) {
   }
   if (detail) {
     state.selectedTraceKey = rowKey(detail);
-    state.traceRolloutIndex = rolloutIndex(detail);
+    setTraceGlobalRolloutIndex(rolloutIndex(detail));
   }
   state.selectedStepIndex = Number(locator.step_index || 0);
   state.selectedGraphNodeKey = locator.graph_node || null;
@@ -2160,13 +2180,13 @@ function fillMissingDetails(snapshot, key, cell, total, message) {
 function selectedCellCanHaveDetails(snapshot, key) {
   const row = experimentRows(snapshot).find((item) => cellKey(item) === key);
   if (!row) return false;
-  return runDoneCount(row) + runErrorCount(row) + Number(row.detail_count || 0) > 0;
+  return runDoneCount(row) + Number(row.detail_count || 0) > 0;
 }
 
 function expectedCellDetailCount(snapshot, key) {
   const row = experimentRows(snapshot).find((item) => cellKey(item) === key);
   if (!row) return 0;
-  return runDoneCount(row) + runErrorCount(row) || Number(row.detail_count || 0);
+  return runDoneCount(row) || Number(row.detail_count || 0);
 }
 
 function renderDetailLoadProgress(key) {
@@ -3598,7 +3618,7 @@ function handleTraceGlobalRolloutChange(event) {
   const scrollState = captureInspectorScroll();
   const current = selectedDetail(state.snapshot);
   const instanceKey = current ? traceInstanceKey(current) : null;
-  state.traceRolloutIndex = rolloutIndex({ rollout_index: event.target.value });
+  setTraceGlobalRolloutIndex(event.target.value);
   const details = filteredDetails(state.snapshot);
   const nextDetail = instanceKey
     ? detailForRolloutIndex(detailsForInstance(details, instanceKey))
@@ -3935,7 +3955,6 @@ function renderTraceInspector(snapshot) {
     button.addEventListener("click", () => {
       const leftScroll = document.getElementById("trace-left-pane")?.scrollTop || 0;
       state.selectedTraceKey = button.dataset.traceKey;
-      state.traceRolloutIndex = rolloutIndex({ rollout_index: button.dataset.rolloutIndex });
       state.selectedStepIndex = 0;
       state.selectedGraphNodeKey = null;
       resetTracePanels();
@@ -3946,8 +3965,6 @@ function renderTraceInspector(snapshot) {
   document.getElementById("trace-rollout-select")?.addEventListener("change", (event) => {
     const scrollState = captureInspectorScroll();
     state.selectedTraceKey = event.target.value;
-    const selected = filteredDetails(state.snapshot).find((detail) => rowKey(detail) === state.selectedTraceKey);
-    if (selected) state.traceRolloutIndex = rolloutIndex(selected);
     state.selectedStepIndex = 0;
     state.selectedGraphNodeKey = null;
     resetTracePanels();
