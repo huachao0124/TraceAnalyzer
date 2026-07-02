@@ -21,7 +21,7 @@ from p2a.api_providers import make_chat_model, normalize_provider_config, provid
 from p2a.bonus_map_scope import parse_bonus_map_instance_filter, select_rows_by_bonus_map_scope
 from p2a.core import BonusMapStore
 from p2a.dashboard_adapter import write_dashboard_detail_cache_for_record
-from p2a.eval_cache import ensure_db, ingest_artifacts, upsert_experiment, upsert_rollout_record
+from p2a.eval_cache import EMPTY_ROLLOUT_ERROR_KIND, ensure_db, ingest_artifacts, rollout_record_error, upsert_experiment, upsert_rollout_record
 from p2a.eval_fault_localization import (
     _json_default,
     iter_records,
@@ -96,6 +96,7 @@ SYSTEM_ERROR_KINDS = {
     "image_pull_failed",
     "network_error",
     "runtime_timeout",
+    EMPTY_ROLLOUT_ERROR_KIND,
 }
 RecordSink = Callable[[dict[str, Any]], Any]
 
@@ -559,7 +560,7 @@ def build_dump_record(
     responses = [trace["response_text"] for trace in traces if trace.get("response_text")]
     termination_reason = trajectory[-1].get("exit_reason") if trajectory else "error" if error else "unknown"
 
-    return {
+    payload = {
         "schema_version": "p2a_third_party_rollout_v1",
         "run_id": run_id,
         "rollout_index": rollout_index,
@@ -586,6 +587,13 @@ def build_dump_record(
         "error_stage": error_stage,
         "system_error": is_system_error_kind(error_kind),
     }
+    derived_error = rollout_record_error(payload)
+    if derived_error and not payload["error"]:
+        payload["error"] = derived_error
+        payload["error_kind"] = EMPTY_ROLLOUT_ERROR_KIND
+        payload["error_stage"] = payload["error_stage"] or "interaction"
+        payload["system_error"] = True
+    return payload
 
 
 class IncrementalRolloutSink:

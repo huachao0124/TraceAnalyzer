@@ -1,12 +1,13 @@
 import asyncio
 import json
+import sqlite3
 from types import SimpleNamespace
 
 import numpy as np
 
 from p2a.core import BonusMapStore
 from p2a.eval_fault_localization import score_record
-from p2a.eval_cache import aggregate_model_metrics, ensure_db
+from p2a.eval_cache import aggregate_model_metrics, completed_rollout_keys, default_dashboard_build_db_path, ensure_db, upsert_rollout_record
 from p2a.dashboard_adapter import DashboardRequest, build_dashboard_snapshot
 from p2a.third_party_eval import (
     IncrementalRolloutSink,
@@ -277,6 +278,94 @@ def test_classify_error_marks_api_resource_failures_as_system_error():
     assert classify_error("余额不足，请充值") == "api_quota_exhausted"
 
 
+def test_dump_record_marks_empty_unknown_error_trace_as_system_error():
+    record = build_dump_record(
+        _row(),
+        run_id="run-empty",
+        model_name="demo-model",
+        base_url="https://example.test",
+        interaction_result={
+            "messages": [{"role": "system", "content": "system prompt"}],
+            "trajectory": [
+                {
+                    "done": False,
+                    "exit_reason": "unknown_error",
+                    "response": "",
+                    "step_idx": 1,
+                    "thought": "",
+                    "tool_results": [],
+                }
+            ],
+        },
+        reward_score=None,
+        reward_details=None,
+    )
+
+    assert record["error_kind"] == "empty_trace"
+    assert record["error_stage"] == "interaction"
+    assert record["system_error"] is True
+    assert "Empty rollout trace" in record["error"]
+
+
+def test_empty_unknown_error_trace_is_not_treated_as_completed_for_rerun(tmp_path):
+    db_path = tmp_path / "traces.sqlite"
+    record = build_dump_record(
+        _row(),
+        run_id="run-empty",
+        model_name="demo-model",
+        base_url="https://example.test",
+        rollout_index=0,
+        interaction_result={
+            "messages": [{"role": "system", "content": "system prompt"}],
+            "trajectory": [
+                {
+                    "done": False,
+                    "exit_reason": "unknown_error",
+                    "response": "",
+                    "step_idx": 1,
+                    "thought": "",
+                    "tool_results": [],
+                }
+            ],
+        },
+        reward_score=None,
+        reward_details=None,
+    )
+
+    with ensure_db(db_path) as conn:
+        upsert_rollout_record(
+            conn,
+            experiment_id="exp",
+            provider_source="internal_api",
+            model_api_name="demo-model",
+            model_label="demo-model",
+            dataset="swebench-hard",
+            record=record,
+        )
+        conn.commit()
+        cell = conn.execute("SELECT status, error FROM run_cells").fetchone()
+        completed = completed_rollout_keys(
+            conn,
+            experiment_id="exp",
+            provider_source="internal_api",
+            model_api_name="demo-model",
+            dataset="swebench-hard",
+        )
+        conn.execute("UPDATE run_cells SET status = 'done', error = NULL")
+        legacy_completed = completed_rollout_keys(
+            conn,
+            experiment_id="exp",
+            provider_source="internal_api",
+            model_api_name="demo-model",
+            dataset="swebench-hard",
+        )
+
+    assert cell["status"] == "error"
+    assert "Empty rollout trace" in cell["error"]
+    assert completed == set()
+    assert legacy_completed == set()
+
+
 def test_dump_record_is_readable_by_fault_localization_scorer(tmp_path):
     bonus_dir = tmp_path / "bonus_maps"
     bonus_dir.mkdir()
@@ -516,9 +605,15 @@ def test_incremental_rollout_sink_writes_dashboard_detail_cache(tmp_path):
     with ensure_db(db_path) as conn:
         row = conn.execute("SELECT fingerprint, metrics_json FROM quantitative_metrics").fetchone()
     metrics = json.loads(row["metrics_json"])
-    assert row["fingerprint"]
-    assert metrics["detail"]["root_hit"] is True
-    assert metrics["dashboard_detail_cache"]["fingerprint"] == row["fingerprint"]
+    assert row["fingerprint"] is None
+    assert "detail" not in metrics
+    with sqlite3.connect(default_dashboard_build_db_path(db_path)) as build_conn:
+        build_conn.row_factory = sqlite3.Row
+        build_detail = build_conn.execute("SELECT fingerprint, detail_json, cache_metadata_json FROM dashboard_rollout_details").fetchone()
+        build_metric = build_conn.execute("SELECT metrics_json FROM dashboard_model_metrics").fetchone()
+    assert json.loads(build_detail["detail_json"])["root_hit"] is True
+    assert json.loads(build_detail["cache_metadata_json"])["fingerprint"] == build_detail["fingerprint"]
+    assert json.loads(build_metric["metrics_json"])["root_hit_rate"] == 1.0
 
     snapshot = build_dashboard_snapshot(
         DashboardRequest(
@@ -539,7 +634,7 @@ def test_incremental_rollout_sink_writes_dashboard_detail_cache(tmp_path):
             include_detail_metrics=True,
             include_raw_trace_fallback=False,
         )[0]
-    assert cached_row["root_hit_rate"] == 1.0
+    assert cached_row["root_hit_rate"] is None
 
 
 def test_incremental_rollout_sink_keeps_raw_write_when_dashboard_cache_fails(monkeypatch, tmp_path):

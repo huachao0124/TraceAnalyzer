@@ -13,7 +13,10 @@ from p2a.dashboard_adapter import (
     _looks_like_error,
     _normalize_detail,
     build_dashboard_snapshot,
+    migrate_dashboard_databases,
     read_dashboard_log,
+    slim_dashboard_raw_db,
+    validated_cached_model_metrics,
     write_dashboard_detail_cache_for_record,
 )
 from p2a import dashboard_adapter, dashboard_server
@@ -21,6 +24,7 @@ from p2a.dashboard_server import write_static_dashboard
 from p2a.eval_cache import (
     count_run_data,
     count_run_data_targets,
+    default_dashboard_build_db_path,
     delete_run_data,
     ensure_db,
     aggregate_model_metrics,
@@ -542,10 +546,16 @@ def test_unified_dashboard_snapshot_includes_db_model_metrics(tmp_path):
     assert snapshot["details"][0]["step_inspection"][0]["recovered_reads"][0]["file_path"] == "a.py"
     with ensure_db(db) as conn:
         row = conn.execute("SELECT fingerprint, metrics_json FROM quantitative_metrics").fetchone()
-        assert row["fingerprint"]
         metrics = json.loads(row["metrics_json"])
-        assert "detail" in metrics
-        assert metrics["dashboard_detail_cache"]["fingerprint"] == row["fingerprint"]
+        assert row["fingerprint"] is None
+        assert "detail" not in metrics
+    with sqlite3.connect(default_dashboard_build_db_path(db)) as build_conn:
+        build_conn.row_factory = sqlite3.Row
+        row = build_conn.execute("SELECT fingerprint, detail_json, cache_metadata_json FROM dashboard_rollout_details").fetchone()
+        detail = json.loads(row["detail_json"])
+        metadata = json.loads(row["cache_metadata_json"])
+        assert detail["root_hit"] is True
+        assert metadata["fingerprint"] == row["fingerprint"]
 
 
 def test_dashboard_fingerprint_cache_hit_and_bonus_map_miss(monkeypatch, tmp_path):
@@ -592,6 +602,66 @@ def test_dashboard_fingerprint_cache_hit_and_bonus_map_miss(monkeypatch, tmp_pat
     assert calls["n"] == 1
 
 
+def test_force_db_detail_rebuild_ignores_valid_but_stale_build_detail(tmp_path):
+    db = tmp_path / "traces.sqlite"
+    bonus_dir = tmp_path / "bonus"
+    bonus_dir.mkdir()
+    (bonus_dir / "case-1.json").write_text(json.dumps(_bonus_map("case-1")), encoding="utf-8")
+    with ensure_db(db) as conn:
+        upsert_experiment(conn, experiment_id="exp", provider_source="internal_api", dataset="swebench-hard", config_snapshot={})
+        upsert_rollout_record(
+            conn,
+            experiment_id="exp",
+            provider_source="internal_api",
+            model_api_name="dummy-model",
+            model_label="dummy",
+            dataset="swebench-hard",
+            record=_rollout("case-1"),
+        )
+        conn.commit()
+
+    first = build_dashboard_snapshot(DashboardRequest(db_path=db, experiment_id="exp", bonus_map_dir=bonus_dir))
+    assert first["details"][0]["root_hit"] is True
+    assert first["details"][0]["purpose_blocks"]
+
+    stale_detail = dict(first["details"][0])
+    stale_detail.update(
+        {
+            "has_step_traces": False,
+            "n_reads": 0,
+            "n_steps_with_reads": 0,
+            "root_hit": False,
+            "anchor_hit": False,
+            "edited_root_cause": False,
+            "purpose_blocks": [],
+            "bad_patterns": {"has_loop": False, "error_spiral": False},
+        }
+    )
+    build_db = default_dashboard_build_db_path(db)
+    with sqlite3.connect(build_db) as build_conn:
+        build_conn.execute("UPDATE dashboard_rollout_details SET detail_json = ?", (json.dumps(stale_detail),))
+        build_conn.commit()
+
+    cached = build_dashboard_snapshot(DashboardRequest(db_path=db, experiment_id="exp", bonus_map_dir=bonus_dir))
+    assert cached["details"][0]["root_hit"] is False
+    assert cached["details"][0]["purpose_blocks"] == []
+
+    rebuilt = build_dashboard_snapshot(
+        DashboardRequest(
+            db_path=db,
+            experiment_id="exp",
+            bonus_map_dir=bonus_dir,
+            force_db_detail_rebuild=True,
+        )
+    )
+    assert rebuilt["details"][0]["root_hit"] is True
+    assert rebuilt["details"][0]["purpose_blocks"]
+    with sqlite3.connect(build_db) as build_conn:
+        stored = json.loads(build_conn.execute("SELECT detail_json FROM dashboard_rollout_details").fetchone()[0])
+    assert stored["root_hit"] is True
+    assert stored["purpose_blocks"]
+
+
 def test_write_time_dashboard_detail_cache_feeds_light_snapshot(tmp_path):
     db = tmp_path / "traces.sqlite"
     bonus_dir = tmp_path / "bonus"
@@ -617,11 +687,17 @@ def test_write_time_dashboard_detail_cache_feeds_light_snapshot(tmp_path):
     with ensure_db(db) as conn:
         row = conn.execute("SELECT fingerprint, metrics_json FROM quantitative_metrics WHERE cell_id = ?", (cell_id,)).fetchone()
         metrics = json.loads(row["metrics_json"])
-        assert row["fingerprint"]
-        assert "detail" in metrics
-        assert metrics["dashboard_detail_cache"]["fingerprint"] == row["fingerprint"]
+        assert row["fingerprint"] is None
+        assert "detail" not in metrics
         model_row = aggregate_model_metrics(conn, experiment_id="exp")[0]
-    assert model_row["root_hit_rate"] == 1.0
+    assert model_row["root_hit_rate"] is None
+    with sqlite3.connect(default_dashboard_build_db_path(db)) as build_conn:
+        build_conn.row_factory = sqlite3.Row
+        build_detail = build_conn.execute("SELECT fingerprint, detail_json, cache_metadata_json FROM dashboard_rollout_details").fetchone()
+        build_metric = build_conn.execute("SELECT metrics_json FROM dashboard_model_metrics").fetchone()
+    assert json.loads(build_detail["detail_json"])["root_hit"] is True
+    assert json.loads(build_detail["cache_metadata_json"])["fingerprint"] == build_detail["fingerprint"]
+    assert json.loads(build_metric["metrics_json"])["root_hit_rate"] == 1.0
 
     snapshot = build_dashboard_snapshot(
         DashboardRequest(
@@ -632,10 +708,255 @@ def test_write_time_dashboard_detail_cache_feeds_light_snapshot(tmp_path):
             include_db_raw_details=False,
         )
     )
+    assert snapshot["details"] == []
+    assert snapshot["eval_cells"][0]["cache_ready"] == 1
+    assert snapshot["eval_cells"][0]["cache_pending"] == 0
+    assert snapshot["model_metrics"][0]["root_hit_rate"] == 1.0
+    with ensure_db(db) as conn:
+        cached_metrics = validated_cached_model_metrics(
+            conn,
+            DashboardRequest(db_path=db, experiment_id="exp", bonus_map_dir=bonus_dir),
+        )
+    assert cached_metrics[0]["root_hit_rate"] == 1.0
+
+
+def test_build_db_model_metrics_preserve_avg_at_k_detail_payloads(tmp_path):
+    db = tmp_path / "traces.sqlite"
+    bonus_dir = tmp_path / "bonus"
+    bonus_dir.mkdir()
+    (bonus_dir / "case-1.json").write_text(json.dumps(_bonus_map("case-1")), encoding="utf-8")
+
+    miss_record = _rollout("case-1", resolved=False)
+    miss_record["run_id"] = "run-case-1-0"
+    miss_record["rollout_index"] = 0
+    miss_record["p2a_step_traces"][0]["tool_calls"][0]["function"]["arguments"]["command"] = "cat /testbed/b.py"
+    hit_record = _rollout("case-1", resolved=True)
+    hit_record["run_id"] = "run-case-1-1"
+    hit_record["rollout_index"] = 1
+
+    with ensure_db(db) as conn:
+        upsert_experiment(conn, experiment_id="exp", provider_source="internal_api", dataset="swebench-hard", config_snapshot={})
+        upsert_planned_cells(
+            conn,
+            experiment_id="exp",
+            provider_source="internal_api",
+            model_api_name="dummy-model",
+            model_label="dummy",
+            dataset="swebench-hard",
+            instance_ids=["case-1"],
+            rollouts_per_instance=2,
+        )
+        for record in (miss_record, hit_record):
+            cell_id = upsert_rollout_record(
+                conn,
+                experiment_id="exp",
+                provider_source="internal_api",
+                model_api_name="dummy-model",
+                model_label="dummy",
+                dataset="swebench-hard",
+                record=record,
+            )
+            result = write_dashboard_detail_cache_for_record(conn, cell_id=cell_id, record=record, bonus_map_dir=bonus_dir)
+            assert result["ok"] is True
+        conn.commit()
+
+    with sqlite3.connect(default_dashboard_build_db_path(db)) as build_conn:
+        build_conn.row_factory = sqlite3.Row
+        build_metric = build_conn.execute("SELECT metrics_json FROM dashboard_model_metrics").fetchone()
+    metric = json.loads(build_metric["metrics_json"])
+    assert metric["pass_at"] == {"1": 0.0, "2": 1.0}
+    assert metric["avg_at"]["1"]["root_hit_rate"] == 0.0
+    assert metric["avg_at"]["2"]["root_hit_rate"] == 0.5
+
+    snapshot = build_dashboard_snapshot(
+        DashboardRequest(db_path=db, experiment_id="exp", defer_db_scoring=True, include_db_raw_details=False)
+    )
+    assert snapshot["details"] == []
+    assert snapshot["model_metrics"][0]["avg_at"]["1"]["root_hit_rate"] == 0.0
+    assert snapshot["model_metrics"][0]["avg_at"]["2"]["root_hit_rate"] == 0.5
+
+
+def test_deferred_metrics_keep_cached_completed_rollouts_when_one_rollout_is_rerunning(tmp_path):
+    db = tmp_path / "traces.sqlite"
+    bonus_dir = tmp_path / "bonus"
+    bonus_dir.mkdir()
+    for instance_id in ("case-1", "case-2"):
+        (bonus_dir / f"{instance_id}.json").write_text(json.dumps(_bonus_map(instance_id)), encoding="utf-8")
+
+    with ensure_db(db) as conn:
+        upsert_experiment(conn, experiment_id="exp", provider_source="internal_api", dataset="swebench-hard", config_snapshot={})
+        for instance_id in ("case-1", "case-2"):
+            record = _rollout(instance_id)
+            cell_id = upsert_rollout_record(
+                conn,
+                experiment_id="exp",
+                provider_source="internal_api",
+                model_api_name="dummy-model",
+                model_label="dummy",
+                dataset="swebench-hard",
+                record=record,
+            )
+            assert write_dashboard_detail_cache_for_record(conn, cell_id=cell_id, record=record, bonus_map_dir=bonus_dir)["ok"] is True
+        conn.execute("UPDATE run_cells SET status = 'running' WHERE instance_id = 'case-2'")
+        conn.commit()
+
+    snapshot = build_dashboard_snapshot(
+        DashboardRequest(
+            db_path=db,
+            experiment_id="exp",
+            provider_source="internal_api",
+            dataset="swebench-hard",
+            model_api_name="dummy-model",
+            model_label="dummy",
+            defer_db_scoring=True,
+            include_db_raw_details=False,
+        )
+    )
+
+    metric = snapshot["model_metrics"][0]
+    cell = snapshot["eval_cells"][0]
+    assert metric["detail_cache_ready_rollouts"] == 1
+    assert metric["detail_cache_pending_rollouts"] == 0
+    assert metric["root_hit_rate"] == 1.0
+    assert cell["cache_ready"] == 1
+    assert cell["cache_pending"] == 0
+    assert cell["done_rollouts"] == 1
+    assert cell["pending"] == 1
+
+
+def test_raw_db_stores_one_structured_trace_copy_and_can_slim_legacy_cache(tmp_path):
+    db = tmp_path / "traces.sqlite"
+    bonus_dir = tmp_path / "bonus"
+    bonus_dir.mkdir()
+    (bonus_dir / "case-1.json").write_text(json.dumps(_bonus_map("case-1")), encoding="utf-8")
+    record = _rollout("case-1")
+    with ensure_db(db) as conn:
+        upsert_experiment(conn, experiment_id="exp", provider_source="internal_api", dataset="swebench-hard", config_snapshot={})
+        cell_id = upsert_rollout_record(
+            conn,
+            experiment_id="exp",
+            provider_source="internal_api",
+            model_api_name="dummy-model",
+            model_label="dummy",
+            dataset="swebench-hard",
+            record=record,
+        )
+        result = write_dashboard_detail_cache_for_record(conn, cell_id=cell_id, record=record, bonus_map_dir=bonus_dir)
+        build_db = default_dashboard_build_db_path(db)
+        with sqlite3.connect(build_db) as build_conn:
+            build_conn.row_factory = sqlite3.Row
+            metadata = json.loads(
+                build_conn.execute("SELECT cache_metadata_json FROM dashboard_rollout_details").fetchone()["cache_metadata_json"]
+            )
+        write_dashboard_detail_cache(
+            conn,
+            cell_id=cell_id,
+            fingerprint=result["fingerprint"],
+            detail=result["detail"],
+            cache_metadata=metadata,
+        )
+        row = conn.execute("SELECT rollout_json, messages_json FROM raw_rollouts WHERE cell_id = ?", (cell_id,)).fetchone()
+        slim_payload = json.loads(row["rollout_json"])
+        assert slim_payload["run_id"] == record["run_id"]
+        assert "messages" not in slim_payload
+        assert json.loads(row["messages_json"])[0]["content"] == "fix"
+        conn.commit()
+
+    summary = slim_dashboard_raw_db(DashboardRequest(db_path=db, experiment_id="exp", bonus_map_dir=bonus_dir))
+
+    assert summary["legacy_metric_rows_slimmed"] == 1
+    assert summary["legacy_metric_rows_skipped_unbuilt"] == 0
+    assert summary["rollout_json_rows_slimmed"] == 0
+    assert summary["metric_bytes_removed"] > 0
+    with ensure_db(db) as conn:
+        metrics = json.loads(conn.execute("SELECT metrics_json FROM quantitative_metrics WHERE cell_id = ?", (cell_id,)).fetchone()["metrics_json"])
+        raw = conn.execute("SELECT fingerprint, rollout_json, messages_json FROM raw_rollouts JOIN quantitative_metrics USING(cell_id)").fetchone()
+    assert "detail" not in metrics
+    assert "dashboard_detail_cache" not in metrics
+    assert raw["fingerprint"] is None
+    assert "messages" not in json.loads(raw["rollout_json"])
+    assert json.loads(raw["messages_json"])
+
+    snapshot = build_dashboard_snapshot(
+        DashboardRequest(db_path=db, experiment_id="exp", bonus_map_dir=bonus_dir, defer_db_scoring=True, include_db_raw_details=True)
+    )
     assert snapshot["details"][0]["instance_id"] == "case-1"
-    assert snapshot["details"][0].get("dashboard_cache_pending") is not True
+    assert snapshot["details"][0]["messages"]
     assert snapshot["details"][0]["root_hit"] is True
-    assert snapshot["details"][0]["raw_available"] is False
+
+
+def test_dashboard_reads_do_not_migrate_legacy_raw_detail_cache(tmp_path):
+    db = tmp_path / "traces.sqlite"
+    bonus_dir = tmp_path / "bonus"
+    bonus_dir.mkdir()
+    (bonus_dir / "case-1.json").write_text(json.dumps(_bonus_map("case-1")), encoding="utf-8")
+    record = _rollout("case-1")
+
+    with ensure_db(db) as conn:
+        upsert_experiment(conn, experiment_id="exp", provider_source="internal_api", dataset="swebench-hard", config_snapshot={})
+        cell_id = upsert_rollout_record(
+            conn,
+            experiment_id="exp",
+            provider_source="internal_api",
+            model_api_name="dummy-model",
+            model_label="dummy",
+            dataset="swebench-hard",
+            record=record,
+        )
+        result = write_dashboard_detail_cache_for_record(conn, cell_id=cell_id, record=record, bonus_map_dir=bonus_dir)
+        conn.commit()
+
+    build_db = default_dashboard_build_db_path(db)
+    with sqlite3.connect(build_db) as build_conn:
+        build_conn.row_factory = sqlite3.Row
+        metadata = json.loads(build_conn.execute("SELECT cache_metadata_json FROM dashboard_rollout_details").fetchone()["cache_metadata_json"])
+    with ensure_db(db) as conn:
+        write_dashboard_detail_cache(
+            conn,
+            cell_id=cell_id,
+            fingerprint=result["fingerprint"],
+            detail=result["detail"],
+            cache_metadata=metadata,
+        )
+        conn.commit()
+    build_db.unlink()
+
+    snapshot = build_dashboard_snapshot(
+        DashboardRequest(
+            db_path=db,
+            experiment_id="exp",
+            bonus_map_dir=bonus_dir,
+            defer_db_scoring=True,
+            include_db_raw_details=False,
+        )
+    )
+
+    assert snapshot["details"] == []
+    assert snapshot["model_metrics"][0]["root_hit_rate"] is None
+    assert not build_db.exists()
+
+    result = migrate_dashboard_databases(
+        DashboardRequest(
+            db_path=db,
+            experiment_id="exp",
+            bonus_map_dir=bonus_dir,
+        )
+    )
+
+    assert result["legacy_build_rows"] == 1
+    with sqlite3.connect(build_db) as build_conn:
+        assert build_conn.execute("SELECT COUNT(*) FROM dashboard_rollout_details").fetchone()[0] == 1
+    migrated = build_dashboard_snapshot(
+        DashboardRequest(
+            db_path=db,
+            experiment_id="exp",
+            bonus_map_dir=bonus_dir,
+            defer_db_scoring=True,
+            include_db_raw_details=False,
+        )
+    )
+    assert migrated["model_metrics"][0]["root_hit_rate"] == 1.0
+    assert migrated["eval_cells"][0]["cache_ready"] == 1
 
 
 def test_dashboard_deferred_db_snapshot_uses_only_validated_detail_cache(monkeypatch, tmp_path):
@@ -678,6 +999,49 @@ def test_dashboard_deferred_db_snapshot_uses_only_validated_detail_cache(monkeyp
     assert stale["details"][0]["dashboard_cache_pending"] is True
 
 
+def test_dashboard_metrics_endpoint_rejects_stale_detail_cache(tmp_path):
+    db = tmp_path / "traces.sqlite"
+    bonus_dir = tmp_path / "bonus"
+    bonus_dir.mkdir()
+    bonus_path = bonus_dir / "case-1.json"
+    bonus_path.write_text(json.dumps(_bonus_map("case-1")), encoding="utf-8")
+    record = _rollout("case-1")
+    with ensure_db(db) as conn:
+        upsert_experiment(conn, experiment_id="exp", provider_source="internal_api", dataset="swebench-hard", config_snapshot={})
+        cell_id = upsert_rollout_record(
+            conn,
+            experiment_id="exp",
+            provider_source="internal_api",
+            model_api_name="dummy-model",
+            model_label="dummy",
+            dataset="swebench-hard",
+            record=record,
+        )
+        write_dashboard_detail_cache_for_record(conn, cell_id=cell_id, record=record, bonus_map_dir=bonus_dir)
+        conn.commit()
+
+    handler_type = dashboard_server.make_handler(DashboardRequest(db_path=db, bonus_map_dir=bonus_dir))
+    handler, sent = _invoke_get_handler(handler_type, "/api/metrics?dataset=swebench-hard")
+    handler.do_GET()
+
+    row = sent["payload"]["model_metrics"][0]
+    assert row["root_hit_rate"] == 1.0
+    assert row["detail_cache_ready_rollouts"] == 1
+    assert row["detail_cache_pending_rollouts"] == 0
+
+    bonus = _bonus_map("case-1")
+    bonus["call_graph_nodes"]["a.py::root"]["source"] = "def root():\n    return 2"
+    bonus_path.write_text(json.dumps(bonus), encoding="utf-8")
+
+    handler, sent = _invoke_get_handler(handler_type, "/api/metrics?dataset=swebench-hard")
+    handler.do_GET()
+
+    stale_row = sent["payload"]["model_metrics"][0]
+    assert stale_row["root_hit_rate"] is None
+    assert stale_row["detail_cache_ready_rollouts"] == 0
+    assert stale_row["detail_cache_pending_rollouts"] == 1
+
+
 def test_dashboard_detail_cache_write_failure_does_not_block_snapshot(monkeypatch, tmp_path):
     db = tmp_path / "traces.sqlite"
     bonus_dir = tmp_path / "bonus"
@@ -696,10 +1060,10 @@ def test_dashboard_detail_cache_write_failure_does_not_block_snapshot(monkeypatc
         )
         conn.commit()
 
-    def fail_cache_connect(*_args, **_kwargs):
+    def fail_build_connect(*_args, **_kwargs):
         raise sqlite3.OperationalError("database is locked")
 
-    monkeypatch.setattr(dashboard_adapter, "connect", fail_cache_connect)
+    monkeypatch.setattr(dashboard_adapter, "ensure_dashboard_build_db", fail_build_connect)
 
     snapshot = build_dashboard_snapshot(DashboardRequest(db_path=db, experiment_id="exp", bonus_map_dir=bonus_dir))
 
@@ -890,6 +1254,25 @@ def _invoke_handler(handler_type, path: str, body: dict | None = None, *, cookie
     return handler, sent
 
 
+def _invoke_get_handler(handler_type, path: str, *, cookie: str | None = None):
+    handler = object.__new__(handler_type)
+    handler.path = path
+    handler.headers = {}
+    if cookie:
+        handler.headers["Cookie"] = cookie
+    sent = {}
+
+    def capture(out_payload, content_type, **kwargs):
+        sent["payload"] = json.loads(out_payload.decode("utf-8"))
+        sent["content_type"] = content_type
+        sent["status"] = kwargs.get("status", HTTPStatus.OK)
+        sent["headers"] = kwargs.get("headers") or {}
+
+    handler._send_bytes = capture
+    handler.send_error = lambda status, *args: sent.update({"status": status, "payload": {"error": args[0] if args else ""}})
+    return handler, sent
+
+
 def test_dashboard_admin_auth_and_delete_endpoint(tmp_path):
     db = tmp_path / "traces.sqlite"
     writer = ensure_db(db)
@@ -964,8 +1347,10 @@ def test_dashboard_admin_rebuild_endpoint_clears_target_detail_cache(monkeypatch
     with ensure_db(db) as conn:
         rows = conn.execute("SELECT fingerprint, metrics_json FROM quantitative_metrics ORDER BY cell_id").fetchall()
         assert len(rows) == 2
-        assert all(row["fingerprint"] for row in rows)
-        assert all("detail" in json.loads(row["metrics_json"]) for row in rows)
+        assert all(row["fingerprint"] is None for row in rows)
+        assert all("detail" not in json.loads(row["metrics_json"]) for row in rows)
+    with sqlite3.connect(default_dashboard_build_db_path(db)) as build_conn:
+        assert build_conn.execute("SELECT COUNT(*) FROM dashboard_rollout_details").fetchone()[0] == 2
 
     monkeypatch.setattr(
         dashboard_server,
@@ -988,36 +1373,160 @@ def test_dashboard_admin_rebuild_endpoint_clears_target_detail_cache(monkeypatch
     assert sent["payload"]["ok"] is True
     assert sent["payload"]["queued"] is True
     deadline = time.monotonic() + 2.0
-    rebuilt = untouched = None
+    rebuilt_count = untouched_count = None
     while time.monotonic() < deadline:
-        with ensure_db(db) as conn:
-            rebuilt = conn.execute(
+        with sqlite3.connect(default_dashboard_build_db_path(db)) as build_conn:
+            rebuilt_count = build_conn.execute(
                 """
-                SELECT q.fingerprint, q.metrics_json
-                FROM quantitative_metrics q
-                JOIN run_cells c ON c.id = q.cell_id
-                WHERE c.model_api_name = 'dummy-model'
+                SELECT COUNT(*)
+                FROM dashboard_rollout_details
+                WHERE model_api_name = 'dummy-model'
                 """
-            ).fetchone()
-            untouched = conn.execute(
+            ).fetchone()[0]
+            untouched_count = build_conn.execute(
                 """
-                SELECT q.fingerprint, q.metrics_json
-                FROM quantitative_metrics q
-                JOIN run_cells c ON c.id = q.cell_id
-                WHERE c.model_api_name = 'other-model'
+                SELECT COUNT(*)
+                FROM dashboard_rollout_details
+                WHERE model_api_name = 'other-model'
                 """
-            ).fetchone()
-        if rebuilt["fingerprint"] is None:
+            ).fetchone()[0]
+        if rebuilt_count == 0:
             break
         time.sleep(0.01)
-    assert rebuilt is not None
-    assert untouched is not None
-    assert rebuilt["fingerprint"] is None
-    metrics = json.loads(rebuilt["metrics_json"])
-    assert "detail" not in metrics
-    assert "dashboard_detail_cache" not in metrics
-    assert untouched["fingerprint"]
-    assert "detail" in json.loads(untouched["metrics_json"])
+    assert rebuilt_count == 0
+    assert untouched_count == 1
+    with ensure_db(db) as conn:
+        rows = conn.execute("SELECT fingerprint, metrics_json FROM quantitative_metrics ORDER BY cell_id").fetchall()
+    assert all(row["fingerprint"] is None for row in rows)
+    assert all("detail" not in json.loads(row["metrics_json"]) for row in rows)
+
+
+def test_dashboard_admin_rebuild_materializes_build_db_metrics(tmp_path):
+    db = tmp_path / "traces.sqlite"
+    bonus_dir = tmp_path / "bonus"
+    bonus_dir.mkdir()
+    (bonus_dir / "case-1.json").write_text(json.dumps(_bonus_map("case-1")), encoding="utf-8")
+    with ensure_db(db) as conn:
+        upsert_experiment(conn, experiment_id="smoke", provider_source="internal_api", dataset="swebench-hard", config_snapshot={})
+        upsert_rollout_record(
+            conn,
+            experiment_id="smoke",
+            provider_source="internal_api",
+            model_api_name="dummy-model",
+            model_label="dummy",
+            dataset="swebench-hard",
+            record=_rollout("case-1"),
+        )
+        conn.commit()
+
+    handler_type = dashboard_server.make_handler(DashboardRequest(db_path=db, bonus_map_dir=bonus_dir), admin_password="pw")
+    handler, sent = _invoke_handler(handler_type, "/api/auth/login", {"password": "pw"})
+    handler.do_POST()
+    cookie = sent["headers"]["Set-Cookie"].split(";", 1)[0]
+
+    handler, sent = _invoke_handler(handler_type, "/api/rebuild", {}, cookie=cookie)
+    handler.do_POST()
+    assert sent["payload"]["ok"] is True
+
+    deadline = time.monotonic() + 4.0
+    status = {}
+    while time.monotonic() < deadline:
+        handler, sent = _invoke_get_handler(handler_type, "/api/rebuild/status", cookie=cookie)
+        handler.do_GET()
+        status = sent["payload"]["status"]
+        if not status["active"]:
+            break
+        time.sleep(0.02)
+    assert status["phase"] == "idle"
+    assert status["last_error"] is None
+
+    with ensure_db(db) as conn:
+        raw_metrics = json.loads(conn.execute("SELECT metrics_json FROM quantitative_metrics").fetchone()["metrics_json"])
+    assert "detail" not in raw_metrics
+    with sqlite3.connect(default_dashboard_build_db_path(db)) as build_conn:
+        build_conn.row_factory = sqlite3.Row
+        build_detail = build_conn.execute("SELECT detail_json FROM dashboard_rollout_details").fetchone()
+        build_metric = build_conn.execute("SELECT metrics_json FROM dashboard_model_metrics").fetchone()
+    assert json.loads(build_detail["detail_json"])["root_hit"] is True
+    assert json.loads(build_metric["metrics_json"])["root_hit_rate"] == 1.0
+
+    snapshot = build_dashboard_snapshot(
+        DashboardRequest(db_path=db, bonus_map_dir=bonus_dir, defer_db_scoring=True, include_db_raw_details=False)
+    )
+    assert snapshot["details"] == []
+    assert snapshot["model_metrics"][0]["root_hit_rate"] == 1.0
+
+    handler, sent = _invoke_get_handler(handler_type, "/api/metrics?dataset=swebench-hard")
+    handler.do_GET()
+    assert sent["payload"]["model_metrics"][0]["root_hit_rate"] == 1.0
+
+
+def test_dashboard_admin_rebuild_endpoint_queues_each_target(monkeypatch, tmp_path):
+    db = tmp_path / "traces.sqlite"
+    with ensure_db(db) as conn:
+        upsert_experiment(conn, experiment_id="smoke", provider_source="internal_api", dataset="swebench-hard", config_snapshot={})
+        upsert_rollout_record(
+            conn,
+            experiment_id="smoke",
+            provider_source="internal_api",
+            model_api_name="dummy-model",
+            model_label="dummy",
+            dataset="swebench-hard",
+            record=_rollout("case-1"),
+        )
+        upsert_rollout_record(
+            conn,
+            experiment_id="smoke",
+            provider_source="internal_api",
+            model_api_name="other-model",
+            model_label="other",
+            dataset="swebench-hard",
+            record=_rollout("case-2"),
+        )
+        conn.commit()
+
+    calls = []
+
+    def fake_build(request):
+        calls.append((request.model_api_name, request.model_label))
+        return {"schema_version": "p2a_unified_dashboard_v1", "details": []}
+
+    monkeypatch.setattr(dashboard_server, "build_dashboard_snapshot", fake_build)
+    handler_type = dashboard_server.make_handler(DashboardRequest(db_path=db), admin_password="pw")
+    handler, sent = _invoke_handler(handler_type, "/api/auth/login", {"password": "pw"})
+    handler.do_POST()
+    cookie = sent["headers"]["Set-Cookie"].split(";", 1)[0]
+
+    handler, sent = _invoke_handler(
+        handler_type,
+        "/api/rebuild",
+        {
+            "targets": [
+                {
+                    "experiment_id": "smoke",
+                    "provider_source": "internal_api",
+                    "dataset": "swebench-hard",
+                    "model_api_name": "dummy-model",
+                    "model_label": "dummy",
+                },
+                {
+                    "experiment_id": "smoke",
+                    "provider_source": "internal_api",
+                    "dataset": "swebench-hard",
+                    "model_api_name": "other-model",
+                    "model_label": "other",
+                },
+            ]
+        },
+        cookie=cookie,
+    )
+    handler.do_POST()
+
+    assert sent["payload"]["queued_jobs"] == 2
+    deadline = time.monotonic() + 2.0
+    while len(calls) < 2 and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert calls == [("dummy-model", "dummy"), ("other-model", "other")]
 
 
 def test_model_metrics_read_direct_run_scope_from_experiment_snapshot(tmp_path):
@@ -1343,6 +1852,161 @@ def test_aggregate_model_metrics_loads_read_only_v1_cache_without_rollout_index(
     assert rows[0]["pass_at"] == {"1": 1.0}
 
 
+def test_dashboard_details_load_legacy_raw_rollouts_without_rollout_sha256(tmp_path):
+    db = tmp_path / "legacy.sqlite"
+    record = _rollout("case-1")
+    conn = sqlite3.connect(db)
+    conn.row_factory = sqlite3.Row
+    conn.executescript(
+        """
+        CREATE TABLE experiments(
+          experiment_id TEXT,
+          provider_source TEXT,
+          dataset TEXT,
+          config_snapshot TEXT
+        );
+        CREATE TABLE run_cells(
+          id INTEGER PRIMARY KEY,
+          experiment_id TEXT,
+          provider_source TEXT,
+          model_api_name TEXT,
+          model_label TEXT,
+          dataset TEXT,
+          instance_id TEXT,
+          rollout_index INTEGER,
+          rollout_id TEXT,
+          status TEXT,
+          attempts INTEGER,
+          run_id TEXT,
+          artifact_rollouts TEXT,
+          artifact_details TEXT,
+          started_at TEXT,
+          ended_at TEXT,
+          error TEXT,
+          created_at TEXT,
+          updated_at TEXT
+        );
+        CREATE TABLE raw_rollouts(
+          run_id TEXT PRIMARY KEY,
+          cell_id INTEGER,
+          messages_json TEXT,
+          trajectory_json TEXT,
+          p2a_step_traces_json TEXT,
+          final_response TEXT,
+          reward_json TEXT,
+          resolved INTEGER,
+          token_usage_json TEXT,
+          cache_metrics_json TEXT,
+          issue_description TEXT,
+          golden_patch TEXT,
+          rollout_json TEXT NOT NULL,
+          created_at TEXT
+        );
+        CREATE TABLE quantitative_metrics(
+          cell_id INTEGER PRIMARY KEY,
+          reward REAL,
+          resolved INTEGER,
+          p2a_read INTEGER,
+          call_graph_hit INTEGER,
+          ground_truth_hit INTEGER,
+          near_hit INTEGER,
+          min_distance REAL,
+          turns INTEGER,
+          tool_calls INTEGER,
+          wall_time REAL,
+          input_tokens REAL,
+          output_tokens REAL,
+          reasoning_tokens REAL,
+          cache_hit_tokens REAL,
+          cache_write_tokens REAL,
+          cost REAL,
+          metrics_json TEXT
+        );
+        """
+    )
+    conn.execute("INSERT INTO experiments VALUES (?, ?, ?, ?)", ("exp", "internal_api", "swebench-hard", "{}"))
+    conn.execute(
+        "INSERT INTO run_cells VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            1,
+            "exp",
+            "internal_api",
+            "dummy-model",
+            "dummy",
+            "swebench-hard",
+            "case-1",
+            0,
+            None,
+            "done",
+            1,
+            record["run_id"],
+            None,
+            None,
+            None,
+            "2026-07-02T00:00:00+00:00",
+            None,
+            "2026-07-02T00:00:00+00:00",
+            "2026-07-02T00:00:00+00:00",
+        ),
+    )
+    conn.execute(
+        "INSERT INTO raw_rollouts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            record["run_id"],
+            1,
+            json.dumps(record["messages"]),
+            json.dumps(record["trajectory"]),
+            json.dumps(record["p2a_step_traces"]),
+            record["response_text"],
+            json.dumps(record["reward"]),
+            1,
+            json.dumps(record["token_usage"]),
+            "{}",
+            "legacy issue",
+            "legacy patch",
+            json.dumps(record),
+            "2026-07-02T00:00:00+00:00",
+        ),
+    )
+    conn.execute(
+        "INSERT INTO quantitative_metrics VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (1, 1.0, 1, None, None, None, None, None, 1, 1, 2.5, 100, 20, 5, 50, 10, 0.01, "{}"),
+    )
+    conn.commit()
+    conn.close()
+
+    snapshot = build_dashboard_snapshot(
+        DashboardRequest(db_path=db, experiment_id="exp", defer_db_scoring=True, include_db_raw_details=True)
+    )
+
+    assert snapshot["details"][0]["instance_id"] == "case-1"
+    assert snapshot["details"][0]["dashboard_cache_pending"] is True
+    assert snapshot["details"][0]["raw_available"] is True
+    assert snapshot["details"][0]["messages"]
+
+
+def test_init_db_backfills_raw_rollout_sha256(tmp_path):
+    db = tmp_path / "traces.sqlite"
+    with ensure_db(db) as conn:
+        upsert_experiment(conn, experiment_id="exp", provider_source="internal_api", dataset="swebench-hard", config_snapshot={})
+        upsert_rollout_record(
+            conn,
+            experiment_id="exp",
+            provider_source="internal_api",
+            model_api_name="dummy-model",
+            model_label="dummy",
+            dataset="swebench-hard",
+            record=_rollout("case-1"),
+        )
+        conn.execute("UPDATE raw_rollouts SET rollout_sha256 = NULL")
+        conn.commit()
+
+    with ensure_db(db) as conn:
+        row = conn.execute("SELECT rollout_json, rollout_sha256 FROM raw_rollouts").fetchone()
+
+    assert row["rollout_sha256"]
+
+
 def test_swebench_pro_dashboard_mixes_p2a_and_resolution_only_cells(tmp_path):
     db = tmp_path / "traces.sqlite"
     bonus_dir = tmp_path / "bonus"
@@ -1573,6 +2237,9 @@ def test_case_filter_metrics_respect_explicit_latent_detail_without_trace_path_e
 
 def test_dashboard_does_not_reinfer_miracle_from_stored_first_hit_steps(tmp_path):
     db = tmp_path / "traces.sqlite"
+    bonus_dir = tmp_path / "bonus"
+    bonus_dir.mkdir()
+    (bonus_dir / "case-1.json").write_text(json.dumps(_bonus_map("case-1")), encoding="utf-8")
     detail = _standard_order_detail("case-1")
     detail["first_root_step"] = 1
     detail["first_anchor_step"] = 3
@@ -1622,7 +2289,7 @@ def test_dashboard_does_not_reinfer_miracle_from_stored_first_hit_steps(tmp_path
             dataset="swebench-hard",
             instance_ids=["case-1"],
         )
-        upsert_rollout_record(
+        cell_id = upsert_rollout_record(
             conn,
             experiment_id="exp",
             provider_source="internal_api",
@@ -1632,14 +2299,13 @@ def test_dashboard_does_not_reinfer_miracle_from_stored_first_hit_steps(tmp_path
             record=_rollout("case-1", resolved=True),
             detail=detail,
         )
-        cell_id = conn.execute("SELECT id FROM run_cells WHERE instance_id = ?", ("case-1",)).fetchone()["id"]
-        conn.execute(
-            "UPDATE quantitative_metrics SET metrics_json = ? WHERE cell_id = ?",
-            (json.dumps({"detail": detail}), cell_id),
-        )
+        write_dashboard_detail_cache_for_record(conn, cell_id=cell_id, record=_rollout("case-1", resolved=True), bonus_map_dir=bonus_dir)
         conn.commit()
+    with sqlite3.connect(default_dashboard_build_db_path(db)) as build_conn:
+        build_conn.execute("UPDATE dashboard_rollout_details SET detail_json = ?", (json.dumps(detail),))
+        build_conn.commit()
 
-    snapshot = build_dashboard_snapshot(DashboardRequest(db_path=db, experiment_id="exp"))
+    snapshot = build_dashboard_snapshot(DashboardRequest(db_path=db, experiment_id="exp", bonus_map_dir=bonus_dir))
 
     assert snapshot["details"][0]["miracle_step"] is False
     assert snapshot["details"][0]["block_miracle_step"] is False
@@ -2342,6 +3008,55 @@ def test_dashboard_serve_mode_does_not_prebuild_snapshot(monkeypatch, tmp_path):
 
     assert result == 0
     assert served == {"db_path": tmp_path / "locked.sqlite", "host": "0.0.0.0", "port": 8766}
+
+
+def test_dashboard_make_handler_does_not_migrate_on_startup(monkeypatch, tmp_path):
+    db = tmp_path / "traces.sqlite"
+    with ensure_db(db) as conn:
+        conn.commit()
+
+    def fail_migrate(_request):
+        raise AssertionError("dashboard startup must not migrate build DB")
+
+    monkeypatch.setattr(dashboard_server, "migrate_dashboard_databases", fail_migrate)
+
+    handler_type = dashboard_server.make_handler(DashboardRequest(db_path=db))
+
+    assert handler_type is not None
+
+
+def test_dashboard_cli_migrate_build_db_is_explicit(monkeypatch, tmp_path, capsys):
+    db = tmp_path / "traces.sqlite"
+    calls = []
+
+    def fake_migrate(request):
+        calls.append(request.db_path)
+        return {"legacy_build_rows": 3}
+
+    monkeypatch.setattr(dashboard_server, "migrate_dashboard_databases", fake_migrate)
+
+    result = dashboard_server.main(["--db", str(db), "--migrate-build-db"])
+
+    assert result == 0
+    assert calls == [db]
+    assert '"legacy_build_rows": 3' in capsys.readouterr().out
+
+
+def test_dashboard_cli_slim_raw_db_is_explicit(monkeypatch, tmp_path, capsys):
+    db = tmp_path / "traces.sqlite"
+    calls = []
+
+    def fake_slim(request, *, vacuum=False):
+        calls.append((request.db_path, vacuum))
+        return {"legacy_metric_rows_slimmed": 4, "vacuum": vacuum}
+
+    monkeypatch.setattr(dashboard_server, "slim_dashboard_raw_db", fake_slim)
+
+    result = dashboard_server.main(["--db", str(db), "--slim-raw-db", "--vacuum"])
+
+    assert result == 0
+    assert calls == [(db, True)]
+    assert '"legacy_metric_rows_slimmed": 4' in capsys.readouterr().out
 
 
 def test_live_dashboard_root_does_not_embed_initial_snapshot(monkeypatch):

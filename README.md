@@ -440,20 +440,52 @@ uv run python scripts/p2a_dashboard.py \
 
 uv run python scripts/p2a_dashboard.py \
   --db data/evals/traces.sqlite \
+  --build-db data/evals/traces.dashboard.sqlite \
   --experiment-id public-swebench-hard-demo \
   --dataset swebench-hard \
   --bonus-map-dir data/bonus_maps/swebench-hard
 ```
 
+If `--build-db` is omitted, the dashboard derives it next to the raw DB as
+`<raw-stem>.dashboard.sqlite`, for example
+`data/evals/traces.dashboard.sqlite`.
+
+Server startup and page refreshes do not rebuild or migrate dashboard cache
+data. To migrate legacy raw-DB dashboard caches into the build DB, run the
+explicit one-shot command:
+
+```bash
+uv run python scripts/p2a_dashboard.py \
+  --db data/evals/traces.sqlite \
+  --build-db data/evals/traces.dashboard.sqlite \
+  --bonus-map-dir data/bonus_maps/swebench-hard \
+  --migrate-build-db
+```
+
+After confirming the build DB is populated, the raw DB can be slimmed explicitly.
+This removes migrated dashboard detail/cache payloads from `quantitative_metrics`
+and compacts `raw_rollouts.rollout_json` into metadata only; raw trace content
+remains in the structured `messages_json`, `trajectory_json`, and
+`p2a_step_traces_json` columns.
+
+```bash
+uv run python scripts/p2a_dashboard.py \
+  --db data/evals/traces.sqlite \
+  --build-db data/evals/traces.dashboard.sqlite \
+  --slim-raw-db \
+  --vacuum
+```
+
 Live DB dashboards keep a process-local snapshot cache and reuse it while the
-underlying `run_cells`/metric update token is unchanged. To enable admin-only
+underlying raw/build DB update token is unchanged. To enable admin-only
 deletion, put the password in `.secrets/dashboard_admin.txt` or pass
 `--admin-secret .secrets/dashboard_admin.txt`; without that file the dashboard
 remains read-only and open for normal viewing. Admin deletion previews the DB
 blast radius and removes only DB rows (`run_cells` plus cascaded rollouts and
 metrics, and matching `experiments`). On-disk rollout artifacts are not deleted.
-After admin login, each eval-cell row also has a `Rebuild` action that invalidates
-that target's dashboard detail cache and starts a background re-warm.
+After admin login, the Admin panel can rebuild all or selected eval cells. A
+rebuild reads raw rollouts from the raw eval DB and overwrites the corresponding
+dashboard build DB rows.
 
 The Overview tab is the dataset and eval-cell registry. Dataset-level
 distributions count unique instances in a dataset/split, so five model runs over
@@ -474,24 +506,31 @@ metrics come after them. Cache-write metrics are hidden
 until populated. In user-facing terminology, Graph means the captured
 dependency graph, Path means the symptom-to-root-cause subgraph/path, and Trace
 means the model/agent execution trajectory.
-The SQLite eval cache is treated as raw capture plus run status by default:
-stored rollout JSON, messages, trajectories, issue descriptions, golden
-patches, and token/runtime data are read from DB, while localization metrics and
-trace pattern states are recomputed by the dashboard from raw rollouts and the
-matching bonus maps. If `--bonus-map-dir` is omitted, the dashboard tries
-`data/bonus_maps/<dataset>` under the artifact root and uses it only when it
-contains matching instance maps. Persisted DB score fields are compatibility
-fallbacks, not the default semantic source of truth; new collection paths should
-not write localization score columns, `metrics_json.detail`, or trace pattern
-flags. The live dashboard may write `metrics_json.detail` plus a `fingerprint`
-back to `quantitative_metrics` after it computes a cell from raw rollout content.
-That cache is used only when the scorer version, scoring parameters, raw rollout
-hash, and bonus-map file hash still match; stale entries are recomputed and
-overwritten. If old DB rows do not carry issue descriptions or golden patches, the
-dashboard fills them from `--data-file` or the standard local dataset parquet for
-the selected dataset. Node Source is bonus-map data: the dashboard reads full
-callable source from the explicit or inferred P2A bonus-map directory, and DB
-`source_preview` fields are only stale artifact fallbacks.
+Dashboard DB persistence is split into two stores. The raw eval DB is written
+during rollout and contains raw rollout JSON/messages/trajectories, issue
+descriptions, golden patches, token/runtime data, run status, and artifact
+references. The dashboard build DB is the dashboard-bound materialized cache: it
+contains per-rollout pattern/detail rows and eval-cell metrics rows, but no raw
+trace payloads. The raw DB stores raw trace content once in structured
+`messages_json`, `trajectory_json`, and `p2a_step_traces_json` columns;
+`rollout_json` is slim metadata and must not duplicate the full trace. Data
+flows one way from raw DB to build DB only during admin rebuild, explicit
+build-DB migration, or incremental rollout caching. Dashboard static reads use
+the build DB when all completed/error rollouts in an eval cell have valid
+materialized rows. If any
+completed/error rollout in that cell is missing valid build data, Metrics shows
+only basic progress, pass/resolved, token/cost, and length metrics; symptom/root,
+Path, pattern, order, miracle, and purpose-block KPIs stay empty until the cell
+is fully materialized. The Traces tab lists only rollouts that actually have raw
+trace content; planned-but-unrolled cells are omitted, and traces without
+materialized detail render without pattern tags. If `--bonus-map-dir` is omitted,
+the dashboard tries `data/bonus_maps/<dataset>` under the artifact root and uses
+it only when it contains matching instance maps. If old DB rows do not carry
+issue descriptions or golden patches, the dashboard fills them from
+`--data-file` or the standard local dataset parquet for the selected dataset.
+Node Source is bonus-map data: the dashboard reads full callable source from the
+explicit or inferred P2A bonus-map directory, and DB `source_preview` fields are
+only stale artifact fallbacks.
 The Logs tab explains artifact/log-producing executions and only
 mixes runs into a selected eval cell when they carry explicit eval-cell links;
 unlinked logs are shown separately. The Traces tab is the micro-analysis

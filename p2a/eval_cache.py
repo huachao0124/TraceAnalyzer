@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import re
 import sqlite3
+from collections.abc import Mapping
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable
 from urllib.parse import quote
 
 from p2a.bonus_map_scope import LATENT_CASE, PATH_CASE_TYPES, canonical_detail_case_type
@@ -16,10 +18,37 @@ from p2a.eval_fault_localization import _json_default, _sync_path_aliases, iter_
 
 
 SCHEMA_VERSION = 3
+DASHBOARD_BUILD_SCHEMA_VERSION = 1
 DONE_STATUS = "done"
 ERROR_STATUS = "error"
 PENDING_STATUS = "pending"
 RUNNING_STATUS = "running"
+EMPTY_ROLLOUT_ERROR = "Empty rollout trace: no model response, tool call, or observation was captured."
+EMPTY_ROLLOUT_ERROR_KIND = "empty_trace"
+EMPTY_ROLLOUT_FAILURE_REASONS = {"unknown", "unknown_error", "error"}
+RAW_ROLLOUT_METADATA_KEYS = {
+    "base_url",
+    "data_source",
+    "dataset",
+    "error",
+    "error_kind",
+    "error_stage",
+    "execution_time",
+    "experiment_id",
+    "instance_id",
+    "model",
+    "model_api_name",
+    "model_label",
+    "provider_source",
+    "rollout_id",
+    "rollout_index",
+    "run_id",
+    "schema_version",
+    "status",
+    "system_error",
+    "termination_reason",
+    "wall_time",
+}
 PATH_PATTERN_KEYS = (
     "missed_anchor",
     "missed_root_after_anchor",
@@ -58,6 +87,52 @@ def json_loads(value: str | None, default: Any = None) -> Any:
         return json.loads(value)
     except json.JSONDecodeError:
         return default
+
+
+def sha256_text(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8", errors="surrogatepass")).hexdigest()
+
+
+def _nonempty_text(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _nonempty_sequence(value: Any) -> bool:
+    return isinstance(value, list | tuple) and bool(value)
+
+
+def _step_has_content(step: Any) -> bool:
+    if not isinstance(step, Mapping):
+        return False
+    if any(_nonempty_text(step.get(key)) for key in ("response_text", "response", "thought", "reasoning", "action", "tool_name", "command")):
+        return True
+    return any(_nonempty_sequence(step.get(key)) for key in ("tool_calls", "tool_results", "tool_args"))
+
+
+def rollout_record_error(record: Mapping[str, Any]) -> str | None:
+    explicit_error = record.get("error")
+    if explicit_error:
+        return str(explicit_error)
+    if _nonempty_text(record.get("response_text")):
+        return None
+    trajectory = record.get("trajectory") if isinstance(record.get("trajectory"), list) else []
+    step_traces = record.get("p2a_step_traces") if isinstance(record.get("p2a_step_traces"), list) else []
+    if any(_step_has_content(step) for step in [*trajectory, *step_traces]):
+        return None
+    termination = str(record.get("termination_reason") or "").lower()
+    step_exit_reasons = {
+        str(step.get("exit_reason") or "").lower()
+        for step in [*trajectory, *step_traces]
+        if isinstance(step, Mapping) and step.get("exit_reason")
+    }
+    has_failure_shell = termination in EMPTY_ROLLOUT_FAILURE_REASONS or bool(step_exit_reasons & EMPTY_ROLLOUT_FAILURE_REASONS)
+    if has_failure_shell:
+        return EMPTY_ROLLOUT_ERROR
+    return None
+
+
+def slim_rollout_payload(record: Mapping[str, Any]) -> dict[str, Any]:
+    return {str(key): value for key, value in record.items() if key in RAW_ROLLOUT_METADATA_KEYS}
 
 
 def _nested_mappings(record: dict[str, Any]) -> list[dict[str, Any]]:
@@ -179,6 +254,7 @@ def _create_eval_tables(conn: sqlite3.Connection) -> None:
           issue_description TEXT,
           golden_patch TEXT,
           rollout_json TEXT NOT NULL,
+          rollout_sha256 TEXT,
           created_at TEXT NOT NULL
         );
 
@@ -266,6 +342,8 @@ def init_db(conn: sqlite3.Connection) -> None:
     _create_eval_tables(conn)
     _ensure_column(conn, "raw_rollouts", "issue_description", "TEXT")
     _ensure_column(conn, "raw_rollouts", "golden_patch", "TEXT")
+    _ensure_column(conn, "raw_rollouts", "rollout_sha256", "TEXT")
+    backfill_raw_rollout_sha256(conn)
     _ensure_column(conn, "quantitative_metrics", "fingerprint", "TEXT")
     conn.execute(
         "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)",
@@ -278,6 +356,225 @@ def ensure_db(db_path: Path | str) -> sqlite3.Connection:
     conn = connect(db_path)
     init_db(conn)
     return conn
+
+
+def backfill_raw_rollout_sha256(conn: sqlite3.Connection) -> int:
+    if not _table_exists(conn, "raw_rollouts"):
+        return 0
+    columns = _table_columns(conn, "raw_rollouts")
+    if "rollout_sha256" not in columns or "rollout_json" not in columns:
+        return 0
+    rows = conn.execute(
+        f"""
+        SELECT cell_id, rollout_json
+        FROM raw_rollouts
+        WHERE rollout_sha256 IS NULL OR rollout_sha256 = ''
+        """
+    ).fetchall()
+    if not rows:
+        return 0
+    conn.executemany(
+        "UPDATE raw_rollouts SET rollout_sha256 = ? WHERE cell_id = ?",
+        [(sha256_text(str(row["rollout_json"] or "")), row["cell_id"]) for row in rows],
+    )
+    return len(rows)
+
+
+def default_dashboard_build_db_path(raw_db_path: Path | str) -> Path:
+    path = Path(raw_db_path)
+    return path.with_name(f"{path.stem}.dashboard.sqlite")
+
+
+def init_dashboard_build_db(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS dashboard_schema_migrations (
+          version INTEGER PRIMARY KEY,
+          applied_at TEXT NOT NULL
+        );
+        """
+    )
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS dashboard_rollout_details (
+          raw_db_path TEXT NOT NULL,
+          raw_cell_id INTEGER NOT NULL,
+          experiment_id TEXT NOT NULL,
+          provider_source TEXT NOT NULL,
+          dataset TEXT NOT NULL,
+          model_api_name TEXT NOT NULL,
+          model_label TEXT NOT NULL,
+          instance_id TEXT NOT NULL,
+          rollout_index INTEGER NOT NULL DEFAULT 0,
+          rollout_id TEXT,
+          run_id TEXT,
+          status TEXT NOT NULL,
+          raw_rollout_sha256 TEXT NOT NULL,
+          fingerprint TEXT NOT NULL,
+          cache_metadata_json TEXT NOT NULL,
+          detail_json TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (raw_db_path, raw_cell_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_dashboard_details_scope
+          ON dashboard_rollout_details (
+            raw_db_path, experiment_id, provider_source, dataset,
+            model_api_name, model_label, instance_id, rollout_index
+          );
+
+        CREATE TABLE IF NOT EXISTS dashboard_model_metrics (
+          raw_db_path TEXT NOT NULL,
+          experiment_id TEXT NOT NULL,
+          provider_source TEXT NOT NULL,
+          dataset TEXT NOT NULL,
+          model_api_name TEXT NOT NULL,
+          model_label TEXT NOT NULL,
+          metrics_json TEXT NOT NULL,
+          detail_cache_ready_rollouts INTEGER NOT NULL DEFAULT 0,
+          detail_cache_pending_rollouts INTEGER NOT NULL DEFAULT 0,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (
+            raw_db_path, experiment_id, provider_source, dataset,
+            model_api_name, model_label
+          )
+        );
+        """
+    )
+    conn.execute(
+        "INSERT OR IGNORE INTO dashboard_schema_migrations(version, applied_at) VALUES (?, ?)",
+        (DASHBOARD_BUILD_SCHEMA_VERSION, utc_now()),
+    )
+    conn.commit()
+
+
+def ensure_dashboard_build_db(build_db_path: Path | str) -> sqlite3.Connection:
+    conn = connect(build_db_path)
+    init_dashboard_build_db(conn)
+    return conn
+
+
+def _database_path(conn: sqlite3.Connection) -> Path | None:
+    row = conn.execute("PRAGMA database_list").fetchone()
+    if row is None:
+        return None
+    value = row["file"] if isinstance(row, sqlite3.Row) and "file" in row.keys() else row[2]
+    return Path(value).resolve() if value else None
+
+
+def raw_db_identity(raw_db_path: Path | str) -> str:
+    return str(Path(raw_db_path).resolve())
+
+
+def connection_raw_db_identity(conn: sqlite3.Connection) -> str | None:
+    path = _database_path(conn)
+    return raw_db_identity(path) if path is not None else None
+
+
+def write_dashboard_build_detail(
+    conn: sqlite3.Connection,
+    *,
+    raw_db_path: Path | str,
+    raw_cell_id: int,
+    experiment_id: str,
+    provider_source: str,
+    dataset: str,
+    model_api_name: str,
+    model_label: str,
+    instance_id: str,
+    rollout_index: int,
+    rollout_id: str | None,
+    run_id: str | None,
+    status: str,
+    raw_rollout_sha256: str,
+    fingerprint: str,
+    detail: Mapping[str, Any],
+    cache_metadata: Mapping[str, Any],
+) -> None:
+    now = utc_now()
+    conn.execute(
+        """
+        INSERT INTO dashboard_rollout_details(
+          raw_db_path, raw_cell_id, experiment_id, provider_source, dataset,
+          model_api_name, model_label, instance_id, rollout_index, rollout_id,
+          run_id, status, raw_rollout_sha256, fingerprint, cache_metadata_json,
+          detail_json, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(raw_db_path, raw_cell_id) DO UPDATE SET
+          experiment_id = excluded.experiment_id,
+          provider_source = excluded.provider_source,
+          dataset = excluded.dataset,
+          model_api_name = excluded.model_api_name,
+          model_label = excluded.model_label,
+          instance_id = excluded.instance_id,
+          rollout_index = excluded.rollout_index,
+          rollout_id = excluded.rollout_id,
+          run_id = excluded.run_id,
+          status = excluded.status,
+          raw_rollout_sha256 = excluded.raw_rollout_sha256,
+          fingerprint = excluded.fingerprint,
+          cache_metadata_json = excluded.cache_metadata_json,
+          detail_json = excluded.detail_json,
+          updated_at = excluded.updated_at
+        """,
+        (
+            raw_db_identity(raw_db_path),
+            int(raw_cell_id),
+            experiment_id,
+            provider_source,
+            dataset,
+            model_api_name,
+            model_label,
+            instance_id,
+            int(rollout_index or 0),
+            rollout_id,
+            run_id,
+            status,
+            raw_rollout_sha256,
+            fingerprint,
+            json_dumps(dict(cache_metadata)),
+            json_dumps(dict(detail)),
+            now,
+        ),
+    )
+
+
+def write_dashboard_build_model_metrics(
+    conn: sqlite3.Connection,
+    *,
+    raw_db_path: Path | str,
+    row: Mapping[str, Any],
+) -> None:
+    now = utc_now()
+    conn.execute(
+        """
+        INSERT INTO dashboard_model_metrics(
+          raw_db_path, experiment_id, provider_source, dataset, model_api_name,
+          model_label, metrics_json, detail_cache_ready_rollouts,
+          detail_cache_pending_rollouts, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(raw_db_path, experiment_id, provider_source, dataset, model_api_name, model_label)
+        DO UPDATE SET
+          metrics_json = excluded.metrics_json,
+          detail_cache_ready_rollouts = excluded.detail_cache_ready_rollouts,
+          detail_cache_pending_rollouts = excluded.detail_cache_pending_rollouts,
+          updated_at = excluded.updated_at
+        """,
+        (
+            raw_db_identity(raw_db_path),
+            str(row.get("experiment_id") or ""),
+            str(row.get("provider_source") or ""),
+            str(row.get("dataset") or ""),
+            str(row.get("model_api_name") or ""),
+            str(row.get("model_label") or ""),
+            json_dumps(dict(row)),
+            int(row.get("detail_cache_ready_rollouts") or 0),
+            int(row.get("detail_cache_pending_rollouts") or 0),
+            now,
+        ),
+    )
 
 
 def _clean_delete_target(
@@ -552,6 +849,21 @@ def mark_cells_running(
     )
 
 
+EMPTY_ROLLOUT_SQL = """
+  r.cell_id IS NOT NULL
+  AND COALESCE(r.final_response, '') = ''
+  AND json_array_length(COALESCE(r.trajectory_json, '[]')) <= 1
+  AND json_array_length(COALESCE(r.p2a_step_traces_json, '[]')) <= 1
+  AND lower(COALESCE(json_extract(r.rollout_json, '$.termination_reason'), '')) IN ('unknown', 'unknown_error', 'error')
+  AND COALESCE(json_extract(r.p2a_step_traces_json, '$[0].response_text'), '') = ''
+  AND COALESCE(json_extract(r.p2a_step_traces_json, '$[0].thought'), '') = ''
+  AND COALESCE(json_extract(r.p2a_step_traces_json, '$[0].action'), '') = ''
+  AND COALESCE(json_extract(r.p2a_step_traces_json, '$[0].tool_name'), '') = ''
+  AND COALESCE(json_array_length(json_extract(r.p2a_step_traces_json, '$[0].tool_calls')), 0) = 0
+  AND COALESCE(json_array_length(json_extract(r.p2a_step_traces_json, '$[0].tool_results')), 0) = 0
+"""
+
+
 def completed_instance_ids(
     conn: sqlite3.Connection,
     *,
@@ -561,14 +873,16 @@ def completed_instance_ids(
     dataset: str,
 ) -> set[str]:
     rows = conn.execute(
-        """
-        SELECT instance_id
-        FROM run_cells
-        WHERE experiment_id = ?
-          AND provider_source = ?
-          AND model_api_name = ?
-          AND dataset = ?
-          AND status = ?
+        f"""
+        SELECT c.instance_id
+        FROM run_cells c
+        LEFT JOIN raw_rollouts r ON r.cell_id = c.id
+        WHERE c.experiment_id = ?
+          AND c.provider_source = ?
+          AND c.model_api_name = ?
+          AND c.dataset = ?
+          AND c.status = ?
+          AND NOT ({EMPTY_ROLLOUT_SQL})
         """,
         (experiment_id, provider_source, model_api_name, dataset, DONE_STATUS),
     ).fetchall()
@@ -584,14 +898,16 @@ def completed_rollout_keys(
     dataset: str,
 ) -> set[tuple[str, int]]:
     rows = conn.execute(
-        """
-        SELECT instance_id, rollout_index
-        FROM run_cells
-        WHERE experiment_id = ?
-          AND provider_source = ?
-          AND model_api_name = ?
-          AND dataset = ?
-          AND status = ?
+        f"""
+        SELECT c.instance_id, c.rollout_index
+        FROM run_cells c
+        LEFT JOIN raw_rollouts r ON r.cell_id = c.id
+        WHERE c.experiment_id = ?
+          AND c.provider_source = ?
+          AND c.model_api_name = ?
+          AND c.dataset = ?
+          AND c.status = ?
+          AND NOT ({EMPTY_ROLLOUT_SQL})
         """,
         (experiment_id, provider_source, model_api_name, dataset, DONE_STATUS),
     ).fetchall()
@@ -744,7 +1060,16 @@ def upsert_rollout_record(
         rollout_index=rollout_index,
     )
     run_id = _unique_raw_run_id(conn, requested_run_id, cell_id)
-    status = ERROR_STATUS if record.get("error") else DONE_STATUS
+    record_error = rollout_record_error(record)
+    if record_error and not record.get("error"):
+        record = {
+            **record,
+            "error": record_error,
+            "error_kind": record.get("error_kind") or EMPTY_ROLLOUT_ERROR_KIND,
+            "error_stage": record.get("error_stage") or "interaction",
+            "system_error": True,
+        }
+    status = ERROR_STATUS if record_error else DONE_STATUS
     conn.execute(
         """
         UPDATE run_cells
@@ -766,7 +1091,7 @@ def upsert_rollout_record(
             str(artifact_rollouts) if artifact_rollouts else None,
             str(artifact_details) if artifact_details else None,
             now,
-            str(record.get("error")) if record.get("error") else None,
+            record_error,
             now,
             cell_id,
         ),
@@ -776,15 +1101,18 @@ def upsert_rollout_record(
     cache_metrics = record.get("metrics") if isinstance(record.get("metrics"), dict) else {}
     issue_description = _issue_description(record)
     golden_patch = _golden_patch(record)
+    rollout_payload = json_dumps(record)
+    rollout_hash = sha256_text(rollout_payload)
+    stored_rollout_payload = json_dumps(slim_rollout_payload(record))
     conn.execute("DELETE FROM raw_rollouts WHERE cell_id = ?", (cell_id,))
     conn.execute(
         """
         INSERT INTO raw_rollouts(
           run_id, cell_id, messages_json, trajectory_json, p2a_step_traces_json,
           final_response, reward_json, resolved, token_usage_json, cache_metrics_json,
-          issue_description, golden_patch, rollout_json, created_at
+          issue_description, golden_patch, rollout_json, rollout_sha256, created_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             run_id,
@@ -799,7 +1127,8 @@ def upsert_rollout_record(
             json_dumps(cache_metrics),
             issue_description,
             golden_patch,
-            json_dumps(record),
+            stored_rollout_payload,
+            rollout_hash,
             now,
         ),
     )
@@ -1255,6 +1584,24 @@ def _k_metric_row(row: sqlite3.Row) -> Mapping[str, Any]:
 
 def _hydrate_metric_row(row: sqlite3.Row) -> dict[str, Any]:
     data = {key: row[key] for key in row.keys()}
+    if data.get("status") == DONE_STATUS:
+        rollout_meta = json_loads(data.get("raw_rollout_json"), {})
+        if not isinstance(rollout_meta, dict):
+            rollout_meta = {}
+        derived_error = rollout_record_error(
+            {
+                **rollout_meta,
+                "error": data.get("error"),
+                "response_text": data.get("raw_final_response"),
+                "trajectory": json_loads(data.get("raw_trajectory_json"), []),
+                "p2a_step_traces": json_loads(data.get("raw_p2a_step_traces_json"), []),
+            }
+        )
+        if derived_error:
+            data["status"] = ERROR_STATUS
+            data["error"] = derived_error
+            data["reward"] = 0.0
+            data["resolved"] = 0
     if data.get("reward") is None:
         data["reward"] = _reward_number({"reward": json_loads(data.get("raw_reward_json"), None)})
     if data.get("resolved") is None and data.get("raw_resolved") is not None:
@@ -1332,8 +1679,15 @@ def aggregate_model_metrics(
     rollout_id_sql = "c.rollout_id" if "rollout_id" in cell_columns else "NULL AS rollout_id"
     fingerprint_sql = "q.fingerprint" if "fingerprint" in metric_columns else "NULL"
     metrics_json_sql = "q.metrics_json" if include_detail_metrics else "NULL AS metrics_json"
-    raw_step_traces_sql = "r.p2a_step_traces_json" if include_raw_trace_fallback else "NULL"
-    raw_trajectory_sql = "r.trajectory_json" if include_raw_trace_fallback else "NULL"
+    raw_exists = _table_exists(conn, "raw_rollouts")
+    raw_step_traces_sql = "r.p2a_step_traces_json" if include_raw_trace_fallback and raw_exists else "NULL"
+    raw_trajectory_sql = "r.trajectory_json" if include_raw_trace_fallback and raw_exists else "NULL"
+    raw_final_response_sql = "r.final_response" if include_raw_trace_fallback and raw_exists else "NULL"
+    raw_rollout_json_sql = "r.rollout_json" if include_raw_trace_fallback and raw_exists else "NULL"
+    raw_reward_sql = "r.reward_json" if raw_exists else "NULL"
+    raw_resolved_sql = "r.resolved" if raw_exists else "NULL"
+    raw_token_usage_sql = "r.token_usage_json" if raw_exists else "NULL"
+    raw_join_sql = "LEFT JOIN raw_rollouts r ON r.cell_id = c.id" if raw_exists else ""
 
     rows = conn.execute(
         f"""
@@ -1367,18 +1721,20 @@ def aggregate_model_metrics(
           q.cost,
           {fingerprint_sql} AS fingerprint,
           {metrics_json_sql},
-          r.reward_json AS raw_reward_json,
-          r.resolved AS raw_resolved,
+          {raw_reward_sql} AS raw_reward_json,
+          {raw_resolved_sql} AS raw_resolved,
           {raw_step_traces_sql} AS raw_p2a_step_traces_json,
           {raw_trajectory_sql} AS raw_trajectory_json,
-          r.token_usage_json AS raw_token_usage_json
+          {raw_final_response_sql} AS raw_final_response,
+          {raw_rollout_json_sql} AS raw_rollout_json,
+          {raw_token_usage_sql} AS raw_token_usage_json
         FROM run_cells c
         LEFT JOIN experiments e
           ON e.experiment_id = c.experiment_id
          AND e.provider_source = c.provider_source
          AND e.dataset = c.dataset
         LEFT JOIN quantitative_metrics q ON q.cell_id = c.id
-        LEFT JOIN raw_rollouts r ON r.cell_id = c.id
+        {raw_join_sql}
         {where_sql}
         ORDER BY c.model_label, c.instance_id, {rollout_index_order_sql}
         """,

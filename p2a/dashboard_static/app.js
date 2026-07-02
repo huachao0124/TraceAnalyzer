@@ -5,6 +5,7 @@ const state = {
   selectedEvalCellKey: null,
   selectedExperimentKey: null,
   selectedTraceKey: null,
+  traceRolloutIndex: 0,
   selectedStepIndex: 0,
   selectedGraphNodeKey: null,
   activeTracePanel: "steps",
@@ -13,8 +14,6 @@ const state = {
   refreshTimer: null,
   loadingSnapshot: false,
   queuedSnapshotOptions: null,
-  rebuildBusy: false,
-  rowRebuildBusyKeys: new Set(),
   rebuildStatus: null,
   rebuildStatusTimer: null,
   detailLoadBusyKeys: new Set(),
@@ -24,12 +23,13 @@ const state = {
   metricLoadedDatasets: new Set(),
   metricLoadBusyDatasets: new Set(),
   metricLoadErrors: {},
+  metricLoadNotices: {},
   snapshotBusy: "",
   operationMessage: "",
   operationTone: "",
   caseFilters: { direct: true, latent: true, exposed: true, others: true },
   metricGroupFilters: {
-    filter_totals: true,
+    filter_totals: false,
     graph: true,
     outcome: true,
     path: true,
@@ -39,20 +39,23 @@ const state = {
   },
   showGraphContext: false,
   graphEdgeFilters: { path: true, graph: false, trace: true },
-  passAtK: null,
+  passAtK: 1,
   tracePatternFilters: {
-    miracle: false,
-    reverse: false,
-    loop: false,
-    hit_symptom: false,
-    hit_root_cause: false,
-    edited_root_cause: false,
+    miracle: null,
+    reverse: null,
+    loop: null,
+    hit_symptom: null,
+    hit_root_cause: null,
+    edited_root_cause: null,
   },
   permalinkNotice: "",
   permalinkMissing: false,
   pendingLocator: null,
   admin: { enabled: false, authenticated: false },
   adminDeleteKeys: new Set(),
+  adminRebuildKeys: new Set(),
+  adminDeletingTargets: [],
+  adminRebuildingTargets: [],
   adminManualTarget: null,
   adminPreview: null,
   adminMessage: "",
@@ -62,6 +65,7 @@ const state = {
 const BONUS_MAP_METRIC_CASE_TYPES = new Set(["direct", "latent", "exposed"]);
 const CASE_FILTER_BUCKETS = ["direct", "latent", "exposed", "others"];
 const TRACE_PATTERN_FILTERS = ["miracle", "reverse", "loop", "hit_symptom", "hit_root_cause", "edited_root_cause"];
+const TRACE_PATTERN_FILTER_VALUES = ["true", "false", "none"];
 
 const MACRO_METRIC_GROUPS = [
   {
@@ -228,7 +232,7 @@ function pct(value) {
 
 function selectedRolloutK(row) {
   const n = rolloutN(row) || 1;
-  return Math.max(1, Math.min(Number(state.passAtK || n), n));
+  return Math.max(1, Math.min(Number(state.passAtK || 1), n));
 }
 
 function avgAtValue(row, key) {
@@ -485,7 +489,10 @@ function setTracePanelOpen(panel, open) {
 }
 
 function rowKey(detail) {
-  const rolloutId = detail?.rollout_id ? `id-${detail.rollout_id}` : `idx-${rolloutIndex(detail)}`;
+  const cellId = detail?.cell_id;
+  const rolloutId = detail?.rollout_id
+    ? `id-${detail.rollout_id}`
+    : (cellId !== null && cellId !== undefined && cellId !== "" ? `cell-${cellId}` : `idx-${rolloutIndex(detail)}`);
   return `${traceInstanceKey(detail)}::${rolloutId}`;
 }
 
@@ -502,6 +509,11 @@ function rolloutIndex(detail) {
   return Number.isFinite(value) && value >= 0 ? Math.trunc(value) : 0;
 }
 
+function traceGlobalRolloutIndex() {
+  const value = Number(state.traceRolloutIndex);
+  return Number.isFinite(value) && value >= 0 ? Math.trunc(value) : 0;
+}
+
 function compareTraceDetails(a, b) {
   const instanceCmp = String(traceInstanceId(a)).localeCompare(String(traceInstanceId(b)));
   if (instanceCmp) return instanceCmp;
@@ -514,6 +526,11 @@ function detailsForInstance(details, instanceKey) {
   return details
     .filter((detail) => traceInstanceKey(detail) === instanceKey)
     .sort(compareTraceDetails);
+}
+
+function detailForRolloutIndex(details, index = traceGlobalRolloutIndex()) {
+  const sorted = [...(details || [])].sort(compareTraceDetails);
+  return sorted.find((detail) => rolloutIndex(detail) === index) || sorted[0] || null;
 }
 
 function detailHasRawTrace(detail) {
@@ -555,16 +572,17 @@ function syncDetailLoadState(snapshot) {
   });
 }
 
-function preserveLoadedDetails(nextSnapshot, previousSnapshot) {
+function preserveLoadedDetails(nextSnapshot, previousSnapshot, options = {}) {
   if (!nextSnapshot || !previousSnapshot) {
     syncDetailLoadState(nextSnapshot);
     return;
   }
   const keys = currentCellKeys(nextSnapshot);
+  const dropKeys = new Set(options.dropCellKeys || []);
   const rawByCell = new Map();
   (previousSnapshot.details || []).forEach((detail) => {
     const key = detailCellKey(detail);
-    if (!keys.has(key) || !detailHasRawTrace(detail)) return;
+    if (!keys.has(key) || dropKeys.has(key) || !detailHasRawTrace(detail)) return;
     if (!rawByCell.has(key)) rawByCell.set(key, []);
     rawByCell.get(key).push(detail);
   });
@@ -785,6 +803,7 @@ function resetLoadedMetrics() {
   state.metricLoadedDatasets.clear();
   state.metricLoadBusyDatasets.clear();
   state.metricLoadErrors = {};
+  state.metricLoadNotices = {};
 }
 
 function deferTask(fn) {
@@ -905,6 +924,22 @@ function mergeMissingMetricFields(rows, fallbackRows) {
   });
 }
 
+function snapshotModelMetricRows(snapshot) {
+  const rows = snapshot?.model_metrics || [];
+  if (rows.length) return rows;
+  return experimentRows(snapshot).map((row) => ({
+    ...row,
+    target: numeric(row.target) ?? 0,
+    target_rollouts: runTotalCount(row),
+    done: numeric(row.done) ?? runDoneCount(row),
+    done_rollouts: runDoneCount(row),
+    errors: runErrorCount(row),
+    pending: runPendingCount(row),
+    detail_cache_ready_rollouts: row.cache_ready,
+    detail_cache_pending_rollouts: row.cache_pending,
+  }));
+}
+
 function activeModelMetrics(snapshot) {
   const details = activeDetails(snapshot);
   const fallbackRows = details.length ? metricsFromDetails(details, snapshot) : [];
@@ -912,7 +947,7 @@ function activeModelMetrics(snapshot) {
     const rows = snapshot?.path_metric_model_metrics || snapshot?.dynamic_traceable_model_metrics || [];
     if (rows.length) return mergeMissingMetricFields(rows, fallbackRows);
   }
-  if (allCaseFiltersEnabled()) return mergeMissingMetricFields(snapshot?.model_metrics || [], fallbackRows);
+  if (allCaseFiltersEnabled()) return mergeMissingMetricFields(snapshotModelMetricRows(snapshot), fallbackRows);
   const caseFilterRows = snapshot?.case_filter_model_metrics?.[activeCaseFilterKey()] || [];
   if (caseFilterRows.length) return mergeMissingMetricFields(caseFilterRows, fallbackRows);
   return fallbackRows;
@@ -989,6 +1024,7 @@ async function loadSnapshot(options = {}) {
   }
   const showOperation = options.silent !== true;
   const scrollState = captureInspectorScroll();
+  const dropCellKeys = options.dropSelectedDetails && state.selectedEvalCellKey ? [state.selectedEvalCellKey] : [];
   let shouldRender = false;
   if (window.__P2A_DASHBOARD_SNAPSHOT__) {
     state.snapshot = window.__P2A_DASHBOARD_SNAPSHOT__;
@@ -1007,11 +1043,11 @@ async function loadSnapshot(options = {}) {
   try {
     const response = await fetch("/api/snapshot", { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-	    const previousSnapshot = state.snapshot;
-	    state.snapshot = await response.json();
-	    preserveLoadedDetails(state.snapshot, previousSnapshot);
-	    state.detailLoadErrors = {};
-	    resetLoadedMetrics();
+    const previousSnapshot = state.snapshot;
+    state.snapshot = await response.json();
+    preserveLoadedDetails(state.snapshot, previousSnapshot, { dropCellKeys });
+    state.detailLoadErrors = {};
+    resetLoadedMetrics();
     if (showOperation) {
       state.operationTone = "ok";
       state.operationMessage = options.successMessage || "Refresh finished.";
@@ -1026,11 +1062,11 @@ async function loadSnapshot(options = {}) {
       try {
         const response = await fetch("snapshot.json", { cache: "no-store" });
         if (response.ok) {
-	          const previousSnapshot = state.snapshot;
-	          state.snapshot = await response.json();
-	          preserveLoadedDetails(state.snapshot, previousSnapshot);
-	          state.detailLoadErrors = {};
-	          resetLoadedMetrics();
+          const previousSnapshot = state.snapshot;
+          state.snapshot = await response.json();
+          preserveLoadedDetails(state.snapshot, previousSnapshot, { dropCellKeys });
+          state.detailLoadErrors = {};
+          resetLoadedMetrics();
           shouldRender = true;
         }
       } catch (_fallback) {
@@ -1055,43 +1091,6 @@ async function loadSnapshot(options = {}) {
   }
 }
 
-async function queueDashboardRebuild() {
-  if (state.rebuildBusy) {
-    state.operationTone = "";
-    state.operationMessage = "Rebuild is already queued.";
-    renderOperationStatus();
-    return;
-  }
-  state.rebuildBusy = true;
-  state.operationTone = "";
-  state.operationMessage = "Rebuild queued; clearing cache and starting background warm.";
-  syncSnapshotControls();
-  renderOperationStatus();
-  let successMessage = "";
-  try {
-    const result = await apiPost("/api/rebuild", {});
-    applyQueuedRebuildStatus(result);
-    successMessage = rebuildQueuedMessage(result);
-    state.operationTone = "ok";
-    state.operationMessage = successMessage;
-  } catch (error) {
-    state.operationTone = "bad";
-    state.operationMessage = `Rebuild failed: ${error.message || error}`;
-  } finally {
-    state.rebuildBusy = false;
-    syncSnapshotControls();
-    renderOperationStatus();
-  }
-  if (successMessage) {
-    await loadSnapshot({
-      queueIfBusy: true,
-      startMessage: "Refreshing current DB state...",
-      successMessage,
-    });
-    loadRebuildStatus();
-  }
-}
-
 function renderSources(snapshot) {
   const sources = snapshot?.sources || [];
   const text = sources.map((item) => `${item.kind}: ${item.path}`).join("  |  ");
@@ -1101,14 +1100,6 @@ function renderSources(snapshot) {
 
 function renderOperationStatus() {
   const el = document.getElementById("operation-status");
-  const rebuildEl = document.getElementById("rebuild-inline-status");
-  const rebuildMessage = rebuildStatusMessage();
-  const rebuildTone = rebuildMessage ? (state.rebuildStatus?.phase === "failed" ? "bad" : "") : "";
-  if (rebuildEl) {
-    rebuildEl.hidden = !rebuildMessage;
-    rebuildEl.textContent = rebuildMessage;
-    rebuildEl.className = `rebuild-inline-status ${rebuildTone}`.trim();
-  }
   if (!el) return;
   const isRebuildMessage = String(state.operationMessage || "").startsWith("Rebuild");
   const message = isRebuildMessage ? "" : state.operationMessage || "";
@@ -1119,15 +1110,9 @@ function renderOperationStatus() {
 
 function syncSnapshotControls() {
   const refresh = document.getElementById("refresh-button");
-  const rebuild = document.getElementById("rebuild-button");
   if (refresh) {
     refresh.disabled = state.loadingSnapshot;
     refresh.textContent = state.loadingSnapshot ? "Refreshing..." : "Refresh";
-  }
-  if (rebuild) {
-    const rebuildActive = state.rebuildBusy || state.rebuildStatus?.active === true;
-    rebuild.disabled = rebuildActive;
-    rebuild.textContent = rebuildActive ? "Rebuilding..." : "Rebuild";
   }
 }
 
@@ -1138,13 +1123,13 @@ function rebuildStatusMessage() {
   const cells = counts.run_cells === undefined ? "" : ` (${counts.run_cells} run cells)`;
   if (status.active) {
     const phaseLabels = {
-      queued: "queued",
-      waiting: "waiting",
-      clearing: "clearing cache",
-      warming: "rebuilding",
+      queued: "Queued",
+      waiting: "Waiting",
+      clearing: "Clearing cache",
+      warming: "Rebuilding",
     };
-    const phase = phaseLabels[status.phase] || "running";
-    return `Rebuild ${phase}${cells}.`;
+    const phase = phaseLabels[status.phase] || "Running";
+    return `${phase}${cells}.`;
   }
   if (status.phase === "failed") return `Last rebuild failed: ${status.last_error || "unknown error"}`;
   return "";
@@ -1186,7 +1171,7 @@ function renderSummary(snapshot) {
     ["Eval cells", scopedCells, fmt],
     ["Instances", scopedInstances, fmt],
     ["Traces", scopedTraces, fmt],
-    ["Models", (snapshot.model_metrics || []).length, fmt],
+    ["Models", snapshotModelMetricRows(snapshot).length, fmt],
     ["Runs", (snapshot.runs || []).length, fmt],
     ["Raw records", snapshot.raw_record_count ?? 0, fmt],
     ["Loaded details", activeDetails(snapshot).length || counts.n_records || 0, fmt],
@@ -1242,12 +1227,15 @@ function cacheStatus(row) {
 }
 
 function rebuildQueuedMessage(result) {
+  const jobs = numeric(result?.queued_jobs);
+  if (jobs !== null && jobs > 1) return `Rebuild queued for ${jobs} targets.`;
   const cells = numeric(result?.counts?.run_cells);
   return cells === null ? "Rebuild queued." : `Rebuild queued for ${cells} run cells.`;
 }
 
 function applyQueuedRebuildStatus(result) {
   state.rebuildStatus = result?.rebuild_status || { active: true, phase: "queued", queued: 1, running: 0 };
+  syncAdminRebuildTargetsFromStatus();
   scheduleRebuildStatusPoll();
 }
 
@@ -1272,7 +1260,7 @@ function evalCellFilterStats(snapshot, row) {
   const filterKey = activeCaseFilterKey();
   if (!filterKey) return { instances: 0, traces: 0 };
   const metricRows = allCaseFiltersEnabled()
-    ? snapshot?.model_metrics || []
+    ? snapshotModelMetricRows(snapshot)
     : snapshot?.case_filter_model_metrics?.[filterKey] || [];
   const metric = metricRowForCell(metricRows, row);
   if (metric) {
@@ -1317,12 +1305,9 @@ function renderExperiments(snapshot) {
     };
     const rebuildKey = deleteTargetKey(rebuildTarget);
     const cachePending = Number(row.cache_pending || 0) > 0;
-    if (state.rowRebuildBusyKeys.has(rebuildKey) && state.rebuildStatus?.active !== true && state.adminBusy !== "rebuild") {
-      state.rowRebuildBusyKeys.delete(rebuildKey);
-    }
     const adminCells = state.admin.authenticated
       ? `<td><input class="admin-delete-target" type="checkbox" data-delete-target="${esc(deleteKey)}" ${state.adminDeleteKeys.has(deleteKey) ? "checked" : ""}></td>
-         <td><button class="admin-rebuild-target" type="button" data-rebuild-target="${esc(rebuildKey)}" ${state.rowRebuildBusyKeys.has(rebuildKey) ? "disabled" : ""}>${state.rowRebuildBusyKeys.has(rebuildKey) ? "Rebuilding..." : "Rebuild"}</button></td>`
+         <td><input class="admin-rebuild-select" type="checkbox" data-rebuild-target="${esc(rebuildKey)}" ${state.adminRebuildKeys.has(rebuildKey) ? "checked" : ""}></td>`
       : "";
     const filterStats = evalCellFilterStats(snapshot, row);
     return `<tr class="clickable ${selected ? "is-selected" : ""} ${cachePending ? "has-cache-pending" : ""}" data-eval-cell-key="${esc(key)}">
@@ -1391,57 +1376,15 @@ function renderExperiments(snapshot) {
       renderAdminPanel(snapshot);
     });
   });
-  document.querySelectorAll(".admin-rebuild-target").forEach((button) => {
-    button.addEventListener("click", async (event) => {
-      event.stopPropagation();
-      const clickedButton = event.currentTarget;
-      const key = clickedButton.dataset.rebuildTarget;
+  document.querySelectorAll(".admin-rebuild-select").forEach((input) => {
+    input.addEventListener("click", (event) => event.stopPropagation());
+    input.addEventListener("change", (event) => {
+      const key = event.target.dataset.rebuildTarget;
       if (!key) return;
-      if (state.rowRebuildBusyKeys.has(key)) return;
-      clickedButton.disabled = true;
-      clickedButton.textContent = "Rebuilding...";
-      const rowEl = clickedButton.closest("tr");
-      rowEl?.classList.add("has-cache-pending");
-      const cacheEl = rowEl?.querySelector(".cache-cell");
-      if (cacheEl) cacheEl.textContent = "to rebuild";
-      let successMessage = "";
-      try {
-        state.adminBusy = "rebuild";
-        state.rowRebuildBusyKeys.add(key);
-        state.operationTone = "";
-        state.operationMessage = "Rebuild queued; clearing cache and starting background warm.";
-        state.adminMessage = "Rebuild queued; clearing cache and starting background warm.";
-        renderOperationStatus();
-        renderExperiments(state.snapshot || snapshot);
-        renderAdminPanel(snapshot);
-        const result = await apiPost("/api/rebuild", { targets: [deleteTargetFromKey(key)] });
-        applyQueuedRebuildStatus(result);
-        successMessage = rebuildQueuedMessage(result);
-        state.operationTone = "ok";
-        state.operationMessage = successMessage;
-        state.adminMessage = successMessage;
-        state.adminPreview = null;
-      } catch (error) {
-        state.operationTone = "bad";
-        state.operationMessage = `Rebuild failed: ${error.message || error}`;
-        state.adminMessage = String(error.message || error);
-        state.rowRebuildBusyKeys.delete(key);
-      } finally {
-        state.adminBusy = "";
-      }
-      renderAdminPanel(state.snapshot || snapshot);
-      renderOperationStatus();
-      renderExperiments(state.snapshot || snapshot);
-      if (successMessage) {
-        await loadSnapshot({
-          queueIfBusy: true,
-          startMessage: "Refreshing current DB state...",
-          successMessage,
-        });
-      }
-      renderOperationStatus();
-      renderExperiments(state.snapshot || snapshot);
-      loadRebuildStatus();
+      if (event.target.checked) state.adminRebuildKeys.add(key);
+      else state.adminRebuildKeys.delete(key);
+      state.adminPreview = null;
+      renderAdminPanel(snapshot);
     });
   });
 }
@@ -1506,9 +1449,9 @@ function kpiColumns(hasCacheWrite) {
       html: true,
       value: (_row, key) => `<button class="select-kpi-cell" type="button" data-eval-cell-key="${esc(key)}">${key === state.selectedEvalCellKey ? "Selected" : "Select"}</button>`,
     },
-    { header: "Model", fixed: true, value: (row) => row.model_label },
-    { header: "Kind", fixed: true, value: (row) => row.source_kind },
     { header: "Experiment", fixed: true, value: (row) => row.experiment_id },
+    { header: "Kind", fixed: true, value: (row) => row.source_kind },
+    { header: "Model", fixed: true, value: (row) => row.model_label },
     { header: "Total instances", group: "filter_totals", value: (row) => numeric(row.target) ?? 0 },
     { header: "Done traces", group: "filter_totals", value: (row) => runDoneCount(row) },
     { header: "Error traces", group: "filter_totals", value: (row) => runErrorCount(row) },
@@ -1554,7 +1497,7 @@ function maxRolloutN(rows) {
 
 function renderPassAtControl(rows) {
   const maxN = maxRolloutN(rows);
-  if (!state.passAtK || state.passAtK > maxN) state.passAtK = maxN;
+  if (!state.passAtK || state.passAtK > maxN) state.passAtK = 1;
   const options = Array.from({ length: maxN }, (_item, index) => index + 1)
     .map((k) => `<option value="${k}" ${Number(state.passAtK) === k ? "selected" : ""}>${k}</option>`)
     .join("");
@@ -1568,6 +1511,7 @@ function renderModels(snapshot) {
   }
   const metricLoading = state.metricLoadBusyDatasets.has(state.selectedDataset);
   const metricError = state.metricLoadErrors[state.selectedDataset];
+  const metricNotice = state.metricLoadNotices[state.selectedDataset];
   if (!state.metricLoadedDatasets.has(state.selectedDataset) && !metricLoading && !metricError) {
     deferTask(() => loadDatasetMetrics(state.selectedDataset));
   }
@@ -1579,7 +1523,9 @@ function renderModels(snapshot) {
   const scopeNote = `Metrics and Traces both use the current global filters (${scopeBits.join("; ")}).`;
   const loadNote = metricLoading
     ? '<div class="inline-status">Loading cached metrics...</div>'
-    : (metricError ? `<div class="inline-status is-error">Cached metrics failed to load: ${esc(metricError)}</div>` : "");
+    : (metricError
+      ? `<div class="inline-status is-error">Cached metrics failed to load: ${esc(metricError)}</div>`
+      : (metricNotice ? `<div class="inline-status">${esc(metricNotice)}</div>` : ""));
   document.getElementById("model-table").innerHTML = `
     <div class="panel-note">Metrics are scoped to dataset <strong>${esc(state.selectedDataset)}</strong>. ${esc(scopeNote)} Graph metrics score reads against the captured dependency Graph; Path metrics score the issue symptom-to-root-cause Path; Trace metrics describe the agent trajectory.</div>
     ${loadNote}
@@ -1667,8 +1613,41 @@ function traceBlob(detail) {
   }).toLowerCase();
 }
 
+function normalizeTracePatternFilterValue(value) {
+  if (value === true || value === "true") return "true";
+  if (value === "false") return "false";
+  if (value === "none") return "none";
+  return null;
+}
+
+function nextTracePatternFilterValue(value) {
+  const current = normalizeTracePatternFilterValue(value);
+  if (!current) return "true";
+  if (current === "true") return "false";
+  if (current === "false") return "none";
+  return null;
+}
+
+function activeTracePatternFilterEntries() {
+  return TRACE_PATTERN_FILTERS.map((tag) => ({
+    tag,
+    value: normalizeTracePatternFilterValue(state.tracePatternFilters?.[tag]),
+  })).filter((item) => item.value);
+}
+
 function activeTracePatternFilters() {
-  return TRACE_PATTERN_FILTERS.filter((key) => state.tracePatternFilters?.[key] === true);
+  return activeTracePatternFilterEntries().map(({ tag, value }) => (value === "true" ? tag : `${tag}:${value}`));
+}
+
+function booleanPatternValue(value) {
+  if (value === true) return true;
+  if (value === false) return false;
+  return null;
+}
+
+function pathProjectionAvailable(detail) {
+  const projection = pathProjection(detail);
+  return ["path_nodes", "chain_nodes", "context_nodes", "path_edges", "chain_edges"].some((key) => projection[key] !== undefined);
 }
 
 function pathNodeHasRoleHit(detail, roles) {
@@ -1683,23 +1662,49 @@ function pathNodeHasRoleHit(detail, roles) {
   });
 }
 
-function tracePatternMatches(detail, tag) {
+function pathNodeRoleHitValue(detail, roles, directKey) {
+  const direct = booleanPatternValue(detail?.[directKey]);
+  if (direct !== null) return direct;
+  if (!pathProjectionAvailable(detail)) return null;
+  return pathNodeHasRoleHit(detail, roles);
+}
+
+function tracePatternValue(detail, tag) {
   if (tag === "miracle") {
-    return combinedMiracleMarker(detail) === true || blockMiracleMarker(detail) === true;
+    return combinedMiracleMarker(detail);
   }
   if (tag === "reverse") {
-    return combinedReverseMarker(detail) === true || blockReverseMarker(detail) === true;
+    return combinedReverseMarker(detail);
   }
-  if (tag === "loop") return (detail.bad_patterns || {}).has_loop === true;
-  if (tag === "hit_symptom") return pathNodeHasRoleHit(detail, ["symptom"]);
-  if (tag === "hit_root_cause") return pathNodeHasRoleHit(detail, ["root_cause"]);
-  if (tag === "edited_root_cause") return detail.edited_root_cause === true;
+  if (tag === "loop") {
+    const badPattern = booleanPatternValue((detail.bad_patterns || {}).has_loop);
+    if (badPattern !== null) return badPattern;
+    if (Array.isArray(detail.purpose_blocks)) return detail.purpose_blocks.some((block) => block?.loop === true);
+    return null;
+  }
+  if (tag === "hit_symptom") return pathNodeRoleHitValue(detail, ["symptom"], "anchor_hit");
+  if (tag === "hit_root_cause") return pathNodeRoleHitValue(detail, ["root_cause"], "root_hit");
+  if (tag === "edited_root_cause") {
+    const direct = booleanPatternValue(detail?.edited_root_cause);
+    if (direct !== null) return direct;
+    if (Array.isArray(detail?.step_inspection)) return detail.step_inspection.some((step) => step?.edited_root_cause === true);
+    return null;
+  }
+  return null;
+}
+
+function tracePatternMatches(detail, tag, value = "true") {
+  const marker = tracePatternValue(detail, tag);
+  const expected = normalizeTracePatternFilterValue(value) || "true";
+  if (expected === "none") return marker === null;
+  if (expected === "true") return marker === true;
+  if (expected === "false") return marker === false;
   return false;
 }
 
 function tracePatternFilterEnabled(detail) {
-  const active = activeTracePatternFilters();
-  return !active.length || active.every((tag) => tracePatternMatches(detail, tag));
+  const active = activeTracePatternFilterEntries();
+  return !active.length || active.every(({ tag, value }) => tracePatternMatches(detail, tag, value));
 }
 
 function filteredDetails(snapshot) {
@@ -1711,11 +1716,52 @@ function filteredDetails(snapshot) {
     .filter((detail) => !query || traceBlob(detail).includes(query));
 }
 
+function currentRolloutBatchDetails(snapshot) {
+  if (!state.selectedEvalCellKey) return [];
+  const index = traceGlobalRolloutIndex();
+  return activeDetails(snapshot)
+    .filter((detail) => detailCellKey(detail) === state.selectedEvalCellKey)
+    .filter((detail) => rolloutIndex(detail) === index);
+}
+
+function tracePatternStats(snapshot) {
+  const full = currentRolloutBatchDetails(snapshot);
+  const selected = full.filter(tracePatternFilterEnabled);
+  const fullInstances = new Set(full.map(traceInstanceId).filter(Boolean));
+  const selectedInstances = new Set(selected.map(traceInstanceId).filter(Boolean));
+  const fullPassedInstances = new Set(full.filter(traceResolved).map(traceInstanceId).filter(Boolean));
+  const selectedPassedInstances = new Set(selected.filter(traceResolved).map(traceInstanceId).filter(Boolean));
+  return {
+    rollout: traceGlobalRolloutIndex() + 1,
+    full,
+    selected,
+    fullPassRate: rate(full.map(traceResolved)),
+    selectedPassRate: rate(selected.map(traceResolved)),
+    fullInstances: fullInstances.size,
+    selectedInstances: selectedInstances.size,
+    fullPassedInstances: fullPassedInstances.size,
+    selectedPassedInstances: selectedPassedInstances.size,
+    selectedPassShareOfPassed: fullPassedInstances.size ? selectedPassedInstances.size / fullPassedInstances.size : null,
+  };
+}
+
+function renderTracePatternStats(snapshot) {
+  const el = document.getElementById("trace-pattern-stats");
+  if (!el) return;
+  if (!state.selectedEvalCellKey) {
+    el.innerHTML = '<span><strong>Rollout</strong> -</span><span><strong>Pass</strong> - / -</span><span><strong>Pass+tags</strong> - (0/0)</span><span><strong>Instances</strong> 0 / 0</span>';
+    return;
+  }
+  const stats = tracePatternStats(snapshot);
+  el.innerHTML = `<span><strong>Rollout</strong> ${esc(stats.rollout)}</span><span><strong>Pass</strong> ${esc(pct(stats.selectedPassRate))} / ${esc(pct(stats.fullPassRate))}</span><span><strong>Pass+tags</strong> ${esc(pct(stats.selectedPassShareOfPassed))} (${esc(stats.selectedPassedInstances)}/${esc(stats.fullPassedInstances)})</span><span><strong>Instances</strong> ${esc(stats.selectedInstances)} / ${esc(stats.fullInstances)}</span>`;
+}
+
 function selectedDetail(snapshot) {
   const details = filteredDetails(snapshot);
   const selected = details.find((detail) => rowKey(detail) === state.selectedTraceKey);
   if (selected) return selected;
-  return details.find((detail) => detail.raw_available || (detail.step_details || []).length || (detail.step_inspection || []).length) || details[0] || null;
+  const preferred = details.find((detail) => detail.raw_available || (detail.step_details || []).length || (detail.step_inspection || []).length) || details[0];
+  return preferred ? detailForRolloutIndex(detailsForInstance(details, traceInstanceKey(preferred))) : null;
 }
 
 function locatorForDetail(detail, level = "step", options = {}) {
@@ -1730,6 +1776,7 @@ function locatorForDetail(detail, level = "step", options = {}) {
   if (level !== "experiment" && detail.instance_id) params.set("instance_id", detail.instance_id);
   if (level !== "experiment" && level !== "instance") {
     if (detail.rollout_id !== null && detail.rollout_id !== undefined && detail.rollout_id !== "") params.set("rollout_id", detail.rollout_id);
+    else if (detail.cell_id !== null && detail.cell_id !== undefined && detail.cell_id !== "") params.set("cell_id", String(detail.cell_id));
     else params.set("rollout_index", String(rolloutIndex(detail)));
   }
   if (level === "step") params.set("step_index", String(state.selectedStepIndex || 0));
@@ -1748,7 +1795,7 @@ function parseLocator(text) {
 
 function clearReachabilityFilters() {
   CASE_FILTER_BUCKETS.forEach((key) => { state.caseFilters[key] = true; });
-  TRACE_PATTERN_FILTERS.forEach((key) => { state.tracePatternFilters[key] = false; });
+  TRACE_PATTERN_FILTERS.forEach((key) => { state.tracePatternFilters[key] = null; });
   state.traceQuery = "";
 }
 
@@ -1775,12 +1822,13 @@ function applyLocator(snapshot, locator) {
   state.selectedDataset = cell.dataset || locator.dataset || null;
   state.selectedEvalCellKey = cellKey(cell);
   state.selectedExperimentKey = state.selectedEvalCellKey;
-  const needsTrace = Boolean(locator.instance_id || locator.rollout_id || locator.rollout_index !== undefined || locator.step_index !== undefined);
+  const needsTrace = Boolean(locator.instance_id || locator.rollout_id || locator.cell_id || locator.rollout_index !== undefined || locator.step_index !== undefined);
   const allDetails = activeDetails(snapshot).filter((detail) => detailCellKey(detail) === state.selectedEvalCellKey);
   const detail = needsTrace
     ? allDetails.find((item) => {
       if (locator.instance_id && String(item.instance_id) !== String(locator.instance_id)) return false;
       if (locator.rollout_id) return String(item.rollout_id || "") === String(locator.rollout_id);
+      if (locator.cell_id) return String(item.cell_id || "") === String(locator.cell_id);
       if (locator.rollout_index !== undefined) return rolloutIndex(item) === Number(locator.rollout_index);
       return true;
     })
@@ -1795,6 +1843,7 @@ function applyLocator(snapshot, locator) {
       state.permalinkMissing = false;
       state.permalinkNotice = "Loading URL target trajectory details...";
       state.selectedTraceKey = null;
+      if (locator.rollout_index !== undefined) state.traceRolloutIndex = rolloutIndex({ rollout_index: locator.rollout_index });
       state.selectedStepIndex = Number(locator.step_index || 0);
       state.selectedGraphNodeKey = locator.graph_node || null;
       setTab(locator.tab === "traces" || needsTrace ? "traces" : "overview");
@@ -1805,7 +1854,10 @@ function applyLocator(snapshot, locator) {
     state.selectedTraceKey = null;
     return false;
   }
-  if (detail) state.selectedTraceKey = rowKey(detail);
+  if (detail) {
+    state.selectedTraceKey = rowKey(detail);
+    state.traceRolloutIndex = rolloutIndex(detail);
+  }
   state.selectedStepIndex = Number(locator.step_index || 0);
   state.selectedGraphNodeKey = locator.graph_node || null;
   state.permalinkNotice = "";
@@ -1837,6 +1889,19 @@ function syncFilterControls() {
   document.querySelectorAll(".trace-pattern-checkbox").forEach((input) => {
     const tag = input.dataset.patternFilter;
     if (tag) input.checked = state.tracePatternFilters[tag] === true;
+  });
+  document.querySelectorAll(".trace-pattern-cycle").forEach((button) => {
+    const tag = button.dataset.patternFilter;
+    const value = tag ? normalizeTracePatternFilterValue(state.tracePatternFilters[tag]) : null;
+    const label = button.dataset.patternLabel || tag || "pattern";
+    button.classList.toggle("is-true", value === "true");
+    button.classList.toggle("is-false", value === "false");
+    button.classList.toggle("is-none", value === "none");
+    button.setAttribute("aria-pressed", value ? "true" : "false");
+    button.setAttribute("data-pattern-state", value || "");
+    const titleSuffix = value === "true" ? "true" : value === "false" ? "false" : value === "none" ? "unavailable" : "not filtered";
+    button.setAttribute("title", `${label}: ${titleSuffix}`);
+    button.setAttribute("aria-label", `${label}: ${titleSuffix}`);
   });
   const traceSearch = document.getElementById("trace-search");
   if (traceSearch) traceSearch.value = state.traceQuery || "";
@@ -1904,6 +1969,46 @@ function deleteTargetFromKey(key) {
   }
 }
 
+function adminTargetLabel(target) {
+  if (target?.scope === "all") return "all eval cells";
+  const parts = [
+    target?.dataset ? `dataset=${target.dataset}` : "",
+    target?.provider_source ? `source=${target.provider_source}` : "",
+    target?.experiment_id ? `experiment=${target.experiment_id}` : "",
+    target?.model_label ? `model=${target.model_label}` : target?.model_api_name ? `model=${target.model_api_name}` : "",
+  ].filter(Boolean);
+  return parts.length ? parts.join(" / ") : "all eval cells";
+}
+
+function renderAdminTargetList(targets, emptyText) {
+  const items = (targets || []).map((target) => `<code>${esc(adminTargetLabel(target))}</code>`);
+  return items.join("") || `<span class="muted">${esc(emptyText)}</span>`;
+}
+
+function rebuildStatusTarget(status) {
+  const scope = status?.last_scope;
+  if (!scope || typeof scope !== "object") return null;
+  const target = {
+    experiment_id: String(scope.experiment_id || "").trim(),
+    provider_source: String(scope.provider_source || "").trim(),
+    dataset: String(scope.dataset || "").trim(),
+    model_api_name: String(scope.model_api_name || "").trim(),
+    model_label: String(scope.model_label || "").trim(),
+  };
+  return Object.values(target).some(Boolean) ? target : { scope: "all" };
+}
+
+function syncAdminRebuildTargetsFromStatus() {
+  if (state.rebuildStatus?.active === true) {
+    if (!state.adminRebuildingTargets.length) {
+      const target = rebuildStatusTarget(state.rebuildStatus);
+      state.adminRebuildingTargets = target ? [target] : [];
+    }
+    return;
+  }
+  state.adminRebuildingTargets = [];
+}
+
 function selectedDeleteTargets() {
   const targets = [...state.adminDeleteKeys].map(deleteTargetFromKey);
   if (state.adminManualTarget) targets.push(state.adminManualTarget);
@@ -1915,6 +2020,25 @@ function selectedDeleteTargets() {
       dataset: String(target.dataset || "").trim(),
     };
     if (!clean.experiment_id && !clean.provider_source && !clean.dataset) return false;
+    const key = deleteTargetKey(clean);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return clean;
+  });
+}
+
+function selectedRebuildTargets() {
+  const targets = [...state.adminRebuildKeys].map(deleteTargetFromKey);
+  const seen = new Set();
+  return targets.filter((target) => {
+    const clean = {
+      experiment_id: String(target.experiment_id || "").trim(),
+      provider_source: String(target.provider_source || "").trim(),
+      dataset: String(target.dataset || "").trim(),
+      model_api_name: String(target.model_api_name || "").trim(),
+      model_label: String(target.model_label || "").trim(),
+    };
+    if (!clean.experiment_id && !clean.provider_source && !clean.dataset && !clean.model_api_name && !clean.model_label) return false;
     const key = deleteTargetKey(clean);
     if (seen.has(key)) return false;
     seen.add(key);
@@ -1994,6 +2118,45 @@ function mergeCellDetails(snapshot, key, details) {
   snapshot.detail_count = (snapshot.details || []).length;
 }
 
+function missingDetailPlaceholder(cell, key, index, message) {
+  return {
+    eval_cell_key: key,
+    experiment_key: key,
+    source_kind: cell?.source_kind || "",
+    experiment_id: cell?.experiment_id || "",
+    provider_source: cell?.provider_source || "",
+    dataset: cell?.dataset || "",
+    data_source: cell?.dataset || "",
+    model_api_name: cell?.model_api_name || "",
+    model_label: cell?.model_label || "",
+    instance_id: `missing-detail-${index + 1}`,
+    rollout_id: `missing-detail-${index + 1}`,
+    rollout_index: index,
+    record_index: index,
+    resolved: false,
+    error: message,
+    system_error: true,
+    dashboard_detail_load_error: true,
+    raw_available: false,
+    issue_description: message,
+    not_path_evaluable_reason: "detail_load_error",
+    not_chain_evaluable_reason: "detail_load_error",
+    step_details: [],
+    step_inspection: [],
+  };
+}
+
+function fillMissingDetails(snapshot, key, cell, total, message) {
+  const loaded = loadedDetailCountForCell(snapshot, key);
+  const missing = Math.max(0, Number(total || 0) - loaded);
+  if (!missing) return;
+  const placeholders = Array.from(
+    { length: missing },
+    (_item, offset) => missingDetailPlaceholder(cell, key, loaded + offset, message)
+  );
+  mergeCellDetails(snapshot, key, placeholders);
+}
+
 function selectedCellCanHaveDetails(snapshot, key) {
   const row = experimentRows(snapshot).find((item) => cellKey(item) === key);
   if (!row) return false;
@@ -2032,6 +2195,8 @@ async function loadCellDetails(key) {
   const total = expectedCellDetailCount(state.snapshot, key);
   const pageSize = 5;
   let loaded = loadedDetailCountForCell(state.snapshot, key);
+  let offset = loaded;
+  let exhausted = false;
   if (total > 0 && loaded >= total) {
     state.detailLoadedCellKeys.add(key);
     return;
@@ -2041,18 +2206,35 @@ async function loadCellDetails(key) {
   delete state.detailLoadErrors[key];
   renderTraceInspector(state.snapshot);
   try {
-    while (loaded < Math.max(total, 1)) {
+    while (loaded < Math.max(total, 1) && offset < Math.max(total, 1)) {
       const before = loaded;
-      const response = await fetch(cellDetailsUrl(cell, { offset: loaded, limit: pageSize }), { cache: "no-store", credentials: "same-origin" });
+      const requestOffset = offset;
+      const response = await fetch(cellDetailsUrl(cell, { offset: requestOffset, limit: pageSize }), { cache: "no-store", credentials: "same-origin" });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.detail || body.error || `HTTP ${response.status}`);
-      const details = body.details || [];
+      const details = Array.isArray(body.details) ? body.details : [];
+      const responseOffset = Number(body.offset);
       mergeCellDetails(state.snapshot, key, details);
       loaded = loadedDetailCountForCell(state.snapshot, key);
+      offset = Math.max(
+        Number.isFinite(responseOffset) ? responseOffset + details.length : requestOffset + details.length,
+        loaded
+      );
       state.detailLoadProgress[key] = { loaded: total > 0 ? Math.min(loaded, total) : loaded, total };
       renderTraceInspector(state.snapshot);
-      if (loaded <= before) break;
-      if (!details.length || total <= 0 || details.length < pageSize) break;
+      if (!details.length || details.length < pageSize) exhausted = true;
+      if (exhausted || total <= 0 || offset <= requestOffset) break;
+      if (loaded <= before && offset >= total) break;
+    }
+    if (total > 0 && loaded < total && (offset >= total || exhausted)) {
+      fillMissingDetails(
+        state.snapshot,
+        key,
+        cell,
+        total,
+        `Trajectory detail loading ended after ${loaded}/${total} traces; ${total - loaded} trace detail could not be loaded.`
+      );
+      loaded = loadedDetailCountForCell(state.snapshot, key);
     }
     if (total <= 0 || loaded >= total) state.detailLoadedCellKeys.add(key);
   } catch (error) {
@@ -2068,9 +2250,15 @@ async function loadDatasetMetrics(dataset) {
   if (!state.snapshot || !dataset || state.metricLoadBusyDatasets.has(dataset) || state.metricLoadedDatasets.has(dataset)) return;
   state.metricLoadBusyDatasets.add(dataset);
   delete state.metricLoadErrors[dataset];
+  delete state.metricLoadNotices[dataset];
   try {
     const response = await fetch(datasetMetricsUrl(dataset), { cache: "no-store", credentials: "same-origin" });
     const body = await response.json().catch(() => ({}));
+    if (!response.ok && (response.status === 404 || response.status === 501)) {
+      state.metricLoadNotices[dataset] = "Cached metrics endpoint is unavailable; showing snapshot metrics.";
+      state.metricLoadedDatasets.add(dataset);
+      return;
+    }
     if (!response.ok) throw new Error(body.detail || body.error || `HTTP ${response.status}`);
     mergeModelMetrics(state.snapshot, body.model_metrics || []);
     state.metricLoadedDatasets.add(dataset);
@@ -2086,9 +2274,11 @@ async function loadDatasetMetrics(dataset) {
 async function loadRebuildStatus() {
   if (!state.admin.authenticated) {
     state.rebuildStatus = null;
+    state.adminRebuildingTargets = [];
     stopRebuildStatusPoll();
     syncSnapshotControls();
     renderOperationStatus();
+    renderAdminPanel(state.snapshot);
     return;
   }
   const wasActive = state.rebuildStatus?.active === true;
@@ -2097,8 +2287,10 @@ async function loadRebuildStatus() {
     if (!response.ok) return;
     const payload = await response.json();
     state.rebuildStatus = payload.status || null;
+    syncAdminRebuildTargetsFromStatus();
     syncSnapshotControls();
     renderOperationStatus();
+    renderAdminPanel(state.snapshot);
     const isActive = state.rebuildStatus?.active === true;
     if (isActive) scheduleRebuildStatusPoll();
     else {
@@ -2138,6 +2330,7 @@ async function loadAdminStatus() {
     state.admin.enabled = false;
     state.admin.authenticated = false;
     state.rebuildStatus = null;
+    state.adminRebuildingTargets = [];
     syncAdminControls();
     renderOperationStatus();
   }
@@ -2168,6 +2361,9 @@ async function logoutAdmin() {
   }
   state.admin.authenticated = false;
   state.adminDeleteKeys.clear();
+  state.adminRebuildKeys.clear();
+  state.adminDeletingTargets = [];
+  state.adminRebuildingTargets = [];
   state.adminPreview = null;
   state.rebuildStatus = null;
   state.adminMessage = "";
@@ -2182,10 +2378,8 @@ function syncAdminControls() {
   const logoutButton = document.getElementById("admin-logout-button");
   const password = document.getElementById("admin-password");
   const status = document.getElementById("admin-status");
-  const rebuildButton = document.getElementById("rebuild-button");
   if (!form) return;
   form.hidden = false;
-  if (rebuildButton) rebuildButton.hidden = !state.admin.authenticated;
   if (loginButton) {
     loginButton.hidden = state.admin.authenticated || !state.admin.enabled;
     loginButton.disabled = false;
@@ -2215,26 +2409,95 @@ function renderAdminPanel(snapshot) {
     return;
   }
   panel.hidden = false;
-  const targets = selectedDeleteTargets();
+  const deleteTargets = selectedDeleteTargets();
+  const rebuildTargets = selectedRebuildTargets();
   const preview = state.adminPreview;
   const counts = preview?.counts || {};
   const busy = state.adminBusy;
+  const rebuildMessage = rebuildStatusMessage();
+  const deletingTargets = state.adminDeletingTargets || [];
+  const rebuildingTargets = state.adminRebuildingTargets || [];
+  const progressHtml = [
+    rebuildingTargets.length
+      ? `<div class="admin-targets"><span>Rebuilding now:</span> ${renderAdminTargetList(rebuildingTargets, "")}</div>`
+      : "",
+    deletingTargets.length
+      ? `<div class="admin-targets"><span>Deleting now:</span> ${renderAdminTargetList(deletingTargets, "")}</div>`
+      : "",
+    rebuildMessage ? `<div class="rebuild-inline-status ${state.rebuildStatus?.phase === "failed" ? "bad" : ""}">${esc(rebuildMessage)}</div>` : "",
+  ].join("");
   panel.innerHTML = `
-    <h2>Delete selected DB rows</h2>
-    <div class="admin-targets">${targets.map((target) => `<code>${esc(deleteTargetKey(target))}</code>`).join("") || '<span class="muted">Select rows in the Eval cells table.</span>'}</div>
+    <h2>DB admin actions</h2>
+    ${progressHtml ? `<div class="admin-progress">${progressHtml}</div>` : ""}
     <div class="admin-actions">
-      <button id="admin-preview-delete" type="button" ${targets.length && !busy ? "" : "disabled"}>${busy === "preview-delete" ? "Previewing..." : "Preview delete"}</button>
+      <button id="admin-rebuild-all" type="button" ${!busy ? "" : "disabled"}>${busy === "rebuild-all" ? "Queueing..." : "Rebuild all"}</button>
+      <button id="admin-rebuild-selected" type="button" ${rebuildTargets.length && !busy ? "" : "disabled"}>${busy === "rebuild" ? "Queueing..." : "Rebuild selected"}</button>
+      <button id="admin-preview-delete" type="button" ${deleteTargets.length && !busy ? "" : "disabled"}>${busy === "preview-delete" ? "Previewing..." : "Preview delete"}</button>
       <button id="admin-confirm-delete" type="button" ${preview && !busy ? "" : "disabled"}>${busy === "delete" ? "Deleting..." : "Delete"}</button>
     </div>
     <div class="admin-message">${esc(state.adminMessage || "")}</div>
     ${preview ? `<div class="panel-note">Preview: ${esc(counts.run_cells || 0)} run cells, ${esc(counts.raw_rollouts || 0)} raw rollouts, ${esc(counts.quantitative_metrics || 0)} metrics, ${esc(counts.experiments || 0)} experiments.</div>` : ""}
   `;
+  document.getElementById("admin-rebuild-all")?.addEventListener("click", async () => {
+    let queued = false;
+    try {
+      state.adminBusy = "rebuild-all";
+      state.adminRebuildingTargets = [{ scope: "all" }];
+      state.adminMessage = "Rebuild queued; clearing all dashboard detail cache in the background.";
+      renderAdminPanel(snapshot);
+      const result = await apiPost("/api/rebuild", {});
+      queued = true;
+      applyQueuedRebuildStatus(result);
+      state.adminPreview = null;
+      state.adminMessage = rebuildQueuedMessage(result);
+      await loadSnapshot({
+        silent: true,
+        queueIfBusy: true,
+      });
+    } catch (error) {
+      if (!queued && state.rebuildStatus?.active !== true) state.adminRebuildingTargets = [];
+      state.adminMessage = String(error.message || error);
+    } finally {
+      state.adminBusy = "";
+      renderAdminPanel(state.snapshot || snapshot);
+      renderExperiments(state.snapshot || snapshot);
+      loadRebuildStatus();
+    }
+  });
+  document.getElementById("admin-rebuild-selected")?.addEventListener("click", async () => {
+    const targets = selectedRebuildTargets();
+    let queued = false;
+    try {
+      state.adminBusy = "rebuild";
+      state.adminRebuildingTargets = targets;
+      state.adminMessage = "Rebuild queued; clearing selected cache in the background.";
+      renderAdminPanel(snapshot);
+      const result = await apiPost("/api/rebuild", { targets });
+      queued = true;
+      applyQueuedRebuildStatus(result);
+      state.adminPreview = null;
+      state.adminMessage = rebuildQueuedMessage(result);
+      await loadSnapshot({
+        silent: true,
+        queueIfBusy: true,
+      });
+    } catch (error) {
+      if (!queued && state.rebuildStatus?.active !== true) state.adminRebuildingTargets = [];
+      state.adminMessage = String(error.message || error);
+    } finally {
+      state.adminBusy = "";
+      renderAdminPanel(state.snapshot || snapshot);
+      renderExperiments(state.snapshot || snapshot);
+      loadRebuildStatus();
+    }
+  });
   document.getElementById("admin-preview-delete")?.addEventListener("click", async () => {
+    const targets = selectedDeleteTargets();
     try {
       state.adminBusy = "preview-delete";
       state.adminMessage = "Previewing selected DB rows...";
       renderAdminPanel(snapshot);
-      state.adminPreview = await apiPost("/api/delete/preview", { targets: selectedDeleteTargets() });
+      state.adminPreview = await apiPost("/api/delete/preview", { targets });
       state.adminMessage = "";
     } catch (error) {
       state.adminMessage = String(error.message || error);
@@ -2244,24 +2507,27 @@ function renderAdminPanel(snapshot) {
     renderAdminPanel(snapshot);
   });
   document.getElementById("admin-confirm-delete")?.addEventListener("click", async () => {
+    const targets = selectedDeleteTargets();
     try {
       state.adminBusy = "delete";
+      state.adminDeletingTargets = targets;
       state.adminMessage = "Deleting selected DB rows...";
       renderAdminPanel(snapshot);
-      const result = await apiPost("/api/delete", { targets: selectedDeleteTargets() });
+      const result = await apiPost("/api/delete", { targets });
       state.adminMessage = `Deleted ${result.counts?.run_cells || 0} run cells.`;
       state.adminDeleteKeys.clear();
+      state.adminRebuildKeys.clear();
       state.adminManualTarget = null;
       state.adminPreview = null;
       await loadSnapshot({
-        startMessage: "Refreshing current DB state...",
-        successMessage: state.adminMessage,
+        silent: true,
       });
     } catch (error) {
       state.adminMessage = String(error.message || error);
       renderAdminPanel(snapshot);
     } finally {
       state.adminBusy = "";
+      state.adminDeletingTargets = [];
       renderAdminPanel(state.snapshot || snapshot);
     }
   });
@@ -3285,13 +3551,14 @@ function traceRolloutOutcome(detail) {
 }
 
 function selectedRolloutForGroup(details) {
-  return details.find((detail) => rowKey(detail) === state.selectedTraceKey) || details[0] || null;
+  return detailForRolloutIndex(details);
 }
 
 function traceRolloutSegments(details) {
+  const selectedRollout = selectedRolloutForGroup(details);
   const segments = details.map((detail) => {
     const resolved = traceResolved(detail);
-    const selected = rowKey(detail) === state.selectedTraceKey;
+    const selected = selectedRollout && rowKey(detail) === rowKey(selectedRollout);
     const label = `Rollout ${rolloutIndex(detail) + 1}: ${traceRolloutOutcome(detail)}`;
     return `<span class="trace-rollout-segment ${resolved ? "is-resolved" : "is-unresolved"} ${selected ? "is-selected" : ""}" title="${esc(label)}" aria-label="${esc(label)}"></span>`;
   }).join("");
@@ -3308,6 +3575,49 @@ function groupedTraceDetails(snapshot) {
   return [...groups.values()];
 }
 
+function selectableRolloutDetails(snapshot) {
+  if (!state.selectedEvalCellKey) return [];
+  return activeDetails(snapshot).filter((detail) => detailCellKey(detail) === state.selectedEvalCellKey);
+}
+
+function renderGlobalRolloutSelector(snapshot) {
+  const details = selectableRolloutDetails(snapshot);
+  const maxIndex = details.reduce((maxValue, detail) => Math.max(maxValue, rolloutIndex(detail)), 0);
+  if (maxIndex <= 0) return "";
+  const current = Math.min(traceGlobalRolloutIndex(), maxIndex);
+  const options = Array.from({ length: maxIndex + 1 }, (_, index) => {
+    return `<option value="${esc(index)}" ${index === current ? "selected" : ""}>Rollout ${esc(index + 1)}</option>`;
+  }).join("");
+  return `<label class="trace-global-rollout">
+    <span>Rollout view</span>
+    <select id="trace-global-rollout-select">${options}</select>
+  </label>`;
+}
+
+function handleTraceGlobalRolloutChange(event) {
+  const scrollState = captureInspectorScroll();
+  const current = selectedDetail(state.snapshot);
+  const instanceKey = current ? traceInstanceKey(current) : null;
+  state.traceRolloutIndex = rolloutIndex({ rollout_index: event.target.value });
+  const details = filteredDetails(state.snapshot);
+  const nextDetail = instanceKey
+    ? detailForRolloutIndex(detailsForInstance(details, instanceKey))
+    : detailForRolloutIndex(details);
+  if (nextDetail) state.selectedTraceKey = rowKey(nextDetail);
+  state.selectedStepIndex = 0;
+  state.selectedGraphNodeKey = null;
+  resetTracePanels();
+  renderTraceInspector(state.snapshot);
+  restoreInspectorScroll({ ...scrollState, middle: 0, right: 0 });
+}
+
+function renderTraceGlobalRolloutControl(snapshot) {
+  const el = document.getElementById("trace-global-rollout-slot");
+  if (!el) return;
+  el.innerHTML = renderGlobalRolloutSelector(snapshot);
+  document.getElementById("trace-global-rollout-select")?.addEventListener("change", handleTraceGlobalRolloutChange);
+}
+
 function renderTraceList(snapshot) {
   const rows = groupedTraceDetails(snapshot).map((group) => {
     const selectedDetail = selectedRolloutForGroup(group.details);
@@ -3316,14 +3626,14 @@ function renderTraceList(snapshot) {
     const total = group.details.length;
     const id = traceInstanceId(selectedDetail);
     const statusClass = resolvedCount === total ? "is-resolved" : resolvedCount === 0 ? "is-unresolved" : "is-mixed";
-    return `<button class="trace-row ${selected ? "is-selected" : ""} ${statusClass}" type="button" data-trace-key="${esc(rowKey(selectedDetail))}" data-instance-key="${esc(group.key)}" aria-label="${esc(`${id} ${resolvedCount}/${total} successful rollouts`)}">
+    return `<button class="trace-row ${selected ? "is-selected" : ""} ${statusClass}" type="button" data-trace-key="${esc(rowKey(selectedDetail))}" data-instance-key="${esc(group.key)}" data-rollout-index="${esc(rolloutIndex(selectedDetail))}" aria-label="${esc(`${id} ${resolvedCount}/${total} successful rollouts`)}">
       ${traceRolloutSegments(group.details)}
       <span class="trace-id">${esc(id)}</span>
       <span class="trace-meta">${esc(`${resolvedCount}/${total} success · selected rollout ${rolloutIndex(selectedDetail) + 1} · ${traceSummary(selectedDetail)}`)}</span>
       ${traceStatusIcons(selectedDetail)}
     </button>`;
   });
-  return rows.join("") || '<div class="empty">No instances in the selected experiment.</div>';
+  return `<div class="trace-list">${rows.join("") || '<div class="empty">No instances in the selected experiment.</div>'}</div>`;
 }
 
 function renderTraceLegend() {
@@ -3563,7 +3873,7 @@ function renderStepDetail(detail) {
     <div class="detail-grid">
       ${renderStepNodeHits(step, detail)}
       <section><h4>Tool calls</h4>${renderToolCalls(step)}</section>
-      ${renderToggle("Reasoning", step.reasoning_text || "(empty)")}
+      ${renderToggle("Reasoning", step.reasoning_text || "(empty)", "", true)}
       ${renderToggle("Chat", step.chat_text || step.response_text || "(empty)")}
       ${hasInlineDiff(step) ? renderDiff(step.old_str, step.new_str) : ""}
       ${renderToggle("Action", step.raw_action || step.tool_calls || [])}
@@ -3573,11 +3883,14 @@ function renderStepDetail(detail) {
 }
 
 function renderTraceInspector(snapshot) {
+  renderTracePatternStats(snapshot);
+  renderTraceGlobalRolloutControl(snapshot);
   if (!state.selectedEvalCellKey) {
     document.getElementById("trace-inspector").innerHTML = '<div class="empty">Select a dataset and eval cell/model before inspecting trajectories.</div>';
     return;
   }
-  if (state.detailLoadBusyKeys.has(state.selectedEvalCellKey)) {
+  const detailsLoading = state.detailLoadBusyKeys.has(state.selectedEvalCellKey);
+  if (detailsLoading && loadedDetailCountForCell(snapshot, state.selectedEvalCellKey) <= 0) {
     document.getElementById("trace-inspector").innerHTML = renderDetailLoadProgress(state.selectedEvalCellKey);
     return;
   }
@@ -3605,7 +3918,9 @@ function renderTraceInspector(snapshot) {
   if (!selectedSteps.has(Number(state.selectedStepIndex))) {
     state.selectedStepIndex = Number([...selectedSteps.keys()][0] ?? 0);
   }
+  const detailLoadBanner = detailsLoading ? `<div class="trace-load-banner">${renderDetailLoadProgress(state.selectedEvalCellKey)}</div>` : "";
   document.getElementById("trace-inspector").innerHTML = `
+    ${detailLoadBanner}
     <aside id="trace-left-pane" class="trace-left">${renderTraceList(snapshot)}</aside>
     <section class="trace-workspace">
       <div class="trace-overview">${renderTraceTitleCard(detail, snapshot)}</div>
@@ -3620,6 +3935,7 @@ function renderTraceInspector(snapshot) {
     button.addEventListener("click", () => {
       const leftScroll = document.getElementById("trace-left-pane")?.scrollTop || 0;
       state.selectedTraceKey = button.dataset.traceKey;
+      state.traceRolloutIndex = rolloutIndex({ rollout_index: button.dataset.rolloutIndex });
       state.selectedStepIndex = 0;
       state.selectedGraphNodeKey = null;
       resetTracePanels();
@@ -3630,6 +3946,8 @@ function renderTraceInspector(snapshot) {
   document.getElementById("trace-rollout-select")?.addEventListener("change", (event) => {
     const scrollState = captureInspectorScroll();
     state.selectedTraceKey = event.target.value;
+    const selected = filteredDetails(state.snapshot).find((detail) => rowKey(detail) === state.selectedTraceKey);
+    if (selected) state.traceRolloutIndex = rolloutIndex(selected);
     state.selectedStepIndex = 0;
     state.selectedGraphNodeKey = null;
     resetTracePanels();
@@ -3705,6 +4023,7 @@ function render(options = {}) {
   renderRuns(snapshot);
   document.getElementById("trace-legend").innerHTML = renderTraceLegend();
   renderTraceInspector(snapshot);
+  renderTracePatternStats(snapshot);
   restoreTableScroll(tableScrollState);
   restoreInspectorScroll(options.scrollState);
 }
@@ -3717,8 +4036,7 @@ function setTab(tabName) {
 
 function configureEvents() {
   document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click", () => setTab(tab.dataset.tab)));
-  document.getElementById("refresh-button").addEventListener("click", loadSnapshot);
-  document.getElementById("rebuild-button").addEventListener("click", queueDashboardRebuild);
+  document.getElementById("refresh-button").addEventListener("click", () => loadSnapshot({ dropSelectedDetails: true }));
   document.querySelectorAll(".case-filter-checkbox").forEach((input) => {
     input.addEventListener("change", (event) => {
       const bucket = event.target.dataset.caseFilter;
@@ -3773,6 +4091,19 @@ function configureEvents() {
       const tag = event.target.dataset.patternFilter;
       if (!tag || !TRACE_PATTERN_FILTERS.includes(tag)) return;
       state.tracePatternFilters[tag] = Boolean(event.target.checked);
+      state.selectedTraceKey = null;
+      state.selectedStepIndex = 0;
+      state.selectedGraphNodeKey = null;
+      resetTracePanels();
+      render();
+    });
+  });
+  document.querySelectorAll(".trace-pattern-cycle").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      const tag = event.currentTarget.dataset.patternFilter;
+      if (!tag || !TRACE_PATTERN_FILTERS.includes(tag)) return;
+      const value = nextTracePatternFilterValue(state.tracePatternFilters[tag]);
+      state.tracePatternFilters[tag] = TRACE_PATTERN_FILTER_VALUES.includes(value) ? value : null;
       state.selectedTraceKey = null;
       state.selectedStepIndex = 0;
       state.selectedGraphNodeKey = null;

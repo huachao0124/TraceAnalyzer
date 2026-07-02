@@ -123,16 +123,29 @@ touching this tree. The research-level `CLAUDE.md` is at the repo root.
   render those fields in the frontend. Avoid frontend-only inference for
   metrics or trace status unless it is a compatibility fallback for old
   artifacts.
-- Treat the SQLite eval cache as a raw capture and run-status store by default.
-  Dashboard metrics and trace pattern states must be computed from raw rollout
-  content plus bonus maps in dashboard/scorer code, not trusted from stale DB
-  score fields. New collection paths should store basic facts such as resolved
-  state, token usage, runtime, artifacts, and raw rollout content, but should
-  not populate localization score columns, `metrics_json.detail`, or pattern
-  flags. The live dashboard may persist `metrics_json.detail` only through the
-  one-way dashboard -> DB cache writer, and the read path must validate the
-  fingerprint against scorer version, scoring params, raw rollout hash, and
-  bonus-map hash before using it.
+- Keep dashboard persistence split into a raw eval DB and a dashboard build DB.
+  The raw eval DB is the rollout-time store: it should contain raw rollout
+  content, issue descriptions, golden patches, token/runtime data, run status,
+  and artifact references. It should not carry dashboard pattern/detail payloads
+  or pattern-derived metrics, and it should store each raw trace only once in
+  structured columns (`messages_json`, `trajectory_json`, and
+  `p2a_step_traces_json`). `rollout_json` is a slim metadata compatibility field,
+  not a second full trace copy. The dashboard build DB is the dashboard-bound
+  materialized cache: it contains per-rollout pattern/detail rows and eval-cell
+  metrics rows, but no raw trace payloads. Data flows one way from raw DB to
+  build DB only during admin rebuild, explicit build-DB migration, or
+  incremental rollout caching; dashboard read paths treat the build DB as
+  read-only. Starting or restarting the dashboard server must not migrate,
+  rebuild, or otherwise materialize build DB data.
+- For dashboard DB reads, use build DB materialized data when it is complete and
+  fingerprint-valid for every completed/error rollout in an eval cell. If any
+  such rollout is missing valid build data, expose only basic progress,
+  pass/resolved, token/cost, and length metrics for that cell. Symptom/root,
+  Path, pattern, order, miracle, and purpose-block KPIs remain null/hidden until
+  the cell is fully materialized. The Traces view should list only rollouts that
+  actually have raw trace content; planned-but-unrolled cells are not useful
+  trace rows, and traces without materialized detail should render without
+  pattern tags.
 - Treat node source code as bonus-map data. Dashboard Node Source must read full
   callable source from the inferred or explicit P2A bonus-map directory; DB
   `source_preview` fields are only compatibility fallbacks for old artifacts.
