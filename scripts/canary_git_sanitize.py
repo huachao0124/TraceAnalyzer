@@ -123,8 +123,17 @@ def cmd_arl(args) -> int:
         ok &= _check("git log --all shows one baseline commit", log_all.strip().splitlines()[-1].strip() == "1", log_all.strip())
         subject, _ = _run(runtime, f"cd {repo} && git log -1 --pretty=%s")
         ok &= _check("HEAD is the baseline commit", subject.strip().splitlines()[-1].strip() == "baseline", subject.strip())
-        refs, _ = _run(runtime, f"cd {repo} && git for-each-ref --format='%(refname)' | grep -v 'refs/heads/' | wc -l")
-        ok &= _check("no remote/tag refs remain", refs.strip().splitlines()[-1].strip() == "0", refs.strip())
+        # The sanitizer re-points at most ONE version tag (nearest ancestor release, kept
+        # for setuptools-scm/versioneer installs) at the baseline commit; nothing else.
+        refs, _ = _run(runtime, f"cd {repo} && git for-each-ref --format='%(refname)' | grep -v -e '^refs/heads/' -e '^refs/tags/' | wc -l")
+        ok &= _check("no remote/foreign refs remain", refs.strip().splitlines()[-1].strip() == "0", refs.strip())
+        tags, _ = _run(runtime, f"cd {repo} && git tag | wc -l")
+        ok &= _check("at most one preserved version tag", int(tags.strip().splitlines()[-1].strip() or 0) <= 1, tags.strip())
+        tag_shas, _ = _run(runtime, f'cd {repo} && for t in $(git tag); do git rev-list -n1 "$t"; done | sort -u')
+        head_sha, _ = _run(runtime, f"cd {repo} && git rev-parse HEAD")
+        tag_lines = [line.strip() for line in tag_shas.strip().splitlines() if line.strip()]
+        ok &= _check("preserved tag points at baseline only",
+                     not tag_lines or tag_lines == [head_sha.strip().splitlines()[-1].strip()], tag_shas.strip())
         _run(runtime, f"cd {repo} && echo '# p2a-canary' >> README.md 2>/dev/null || echo '# p2a-canary' > p2a_canary.txt")
         diff, _ = _run(runtime, f"cd {repo} && git diff HEAD --name-only | wc -l")
         ok &= _check("git diff HEAD captures a model edit", int(diff.strip().splitlines()[-1].strip() or 0) >= 1, diff.strip())

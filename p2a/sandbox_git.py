@@ -63,6 +63,12 @@ def git_sanitize_block(repo_path: str = "/testbed", *, buggy_ref: str | None = N
         )
     lines += [
         f"git config --global --add safe.directory {repo} >/dev/null 2>&1 || true",
+        # setuptools-scm/versioneer derive package versions from the nearest ancestor
+        # tag; a tagless baseline resolves to 0.1.dev1 and breaks installs whose tests
+        # gate on version (pytest's own `minversion` aborts every test). Capture the
+        # nearest tag before the wipe and re-point it at the baseline commit below —
+        # only the tag NAME (a released version string) survives, no history content.
+        f'__p2a_version_tag="$(git -C {repo} describe --tags --abbrev=0 2>/dev/null || true)"',
         f"rm -rf {repo}/.git",
         f"git -C {repo} init -q",
         f"git -C {repo} config user.email p2a@example.invalid",
@@ -74,6 +80,7 @@ def git_sanitize_block(repo_path: str = "/testbed", *, buggy_ref: str | None = N
         # Baseline must exist even if the worktree is empty, so reward's HEAD reset works.
         f"git -C {repo} commit -q -m baseline "
         f"|| git -C {repo} commit -q --allow-empty -m baseline",
+        f'if [ -n "$__p2a_version_tag" ]; then git -C {repo} tag -f "$__p2a_version_tag" >/dev/null 2>&1 || true; fi',
         # Stable ref for callers that prefer a name over HEAD; keep exit status 0 so the
         # joined startup script (exit code = last command) does not fail the session.
         f"git -C {repo} branch -f p2a-baseline >/dev/null 2>&1 || true",
