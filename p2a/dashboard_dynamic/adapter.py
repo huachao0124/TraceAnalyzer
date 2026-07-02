@@ -53,7 +53,7 @@ from p2a.hf_assets import shared_p2a_data_dir
 
 
 DASHBOARD_SCHEMA_VERSION = "p2a_unified_dashboard_v1"
-DASHBOARD_DETAIL_CACHE_VERSION = "dashboard_detail_cache_v1"
+DASHBOARD_DETAIL_CACHE_VERSION = "dashboard_detail_cache_v2"
 DASHBOARD_DETAIL_CACHE_METADATA_KEY = "dashboard_detail_cache"
 THIRD_PARTY_PROVIDER_SOURCES = {
     "internal_api",
@@ -2735,6 +2735,10 @@ def _detail_metric_values(item: dict[str, Any]) -> dict[str, Any]:
         "reverse_order_rate": _bool_number(_negative(order_score)) if order_score is not None else None,
         "miracle_rate": _bool_number(_combined_miracle_marker(item)) if order_metric else None,
         "avg_miracle_severity": item.get("miracle_severity") if order_metric else None,
+        "unlicensed_arrival_rate": item.get("unlicensed_arrival_rate") if item.get("license_evaluable") else None,
+        "unlicensed_trace_rate": _bool_number((item.get("n_unlicensed_arrivals") or 0) > 0)
+        if item.get("license_evaluable")
+        else None,
         "avg_block_order_score": block_order_score,
         "block_reverse_order_rate": _bool_number(_negative(block_order_score)) if block_order_score is not None else None,
         "block_miracle_rate": _bool_number(item.get("block_miracle_step")) if order_metric else None,
@@ -2841,6 +2845,7 @@ def _detail_model_metrics(details: list[dict[str, Any]], *, include_avg_at: bool
         order_metric_items = [item for item in items if _is_order_metric_detail(item)]
         order_items = [item for item in order_metric_items if item.get("order_defined") is True]
         block_order_items = [item for item in order_metric_items if item.get("block_order_defined") is True]
+        license_items = [item for item in items if item.get("license_evaluable")]
         scored_blocks = _sum_int(path_metric_items, "n_scored_read_blocks")
         total_blocks = _sum_int(path_metric_items, "n_blocks")
         scored_block_steps = _sum_int(path_metric_items, "n_scored_read_block_steps")
@@ -2900,6 +2905,8 @@ def _detail_model_metrics(details: list[dict[str, Any]], *, include_avg_at: bool
             "reverse_order_rate": _rate(_combined_reverse_marker(item) for item in order_metric_items),
             "miracle_rate": _rate(_combined_miracle_marker(item) for item in order_metric_items),
             "avg_miracle_severity": _avg(item.get("miracle_severity") for item in order_metric_items),
+            "unlicensed_arrival_rate": _avg(item.get("unlicensed_arrival_rate") for item in license_items),
+            "unlicensed_trace_rate": _rate((item.get("n_unlicensed_arrivals") or 0) > 0 for item in license_items),
             "avg_block_order_score": _avg(item.get("block_order_score") for item in block_order_items),
             "block_reverse_order_rate": _rate(
                 _negative(item.get("block_order_score"))

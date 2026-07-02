@@ -605,6 +605,121 @@ def _all_read_hit_nodes(reads: list[dict], bonus_map: dict, *, rewardable_only: 
     return hits
 
 
+def _node_license_tokens(node_key: str, node: dict) -> list[str]:
+    """Identifier tokens whose earlier appearance licenses an arrival at the node."""
+    file_path = str(node.get("file_path") or "")
+    callable_name = node_key.split("::")[-1].split(".")[-1]
+    tokens: list[str] = []
+    if file_path:
+        tokens.append(file_path)
+        basename = file_path.rsplit("/", 1)[-1]
+        if basename and basename != file_path:
+            tokens.append(basename)
+    if len(callable_name) > 3 and not callable_name.startswith("<"):
+        tokens.append(callable_name)
+    return tokens
+
+
+def _step_observation_text(trace: Any) -> str:
+    trace = _maybe_json(trace)
+    if not isinstance(trace, dict):
+        return ""
+    parts: list[str] = []
+    for result_value in trace.get("tool_results") or []:
+        result = _maybe_json(result_value)
+        if isinstance(result, str):
+            parts.append(result)
+            continue
+        if not isinstance(result, dict):
+            continue
+        for key in ("observation", "content", "result", "output", "stderr"):
+            value = result.get(key)
+            if isinstance(value, str) and value:
+                parts.append(value)
+    return "\n".join(parts)
+
+
+def _record_issue_text(record: dict) -> str:
+    for container in _candidate_containers(record):
+        for key in ("problem_statement", "issue_description", "issue_text", "issue", "description", "problem"):
+            value = container.get(key)
+            if isinstance(value, str) and value.strip():
+                return value
+    return ""
+
+
+def _license_summary(
+    step_items: list[Any],
+    step_reads: list[list[dict]],
+    bonus_map: dict,
+    issue_text: str,
+    *,
+    step_indices: list[int] | None = None,
+) -> dict:
+    """Classify the first arrival at each rewardable Graph node by its license.
+
+    An arrival is licensed when the node identity had an antecedent in the
+    observable context before the touching step: the issue text (issue license)
+    or any strictly earlier tool observation (observation license). Unlicensed
+    arrivals are Graph touches with no antecedent.
+    """
+    nodes = bonus_map.get("call_graph_nodes", {}) if bonus_map else {}
+    summary = {
+        "n_graph_arrivals": 0,
+        "n_issue_licensed_arrivals": 0,
+        "n_observation_licensed_arrivals": 0,
+        "n_unlicensed_arrivals": 0,
+        "n_unlicensed_root_arrivals": 0,
+        "unlicensed_arrival_rate": None,
+        "unlicensed_arrival_nodes": [],
+    }
+    # Test-file nodes are legitimately discovered by running the failing test,
+    # so their paths never need an issue/observation antecedent.
+    def _is_test_file_node(node: dict) -> bool:
+        file_path = str(node.get("file_path") or "")
+        return file_path.startswith("tests/") or "/tests/" in file_path
+    if not nodes or not any(reads_for_step for reads_for_step in step_reads):
+        return summary
+    prior_observations: list[str] = []
+    seen: set[str] = set()
+    for step_idx, reads_for_step in enumerate(step_reads):
+        hits: set[str] = set()
+        for read in reads_for_step:
+            hits.update(_read_hit_nodes(read, bonus_map))
+        for node_key in sorted(hits - seen):
+            node = nodes.get(node_key) or {}
+            if _is_test_file_node(node):
+                continue
+            tokens = _node_license_tokens(node_key, node)
+            summary["n_graph_arrivals"] += 1
+            if issue_text and any(token in issue_text for token in tokens):
+                summary["n_issue_licensed_arrivals"] += 1
+            elif any(token in observation for observation in prior_observations for token in tokens):
+                summary["n_observation_licensed_arrivals"] += 1
+            else:
+                summary["n_unlicensed_arrivals"] += 1
+                if node.get("node_role") == "root_cause":
+                    summary["n_unlicensed_root_arrivals"] += 1
+                if len(summary["unlicensed_arrival_nodes"]) < 20:
+                    display_idx = step_indices[step_idx] if step_indices and step_idx < len(step_indices) else step_idx + 1
+                    summary["unlicensed_arrival_nodes"].append(
+                        {
+                            "node": node_key,
+                            "node_role": node.get("node_role"),
+                            "hop_distance": node.get("hop_distance"),
+                            "step": display_idx,
+                        }
+                    )
+        seen.update(hits)
+        if step_idx < len(step_items):
+            observation = _step_observation_text(step_items[step_idx])
+            if observation:
+                prior_observations.append(observation)
+    if summary["n_graph_arrivals"]:
+        summary["unlicensed_arrival_rate"] = summary["n_unlicensed_arrivals"] / summary["n_graph_arrivals"]
+    return summary
+
+
 def _kendall_order(first_hits: dict[str, int], bonus_map: dict) -> tuple[float | None, bool]:
     nodes = bonus_map.get("call_graph_nodes", {})
     ordered = [
@@ -1435,6 +1550,14 @@ def score_record(
         "block_order_defined": False,
         "block_miracle_step": None,
         "block_miracle_severity": None,
+        "license_evaluable": False,
+        "n_graph_arrivals": 0,
+        "n_issue_licensed_arrivals": 0,
+        "n_observation_licensed_arrivals": 0,
+        "n_unlicensed_arrivals": 0,
+        "n_unlicensed_root_arrivals": 0,
+        "unlicensed_arrival_rate": None,
+        "unlicensed_arrival_nodes": [],
         "graph_topology": None,
         "path_evaluable": False,
         "not_path_evaluable_reason": "missing_bonus_map",
@@ -1478,6 +1601,17 @@ def score_record(
     result["n_rewardable_call_graph_nodes"] = len(rewardable_nodes)
     scoring_step_reads = step_reads if any(reads_for_step for reads_for_step in step_reads) else ([reads] if reads else [])
     scoring_display_step_indices = display_step_indices if scoring_step_reads is step_reads else ([1] if reads else [])
+    if rewardable_nodes and any(reads_for_step for reads_for_step in step_reads):
+        result["license_evaluable"] = True
+        result.update(
+            _license_summary(
+                step_items,
+                step_reads,
+                bonus_map,
+                _record_issue_text(record),
+                step_indices=display_step_indices,
+            )
+        )
     step_first_hits = _step_node_first_hits(step_reads, bonus_map) if step_reads else {}
     display_step_first_hits = (
         _step_node_first_hits(step_reads, bonus_map, step_indices=display_step_indices) if step_reads else {}

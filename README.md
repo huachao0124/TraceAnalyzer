@@ -587,7 +587,15 @@ anchors exist, root causes do not overlap those anchors, and reward Path edges
 with distinct distances exist. `exposed` is the complementary formerly standard
 case where that clean Pattern denominator is collapsed or unavailable. If one read step observes the
 symptom, intermediate nodes, and root cause together, that simultaneous
-observation is not a miracle. Step colors split into equal role segments when a
+observation is not a miracle. Unlicensed arrival marks the first touch of a
+rewardable Graph node whose file path, file basename, or callable name had no
+antecedent in the issue text or any strictly earlier tool observation; the
+per-trace marker, the trace-list filter tag, and the `Unlicensed
+arrival`/`Unlicensed trace` KPI columns all read the
+`p2a/eval_fault_localization.py` license fields (`license_evaluable`,
+`n_graph_arrivals`, `n_unlicensed_arrivals`, `unlicensed_arrival_nodes`).
+Empirically most arrivals are licensed, so these KPIs act as a rarely-firing
+provenance check rather than a reward-shaping signal. Step colors split into equal role segments when a
 single step hits multiple map roles; a callable that is both symptom and root
 cause uses a diagonal split so it is visually distinct from a multi-node step
 hit. Node Source uses the full captured callable source when the bonus map
