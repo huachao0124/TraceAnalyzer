@@ -102,7 +102,14 @@ def _make_swebench_eval_script_list(instance, specs, env_name, repo_directory, t
     heredoc_delimiter = "EOF_114329324912"
     base_commit = instance["base_commit"]
     test_files = get_modified_files(test_patch)
-    reset_tests_command = f"git checkout {base_commit} {' '.join(test_files)}" if test_files else "echo 'skip reset'"
+    if test_files:
+        files = " ".join(test_files)
+        # After git-sanitize (issue #29) the synthetic baseline HEAD holds the base state and
+        # the original base_commit is unreachable; reset test files against HEAD, falling back
+        # to base_commit for un-sanitized sandboxes.
+        reset_tests_command = f"git checkout HEAD -- {files} 2>/dev/null || git checkout {base_commit} -- {files}"
+    else:
+        reset_tests_command = "echo 'skip reset'"
     apply_test_patch_command = f"git apply -v - <<'{heredoc_delimiter}'\n{test_patch}\n{heredoc_delimiter}"
     test_cmd = MAP_REPO_VERSION_TO_SPECS[instance["repo"]][instance["version"]]["test_cmd"]
     test_command = " ".join([test_cmd, *get_test_directives(instance)])
@@ -119,7 +126,9 @@ def _make_swebench_eval_script_list(instance, specs, env_name, repo_directory, t
         f"cd {repo_directory}",
         "git status",
         "git show",
-        f"git -c core.fileMode=false diff {base_commit}",
+        # Diagnostic only (unparsed): diff against HEAD so it works against the synthetic
+        # baseline after git-sanitize; base_commit is unreachable there.
+        "git -c core.fileMode=false diff HEAD",
         "source /opt/miniconda3/bin/activate",
         f"conda activate {env_name}",
     ]
@@ -359,9 +368,12 @@ class SWEBenchProRewardSpec(AbstractRewardSpec):
     def _build_eval_script(self, paths: dict[str, Path]) -> str:
         selected = _reward_test_args(self.metadata)
         selected_arg = " ".join(shlex.quote(item) for item in selected)
-        restore_cmd = _restore_tests_command(self.metadata)
         repo_path = _repo_path(self.metadata)
         quoted_repo = shlex.quote(repo_path)
+        # After git-sanitize (issue #29), a dataset restore command that targets the original
+        # base commit finds it unreachable; fall back to the synthetic baseline HEAD, which
+        # holds the same base test state.
+        restore_cmd = f"{{ {_restore_tests_command(self.metadata)}; }} || git -C {quoted_repo} checkout HEAD -- ."
         output_path = shlex.quote(str(paths["output"]))
         stderr_path = shlex.quote(str(paths["stderr"]))
         return "\n".join(

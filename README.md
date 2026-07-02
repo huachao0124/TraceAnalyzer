@@ -54,6 +54,29 @@ directly. If it is missing, the script downloads it from HuggingFace and saves
 it there. Bonus maps, SQLite caches, rollout dumps, analysis reports, eval
 details, and dashboard snapshots are project artifacts and default to `data/`.
 
+## Git-metadata sanitization (anti-leak, issue #29)
+
+Model-facing rollout/eval sandboxes must not expose the original `/testbed` (or
+`/app`) `.git`: its history reaches the future/fixed commits, remote/PR refs, and
+reflogs baked into the image, so a shell-capable agent can recover the gold patch with
+`git log --all` / `git show` instead of solving the task. `scripts/build_data.py`
+appends a two-phase tail (`p2a/sandbox_git.py`) to each model-facing row's
+`post_setup_cmd`:
+
+1. restore the intended code state (R2E checks out the buggy commit; SWE-bench checks
+   out `base_commit`);
+2. replace `.git` with a single neutral `baseline` commit of the worktree.
+
+`git diff HEAD` and `git apply` keep working against the baseline, so patch extraction
+and reward/eval are unaffected (SWE-bench test-file reset compares against `HEAD`). The
+tail is wrapped in `# >>>P2A_GIT_SANITIZE>>>` sentinels; the **precompute** path strips
+it (`strip_sanitize_block`) because bonus-map instrumentation needs the real history.
+
+Canary (issue acceptance): `scripts/canary_git_sanitize.py offline` checks the
+command-generation and strip invariants anywhere; `... arl --parquet <p> --n 1` boots a
+real model-facing sandbox and asserts `git log --all` shows only the baseline, no
+remote/tag refs remain, and `git diff HEAD` still captures a model edit.
+
 ## Current capabilities
 
 This repo now has four mostly independent surfaces:
@@ -99,6 +122,7 @@ src/
     validation_metrics.py     # aggregate val-p2a/* localization metrics
     third_party_eval.py       # OpenAI-compatible external model rollout harness
     test_setup.py             # startup_fixup_command(repo) — loads config/startup_fixups.json
+    sandbox_git.py            # git-metadata sanitizer for model-facing rollout/eval (issue #29)
     trace.py                  # Graph-capture instrumentation + legacy call_graph artifact build
     eval_fault_localization.py # offline eval rollout read->fault-localization metrics
     hf_assets.py              # shared HuggingFace model/dataset path helpers
