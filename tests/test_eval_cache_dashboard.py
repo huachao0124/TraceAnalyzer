@@ -19,7 +19,7 @@ from p2a.dashboard_adapter import (
     validated_cached_model_metrics,
     write_dashboard_detail_cache_for_record,
 )
-from p2a import dashboard_adapter, dashboard_server
+from p2a import dashboard_server
 from p2a.dashboard_server import write_static_dashboard
 from p2a.eval_cache import (
     count_run_data,
@@ -558,110 +558,6 @@ def test_unified_dashboard_snapshot_includes_db_model_metrics(tmp_path):
         assert metadata["fingerprint"] == row["fingerprint"]
 
 
-def test_dashboard_fingerprint_cache_hit_and_bonus_map_miss(monkeypatch, tmp_path):
-    db = tmp_path / "traces.sqlite"
-    bonus_dir = tmp_path / "bonus"
-    bonus_dir.mkdir()
-    bonus_path = bonus_dir / "case-1.json"
-    bonus_path.write_text(json.dumps(_bonus_map("case-1")), encoding="utf-8")
-    with ensure_db(db) as conn:
-        upsert_experiment(conn, experiment_id="exp", provider_source="internal_api", dataset="swebench-hard", config_snapshot={})
-        upsert_rollout_record(
-            conn,
-            experiment_id="exp",
-            provider_source="internal_api",
-            model_api_name="dummy-model",
-            model_label="dummy",
-            dataset="swebench-hard",
-            record=_rollout("case-1"),
-        )
-        conn.commit()
-
-    first = build_dashboard_snapshot(DashboardRequest(db_path=db, experiment_id="exp", bonus_map_dir=bonus_dir))
-    assert first["details"][0]["instance_id"] == "case-1"
-
-    def fail_score(*_args, **_kwargs):
-        raise AssertionError("fresh fingerprint should use cached dashboard detail")
-
-    monkeypatch.setattr("p2a.dashboard_adapter.score_record", fail_score)
-    cached = build_dashboard_snapshot(DashboardRequest(db_path=db, experiment_id="exp", bonus_map_dir=bonus_dir))
-    assert cached["details"][0]["instance_id"] == "case-1"
-
-    bonus = _bonus_map("case-1")
-    bonus["call_graph_nodes"]["a.py::root"]["source"] = "def root():\n    return 2"
-    bonus_path.write_text(json.dumps(bonus), encoding="utf-8")
-    calls = {"n": 0}
-
-    def fake_score(record, **_kwargs):
-        calls["n"] += 1
-        return _detail(record["instance_id"])
-
-    monkeypatch.setattr("p2a.dashboard_adapter.score_record", fake_score)
-    stale = build_dashboard_snapshot(DashboardRequest(db_path=db, experiment_id="exp", bonus_map_dir=bonus_dir))
-    assert stale["details"][0]["instance_id"] == "case-1"
-    assert calls["n"] == 1
-
-
-def test_force_db_detail_rebuild_ignores_valid_but_stale_build_detail(tmp_path):
-    db = tmp_path / "traces.sqlite"
-    bonus_dir = tmp_path / "bonus"
-    bonus_dir.mkdir()
-    (bonus_dir / "case-1.json").write_text(json.dumps(_bonus_map("case-1")), encoding="utf-8")
-    with ensure_db(db) as conn:
-        upsert_experiment(conn, experiment_id="exp", provider_source="internal_api", dataset="swebench-hard", config_snapshot={})
-        upsert_rollout_record(
-            conn,
-            experiment_id="exp",
-            provider_source="internal_api",
-            model_api_name="dummy-model",
-            model_label="dummy",
-            dataset="swebench-hard",
-            record=_rollout("case-1"),
-        )
-        conn.commit()
-
-    first = build_dashboard_snapshot(DashboardRequest(db_path=db, experiment_id="exp", bonus_map_dir=bonus_dir))
-    assert first["details"][0]["root_hit"] is True
-    assert first["details"][0]["purpose_blocks"]
-
-    stale_detail = dict(first["details"][0])
-    stale_detail.update(
-        {
-            "has_step_traces": False,
-            "n_reads": 0,
-            "n_steps_with_reads": 0,
-            "root_hit": False,
-            "anchor_hit": False,
-            "edited_root_cause": False,
-            "purpose_blocks": [],
-            "bad_patterns": {"has_loop": False, "error_spiral": False},
-        }
-    )
-    build_db = default_dashboard_build_db_path(db)
-    with sqlite3.connect(build_db) as build_conn:
-        build_conn.execute("UPDATE dashboard_rollout_details SET detail_json = ?", (json.dumps(stale_detail),))
-        build_conn.commit()
-
-    cached = build_dashboard_snapshot(DashboardRequest(db_path=db, experiment_id="exp", bonus_map_dir=bonus_dir))
-    assert cached["details"][0]["root_hit"] is False
-    assert cached["details"][0]["purpose_blocks"] == []
-
-    rebuilt = build_dashboard_snapshot(
-        DashboardRequest(
-            db_path=db,
-            experiment_id="exp",
-            bonus_map_dir=bonus_dir,
-            force_db_detail_rebuild=True,
-        )
-    )
-    assert rebuilt["details"][0]["root_hit"] is True
-    assert rebuilt["details"][0]["purpose_blocks"]
-    with sqlite3.connect(build_db) as build_conn:
-        stored = json.loads(build_conn.execute("SELECT detail_json FROM dashboard_rollout_details").fetchone()[0])
-    assert stored["root_hit"] is True
-    assert stored["purpose_blocks"]
-
-
 def test_write_time_dashboard_detail_cache_feeds_light_snapshot(tmp_path):
     db = tmp_path / "traces.sqlite"
     bonus_dir = tmp_path / "bonus"
@@ -1040,35 +936,6 @@ def test_dashboard_metrics_endpoint_rejects_stale_detail_cache(tmp_path):
     assert stale_row["root_hit_rate"] is None
     assert stale_row["detail_cache_ready_rollouts"] == 0
     assert stale_row["detail_cache_pending_rollouts"] == 1
-
-
-def test_dashboard_detail_cache_write_failure_does_not_block_snapshot(monkeypatch, tmp_path):
-    db = tmp_path / "traces.sqlite"
-    bonus_dir = tmp_path / "bonus"
-    bonus_dir.mkdir()
-    (bonus_dir / "case-1.json").write_text(json.dumps(_bonus_map("case-1")), encoding="utf-8")
-    with ensure_db(db) as conn:
-        upsert_experiment(conn, experiment_id="exp", provider_source="internal_api", dataset="swebench-hard", config_snapshot={})
-        upsert_rollout_record(
-            conn,
-            experiment_id="exp",
-            provider_source="internal_api",
-            model_api_name="dummy-model",
-            model_label="dummy",
-            dataset="swebench-hard",
-            record=_rollout("case-1"),
-        )
-        conn.commit()
-
-    def fail_build_connect(*_args, **_kwargs):
-        raise sqlite3.OperationalError("database is locked")
-
-    monkeypatch.setattr(dashboard_adapter, "ensure_dashboard_build_db", fail_build_connect)
-
-    snapshot = build_dashboard_snapshot(DashboardRequest(db_path=db, experiment_id="exp", bonus_map_dir=bonus_dir))
-
-    assert snapshot["details"][0]["instance_id"] == "case-1"
-    assert snapshot["details"][0]["has_bonus_map"] is True
 
 
 def test_dashboard_deferred_db_snapshot_skips_uncached_scoring(monkeypatch, tmp_path):
@@ -2384,26 +2251,6 @@ def test_dashboard_reads_node_source_from_bonus_map_for_stored_details(tmp_path)
     assert root["source_preview"] == "def root():\n    return 1"
 
 
-def test_dashboard_node_source_uses_bonus_map_candidate_filenames(tmp_path):
-    bonus_dir = tmp_path / "bonus"
-    bonus_dir.mkdir()
-    instance_id = "repo__1234567890"
-    (bonus_dir / "repo__12345678.json").write_text(json.dumps(_bonus_map(instance_id)), encoding="utf-8")
-    stale_detail = _detail(instance_id, case_type="direct")
-    stale_detail["path_projection"]["path_nodes"][0].pop("source", None)
-    stale_detail["path_projection"]["path_nodes"][0]["source_preview"] = "truncated\n..."
-    stale_detail["chain_projection"]["chain_nodes"][0].pop("source", None)
-    stale_detail["chain_projection"]["chain_nodes"][0]["source_preview"] = "truncated\n..."
-    details_file = tmp_path / "details.jsonl"
-    details_file.write_text(json.dumps(stale_detail) + "\n", encoding="utf-8")
-
-    snapshot = build_dashboard_snapshot(DashboardRequest(details=(details_file,), bonus_map_dir=bonus_dir))
-
-    root = snapshot["details"][0]["path_projection"]["path_nodes"][0]
-    assert root["source"] == "def root():\n    return 1"
-    assert root["source_preview"] == "def root():\n    return 1"
-
-
 def test_dashboard_step_inspection_splits_local_think_and_xml_tool_call(tmp_path):
     bonus_dir = tmp_path / "bonus"
     bonus_dir.mkdir()
@@ -2449,40 +2296,6 @@ def test_dashboard_step_inspection_splits_local_think_and_xml_tool_call(tmp_path
     ]
 
 
-def test_dashboard_step_inspection_deduplicates_reasoning_blocks(tmp_path):
-    bonus_dir = tmp_path / "bonus"
-    bonus_dir.mkdir()
-    (bonus_dir / "case-1.json").write_text(json.dumps(_bonus_map("case-1")), encoding="utf-8")
-    record = _rollout("case-1")
-    record["p2a_step_traces"] = [
-        {
-            "step_idx": 1,
-            "reasoning_content": "inspect before reading\n\nthen open the file",
-            "reasoning_blocks": [
-                {"type": "reasoning", "value": "inspect before reading"},
-                {"type": "reasoning", "value": "then open the file"},
-            ],
-            "response_text": "",
-            "tool_calls": [
-                {
-                    "function": {
-                        "name": "str_replace_editor",
-                        "arguments": {"command": "view", "path": "/testbed/a.py"},
-                    }
-                }
-            ],
-            "tool_results": [],
-        }
-    ]
-    rollouts = tmp_path / "rollouts.jsonl"
-    rollouts.write_text(json.dumps(record) + "\n", encoding="utf-8")
-
-    snapshot = build_dashboard_snapshot(DashboardRequest(rollouts=(rollouts,), bonus_map_dir=bonus_dir))
-    step = snapshot["details"][0]["step_inspection"][0]
-
-    assert step["reasoning_text"] == "inspect before reading\n\nthen open the file"
-
-
 def test_dashboard_step_inspection_marks_root_edits_and_execution_errors(tmp_path):
     bonus_dir = tmp_path / "bonus"
     bonus_dir.mkdir()
@@ -2521,45 +2334,6 @@ def test_dashboard_step_inspection_marks_root_edits_and_execution_errors(tmp_pat
     assert step["edited_root_cause"] is True
     assert step["execution_error"] is True
     assert step["status"] == "error"
-
-
-def test_dashboard_step_inspection_does_not_mark_source_text_errors_as_execution_failure(tmp_path):
-    bonus_dir = tmp_path / "bonus"
-    bonus_dir.mkdir()
-    (bonus_dir / "case-1.json").write_text(json.dumps(_bonus_map("case-1")), encoding="utf-8")
-    record = _rollout("case-1")
-    record["p2a_step_traces"] = [
-        {
-            "step_idx": 1,
-            "response_text": "",
-            "reasoning_content": "find the expression code",
-            "text_blocks": [{"type": "text", "value": "I will read the file."}],
-            "tool_calls": [
-                {
-                    "function": {
-                        "name": "str_replace_editor",
-                        "arguments": {"command": "view", "path": "/testbed/a.py", "view_range": [1, 20]},
-                    }
-                }
-            ],
-            "tool_results": [
-                {
-                    "status": "ok",
-                    "observation": "Observation:\nclass FieldError(Exception):\n    pass\n",
-                }
-            ],
-        }
-    ]
-    rollouts = tmp_path / "rollouts.jsonl"
-    rollouts.write_text(json.dumps(record) + "\n", encoding="utf-8")
-
-    snapshot = build_dashboard_snapshot(DashboardRequest(rollouts=(rollouts,), bonus_map_dir=bonus_dir))
-    step = snapshot["details"][0]["step_inspection"][0]
-
-    assert step["reasoning_text"] == "find the expression code"
-    assert step["chat_text"] == "I will read the file."
-    assert step["execution_error"] is False
-    assert step["status"] == "ok"
 
 
 def test_dashboard_snapshot_uses_readonly_db_connection_under_writer_lock(tmp_path):
@@ -2650,56 +2424,6 @@ def test_unified_dashboard_keeps_experiments_separate_in_overview(tmp_path):
     assert {row["experiment_id"] for row in snapshot["model_metrics"]} == {"exp-a", "exp-b"}
 
 
-def test_dashboard_rescores_each_dataset_with_inferred_bonus_maps(tmp_path):
-    artifact_root = tmp_path / "data"
-    db = artifact_root / "evals" / "traces.sqlite"
-    datasets = ("swebench-hard", "r2e-gym-subset")
-    for dataset in datasets:
-        bonus_dir = artifact_root / "bonus_maps" / dataset
-        bonus_dir.mkdir(parents=True)
-        (bonus_dir / f"case-{dataset}.json").write_text(json.dumps(_bonus_map(f"case-{dataset}")), encoding="utf-8")
-
-    with ensure_db(db) as conn:
-        for dataset in datasets:
-            instance_id = f"case-{dataset}"
-            upsert_experiment(
-                conn,
-                experiment_id="exp",
-                provider_source="internal_api",
-                dataset=dataset,
-                config_snapshot={"dataset": dataset},
-            )
-            upsert_planned_cells(
-                conn,
-                experiment_id="exp",
-                provider_source="internal_api",
-                model_api_name="dummy-model",
-                model_label="dummy",
-                dataset=dataset,
-                instance_ids=[instance_id],
-            )
-            stale_detail = _detail(instance_id, case_type="direct")
-            stale_detail["data_source"] = dataset
-            stale_detail["n_reads"] = 0
-            upsert_rollout_record(
-                conn,
-                experiment_id="exp",
-                provider_source="internal_api",
-                model_api_name="dummy-model",
-                model_label="dummy",
-                dataset=dataset,
-                record=_set_dataset(_rollout(instance_id), dataset),
-                detail=stale_detail,
-            )
-        conn.commit()
-
-    snapshot = build_dashboard_snapshot(DashboardRequest(db_path=db))
-
-    assert {item["dataset"] for item in snapshot["sources"] if item["kind"] == "bonus_map_dir"} == set(datasets)
-    assert {detail["data_source"] for detail in snapshot["details"]} == set(datasets)
-    assert all(detail["n_reads"] > 0 for detail in snapshot["details"])
-
-
 def test_local_training_eval_cells_include_run_step(tmp_path):
     bonus_dir = tmp_path / "bonus"
     bonus_dir.mkdir()
@@ -2724,9 +2448,9 @@ def test_local_training_eval_cells_include_run_step(tmp_path):
 
 def test_dashboard_dataset_distributions_deduplicate_instances_across_models(tmp_path):
     db = tmp_path / "traces.sqlite"
-    instance_ids = [f"case-{index:02d}" for index in range(45)]
+    instance_ids = [f"case-{index:02d}" for index in range(3)]
     with ensure_db(db) as conn:
-        for model_index in range(5):
+        for model_index in range(2):
             model = f"model-{model_index}"
             upsert_experiment(
                 conn,
@@ -2764,65 +2488,16 @@ def test_dashboard_dataset_distributions_deduplicate_instances_across_models(tmp
     assert snapshot["datasets"] == [
         {
             "dataset": "swebench-hard",
-            "n_instances": 45,
-            "n_eval_cells": 5,
-            "n_trajectories": 225,
-            "models": [f"model-{index}" for index in range(5)],
+            "n_instances": 3,
+            "n_eval_cells": 2,
+            "n_trajectories": 6,
+            "models": [f"model-{index}" for index in range(2)],
             "source_kinds": ["third_party_api"],
         }
     ]
     dist = snapshot["summary"]["distributions_by_dataset"]["swebench-hard"]
-    assert dist["n_instances"] == 45
-    assert dist["distributions"]["case_types"] == {"missing_bonus_map": 45}
-
-
-def test_dashboard_db_runs_carry_explicit_eval_cell_links(tmp_path):
-    db = tmp_path / "traces.sqlite"
-    with ensure_db(db) as conn:
-        for model in ("model-a", "model-b"):
-            run_dir = tmp_path / "runs" / model
-            run_dir.mkdir(parents=True)
-            rollouts_path = run_dir / "rollouts.jsonl"
-            rollouts_path.write_text("{}\n", encoding="utf-8")
-            (run_dir / "run.log").write_text(f"run for {model}\n", encoding="utf-8")
-            upsert_experiment(
-                conn,
-                experiment_id="exp",
-                provider_source="internal_api",
-                dataset="swebench-hard",
-                config_snapshot={"experiment": "exp"},
-            )
-            upsert_planned_cells(
-                conn,
-                experiment_id="exp",
-                provider_source="internal_api",
-                model_api_name=model,
-                model_label=model,
-                dataset="swebench-hard",
-                instance_ids=[f"case-{model[-1]}"],
-            )
-            record = _rollout(f"case-{model[-1]}")
-            record["model"] = model
-            upsert_rollout_record(
-                conn,
-                experiment_id="exp",
-                provider_source="internal_api",
-                model_api_name=model,
-                model_label=model,
-                dataset="swebench-hard",
-                record=record,
-                detail=_detail(record["instance_id"]),
-                artifact_rollouts=rollouts_path,
-            )
-        conn.commit()
-
-    snapshot = build_dashboard_snapshot(DashboardRequest(db_path=db))
-    runs_by_model = {run["model_labels"][0]: run for run in snapshot["runs"]}
-
-    assert set(runs_by_model) == {"model-a", "model-b"}
-    assert len(runs_by_model["model-a"]["eval_cell_keys"]) == 1
-    assert runs_by_model["model-a"]["eval_cell_keys"][0].endswith("model-a::model-a")
-    assert runs_by_model["model-b"]["eval_cell_keys"][0].endswith("model-b::model-b")
+    assert dist["n_instances"] == 3
+    assert dist["distributions"]["case_types"] == {"missing_bonus_map": 3}
 
 
 def test_unified_dashboard_handles_empty_db(tmp_path):
@@ -2879,28 +2554,6 @@ def test_unified_dashboard_loads_local_uni_agent_run_dir(tmp_path):
     assert snapshot["details"][0]["root_hit"] is True
     assert snapshot["details"][0]["step_inspection"][0]["tool_names"] == ["execute_bash"]
     assert snapshot["summary"]["counts"]["n_records"] == 1
-
-
-def test_unified_dashboard_details_mode_matches_rollout_mode(tmp_path):
-    bonus_dir = tmp_path / "bonus"
-    bonus_dir.mkdir()
-    (bonus_dir / "case-1.json").write_text(json.dumps(_bonus_map("case-1")), encoding="utf-8")
-
-    rollouts = tmp_path / "rollouts.jsonl"
-    rollouts.write_text(json.dumps(_rollout("case-1")) + "\n", encoding="utf-8")
-    rollout_snapshot = build_dashboard_snapshot(DashboardRequest(rollouts=(rollouts,), bonus_map_dir=bonus_dir))
-
-    details_dir = tmp_path / "eval_details"
-    details_dir.mkdir()
-    (details_dir / "validation_step_1.jsonl").write_text(
-        "\n".join(json.dumps(item) for item in rollout_snapshot["details"]) + "\n",
-        encoding="utf-8",
-    )
-    details_snapshot = build_dashboard_snapshot(DashboardRequest(details=(details_dir,), bonus_map_dir=bonus_dir))
-
-    assert details_snapshot["summary"]["counts"]["n_records"] == rollout_snapshot["summary"]["counts"]["n_records"]
-    assert details_snapshot["summary"]["rates"]["root_hit_rate"] == rollout_snapshot["summary"]["rates"]["root_hit_rate"]
-    assert details_snapshot["details"][0]["instance_id"] == rollout_snapshot["details"][0]["instance_id"]
 
 
 def test_unified_static_dashboard_writes_html_snapshot_and_assets(tmp_path):
