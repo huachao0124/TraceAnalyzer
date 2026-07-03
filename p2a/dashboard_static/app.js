@@ -875,6 +875,8 @@ function metricsFromDetails(details, snapshot) {
     const orderItems = orderMetricItems.filter((item) => item.order_defined === true);
     const blockOrderItems = orderMetricItems.filter((item) => item.block_order_defined === true);
     const licenseItems = items.filter((item) => item.license_evaluable);
+    const entityReferences = sum(licenseItems.map((item) => item.n_entity_references));
+    const unlicensedReferences = sum(licenseItems.map((item) => item.n_unlicensed_references));
     const scoredBlocks = sum(bonusItems.map((item) => item.n_scored_read_blocks));
     const totalBlocks = sum(bonusItems.map((item) => item.n_blocks));
     const cacheHit = sum(items.map((item) => item.cache_hit_tokens));
@@ -913,7 +915,7 @@ function metricsFromDetails(details, snapshot) {
       avg_order_score: avg(orderItems.map((item) => item.order_score)),
       reverse_order_rate: rate(orderMetricItems.map(combinedReverseMarker)),
       miracle_rate: rate(orderMetricItems.map(combinedMiracleMarker)),
-      unlicensed_reference_rate: avg(licenseItems.map((item) => item.unlicensed_reference_rate)),
+      unlicensed_reference_rate: entityReferences ? unlicensedReferences / entityReferences : null,
       unlicensed_trace_rate: rate(licenseItems.map((item) => (item.n_unlicensed_references || 0) > 0)),
       avg_blocks_per_trace: totalBlocks && bonusItems.length ? totalBlocks / bonusItems.length : null,
       block_achieve_rate: scoredBlocks ? sum(bonusItems.map((item) => item.n_achieving_blocks)) / scoredBlocks : null,

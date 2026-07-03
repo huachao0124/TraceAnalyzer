@@ -14,6 +14,8 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from p2a.core import BonusMapStore
 from p2a.eval_fault_localization import _initial_context_text, score_record, summarize
 from p2a.provenance import (
@@ -274,4 +276,51 @@ def test_summarize_and_val_metrics_aggregate_unlicensed_references(tmp_path):
         m_max=3.0,
     )
     assert metrics["val-p2a/unknown/unlicensed_reference_rate"] == 0.5
+    assert metrics["val-p2a/unknown/unlicensed_trace_rate"] == 0.5
+
+
+def test_unlicensed_reference_rate_is_pooled_over_references(tmp_path):
+    # 100 licensed references in one trace + 1 unlicensed reference in another:
+    # the aggregate rate pools the references (1/101), it does not average the
+    # per-trace rates (which would be 0.5).
+    licensed_names = " ".join(f"pkg/mod{i}.py" for i in range(100))
+    records = [
+        {
+            "instance_id": "repo__cccc3333",
+            "issue_description": f"Affected files: {licensed_names}",
+            "p2a_step_traces": [_step([_bash_call(" && ".join(f"cat pkg/mod{i}.py" for i in range(100)))])],
+        },
+        {
+            "instance_id": "repo__dddd4444",
+            "issue_description": "Something unrelated fails.",
+            "p2a_step_traces": [_step([_bash_call("cat pkg/lonely_unlicensed.py")])],
+        },
+    ]
+    details = [_score(record, str(tmp_path)) for record in records]
+    assert details[0]["n_entity_references"] == 100
+    assert details[0]["n_unlicensed_references"] == 0
+    assert details[1]["n_entity_references"] == 1
+    assert details[1]["n_unlicensed_references"] == 1
+
+    summary = summarize(
+        details,
+        source=Path("test"),
+        bonus_map_dir=tmp_path,
+        tracking_mode="view_and_bash",
+        near_threshold=0.25,
+        m_max=3.0,
+    )
+    assert summary["rates"]["unlicensed_reference_rate"] == pytest.approx(1 / 101)
+    assert summary["rates"]["unlicensed_trace_rate"] == 0.5
+
+    for detail in details:
+        detail.setdefault("data_source", "unknown")
+    metrics = flatten_validation_metrics(
+        details,
+        bonus_map_dir=str(tmp_path),
+        tracking_mode="view_and_bash",
+        near_threshold=0.25,
+        m_max=3.0,
+    )
+    assert metrics["val-p2a/unknown/unlicensed_reference_rate"] == pytest.approx(1 / 101)
     assert metrics["val-p2a/unknown/unlicensed_trace_rate"] == 0.5

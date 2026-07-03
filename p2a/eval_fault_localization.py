@@ -1704,7 +1704,6 @@ def summarize(details: list[dict], *, source: Path, bonus_map_dir: Path, trackin
     order_scores = []
     block_order_scores = []
     block_efficiencies = []
-    unlicensed_reference_rates = []
     path_recalls = []
     path_read_precisions = []
     times_to_anchor = []
@@ -1735,8 +1734,6 @@ def summarize(details: list[dict], *, source: Path, bonus_map_dir: Path, trackin
             counts["n_unlicensed_references"] += int(item.get("n_unlicensed_references") or 0)
             if (item.get("n_unlicensed_references") or 0) > 0:
                 counts["n_unlicensed_traces"] += 1
-            if item.get("unlicensed_reference_rate") is not None:
-                unlicensed_reference_rates.append(item["unlicensed_reference_rate"])
         counts["n_blocks"] += int(item.get("n_blocks") or 0)
         counts["n_scored_read_blocks"] += int(item.get("n_scored_read_blocks") or 0)
         counts["n_achieving_blocks"] += int(item.get("n_achieving_blocks") or 0)
@@ -1937,11 +1934,9 @@ def summarize(details: list[dict], *, source: Path, bonus_map_dir: Path, trackin
             "loop_block_step_share": _rate(counts["n_loop_block_steps"], counts["n_block_steps"]),
             "bad_pattern_trace_rate": _rate(counts["n_traces_with_loop"], n_records),
             "error_spiral_rate": _rate(counts["n_traces_with_error_spiral"], n_records),
-            "unlicensed_reference_rate": (
-                sum(unlicensed_reference_rates) / len(unlicensed_reference_rates)
-                if unlicensed_reference_rates
-                else None
-            ),
+            # Pooled over all first entity references (micro-average): of first
+            # references across evaluable traces, the share with no antecedent.
+            "unlicensed_reference_rate": _rate(counts["n_unlicensed_references"], counts["n_entity_references"]),
             "unlicensed_trace_rate": _rate(counts["n_unlicensed_traces"], counts["n_license_evaluable"]),
         },
         "averages": {

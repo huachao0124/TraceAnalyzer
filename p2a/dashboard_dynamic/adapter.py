@@ -2959,6 +2959,8 @@ def _detail_model_metrics(details: list[dict[str, Any]], *, include_avg_at: bool
         order_items = [item for item in order_metric_items if item.get("order_defined") is True]
         block_order_items = [item for item in order_metric_items if item.get("block_order_defined") is True]
         license_items = [item for item in items if item.get("license_evaluable")]
+        entity_references = _sum_int(license_items, "n_entity_references")
+        unlicensed_references = _sum_int(license_items, "n_unlicensed_references")
         scored_blocks = _sum_int(path_metric_items, "n_scored_read_blocks")
         total_blocks = _sum_int(path_metric_items, "n_blocks")
         scored_block_steps = _sum_int(path_metric_items, "n_scored_read_block_steps")
@@ -3018,7 +3020,7 @@ def _detail_model_metrics(details: list[dict[str, Any]], *, include_avg_at: bool
             "reverse_order_rate": _rate(_combined_reverse_marker(item) for item in order_metric_items),
             "miracle_rate": _rate(_combined_miracle_marker(item) for item in order_metric_items),
             "avg_miracle_severity": _avg(item.get("miracle_severity") for item in order_metric_items),
-            "unlicensed_reference_rate": _avg(item.get("unlicensed_reference_rate") for item in license_items),
+            "unlicensed_reference_rate": (unlicensed_references / entity_references) if entity_references else None,
             "unlicensed_trace_rate": _rate((item.get("n_unlicensed_references") or 0) > 0 for item in license_items),
             "avg_block_order_score": _avg(item.get("block_order_score") for item in block_order_items),
             "block_reverse_order_rate": _rate(
