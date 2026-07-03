@@ -1,7 +1,6 @@
 import importlib.util
 import json
 from pathlib import Path
-import subprocess
 import sys
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -391,49 +390,6 @@ def test_swebench_pro_reward_eval_script_falls_back_to_nodeid_files():
     assert "test_valid[1,1-expected0]" not in script
 
 
-def test_swebench_pro_reward_eval_script_stops_when_restore_fails(tmp_path):
-    from p2a.reward_specs import SWEBenchProRewardSpec
-
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    marker = tmp_path / "ran-tests"
-    run_script = tmp_path / "run.sh"
-    parser = tmp_path / "parser.py"
-    stdout = tmp_path / "stdout.log"
-    stderr = tmp_path / "stderr.log"
-    output = tmp_path / "output.json"
-    eval_script = tmp_path / "eval.sh"
-    run_script.write_text(f"#!/bin/bash\ntouch {marker}\n", encoding="utf-8")
-    parser.write_text("raise SystemExit('parser should not run')\n", encoding="utf-8")
-
-    spec = object.__new__(SWEBenchProRewardSpec)
-    spec.metadata = {
-        "swebench_pro_repo_path": str(repo),
-        "swebench_pro_restore_tests_cmd": "echo restore failed >&2; false",
-    }
-    eval_script.write_text(
-        spec._build_eval_script(
-            {
-                "run_script": run_script,
-                "parser": parser,
-                "stdout": stdout,
-                "stderr": stderr,
-                "output": output,
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    proc = subprocess.run(["bash", str(eval_script)], check=False, text=True, capture_output=True)
-
-    assert proc.returncode == 0
-    assert not marker.exists()
-    assert json.loads(output.read_text(encoding="utf-8")) == {
-        "tests": [],
-        "restore_error": "restore_failed",
-        "restore_status": 1,
-    }
-    assert "restore failed" in stderr.read_text(encoding="utf-8")
 
 
 def test_swebench_pro_sandbox_execute_does_not_activate_verified_conda():

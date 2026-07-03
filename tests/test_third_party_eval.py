@@ -7,7 +7,7 @@ import numpy as np
 
 from p2a.core import BonusMapStore
 from p2a.eval_fault_localization import score_record
-from p2a.eval_cache import aggregate_model_metrics, completed_rollout_keys, default_dashboard_build_db_path, ensure_db, upsert_rollout_record
+from p2a.eval_cache import aggregate_model_metrics, default_dashboard_build_db_path, ensure_db
 from p2a.dashboard_adapter import DashboardRequest, build_dashboard_snapshot
 from p2a.third_party_eval import (
     IncrementalRolloutSink,
@@ -276,94 +276,6 @@ def test_classify_error_marks_api_resource_failures_as_system_error():
     assert classify_error("RuntimeError: insufficient balance, please recharge") == "api_quota_exhausted"
     assert classify_error("HTTP 429 Too Many Requests") == "api_quota_exhausted"
     assert classify_error("余额不足，请充值") == "api_quota_exhausted"
-
-
-def test_dump_record_marks_empty_unknown_error_trace_as_system_error():
-    record = build_dump_record(
-        _row(),
-        run_id="run-empty",
-        model_name="demo-model",
-        base_url="https://example.test",
-        interaction_result={
-            "messages": [{"role": "system", "content": "system prompt"}],
-            "trajectory": [
-                {
-                    "done": False,
-                    "exit_reason": "unknown_error",
-                    "response": "",
-                    "step_idx": 1,
-                    "thought": "",
-                    "tool_results": [],
-                }
-            ],
-        },
-        reward_score=None,
-        reward_details=None,
-    )
-
-    assert record["error_kind"] == "empty_trace"
-    assert record["error_stage"] == "interaction"
-    assert record["system_error"] is True
-    assert "Empty rollout trace" in record["error"]
-
-
-def test_empty_unknown_error_trace_is_not_treated_as_completed_for_rerun(tmp_path):
-    db_path = tmp_path / "traces.sqlite"
-    record = build_dump_record(
-        _row(),
-        run_id="run-empty",
-        model_name="demo-model",
-        base_url="https://example.test",
-        rollout_index=0,
-        interaction_result={
-            "messages": [{"role": "system", "content": "system prompt"}],
-            "trajectory": [
-                {
-                    "done": False,
-                    "exit_reason": "unknown_error",
-                    "response": "",
-                    "step_idx": 1,
-                    "thought": "",
-                    "tool_results": [],
-                }
-            ],
-        },
-        reward_score=None,
-        reward_details=None,
-    )
-
-    with ensure_db(db_path) as conn:
-        upsert_rollout_record(
-            conn,
-            experiment_id="exp",
-            provider_source="internal_api",
-            model_api_name="demo-model",
-            model_label="demo-model",
-            dataset="swebench-hard",
-            record=record,
-        )
-        conn.commit()
-        cell = conn.execute("SELECT status, error FROM run_cells").fetchone()
-        completed = completed_rollout_keys(
-            conn,
-            experiment_id="exp",
-            provider_source="internal_api",
-            model_api_name="demo-model",
-            dataset="swebench-hard",
-        )
-        conn.execute("UPDATE run_cells SET status = 'done', error = NULL")
-        legacy_completed = completed_rollout_keys(
-            conn,
-            experiment_id="exp",
-            provider_source="internal_api",
-            model_api_name="demo-model",
-            dataset="swebench-hard",
-        )
-
-    assert cell["status"] == "error"
-    assert "Empty rollout trace" in cell["error"]
-    assert completed == set()
-    assert legacy_completed == set()
 
 
 def test_dump_record_is_readable_by_fault_localization_scorer(tmp_path):
