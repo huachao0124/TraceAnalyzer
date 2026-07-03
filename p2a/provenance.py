@@ -26,8 +26,14 @@ from functools import lru_cache
 from typing import Any
 
 from p2a.core import (
+    _BASH_CMD_JSON_PATTERN,
+    _BASH_CMD_XML_EQ_PATTERN,
+    _BASH_CMD_XML_PATTERN,
     _command_arg,
     _normalize_path,
+    _parse_editor_write_actions,
+    _parse_file_editor_views,
+    _parse_sweagent_views,
     _shell_tokens,
     _tool_call_function,
     parse_write_actions_from_tool_calls,
@@ -158,6 +164,27 @@ def _maybe_json(value: Any) -> Any:
         return json.loads(stripped)
     except (json.JSONDecodeError, TypeError):
         return value
+
+
+_TEXT_FIELDS = (
+    "response_text",
+    "assistant_response",
+    "completion",
+    "response",
+    "output",
+    "text",
+)
+
+
+def _step_text(trace: Any) -> str:
+    """Action text of a step for artifacts that carry text-format tool calls."""
+    trace = _maybe_json(trace)
+    if isinstance(trace, str):
+        return trace
+    if not isinstance(trace, dict):
+        return ""
+    parts = [trace[field] for field in _TEXT_FIELDS if isinstance(trace.get(field), str) and trace[field]]
+    return "\n".join(parts)
 
 
 def _step_tool_calls(trace: Any) -> list[dict]:
@@ -442,6 +469,45 @@ def extract_entity_references(tool_calls: list[dict]) -> list[dict]:
     return refs
 
 
+def _bash_commands_from_text(text: str) -> list[str]:
+    commands: list[str] = []
+    for pattern in (_BASH_CMD_XML_PATTERN, _BASH_CMD_XML_EQ_PATTERN):
+        for match in pattern.finditer(text):
+            commands.append(match.group(1).strip())
+    for match in _BASH_CMD_JSON_PATTERN.finditer(text):
+        try:
+            payload = json.loads(match.group(1))
+        except (json.JSONDecodeError, ValueError):
+            continue
+        command = payload.get("command", "")
+        if isinstance(command, str) and command.strip():
+            commands.append(command.strip())
+    return commands
+
+
+def extract_entity_references_from_text(text: str) -> list[dict]:
+    """Parse entity references from text-format tool calls (XML/JSON/inline).
+
+    Fallback channel for artifacts whose steps carry the tool calls only in
+    the response text; the shared core parsers pull out editor view paths and
+    bash command strings. Text with no tool-call markers is treated as one
+    inline bash command, matching the core read-scoring fallback.
+    """
+    if not text:
+        return []
+    refs: list[dict] = []
+    for view in _parse_file_editor_views(text) + _parse_sweagent_views(text):
+        path = view.get("file_path")
+        if isinstance(path, str) and path:
+            refs.append(_path_reference(path, f"view {path}"))
+    commands = _bash_commands_from_text(text)
+    if not commands and "<function=" not in text:
+        commands = [text]
+    for command in commands:
+        refs.extend(_references_from_bash(command))
+    return refs
+
+
 def _bash_created_paths(cmd: str) -> set[str]:
     """Paths written via shell redirection or tee (heredocs write through them)."""
     created: set[str] = set()
@@ -488,6 +554,27 @@ def _created_paths(tool_calls: list[dict]) -> set[str]:
     for write in parse_write_actions_from_tool_calls(tool_calls or []):
         if write.get("command") in {"create", "redirect", "tee"}:
             created.add(write["file_path"])
+    return created
+
+
+def _created_paths_from_text(text: str) -> set[str]:
+    """Model-created files parsed from text-format tool calls.
+
+    Redirect/tee targets are read only from the extracted bash command
+    strings, never from the surrounding markup: raw XML like
+    ``<parameter=path>/x.py`` would otherwise false-match as a redirect.
+    """
+    if not text:
+        return set()
+    created: set[str] = set()
+    for write in _parse_editor_write_actions(text):
+        if write.get("command") == "create":
+            created.add(write["file_path"])
+    commands = _bash_commands_from_text(text)
+    if not commands and "<function=" not in text:
+        commands = [text]
+    for command in commands:
+        created.update(_bash_created_paths(command))
     return created
 
 
@@ -538,14 +625,23 @@ def license_references(
     seen: set[tuple[str, str]] = set()
     for idx, trace in enumerate(step_items):
         tool_calls = _step_tool_calls(trace)
+        # Structured tool calls are the preferred channel; steps without them
+        # fall back to text-format tool calls so a step is never counted twice.
+        if tool_calls:
+            step_created = _created_paths(tool_calls)
+            step_refs = extract_entity_references(tool_calls)
+        else:
+            text = _step_text(trace)
+            step_created = _created_paths_from_text(text)
+            step_refs = extract_entity_references_from_text(text)
         # A step's tool calls are batched: files created in this step exempt
         # this step's own references to them.
-        for created in _created_paths(tool_calls):
+        for created in step_created:
             created_paths.add(created)
             basename = _path_basename(created)
             if basename:
                 created_basenames.add(basename)
-        for ref in extract_entity_references(tool_calls):
+        for ref in step_refs:
             key = (ref["kind"], ref["entity"])
             if not ref["entity"] or key in seen:
                 continue

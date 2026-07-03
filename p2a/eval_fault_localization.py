@@ -615,34 +615,60 @@ def _record_issue_text(record: dict) -> str:
     return ""
 
 
-def _initial_context_text(record: dict) -> str:
-    """Text visible to the model before its first step: prompt messages + issue.
+def _leading_prompt_texts(messages: Any) -> list[str]:
+    """System-prompt and first-user-message texts from a chat message list."""
+    if hasattr(messages, "tolist"):
+        messages = messages.tolist()
+    messages = _maybe_json(messages)
+    if not isinstance(messages, list):
+        return []
+    parts: list[str] = []
+    for message in messages:
+        message = _maybe_json(message)
+        if not isinstance(message, dict):
+            break
+        role = str(message.get("role", "")).lower()
+        if role in {"system", "developer"}:
+            text = _content_to_text(message.get("content"))
+            if text:
+                parts.append(text)
+            continue
+        if role == "user":
+            text = _content_to_text(message.get("content"))
+            if text:
+                parts.append(text)
+        break
+    return parts
 
-    When the record carries the conversation messages, the system prompt and
-    the first user message form the task prompt; the stored issue description
-    is appended so records without messages still license from the issue.
+
+# Keys that carry the task prompt in scored records: dashboard DB records
+# store the conversation under `messages`; live-validation records copy the
+# dataset's `raw_prompt`/`prompt` chat messages from the batch.
+_PROMPT_KEYS = ("messages", "raw_prompt", "prompt")
+
+
+def _initial_context_text(record: dict) -> str:
+    """Text visible to the model before its first step: task prompt + issue.
+
+    The first prompt-bearing key wins: the system prompt and first user
+    message form the task prompt (a plain-string prompt is used verbatim).
+    The stored issue description is appended so records without any prompt
+    payload still license from the issue.
     """
     parts: list[str] = []
-    for container in _candidate_containers(record):
-        messages = _maybe_json(container.get("messages"))
-        if not isinstance(messages, list) or not messages:
-            continue
-        for message in messages:
-            message = _maybe_json(message)
-            if not isinstance(message, dict):
-                break
-            role = str(message.get("role", "")).lower()
-            if role in {"system", "developer"}:
-                text = _content_to_text(message.get("content"))
-                if text:
-                    parts.append(text)
+    for key in _PROMPT_KEYS:
+        for container in _candidate_containers(record):
+            value = container.get(key)
+            if value is None:
                 continue
-            if role == "user":
-                text = _content_to_text(message.get("content"))
-                if text:
-                    parts.append(text)
+            if isinstance(value, str) and value.strip() and value.strip()[0] not in "[{":
+                parts.append(value)
+            else:
+                parts.extend(_leading_prompt_texts(value))
+            if parts:
+                break
+        if parts:
             break
-        break
     issue = _record_issue_text(record)
     if issue:
         parts.append(issue)
@@ -1678,6 +1704,7 @@ def summarize(details: list[dict], *, source: Path, bonus_map_dir: Path, trackin
     order_scores = []
     block_order_scores = []
     block_efficiencies = []
+    unlicensed_reference_rates = []
     path_recalls = []
     path_read_precisions = []
     times_to_anchor = []
@@ -1702,6 +1729,14 @@ def summarize(details: list[dict], *, source: Path, bonus_map_dir: Path, trackin
             counts["n_traceable_bonus"] += 1
         if item["n_reads"]:
             counts["n_with_reads"] += 1
+        if item.get("license_evaluable"):
+            counts["n_license_evaluable"] += 1
+            counts["n_entity_references"] += int(item.get("n_entity_references") or 0)
+            counts["n_unlicensed_references"] += int(item.get("n_unlicensed_references") or 0)
+            if (item.get("n_unlicensed_references") or 0) > 0:
+                counts["n_unlicensed_traces"] += 1
+            if item.get("unlicensed_reference_rate") is not None:
+                unlicensed_reference_rates.append(item["unlicensed_reference_rate"])
         counts["n_blocks"] += int(item.get("n_blocks") or 0)
         counts["n_scored_read_blocks"] += int(item.get("n_scored_read_blocks") or 0)
         counts["n_achieving_blocks"] += int(item.get("n_achieving_blocks") or 0)
@@ -1902,8 +1937,16 @@ def summarize(details: list[dict], *, source: Path, bonus_map_dir: Path, trackin
             "loop_block_step_share": _rate(counts["n_loop_block_steps"], counts["n_block_steps"]),
             "bad_pattern_trace_rate": _rate(counts["n_traces_with_loop"], n_records),
             "error_spiral_rate": _rate(counts["n_traces_with_error_spiral"], n_records),
+            "unlicensed_reference_rate": (
+                sum(unlicensed_reference_rates) / len(unlicensed_reference_rates)
+                if unlicensed_reference_rates
+                else None
+            ),
+            "unlicensed_trace_rate": _rate(counts["n_unlicensed_traces"], counts["n_license_evaluable"]),
         },
         "averages": {
+            "avg_entity_references": _rate(counts["n_entity_references"], counts["n_license_evaluable"]),
+            "avg_unlicensed_references": _rate(counts["n_unlicensed_references"], counts["n_license_evaluable"]),
             "time_to_anchor": sum(times_to_anchor) / len(times_to_anchor) if times_to_anchor else None,
             "time_to_root": sum(times_to_root) / len(times_to_root) if times_to_root else None,
             "steps_anchor_to_root": sum(steps_anchor_to_root) / len(steps_anchor_to_root) if steps_anchor_to_root else None,

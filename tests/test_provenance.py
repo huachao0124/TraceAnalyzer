@@ -4,15 +4,40 @@ The scorer marks the first reference to each entity in a model action (path or
 symbol read/search target) as licensed when its literal appears in the initial
 context or a strictly earlier step's observations. These tests lock the
 first-occurrence dedupe, the step-ordering license boundary, basename path
-licensing, the self-created file exemption, stopword filtering, and
-grep-pattern symbol extraction.
+licensing, the self-created file exemption, stopword filtering, grep-pattern
+symbol extraction, the text-format tool-call fallback, prompt-borne licensing
+through the eval/validation record paths, and the summarize/val-metric
+aggregation.
 """
 
+import json
+from pathlib import Path
+from types import SimpleNamespace
+
+from p2a.core import BonusMapStore
+from p2a.eval_fault_localization import _initial_context_text, score_record, summarize
 from p2a.provenance import (
     extract_entity_references,
+    extract_entity_references_from_text,
     license_references,
     symbols_from_pattern,
 )
+from p2a.validation_metrics import (
+    P2A_VALIDATION_METRICS,
+    flatten_validation_metrics,
+    validation_records_from_batch,
+)
+
+
+def _score(record: dict, bonus_map_dir: str = "/nonexistent-bonus-map-dir") -> dict:
+    return score_record(
+        record,
+        index=0,
+        bonus_maps=BonusMapStore(bonus_map_dir),
+        tracking_mode="view_and_bash",
+        near_threshold=0.25,
+        m_max=3.0,
+    )
 
 
 def _bash_call(command: str) -> dict:
@@ -138,3 +163,115 @@ def test_no_step_traces_is_not_evaluable():
     summary = license_references([], "issue")
     assert summary["license_evaluable"] is False
     assert summary["unlicensed_reference_rate"] is None
+
+
+def test_text_format_tool_calls_are_extracted():
+    text = (
+        "<function=file_editor><parameter=command>view</parameter>"
+        "<parameter=path>/testbed/pkg/viewed_mod.py</parameter></function>\n"
+        '<function=execute_bash><parameter=command>grep -rn "SpecialThing" pkg/legacy_mod.py</parameter></function>'
+    )
+    refs = extract_entity_references_from_text(text)
+    kinds = {(ref["kind"], ref["entity"]) for ref in refs}
+    assert ("path", "pkg/viewed_mod.py") in kinds
+    assert ("path", "pkg/legacy_mod.py") in kinds
+    assert ("symbol", "SpecialThing") in kinds
+
+    steps = [{"response_text": text, "tool_results": [{"observation": ""}]}]
+    summary = license_references(steps, "")
+    assert summary["n_path_references"] == 2
+    assert summary["n_symbol_references"] == 1
+
+
+def test_structured_tool_calls_win_over_text_channel():
+    step = {
+        "tool_calls": [_bash_call("cat pkg/structured_mod.py")],
+        "response_text": "<function=execute_bash><parameter=command>cat pkg/text_mod.py</parameter></function>",
+        "tool_results": [{"observation": ""}],
+    }
+    summary = license_references([step], "")
+    assert summary["n_path_references"] == 1
+    assert {(ref["kind"], ref["entity"]) for ref in summary["unlicensed_references"]} == {("path", "pkg/structured_mod.py")}
+
+
+def test_prompt_borne_path_is_licensed_from_raw_prompt():
+    record = {
+        "instance_id": "repo__0123abcd",
+        "raw_prompt": [
+            {"role": "system", "content": "You are a software engineering agent."},
+            {"role": "user", "content": "Fix the crash reported in pkg/prompt_named.py."},
+        ],
+        "p2a_step_traces": [_step([_bash_call("cat /testbed/pkg/prompt_named.py")])],
+    }
+    assert "prompt_named.py" in _initial_context_text(record)
+    detail = _score(record)
+    assert detail["license_evaluable"] is True
+    assert detail["n_path_references"] == 1
+    assert detail["n_unlicensed_references"] == 0
+
+
+def test_validation_batch_records_carry_prompt_for_licensing():
+    step = _step([_bash_call("cat /testbed/pkg/prompt_named.py")])
+    batch = SimpleNamespace(
+        non_tensor_batch={
+            "uid": ["u0"],
+            "instance_id": ["repo__0123abcd"],
+            "data_source": ["r2e"],
+            "raw_prompt": [
+                [
+                    {"role": "system", "content": "You are a software engineering agent."},
+                    {"role": "user", "content": "Fix the crash reported in pkg/prompt_named.py."},
+                ]
+            ],
+            "p2a_step_traces": [json.dumps([step])],
+        }
+    )
+    records = validation_records_from_batch(batch, output_texts=["done"])
+    assert records[0]["raw_prompt"][0]["role"] == "system"
+    assert "prompt_named.py" in _initial_context_text(records[0])
+    detail = _score(records[0])
+    assert detail["n_path_references"] == 1
+    assert detail["n_unlicensed_references"] == 0
+
+
+def test_summarize_and_val_metrics_aggregate_unlicensed_references(tmp_path):
+    records = [
+        {
+            "instance_id": "repo__aaaa1111",
+            "issue_description": "There is a bug in pkg/known.py.",
+            "p2a_step_traces": [_step([_bash_call("cat pkg/known.py")])],
+        },
+        {
+            "instance_id": "repo__bbbb2222",
+            "issue_description": "Something unrelated fails.",
+            "p2a_step_traces": [_step([_bash_call("cat pkg/unknown.py")])],
+        },
+    ]
+    details = [_score(record, str(tmp_path)) for record in records]
+    summary = summarize(
+        details,
+        source=Path("test"),
+        bonus_map_dir=tmp_path,
+        tracking_mode="view_and_bash",
+        near_threshold=0.25,
+        m_max=3.0,
+    )
+    assert summary["counts"]["n_license_evaluable"] == 2
+    assert summary["rates"]["unlicensed_reference_rate"] == 0.5
+    assert summary["rates"]["unlicensed_trace_rate"] == 0.5
+    assert summary["averages"]["avg_entity_references"] == 1.0
+    assert summary["averages"]["avg_unlicensed_references"] == 0.5
+
+    assert "unlicensed_reference_rate" in P2A_VALIDATION_METRICS
+    assert "unlicensed_trace_rate" in P2A_VALIDATION_METRICS
+    for detail in details:
+        detail.setdefault("data_source", "unknown")
+    metrics = flatten_validation_metrics(
+        details,
+        bonus_map_dir=str(tmp_path),
+        tracking_mode="view_and_bash",
+        near_threshold=0.25,
+        m_max=3.0,
+    )
+    assert metrics["val-p2a/unknown/unlicensed_reference_rate"] == 0.5
+    assert metrics["val-p2a/unknown/unlicensed_trace_rate"] == 0.5
