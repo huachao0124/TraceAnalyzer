@@ -203,5 +203,12 @@ proving P2A works on the Uni-Agent tool set and actually captures actions
   "reverted the … switch", dated attributions, PR/issue numbers as narrative). Git
   log is the history; the code is not your history book. Keep present-tense WHY
   comments; delete or rewrite the rest.
+- **Documents state the present truth, never their own revision history.** The
+  comment rule above applies equally to FACTS.md, GLOSSARY.md, README, reports,
+  and every other document: no "(v2, supersedes the MM-DD version)", no
+  "finalized/updated on <date>", no "previously X, now Y" narrations inside
+  entries. Rewrite the entry to state the current semantics plainly; git log is
+  the only history book. Empirical justifications stay as present-tense facts,
+  not timelines.
 - Migration validated on a 26-case stratified sample: dynamic signal (standard/direct)
   reproduces the old report 8/8; full case_type ~24/26 (residual = non-dynamic edges).

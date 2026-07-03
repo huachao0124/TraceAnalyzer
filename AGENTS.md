@@ -185,6 +185,11 @@ changed to Y", "reverted the … switch", dated attributions, PR/issue numbers a
 narrative). Git log is the history; the code is not. Delete such comments or rewrite
 them present-tense.
 
+The same rule applies to documents (FACTS.md, GLOSSARY.md, README, reports): entries
+state the current semantics plainly — no "(v2, supersedes …)", no "finalized/updated
+on <date>", no "previously X, now Y" narrations. When semantics change, rewrite the
+entry; git log is the only history book.
+
 ## Uni-Agent / ARL Docs
 
 When working with the Uni-Agent training stack, use the official Uni-Agent
