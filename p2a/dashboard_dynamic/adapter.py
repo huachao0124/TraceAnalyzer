@@ -54,7 +54,7 @@ from p2a.hf_assets import shared_p2a_data_dir
 
 
 DASHBOARD_SCHEMA_VERSION = "p2a_unified_dashboard_v1"
-DASHBOARD_DETAIL_CACHE_VERSION = "dashboard_detail_cache_v2"
+DASHBOARD_DETAIL_CACHE_VERSION = "dashboard_detail_cache_v3"
 DASHBOARD_DETAIL_CACHE_METADATA_KEY = "dashboard_detail_cache"
 THIRD_PARTY_PROVIDER_SOURCES = {
     "internal_api",
@@ -2771,7 +2771,7 @@ AVG_AT_METRIC_KEYS = (
     "reverse_order_rate",
     "miracle_rate",
     "avg_miracle_severity",
-    "unlicensed_arrival_rate",
+    "unlicensed_reference_rate",
     "unlicensed_trace_rate",
     "avg_block_order_score",
     "block_reverse_order_rate",
@@ -2848,8 +2848,8 @@ def _detail_metric_values(item: dict[str, Any]) -> dict[str, Any]:
         "reverse_order_rate": _bool_number(_negative(order_score)) if order_score is not None else None,
         "miracle_rate": _bool_number(_combined_miracle_marker(item)) if order_metric else None,
         "avg_miracle_severity": item.get("miracle_severity") if order_metric else None,
-        "unlicensed_arrival_rate": item.get("unlicensed_arrival_rate") if item.get("license_evaluable") else None,
-        "unlicensed_trace_rate": _bool_number((item.get("n_unlicensed_arrivals") or 0) > 0)
+        "unlicensed_reference_rate": item.get("unlicensed_reference_rate") if item.get("license_evaluable") else None,
+        "unlicensed_trace_rate": _bool_number((item.get("n_unlicensed_references") or 0) > 0)
         if item.get("license_evaluable")
         else None,
         "avg_block_order_score": block_order_score,
@@ -3018,8 +3018,8 @@ def _detail_model_metrics(details: list[dict[str, Any]], *, include_avg_at: bool
             "reverse_order_rate": _rate(_combined_reverse_marker(item) for item in order_metric_items),
             "miracle_rate": _rate(_combined_miracle_marker(item) for item in order_metric_items),
             "avg_miracle_severity": _avg(item.get("miracle_severity") for item in order_metric_items),
-            "unlicensed_arrival_rate": _avg(item.get("unlicensed_arrival_rate") for item in license_items),
-            "unlicensed_trace_rate": _rate((item.get("n_unlicensed_arrivals") or 0) > 0 for item in license_items),
+            "unlicensed_reference_rate": _avg(item.get("unlicensed_reference_rate") for item in license_items),
+            "unlicensed_trace_rate": _rate((item.get("n_unlicensed_references") or 0) > 0 for item in license_items),
             "avg_block_order_score": _avg(item.get("block_order_score") for item in block_order_items),
             "block_reverse_order_rate": _rate(
                 _negative(item.get("block_order_score"))
