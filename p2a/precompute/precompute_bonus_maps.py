@@ -63,7 +63,7 @@ from p2a.datasets import parse_string_list, selector_files
 from p2a.trace import (
     TRACE_FILE_PATH,
     _is_test_file,
-    extract_callables_from_ast,
+    extract_callables_with_tolerant_fallback,
     find_modified_callables_from_task,
     make_instance_id as _trace_make_instance_id,
     normalize_task as _trace_normalize_task,
@@ -525,9 +525,9 @@ def find_newly_created_callables(task: dict) -> list[dict]:
             if not new_src:
                 continue
 
-            new_callables = extract_callables_from_ast(new_src, path)
+            new_callables = extract_callables_with_tolerant_fallback(new_src, path)
             if old_src:
-                old_callables = extract_callables_from_ast(old_src, path)
+                old_callables = extract_callables_with_tolerant_fallback(old_src, path)
             else:
                 old_callables = {}
 

@@ -583,37 +583,104 @@ def _read_old_sources(env: UniAgentSandboxAdapter, files: set[str]) -> tuple[dic
     return old_sources, existing_files
 
 
+def _filter_patch_to_files(patch_text: str, files: set[str]) -> str:
+    wanted = {path.strip("/") for path in files}
+    chunks: list[list[str]] = []
+    current: list[str] = []
+    current_files: set[str] = set()
+
+    def flush() -> None:
+        if current and current_files & wanted:
+            chunks.append(list(current))
+
+    for line in patch_text.splitlines():
+        if line.startswith("diff --git "):
+            flush()
+            current = [line]
+            current_files = set()
+            parts = line.split()
+            for part in parts[2:4]:
+                if part.startswith(("a/", "b/")):
+                    current_files.add(part[2:])
+            continue
+        if current:
+            if line.startswith("--- ") or line.startswith("+++ "):
+                target = line[4:].strip()
+                if target.startswith(("a/", "b/")):
+                    current_files.add(target[2:])
+            current.append(line)
+    flush()
+    filtered = "\n".join("\n".join(chunk) for chunk in chunks)
+    return f"{filtered}\n" if filtered else ""
+
+
+def _restore_sources_after_patch(
+    env: UniAgentSandboxAdapter,
+    *,
+    files: set[str],
+    old_sources: dict[str, str],
+    existing_files: set[str],
+) -> None:
+    for file_path in sorted(files):
+        abs_path = f"{env.repo_path}/{file_path}"
+        if file_path in existing_files:
+            env._execute_raw(f"mkdir -p {shlex.quote(str(Path(abs_path).parent))}", timeout=30)
+            env.write_file(abs_path, old_sources.get(file_path, ""))
+        else:
+            env._execute_raw(f"rm -f {shlex.quote(abs_path)}", timeout=30)
+        env._execute_raw(f"rm -f {shlex.quote(abs_path)}.rej {shlex.quote(abs_path)}.orig", timeout=30)
+
+
+def _apply_patch_with_fallbacks(env: UniAgentSandboxAdapter, patch_path: str, cleanup) -> tuple[str, str]:
+    commands = [
+        f"git apply --whitespace=nowarn {shlex.quote(patch_path)}",
+        f"git apply --3way --whitespace=nowarn {shlex.quote(patch_path)}",
+        f"patch --batch --fuzz=5 -p1 -i {shlex.quote(patch_path)}",
+    ]
+    attempts: list[str] = []
+    for command in commands:
+        stdout, stderr, exit_code = env._execute_raw(f"cd {env.repo_path} && {command}", timeout=120)
+        if exit_code == 0:
+            return stdout, stderr
+        detail = (stderr or stdout or "").strip()
+        attempts.append(f"{command} exit={exit_code}: {detail[-1000:]}")
+        cleanup()
+    raise RuntimeError("failed to apply golden patch for source diff: " + " | ".join(attempts))
+
+
 def _apply_patch_and_read_new_sources(
     env: UniAgentSandboxAdapter,
     *,
     patch_text: str,
     files: set[str],
     existing_files: set[str],
+    old_sources: dict[str, str],
 ) -> dict[str, str]:
     from p2a.trace import _read_sandbox_file
 
-    patch_b64 = base64.b64encode(patch_text.encode()).decode()
+    source_patch = _filter_patch_to_files(patch_text, files)
+    if not source_patch.strip():
+        return {}
+    patch_b64 = base64.b64encode(source_patch.encode()).decode()
     env._run(f"printf '%s' '{patch_b64}' | base64 -d > /tmp/_p2a_golden_patch.diff")
-    stdout, _, exit_code = env._execute_raw(
-        f"cd {env.repo_path} && git apply --whitespace=nowarn /tmp/_p2a_golden_patch.diff",
-        timeout=120,
-    )
-    if exit_code != 0:
-        env._run(f"cd {env.repo_path} && git reset --hard")
-        raise RuntimeError(f"failed to apply golden patch for source diff: {stdout}")
 
     new_sources: dict[str, str] = {}
+    def cleanup() -> None:
+        _restore_sources_after_patch(
+            env,
+            files=files,
+            old_sources=old_sources,
+            existing_files=existing_files,
+        )
+
     try:
+        _apply_patch_with_fallbacks(env, "/tmp/_p2a_golden_patch.diff", cleanup)
         for file_path in sorted(files):
             content, read_exit = _read_sandbox_file(env, f"{env.repo_path}/{file_path}")
             if read_exit == 0:
                 new_sources[file_path] = content
     finally:
-        env._run(f"cd {env.repo_path} && git reset --hard")
-        created = [file_path for file_path in files if file_path not in existing_files]
-        if created:
-            quoted = " ".join(shlex.quote(f"{env.repo_path}/{file_path}") for file_path in created)
-            env._run(f"rm -f {quoted}")
+        cleanup()
     return new_sources
 
 
@@ -622,7 +689,7 @@ def find_changed_callables_via_patch(env: UniAgentSandboxAdapter, task: dict[str
     from p2a.trace import (
         _get_patched_py_files,
         _is_test_file,
-        extract_callables_from_ast,
+        extract_callables_with_tolerant_fallback,
         extract_non_test_patch,
         find_modified_callables_from_sources,
     )
@@ -641,6 +708,7 @@ def find_changed_callables_via_patch(env: UniAgentSandboxAdapter, task: dict[str
         patch_text=patch_text,
         files=files,
         existing_files=existing_files,
+        old_sources=old_sources,
     )
 
     modified: list[dict] = []
@@ -652,10 +720,10 @@ def find_changed_callables_via_patch(env: UniAgentSandboxAdapter, task: dict[str
             continue
         if old_source:
             modified.extend(find_modified_callables_from_sources(old_source, new_source, file_path))
-            old_callables = extract_callables_from_ast(old_source, file_path)
+            old_callables = extract_callables_with_tolerant_fallback(old_source, file_path)
         else:
             old_callables = {}
-        new_callables = extract_callables_from_ast(new_source, file_path)
+        new_callables = extract_callables_with_tolerant_fallback(new_source, file_path)
         for qname, info in new_callables.items():
             if qname not in old_callables:
                 newly_created.append(info.to_dict())
