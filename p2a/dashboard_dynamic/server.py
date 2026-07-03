@@ -54,6 +54,7 @@ SRC_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_EVAL_DB = SRC_ROOT / "data" / "evals" / "traces.sqlite"
 DETAIL_RESPONSE_DROP_KEYS = {"messages", "trajectory"}
 DETAIL_STEP_DROP_KEYS = {"think", "tool_results", "tool_calls", "tool_args"}
+AUTO_VACUUM_FREE_RATIO = 0.5
 
 
 def _dashboard_build_db_path(request: DashboardRequest) -> Path | None:
@@ -444,6 +445,28 @@ def make_handler(
     rebuild_queue_lock = threading.Lock()
     rebuild_queue: deque[dict[str, Any]] = deque()
     rebuild_worker_state: dict[str, Any] = {"running": False, "next_job_id": 0}
+    vacuum_status_lock = threading.Lock()
+    vacuum_status: dict[str, Any] = {
+        "running": False,
+        "last_started_at": None,
+        "last_finished_at": None,
+        "last_result": None,
+    }
+
+    def _run_auto_vacuum() -> None:
+        with vacuum_status_lock:
+            if vacuum_status["running"]:
+                return
+            vacuum_status["running"] = True
+            vacuum_status["last_started_at"] = utc_now()
+        try:
+            result: dict[str, Any] = vacuum_dashboard_databases(request, min_free_ratio=AUTO_VACUUM_FREE_RATIO)
+        except Exception as exc:
+            result = {"error": str(exc)}
+        with vacuum_status_lock:
+            vacuum_status["running"] = False
+            vacuum_status["last_finished_at"] = utc_now()
+            vacuum_status["last_result"] = result
 
     def current_admin_password() -> str | None:
         value = admin_password() if callable(admin_password) else admin_password
@@ -730,6 +753,8 @@ def make_handler(
             with rebuild_status_lock:
                 payload = dict(rebuild_status)
             payload["active"] = int(payload.get("queued") or 0) + int(payload.get("running") or 0) > 0
+            with vacuum_status_lock:
+                payload["vacuum"] = dict(vacuum_status)
             return payload
 
         def _handle_rebuild_status(self) -> None:
@@ -962,6 +987,10 @@ def make_handler(
             snapshot_cache["change_token"] = None
             with response_cache_lock:
                 response_cache.clear()
+            # Mass deletion is the one operation that leaves large free-page
+            # holes with nothing to reuse them; reclaim opportunistically off
+            # the request thread so the dashboard stays responsive.
+            threading.Thread(target=_run_auto_vacuum, daemon=True).start()
             self._send_json({"ok": True, "counts": deleted})
 
         def _handle_rebuild(self) -> None:

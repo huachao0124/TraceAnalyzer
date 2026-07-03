@@ -3375,8 +3375,23 @@ def migrate_dashboard_databases(request: DashboardRequest) -> dict[str, int]:
             conn.close()
 
 
-def vacuum_dashboard_databases(request: DashboardRequest) -> dict[str, Any]:
-    """VACUUM the raw eval DB and the dashboard build DB to reclaim free pages."""
+def db_free_page_ratio(db_path: Path | str) -> float:
+    conn = connect_readonly(db_path)
+    try:
+        free = int(conn.execute("PRAGMA freelist_count").fetchone()[0])
+        total = int(conn.execute("PRAGMA page_count").fetchone()[0])
+    finally:
+        conn.close()
+    return (free / total) if total else 0.0
+
+
+def vacuum_dashboard_databases(request: DashboardRequest, *, min_free_ratio: float = 0.0) -> dict[str, Any]:
+    """VACUUM the raw eval DB and the dashboard build DB to reclaim free pages.
+
+    With min_free_ratio set, a database is only vacuumed when its free-page
+    share reaches the threshold, and a lock conflict with an active writer is
+    reported as skipped instead of raised (VACUUM is opportunistic maintenance).
+    """
     results: dict[str, Any] = {}
     targets: list[tuple[str, Path]] = []
     if request.db_path is not None and Path(request.db_path).exists():
@@ -3385,14 +3400,24 @@ def vacuum_dashboard_databases(request: DashboardRequest) -> dict[str, Any]:
     if build_db_path is not None and build_db_path.exists():
         targets.append(("build_db", build_db_path))
     for label, path in targets:
+        free_ratio = db_free_page_ratio(path)
+        if free_ratio < min_free_ratio:
+            results[label] = {"path": str(path), "skipped": "below_threshold", "free_page_ratio": round(free_ratio, 4)}
+            continue
         size_before = path.stat().st_size
         conn = connect(path, timeout=60.0)
         try:
             conn.execute("VACUUM")
+        except sqlite3.OperationalError as exc:
+            if min_free_ratio <= 0.0:
+                raise
+            results[label] = {"path": str(path), "skipped": "database_busy", "detail": str(exc)}
+            continue
         finally:
             conn.close()
         results[label] = {
             "path": str(path),
+            "free_page_ratio": round(free_ratio, 4),
             "bytes_before": size_before,
             "bytes_after": path.stat().st_size,
         }
