@@ -767,7 +767,9 @@ class IncrementalRolloutSink:
                     self.n_cached += 1
                     # Scoring and the build-DB write run after the raw commit so
                     # the raw write lock is held only for the insert itself.
-                    if self.bonus_map_dir is not None:
+                    # Error records (explicit or derived) become rerunnable ERROR
+                    # cells without raw rows — nothing to materialize for them.
+                    if self.bonus_map_dir is not None and rollout_record_error(record) is None:
                         self._cache_detail(cell_id, record)
             with self.rollouts_path.open("a", encoding="utf-8") as fh:
                 fh.write(json.dumps(record, default=_json_default, ensure_ascii=False) + "\n")

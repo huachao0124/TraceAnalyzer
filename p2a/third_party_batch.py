@@ -8,6 +8,7 @@ import copy
 import json
 import os
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
@@ -30,6 +31,7 @@ from p2a.eval_cache import (
     ensure_db,
     json_dumps,
     mark_cells_running,
+    rollout_record_error,
     sha256_text,
     upsert_experiment,
     upsert_planned_cells,
@@ -541,12 +543,14 @@ class RolloutIngestor:
         rollouts_path: Path,
         bonus_map_dir: Path | None,
         db_lock: asyncio.Lock,
+        db_executor: ThreadPoolExecutor | None = None,
     ) -> None:
         self.config = config
         self.model = model
         self.rollouts_path = rollouts_path
         self.bonus_map_dir = bonus_map_dir
         self.db_lock = db_lock
+        self.db_executor = db_executor
         self.analysis_cfg = dict(config.raw.get("analysis") or {})
         self.source = provider_source(config.provider)
         self.n_ingested = 0
@@ -584,13 +588,19 @@ class RolloutIngestor:
                     records.append(record)
         return records, offset
 
-    def _already_ingested(self, conn: sqlite3.Connection, record: dict[str, Any], record_sha: str) -> bool:
+    def _already_ingested(
+        self,
+        conn: sqlite3.Connection,
+        record: dict[str, Any],
+        record_sha: str,
+        record_error: str | None,
+    ) -> bool:
         instance_id = str(record.get("instance_id") or "")
         if not instance_id:
             return False
         row = conn.execute(
             """
-            SELECT c.status, r.rollout_sha256
+            SELECT c.status, c.run_id, r.rollout_sha256
             FROM run_cells c
             LEFT JOIN raw_rollouts r ON r.cell_id = c.id
             WHERE c.experiment_id = ?
@@ -613,16 +623,31 @@ class RolloutIngestor:
             return False
         if str(row["status"]) == DONE_STATUS and row["rollout_sha256"] == record_sha:
             return True
-        if str(row["status"]) == ERROR_STATUS and record.get("error"):
-            return True
+        if str(row["status"]) == ERROR_STATUS and record_error:
+            # Error cells keep no raw row/sha, so identify the attempt by its
+            # unique run_id: a rerun that errors again must still be ingested
+            # to bump attempts and surface the latest error.
+            record_run_id = str(record.get("run_id") or "")
+            return bool(record_run_id) and str(row["run_id"] or "") == record_run_id
         return False
 
     def _ingest_records_sync(self, records: list[dict[str, Any]]) -> None:
+        # Replays (phase-start recovery reads the file from offset 0) can carry
+        # several attempts for the same cell; only the newest one matters, and
+        # upserting superseded attempts would inflate the attempts counter.
+        latest_by_cell: dict[tuple[str, int], dict[str, Any]] = {}
+        for record in records:
+            instance_id = str(record.get("instance_id") or "")
+            if not instance_id:
+                self.n_skipped += 1
+                continue
+            latest_by_cell[(instance_id, int(record.get("rollout_index") or 0))] = record
         with closing(ensure_db(self.config.db_path)) as conn:
             pending_details: list[tuple[int, dict[str, Any], int]] = []
-            for record in records:
+            for record in latest_by_cell.values():
                 record_sha = sha256_text(json_dumps(record))
-                if self._already_ingested(conn, record, record_sha):
+                record_error = rollout_record_error(record)
+                if self._already_ingested(conn, record, record_sha, record_error):
                     self.n_skipped += 1
                     continue
                 cell_id = upsert_rollout_record(
@@ -638,7 +663,7 @@ class RolloutIngestor:
                 conn.commit()
                 if self.bonus_map_dir is not None:
                     self._metrics_dirty = True
-                    if not record.get("error"):
+                    if record_error is None:
                         pending_details.append((cell_id, record, self.n_ingested))
                 self.n_ingested += 1
             for cell_id, record, index in pending_details:
@@ -671,16 +696,24 @@ class RolloutIngestor:
             m_max=float(self.analysis_cfg.get("m_max", 3.0)),
         )
 
+    async def _run_db_work(self, fn: Any, *args: Any) -> Any:
+        # DB work runs on the batch's dedicated writer executor (explicitly
+        # shut down by run_batch) rather than the loop's default executor, and
+        # off the event loop so CPU-heavy scoring cannot back-pressure the
+        # model subprocess pipes.
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(self.db_executor, fn, *args)
+
     async def ingest_new(self, *, refresh_metrics: bool = False) -> int:
         records, new_offset = self._read_new_records()
         if not records and not (refresh_metrics and self._metrics_dirty):
             return 0
         async with self.db_lock:
             if records:
-                await asyncio.to_thread(self._ingest_records_sync, records)
+                await self._run_db_work(self._ingest_records_sync, records)
                 self._offset = new_offset
             if refresh_metrics and self._metrics_dirty:
-                await asyncio.to_thread(self._refresh_model_metrics_sync)
+                await self._run_db_work(self._refresh_model_metrics_sync)
                 self._metrics_dirty = False
         return len(records)
 
@@ -714,6 +747,7 @@ async def run_model_phase(
     bonus_map_dir: Path | None,
     env: dict[str, str],
     db_lock: asyncio.Lock,
+    db_executor: ThreadPoolExecutor | None = None,
 ) -> dict[str, Any]:
     source = provider_source(config.provider)
     target_ids, scope_metadata = selected_instance_scope(
@@ -732,6 +766,7 @@ async def run_model_phase(
         rollouts_path=rollouts_path,
         bonus_map_dir=bonus_map_dir,
         db_lock=db_lock,
+        db_executor=db_executor,
     )
     # Rollouts persisted to JSONL by a previous (possibly crashed) run may not
     # have reached the DB; recover them before selecting missing jobs.
@@ -860,9 +895,11 @@ async def run_batch(config: BatchConfig, *, env: dict[str, str] | None = None) -
     bonus_map_dir = resolve_bonus_map_dir(config, data_file, env=run_env)
     results = []
     semaphore = asyncio.Semaphore(config.model_parallelism)
-    # All DB writes across models funnel through this lock: the orchestrator is
-    # the single writer regardless of model/rollout concurrency.
+    # All DB writes across models funnel through this lock and one dedicated
+    # writer thread: the orchestrator is the single writer regardless of
+    # model/rollout concurrency.
     db_lock = asyncio.Lock()
+    db_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="p2a-db-ingest")
 
     async def guarded(model: BatchModel, phase: str, limit: int | None) -> dict[str, Any]:
         async with semaphore:
@@ -876,16 +913,20 @@ async def run_batch(config: BatchConfig, *, env: dict[str, str] | None = None) -
                 bonus_map_dir=bonus_map_dir,
                 env=run_env,
                 db_lock=db_lock,
+                db_executor=db_executor,
             )
             print(f"[batch] {phase}: {model.label} -> {result['status']}", flush=True)
             return result
 
-    for phase, limit in _phase_specs(config):
-        phase_results = await asyncio.gather(*(guarded(model, phase, limit) for model in config.models))
-        results.extend(phase_results)
-        if phase == "smoke" and any(result.get("status") == SYSTEM_ERROR_STATUS for result in phase_results):
-            print("[batch] smoke phase hit a system error; skipping later phases", flush=True)
-            break
+    try:
+        for phase, limit in _phase_specs(config):
+            phase_results = await asyncio.gather(*(guarded(model, phase, limit) for model in config.models))
+            results.extend(phase_results)
+            if phase == "smoke" and any(result.get("status") == SYSTEM_ERROR_STATUS for result in phase_results):
+                print("[batch] smoke phase hit a system error; skipping later phases", flush=True)
+                break
+    finally:
+        db_executor.shutdown(wait=True)
     return results
 
 
