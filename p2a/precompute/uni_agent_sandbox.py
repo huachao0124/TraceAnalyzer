@@ -288,7 +288,7 @@ def build_agent_env_config(task: dict[str, Any], *, instance_id: str, deployment
             # OOM-kills any real test-suite run; request sane resources explicitly
             # (applied when the image pool is first created).
             "resources": {
-                "requests": {"cpu": os.getenv("ARL_CPU_REQUEST", "2"), "memory": os.getenv("ARL_MEM_REQUEST", "4Gi")},
+                "requests": {"cpu": os.getenv("ARL_CPU_REQUEST", "1"), "memory": os.getenv("ARL_MEM_REQUEST", "1Gi")},
                 "limits": {"cpu": os.getenv("ARL_CPU_LIMIT", "4"), "memory": os.getenv("ARL_MEM_LIMIT", "8Gi")},
             },
             "startup_timeout": float(os.getenv("ARL_STARTUP_TIMEOUT", os.getenv("ARL_SWEREX_STARTUP_TIMEOUT", "240"))),
