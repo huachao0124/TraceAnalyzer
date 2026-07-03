@@ -112,6 +112,12 @@ class ArlDeploymentConfig:
     experiment_id: str | None = None
     timeout: float = 600.0
     startup_timeout: float = 240.0
+    # Gateway-side session lifetimes. Without an explicit idle timeout the gateway
+    # applies its own short default and deletes the session during silent windows
+    # (long model thinking, a single long-running eval execute), which surfaces as
+    # mid-rollout terminal_dead or reward-eval 404s.
+    idle_timeout_seconds: int = 3600
+    max_lifetime_seconds: int = 14400
     workspace_dir: str = "/workspace"
     delete_on_stop: bool = True
     max_replicas: int | None = None
@@ -239,6 +245,8 @@ class ArlDeployment(AbstractDeployment):
             "profile": self._config.profile,
             "gateway_url": gateway_url,
             "timeout": self._config.timeout,
+            "idle_timeout_seconds": self._config.idle_timeout_seconds,
+            "max_lifetime_seconds": self._config.max_lifetime_seconds,
             "resources": self._config.resources,
             "workspace_dir": self._config.workspace_dir,
             "max_replicas": self._config.max_replicas,
