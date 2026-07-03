@@ -632,10 +632,12 @@ def _step_observation_text(trace: Any) -> str:
             continue
         if not isinstance(result, dict):
             continue
-        for key in ("observation", "content", "result", "output", "stderr"):
+        for key in ("observation", "content", "result", "output", "stderr", "stdout", "error"):
             value = result.get(key)
             if isinstance(value, str) and value:
                 parts.append(value)
+            elif value not in (None, ""):
+                parts.append(json.dumps(value, ensure_ascii=False, default=str))
     return "\n".join(parts)
 
 

@@ -2660,6 +2660,8 @@ AVG_AT_METRIC_KEYS = (
     "reverse_order_rate",
     "miracle_rate",
     "avg_miracle_severity",
+    "unlicensed_arrival_rate",
+    "unlicensed_trace_rate",
     "avg_block_order_score",
     "block_reverse_order_rate",
     "block_miracle_rate",
