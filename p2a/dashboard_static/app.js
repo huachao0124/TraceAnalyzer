@@ -153,7 +153,7 @@ const TRACE_LEGEND_GROUPS = [
       { sample: '<span class="legend-icon">🔁</span>', text: "Loop: repeated purpose block." },
       { sample: '<span class="legend-icon">✨</span>', text: "Miracle: cause hit before enough graph evidence." },
       { sample: '<span class="legend-icon">🌀</span>', text: "Reverse: traversal goes against dependency order." },
-      { sample: '<span class="legend-icon">🛸</span>', text: "Unlicensed reference: a first path/symbol reference with no antecedent in the initial context or any earlier step's observations — acted on own prior with no visible clue. Observational, not reward or cheat detection." },
+      { sample: '<span class="legend-icon">🛸</span>', text: "Unlicensed: path/symbol never seen in prompt or earlier observations — acted on own prior. Observational only." },
     ],
   },
   {
