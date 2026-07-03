@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import hashlib
 import hmac
 import json
 import mimetypes
@@ -30,6 +31,7 @@ from p2a.dashboard_dynamic.adapter import (
     read_dashboard_log,
     slim_dashboard_raw_db,
     snapshot_to_json,
+    vacuum_dashboard_databases,
     validated_cached_model_metrics,
 )
 from p2a.eval_cache import (
@@ -420,6 +422,11 @@ def make_handler(
 ) -> type[BaseHTTPRequestHandler]:
     snapshot_cache: dict[str, Any] = {"payload": None, "change_token": None}
     snapshot_lock = threading.Lock()
+    # Serialized+gzipped response bytes keyed by endpoint+params, validated by
+    # the snapshot change token; a token match skips json.dumps and gzip.
+    response_cache: dict[str, dict[str, Any]] = {}
+    response_cache_lock = threading.Lock()
+    response_cache_max_entries = 64
     admin_tokens: set[str] = set()
     rebuild_status_lock = threading.Lock()
     rebuild_status: dict[str, Any] = {
@@ -523,7 +530,10 @@ def make_handler(
 
         def _send_snapshot(self, *, force: bool = False) -> None:
             try:
-                payload = self._build_or_cached_snapshot(force=force)
+                change_token = _snapshot_change_token(request)
+                if self._send_cached_response("snapshot", change_token, allow_cache=not force):
+                    return
+                payload = self._build_or_cached_snapshot(force=force, change_token=change_token)
             except sqlite3.OperationalError as exc:
                 status = HTTPStatus.SERVICE_UNAVAILABLE if "locked" in str(exc).lower() else HTTPStatus.INTERNAL_SERVER_ERROR
                 self._send_json(
@@ -531,7 +541,12 @@ def make_handler(
                     status=status,
                 )
                 return
-            self._send_json(payload)
+            cacheable = not (payload.get("snapshot_status") or {}).get("stale")
+            self._send_json(
+                payload,
+                cache_key="snapshot" if cacheable else None,
+                change_token=change_token if cacheable else None,
+            )
 
         def _send_details(self, params: dict[str, list[str]]) -> None:
             def get(name: str, current: str | None) -> str | None:
@@ -559,6 +574,20 @@ def make_handler(
                     detail_limit=limit,
                     detail_offset=offset,
                 )
+                cache_key = "details:" + repr(
+                    (
+                        detail_request.experiment_id,
+                        detail_request.provider_source,
+                        detail_request.dataset,
+                        detail_request.model_api_name,
+                        detail_request.model_label,
+                        limit,
+                        offset,
+                    )
+                )
+                change_token = _snapshot_change_token(request)
+                if self._send_cached_response(cache_key, change_token):
+                    return
                 payload = build_dashboard_snapshot(detail_request)
             except sqlite3.OperationalError as exc:
                 status = HTTPStatus.SERVICE_UNAVAILABLE if "locked" in str(exc).lower() else HTTPStatus.INTERNAL_SERVER_ERROR
@@ -576,7 +605,9 @@ def make_handler(
                     "limit": limit,
                     "eval_cells": payload.get("eval_cells", []),
                     "model_metrics": payload.get("model_metrics", []),
-                }
+                },
+                cache_key=cache_key,
+                change_token=change_token,
             )
 
         def _send_metrics(self, params: dict[str, list[str]]) -> None:
@@ -587,20 +618,30 @@ def make_handler(
             if request.db_path is None:
                 self._send_json({"ok": False, "error": "db_required"}, status=HTTPStatus.BAD_REQUEST)
                 return
+            metrics_request = replace(
+                request,
+                experiment_id=get("experiment_id", request.experiment_id),
+                provider_source=get("provider_source", request.provider_source),
+                dataset=get("dataset", request.dataset),
+                model_api_name=get("model_api_name", request.model_api_name),
+                model_label=get("model_label", request.model_label),
+            )
+            cache_key = "metrics:" + repr(
+                (
+                    metrics_request.experiment_id,
+                    metrics_request.provider_source,
+                    metrics_request.dataset,
+                    metrics_request.model_api_name,
+                    metrics_request.model_label,
+                )
+            )
             conn = None
             try:
+                change_token = _snapshot_change_token(request)
+                if self._send_cached_response(cache_key, change_token):
+                    return
                 conn = connect_readonly(request.db_path)
-                rows = validated_cached_model_metrics(
-                    conn,
-                    replace(
-                        request,
-                        experiment_id=get("experiment_id", request.experiment_id),
-                        provider_source=get("provider_source", request.provider_source),
-                        dataset=get("dataset", request.dataset),
-                        model_api_name=get("model_api_name", request.model_api_name),
-                        model_label=get("model_label", request.model_label),
-                    ),
-                )
+                rows = validated_cached_model_metrics(conn, metrics_request)
             except sqlite3.OperationalError as exc:
                 status = HTTPStatus.SERVICE_UNAVAILABLE if "locked" in str(exc).lower() else HTTPStatus.INTERNAL_SERVER_ERROR
                 self._send_json(
@@ -611,7 +652,7 @@ def make_handler(
             finally:
                 if conn is not None:
                     conn.close()
-            self._send_json({"ok": True, "model_metrics": rows})
+            self._send_json({"ok": True, "model_metrics": rows}, cache_key=cache_key, change_token=change_token)
 
         def _compact_details(self, details: Any) -> list[dict[str, Any]]:
             if not isinstance(details, list):
@@ -633,18 +674,24 @@ def make_handler(
                 compacted.append(detail)
             return compacted
 
-        def _build_or_cached_snapshot(self, *, force: bool = False) -> dict[str, Any]:
-            change_token = _snapshot_change_token(request)
+        def _build_or_cached_snapshot(self, *, force: bool = False, change_token: tuple[Any, ...] | None = None) -> dict[str, Any]:
+            change_token = change_token if change_token is not None else _snapshot_change_token(request)
             cached = snapshot_cache.get("payload")
             if cached is not None and not force and snapshot_cache.get("change_token") == change_token:
                 return cached
-            if request.db_path is not None and not force:
-                acquired = snapshot_lock.acquire(blocking=cached is None)
+            if force:
+                with response_cache_lock:
+                    response_cache.clear()
+            if request.db_path is not None:
+                # DB-backed dashboards always build through the deferred path;
+                # force only invalidates caches. The non-deferred branch would
+                # scan and parse every raw rollout blob in one request.
+                acquired = snapshot_lock.acquire(blocking=cached is None or force)
                 if not acquired:
                     return {**cached, "snapshot_status": {"stale": True, "reason": "snapshot_build_in_progress"}}
                 try:
                     current = snapshot_cache.get("payload")
-                    if current is not None and snapshot_cache.get("change_token") == _snapshot_change_token(request):
+                    if current is not None and not force and snapshot_cache.get("change_token") == _snapshot_change_token(request):
                         return current
                     deferred = build_dashboard_snapshot(replace(request, defer_db_scoring=True, include_db_raw_details=False))
                     deferred["snapshot_status"] = {
@@ -726,6 +773,8 @@ def make_handler(
                 threading.Thread(target=self._run_rebuild_queue, daemon=True).start()
             with snapshot_lock:
                 snapshot_cache["change_token"] = None
+            with response_cache_lock:
+                response_cache.clear()
             return self._rebuild_status_payload()
 
         def _run_rebuild_queue(self) -> None:
@@ -911,6 +960,8 @@ def make_handler(
                 return
             snapshot_cache["payload"] = None
             snapshot_cache["change_token"] = None
+            with response_cache_lock:
+                response_cache.clear()
             self._send_json({"ok": True, "counts": deleted})
 
         def _handle_rebuild(self) -> None:
@@ -968,14 +1019,75 @@ def make_handler(
                 }
             )
 
+        @staticmethod
+        def _response_etag(cache_key: str, change_token: tuple[Any, ...]) -> str:
+            digest = hashlib.sha256(repr((cache_key, change_token)).encode("utf-8")).hexdigest()[:32]
+            return f'"{digest}"'
+
+        def _send_cached_response(
+            self,
+            cache_key: str,
+            change_token: tuple[Any, ...],
+            *,
+            allow_cache: bool = True,
+        ) -> bool:
+            """Serve a cached (or 304) response for this key+token; False on miss."""
+            if not allow_cache:
+                return False
+            etag = self._response_etag(cache_key, change_token)
+            if self.headers.get("If-None-Match") == etag:
+                try:
+                    self.send_response(HTTPStatus.NOT_MODIFIED)
+                    self.send_header("ETag", etag)
+                    self.send_header("Cache-Control", "no-cache")
+                    self.end_headers()
+                except (BrokenPipeError, ConnectionResetError):
+                    self.close_connection = True
+                return True
+            with response_cache_lock:
+                entry = response_cache.get(cache_key)
+                if entry is None or entry.get("change_token") != change_token:
+                    return False
+                raw_body = entry["body"]
+                gzip_body = entry.get("gzip_body")
+            self._send_prepared_json(raw_body, gzip_body, etag=etag)
+            return True
+
+        def _send_prepared_json(self, raw_body: bytes, gzip_body: bytes | None, *, etag: str | None) -> None:
+            response_headers: dict[str, str] = {}
+            if etag:
+                response_headers["ETag"] = etag
+                response_headers["Cache-Control"] = "no-cache"
+            body = raw_body
+            accept_encoding = self.headers.get("Accept-Encoding", "")
+            if "gzip" in accept_encoding.lower() and gzip_body is not None:
+                body = gzip_body
+                response_headers["Content-Encoding"] = "gzip"
+                response_headers["Vary"] = "Accept-Encoding"
+            self._send_bytes(body, "application/json; charset=utf-8", headers=response_headers)
+
         def _send_json(
             self,
             payload: dict[str, Any],
             *,
             status: HTTPStatus = HTTPStatus.OK,
             headers: dict[str, str] | None = None,
+            cache_key: str | None = None,
+            change_token: tuple[Any, ...] | None = None,
         ) -> None:
             body = snapshot_to_json(payload).encode("utf-8")
+            if cache_key is not None and change_token is not None and status == HTTPStatus.OK:
+                gzip_body = gzip.compress(body) if len(body) > 1024 else None
+                with response_cache_lock:
+                    if len(response_cache) >= response_cache_max_entries and cache_key not in response_cache:
+                        response_cache.pop(next(iter(response_cache)))
+                    response_cache[cache_key] = {
+                        "change_token": change_token,
+                        "body": body,
+                        "gzip_body": gzip_body,
+                    }
+                self._send_prepared_json(body, gzip_body, etag=self._response_etag(cache_key, change_token))
+                return
             response_headers = dict(headers or {})
             accept_encoding = self.headers.get("Accept-Encoding", "")
             if "gzip" in accept_encoding.lower() and len(body) > 1024:
@@ -996,8 +1108,9 @@ def make_handler(
                 self.send_response(status)
                 self.send_header("Content-Type", content_type)
                 self.send_header("Content-Length", str(len(payload)))
-                self.send_header("Cache-Control", "no-store, max-age=0")
-                self.send_header("Pragma", "no-cache")
+                if "Cache-Control" not in (headers or {}):
+                    self.send_header("Cache-Control", "no-store, max-age=0")
+                    self.send_header("Pragma", "no-cache")
                 for key, value in (headers or {}).items():
                     self.send_header(key, value)
                 self.end_headers()
@@ -1096,7 +1209,7 @@ def add_dashboard_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--vacuum",
         action="store_true",
-        help="Run VACUUM after --slim-raw-db so SQLite releases freed file space",
+        help="VACUUM the raw and dashboard build DBs and exit (with --slim-raw-db: vacuum after slimming)",
     )
 
 
@@ -1138,6 +1251,12 @@ def main(argv: list[str] | None = None) -> int:
         if request.db_path is None:
             parser.error("--slim-raw-db requires --db or the default data/evals/traces.sqlite")
         result = slim_dashboard_raw_db(request, vacuum=bool(args.vacuum))
+        print(snapshot_to_json({"ok": True, **result}, indent=2))
+        return 0
+    if args.vacuum:
+        if request.db_path is None:
+            parser.error("--vacuum requires --db or the default data/evals/traces.sqlite")
+        result = vacuum_dashboard_databases(request)
         print(snapshot_to_json({"ok": True, **result}, indent=2))
         return 0
     if args.snapshot_json:

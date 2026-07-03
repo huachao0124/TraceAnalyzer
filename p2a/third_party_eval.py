@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import re
 import shlex
+import sqlite3
 import time
 from typing import Any
 import uuid
@@ -20,7 +21,7 @@ import yaml
 from p2a.api_providers import make_chat_model, normalize_provider_config, provider_source
 from p2a.bonus_map_scope import parse_bonus_map_instance_filter, select_rows_by_bonus_map_scope
 from p2a.core import BonusMapStore
-from p2a.dashboard_adapter import write_dashboard_detail_cache_for_record
+from p2a.dashboard_adapter import refresh_dashboard_model_metrics, write_dashboard_detail_cache_for_record
 from p2a.eval_cache import EMPTY_ROLLOUT_ERROR_KIND, ensure_db, ingest_artifacts, rollout_record_error, upsert_experiment, upsert_rollout_record
 from p2a.eval_fault_localization import (
     _json_default,
@@ -608,6 +609,9 @@ def build_dump_record(
 class IncrementalRolloutSink:
     """Serialize completed rollout records to JSONL and the eval cache immediately."""
 
+    DB_LOCK_RETRIES = 5
+    DB_LOCK_BACKOFF_S = 0.5
+
     def __init__(
         self,
         *,
@@ -621,6 +625,7 @@ class IncrementalRolloutSink:
         config_snapshot: dict[str, Any] | None = None,
         bonus_map_dir: Path | None = None,
         analysis_cfg: dict[str, Any] | None = None,
+        metrics_refresh_interval_s: float = 60.0,
     ) -> None:
         self.rollouts_path = rollouts_path
         self.db_path = db_path
@@ -632,11 +637,16 @@ class IncrementalRolloutSink:
         self.config_snapshot = config_snapshot or {}
         self.bonus_map_dir = bonus_map_dir
         self.analysis_cfg = analysis_cfg or {}
+        self.metrics_refresh_interval_s = metrics_refresh_interval_s
         self.count = 0
         self.n_cached = 0
+        self.n_db_write_failed = 0
         self.n_detail_cached = 0
         self.n_detail_cache_failed = 0
         self._lock = asyncio.Lock()
+        self._conn: Any = None
+        self._last_metrics_refresh = 0.0
+        self._metrics_refresh_pending = False
 
     def prepare(self) -> None:
         self.rollouts_path.parent.mkdir(parents=True, exist_ok=True)
@@ -652,54 +662,113 @@ class IncrementalRolloutSink:
             missing = [name for name, value in required.items() if not value]
             if missing:
                 raise ValueError(f"--cache-db requires {', '.join(missing)}")
-            with ensure_db(self.db_path) as conn:
-                upsert_experiment(
-                    conn,
+            # One connection for the whole run: per-record connections re-run
+            # schema init (an extra write transaction) on every rollout.
+            self._conn = ensure_db(self.db_path)
+            upsert_experiment(
+                self._conn,
+                experiment_id=str(self.experiment_id),
+                provider_source=str(self.provider_source_name),
+                dataset=str(self.dataset_name),
+                config_snapshot=self.config_snapshot,
+            )
+            self._conn.commit()
+
+    async def _upsert_with_retry(self, record: dict[str, Any]) -> int | None:
+        for attempt in range(self.DB_LOCK_RETRIES):
+            try:
+                cell_id = upsert_rollout_record(
+                    self._conn,
                     experiment_id=str(self.experiment_id),
                     provider_source=str(self.provider_source_name),
+                    model_api_name=str(self.model_api_name),
+                    model_label=str(self.model_label),
                     dataset=str(self.dataset_name),
-                    config_snapshot=self.config_snapshot,
+                    record=record,
+                    artifact_rollouts=self.rollouts_path,
                 )
-                conn.commit()
+                self._conn.commit()
+                return cell_id
+            except sqlite3.OperationalError as exc:
+                try:
+                    self._conn.rollback()
+                except sqlite3.Error:
+                    pass
+                retryable = "locked" in str(exc).lower() or "busy" in str(exc).lower()
+                if not retryable or attempt == self.DB_LOCK_RETRIES - 1:
+                    # The record survives in the JSONL artifact and is re-ingested
+                    # on the next run; a lock timeout must not kill in-flight rollouts.
+                    self.n_db_write_failed += 1
+                    print(
+                        f"[sink] cache-db write failed for {record.get('instance_id')} "
+                        f"(rollout {record.get('rollout_index')}): {exc}",
+                        flush=True,
+                    )
+                    return None
+                await asyncio.sleep(self.DB_LOCK_BACKOFF_S * (2**attempt))
+        return None
+
+    def _cache_detail(self, cell_id: int, record: dict[str, Any]) -> None:
+        try:
+            cache_result = write_dashboard_detail_cache_for_record(
+                self._conn,
+                cell_id=cell_id,
+                record=record,
+                bonus_map_dir=self.bonus_map_dir,
+                tracking_mode=self.analysis_cfg.get("tracking_mode", "view_and_bash"),
+                near_threshold=float(self.analysis_cfg.get("near_threshold", 0.5)),
+                m_max=float(self.analysis_cfg.get("m_max", 3.0)),
+                index=self.count,
+                refresh_model_metrics=False,
+            )
+            if cache_result.get("ok"):
+                self.n_detail_cached += 1
+            else:
+                self.n_detail_cache_failed += 1
+        except Exception:
+            self.n_detail_cache_failed += 1
+            return
+        self._metrics_refresh_pending = True
+        now = time.monotonic()
+        if now - self._last_metrics_refresh >= self.metrics_refresh_interval_s:
+            self.refresh_model_metrics()
+
+    def refresh_model_metrics(self) -> None:
+        if not self._metrics_refresh_pending or self.db_path is None or self.bonus_map_dir is None:
+            return
+        try:
+            refresh_dashboard_model_metrics(
+                self.db_path,
+                experiment_id=str(self.experiment_id),
+                provider_source=str(self.provider_source_name),
+                dataset=str(self.dataset_name),
+                model_api_name=str(self.model_api_name),
+                model_label=str(self.model_label),
+                bonus_map_dir=self.bonus_map_dir,
+                tracking_mode=self.analysis_cfg.get("tracking_mode", "view_and_bash"),
+                near_threshold=float(self.analysis_cfg.get("near_threshold", 0.5)),
+                m_max=float(self.analysis_cfg.get("m_max", 3.0)),
+            )
+            self._metrics_refresh_pending = False
+        finally:
+            self._last_metrics_refresh = time.monotonic()
+
+    def close(self) -> None:
+        self.refresh_model_metrics()
+        if self._conn is not None:
+            self._conn.close()
+            self._conn = None
 
     async def __call__(self, record: dict[str, Any]) -> None:
         async with self._lock:
-            if self.db_path:
-                with ensure_db(self.db_path) as conn:
-                    cell_id = upsert_rollout_record(
-                        conn,
-                        experiment_id=str(self.experiment_id),
-                        provider_source=str(self.provider_source_name),
-                        model_api_name=str(self.model_api_name),
-                        model_label=str(self.model_label),
-                        dataset=str(self.dataset_name),
-                        record=record,
-                        artifact_rollouts=self.rollouts_path,
-                    )
+            if self._conn is not None:
+                cell_id = await self._upsert_with_retry(record)
+                if cell_id is not None:
+                    self.n_cached += 1
+                    # Scoring and the build-DB write run after the raw commit so
+                    # the raw write lock is held only for the insert itself.
                     if self.bonus_map_dir is not None:
-                        conn.execute("SAVEPOINT dashboard_detail_cache")
-                        try:
-                            cache_result = write_dashboard_detail_cache_for_record(
-                                conn,
-                                cell_id=cell_id,
-                                record=record,
-                                bonus_map_dir=self.bonus_map_dir,
-                                tracking_mode=self.analysis_cfg.get("tracking_mode", "view_and_bash"),
-                                near_threshold=float(self.analysis_cfg.get("near_threshold", 0.5)),
-                                m_max=float(self.analysis_cfg.get("m_max", 3.0)),
-                                index=self.count,
-                            )
-                            conn.execute("RELEASE dashboard_detail_cache")
-                            if cache_result.get("ok"):
-                                self.n_detail_cached += 1
-                            else:
-                                self.n_detail_cache_failed += 1
-                        except Exception:
-                            conn.execute("ROLLBACK TO dashboard_detail_cache")
-                            conn.execute("RELEASE dashboard_detail_cache")
-                            self.n_detail_cache_failed += 1
-                    conn.commit()
-                self.n_cached += 1
+                        self._cache_detail(cell_id, record)
             with self.rollouts_path.open("a", encoding="utf-8") as fh:
                 fh.write(json.dumps(record, default=_json_default, ensure_ascii=False) + "\n")
             self.count += 1
@@ -1092,25 +1161,29 @@ def main() -> int:
         analysis_cfg=analysis_cfg,
     )
     sink.prepare()
-    asyncio.run(
-        run_batch(
-            rows,
-            model_cfg=model_cfg,
-            agent_cfg=agent_cfg,
-            n_parallel=args.n_parallel,
-            provider_cfg=provider_cfg,
-            rollouts_per_instance=rollouts_per_instance,
-            per_instance_parallelism=per_instance_parallelism,
-            rollout_jobs=args.rollout_job or None,
-            record_sink=sink,
-            collect_records=False,
+    try:
+        asyncio.run(
+            run_batch(
+                rows,
+                model_cfg=model_cfg,
+                agent_cfg=agent_cfg,
+                n_parallel=args.n_parallel,
+                provider_cfg=provider_cfg,
+                rollouts_per_instance=rollouts_per_instance,
+                per_instance_parallelism=per_instance_parallelism,
+                rollout_jobs=args.rollout_job or None,
+                record_sink=sink,
+                collect_records=False,
+            )
         )
-    )
+    finally:
+        sink.close()
     print(
         json.dumps(
             {
                 "rollouts": str(args.out),
                 "n_records": sink.count,
+                "n_db_write_failed": sink.n_db_write_failed,
                 "n_detail_cached": sink.n_detail_cached,
                 "n_detail_cache_failed": sink.n_detail_cache_failed,
             },

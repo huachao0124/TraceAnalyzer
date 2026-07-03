@@ -7,6 +7,8 @@ import asyncio
 import copy
 import json
 import os
+import sqlite3
+from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -19,15 +21,19 @@ from p2a.bonus_map_scope import (
     parse_bonus_map_instance_filter,
     select_rows_by_bonus_map_scope,
 )
+from p2a.dashboard_adapter import refresh_dashboard_model_metrics, write_dashboard_detail_cache_for_record
 from p2a.datasets import SUPPORTED_EVAL_DATASETS, canonical_dataset
 from p2a.eval_cache import (
     DONE_STATUS,
     ERROR_STATUS,
     completed_rollout_keys,
     ensure_db,
+    json_dumps,
     mark_cells_running,
+    sha256_text,
     upsert_experiment,
     upsert_planned_cells,
+    upsert_rollout_record,
     utc_now,
 )
 from p2a.eval_fault_localization import iter_records
@@ -384,8 +390,6 @@ def _base_command(
         str(run_dir / "details.jsonl"),
         "--report-out",
         str(run_dir / "report.md"),
-        "--cache-db",
-        str(config.db_path),
         "--experiment-id",
         config.experiment_id,
         "--dataset-name",
@@ -521,6 +525,165 @@ def _count_rollout_records(path: Path) -> int:
     return sum(1 for _record in iter_records(path))
 
 
+class RolloutIngestor:
+    """Single-writer JSONL-to-DB ingest running inside the orchestrator process.
+
+    Model subprocesses persist rollouts to their JSONL artifact only; the
+    orchestrator tails those files and is the sole raw-DB/build-DB writer, so
+    eval concurrency never multiplies SQLite write-lock contention.
+    """
+
+    def __init__(
+        self,
+        *,
+        config: BatchConfig,
+        model: BatchModel,
+        rollouts_path: Path,
+        bonus_map_dir: Path | None,
+        db_lock: asyncio.Lock,
+    ) -> None:
+        self.config = config
+        self.model = model
+        self.rollouts_path = rollouts_path
+        self.bonus_map_dir = bonus_map_dir
+        self.db_lock = db_lock
+        self.analysis_cfg = dict(config.raw.get("analysis") or {})
+        self.source = provider_source(config.provider)
+        self.n_ingested = 0
+        self.n_skipped = 0
+        self.n_detail_cache_failed = 0
+        self._offset = 0
+
+    def _read_new_records(self) -> list[dict[str, Any]]:
+        if not self.rollouts_path.exists():
+            return []
+        records: list[dict[str, Any]] = []
+        with self.rollouts_path.open("rb") as handle:
+            handle.seek(self._offset)
+            while True:
+                line = handle.readline()
+                if not line:
+                    break
+                if not line.endswith(b"\n"):
+                    # Incomplete tail line; re-read it once the writer finishes.
+                    break
+                self._offset += len(line)
+                text = line.decode("utf-8", errors="replace").strip()
+                if not text:
+                    continue
+                try:
+                    record = json.loads(text)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(record, dict):
+                    records.append(record)
+        return records
+
+    def _already_ingested(self, conn: sqlite3.Connection, record: dict[str, Any], record_sha: str) -> bool:
+        instance_id = str(record.get("instance_id") or "")
+        if not instance_id:
+            return False
+        row = conn.execute(
+            """
+            SELECT c.status, r.rollout_sha256
+            FROM run_cells c
+            LEFT JOIN raw_rollouts r ON r.cell_id = c.id
+            WHERE c.experiment_id = ?
+              AND c.provider_source = ?
+              AND c.model_api_name = ?
+              AND c.dataset = ?
+              AND c.instance_id = ?
+              AND c.rollout_index = ?
+            """,
+            (
+                self.config.experiment_id,
+                self.source,
+                self.model.api_name,
+                self.config.dataset_name,
+                instance_id,
+                int(record.get("rollout_index") or 0),
+            ),
+        ).fetchone()
+        if row is None:
+            return False
+        if str(row["status"]) == DONE_STATUS and row["rollout_sha256"] == record_sha:
+            return True
+        if str(row["status"]) == ERROR_STATUS and record.get("error"):
+            return True
+        return False
+
+    def _ingest_records_sync(self, records: list[dict[str, Any]]) -> None:
+        with closing(ensure_db(self.config.db_path)) as conn:
+            pending_details: list[tuple[int, dict[str, Any], int]] = []
+            for record in records:
+                record_sha = sha256_text(json_dumps(record))
+                if self._already_ingested(conn, record, record_sha):
+                    self.n_skipped += 1
+                    continue
+                cell_id = upsert_rollout_record(
+                    conn,
+                    experiment_id=self.config.experiment_id,
+                    provider_source=self.source,
+                    model_api_name=self.model.api_name,
+                    model_label=self.model.label,
+                    dataset=self.config.dataset_name,
+                    record=record,
+                    artifact_rollouts=self.rollouts_path,
+                )
+                conn.commit()
+                if self.bonus_map_dir is not None and not record.get("error"):
+                    pending_details.append((cell_id, record, self.n_ingested))
+                self.n_ingested += 1
+            for cell_id, record, index in pending_details:
+                try:
+                    write_dashboard_detail_cache_for_record(
+                        conn,
+                        cell_id=cell_id,
+                        record=record,
+                        bonus_map_dir=self.bonus_map_dir,
+                        tracking_mode=self.analysis_cfg.get("tracking_mode", "view_and_bash"),
+                        near_threshold=float(self.analysis_cfg.get("near_threshold", 0.5)),
+                        m_max=float(self.analysis_cfg.get("m_max", 3.0)),
+                        index=index,
+                        refresh_model_metrics=False,
+                    )
+                except Exception:
+                    self.n_detail_cache_failed += 1
+
+    def _refresh_model_metrics_sync(self) -> None:
+        refresh_dashboard_model_metrics(
+            self.config.db_path,
+            experiment_id=self.config.experiment_id,
+            provider_source=self.source,
+            dataset=self.config.dataset_name,
+            model_api_name=self.model.api_name,
+            model_label=self.model.label,
+            bonus_map_dir=self.bonus_map_dir,
+            tracking_mode=self.analysis_cfg.get("tracking_mode", "view_and_bash"),
+            near_threshold=float(self.analysis_cfg.get("near_threshold", 0.5)),
+            m_max=float(self.analysis_cfg.get("m_max", 3.0)),
+        )
+
+    async def ingest_new(self, *, refresh_metrics: bool = False) -> int:
+        records = self._read_new_records()
+        if not records and not refresh_metrics:
+            return 0
+        async with self.db_lock:
+            if records:
+                await asyncio.to_thread(self._ingest_records_sync, records)
+            if refresh_metrics and self.bonus_map_dir is not None and self.n_ingested:
+                await asyncio.to_thread(self._refresh_model_metrics_sync)
+        return len(records)
+
+    async def run_periodic(self, interval_s: float = 30.0) -> None:
+        while True:
+            await asyncio.sleep(interval_s)
+            try:
+                await self.ingest_new(refresh_metrics=True)
+            except (OSError, sqlite3.Error) as exc:
+                print(f"[batch] ingest for {self.model.label} failed (will retry): {exc}", flush=True)
+
+
 async def run_model_phase(
     *,
     config: BatchConfig,
@@ -530,6 +693,7 @@ async def run_model_phase(
     data_file: Path,
     bonus_map_dir: Path | None,
     env: dict[str, str],
+    db_lock: asyncio.Lock,
 ) -> dict[str, Any]:
     source = provider_source(config.provider)
     target_ids, scope_metadata = selected_instance_scope(
@@ -540,46 +704,58 @@ async def run_model_phase(
         scope_filter=config.bonus_map_instance_filter,
     )
     target_jobs = _rollout_jobs(target_ids, config.rollouts_per_instance)
-    with ensure_db(config.db_path) as conn:
-        upsert_experiment(
-            conn,
-            experiment_id=config.experiment_id,
-            provider_source=source,
-            dataset=config.dataset_name,
-            config_snapshot=sanitized_config_snapshot(config, scope=scope_metadata),
-        )
-        upsert_planned_cells(
-            conn,
-            experiment_id=config.experiment_id,
-            provider_source=source,
-            model_api_name=model.api_name,
-            model_label=model.label,
-            dataset=config.dataset_name,
-            instance_ids=target_ids,
-            rollouts_per_instance=config.rollouts_per_instance,
-        )
-        done_jobs = completed_rollout_keys(
-            conn,
-            experiment_id=config.experiment_id,
-            provider_source=source,
-            model_api_name=model.api_name,
-            dataset=config.dataset_name,
-        )
-        missing_jobs = [job for job in target_jobs if job not in done_jobs]
-        mark_cells_running(
-            conn,
-            experiment_id=config.experiment_id,
-            provider_source=source,
-            model_api_name=model.api_name,
-            dataset=config.dataset_name,
-            rollout_jobs=missing_jobs,
-        )
-        conn.commit()
+    run_dir = config.artifacts_dir / config.experiment_id / phase / config.dataset_name / _safe_slug(model.label)
+    rollouts_path = run_dir / "rollouts.jsonl"
+    ingestor = RolloutIngestor(
+        config=config,
+        model=model,
+        rollouts_path=rollouts_path,
+        bonus_map_dir=bonus_map_dir,
+        db_lock=db_lock,
+    )
+    # Rollouts persisted to JSONL by a previous (possibly crashed) run may not
+    # have reached the DB; recover them before selecting missing jobs.
+    await ingestor.ingest_new()
+    async with db_lock:
+        with ensure_db(config.db_path) as conn:
+            upsert_experiment(
+                conn,
+                experiment_id=config.experiment_id,
+                provider_source=source,
+                dataset=config.dataset_name,
+                config_snapshot=sanitized_config_snapshot(config, scope=scope_metadata),
+            )
+            upsert_planned_cells(
+                conn,
+                experiment_id=config.experiment_id,
+                provider_source=source,
+                model_api_name=model.api_name,
+                model_label=model.label,
+                dataset=config.dataset_name,
+                instance_ids=target_ids,
+                rollouts_per_instance=config.rollouts_per_instance,
+            )
+            done_jobs = completed_rollout_keys(
+                conn,
+                experiment_id=config.experiment_id,
+                provider_source=source,
+                model_api_name=model.api_name,
+                dataset=config.dataset_name,
+            )
+            missing_jobs = [job for job in target_jobs if job not in done_jobs]
+            mark_cells_running(
+                conn,
+                experiment_id=config.experiment_id,
+                provider_source=source,
+                model_api_name=model.api_name,
+                dataset=config.dataset_name,
+                rollout_jobs=missing_jobs,
+            )
+            conn.commit()
 
     if not missing_jobs:
         return {"model": model.label, "phase": phase, "status": "skipped", "n_missing": 0}
 
-    run_dir = config.artifacts_dir / config.experiment_id / phase / config.dataset_name / _safe_slug(model.label)
     run_dir.mkdir(parents=True, exist_ok=True)
     eval_config = _model_eval_config(config, model, run_dir)
     command = _base_command(
@@ -594,8 +770,16 @@ async def run_model_phase(
     model_env = dict(env)
     model_env["P2A_THIRD_PARTY_MODEL"] = model.api_name
 
-    rollouts_path = run_dir / "rollouts.jsonl"
-    returncode, output = await _run_subprocess(command, env=model_env, timeout_s=_duration_seconds(config.run_timeout))
+    ingest_task = asyncio.create_task(ingestor.run_periodic())
+    try:
+        returncode, output = await _run_subprocess(command, env=model_env, timeout_s=_duration_seconds(config.run_timeout))
+    finally:
+        ingest_task.cancel()
+        try:
+            await ingest_task
+        except asyncio.CancelledError:
+            pass
+        await ingestor.ingest_new(refresh_metrics=True)
     log_path = run_dir / "run.log"
     log_path.write_text(output, encoding="utf-8")
     if returncode != 0:
@@ -605,13 +789,14 @@ async def run_model_phase(
             model=model,
             rollout_jobs=missing_jobs,
         )
-        _mark_missing_error(
-            config.db_path,
-            config=config,
-            model=model,
-            rollout_jobs=unfinished_jobs,
-            error=f"third_party_eval exited {returncode}; see {log_path}",
-        )
+        async with db_lock:
+            _mark_missing_error(
+                config.db_path,
+                config=config,
+                model=model,
+                rollout_jobs=unfinished_jobs,
+                error=f"third_party_eval exited {returncode}; see {log_path}",
+            )
         return {
             "model": model.label,
             "phase": phase,
@@ -622,7 +807,7 @@ async def run_model_phase(
             "n_persisted": len(missing_jobs) - len(unfinished_jobs),
         }
 
-    n_ingested = _count_rollout_records(rollouts_path)
+    n_records = _count_rollout_records(rollouts_path)
     system_error = _system_error_summary(rollouts_path)
     if system_error is not None:
         return {
@@ -630,7 +815,8 @@ async def run_model_phase(
             "phase": phase,
             "status": SYSTEM_ERROR_STATUS,
             "n_missing": len(missing_jobs),
-            "n_ingested": n_ingested,
+            "n_ingested": ingestor.n_ingested,
+            "n_records": n_records,
             "run_dir": str(run_dir),
             **system_error,
         }
@@ -639,7 +825,8 @@ async def run_model_phase(
         "phase": phase,
         "status": DONE_STATUS,
         "n_missing": len(missing_jobs),
-        "n_ingested": n_ingested,
+        "n_ingested": ingestor.n_ingested,
+        "n_records": n_records,
         "run_dir": str(run_dir),
     }
 
@@ -651,6 +838,9 @@ async def run_batch(config: BatchConfig, *, env: dict[str, str] | None = None) -
     bonus_map_dir = resolve_bonus_map_dir(config, data_file, env=run_env)
     results = []
     semaphore = asyncio.Semaphore(config.model_parallelism)
+    # All DB writes across models funnel through this lock: the orchestrator is
+    # the single writer regardless of model/rollout concurrency.
+    db_lock = asyncio.Lock()
 
     async def guarded(model: BatchModel, phase: str, limit: int | None) -> dict[str, Any]:
         async with semaphore:
@@ -663,6 +853,7 @@ async def run_batch(config: BatchConfig, *, env: dict[str, str] | None = None) -
                 data_file=data_file,
                 bonus_map_dir=bonus_map_dir,
                 env=run_env,
+                db_lock=db_lock,
             )
             print(f"[batch] {phase}: {model.label} -> {result['status']}", flush=True)
             return result

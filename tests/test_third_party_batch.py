@@ -13,7 +13,7 @@ from p2a.third_party_batch import (
     sanitized_config_snapshot,
     selected_instance_scope,
 )
-from p2a.eval_cache import ensure_db, upsert_rollout_record
+from p2a.eval_cache import ensure_db
 from p2a.third_party_eval import run_batch as run_eval_batch
 
 
@@ -446,19 +446,7 @@ storage:
             "\n".join(json.dumps(record) for record in records) + "\n",
             encoding="utf-8",
         )
-        with ensure_db(Path(command[command.index("--cache-db") + 1])) as conn:
-            for record in records:
-                upsert_rollout_record(
-                    conn,
-                    experiment_id=command[command.index("--experiment-id") + 1],
-                    provider_source="openai_compatible",
-                    model_api_name="dummy-model",
-                    model_label=command[command.index("--model-label") + 1],
-                    dataset=command[command.index("--dataset-name") + 1],
-                    record=record,
-                    artifact_rollouts=run_dir / "rollouts.jsonl",
-                )
-            conn.commit()
+        assert "--cache-db" not in command
         return 0, "ok"
 
     monkeypatch.setattr("p2a.third_party_batch.check_provider_available", lambda *_args, **_kwargs: None)
@@ -509,18 +497,6 @@ storage:
         run_dir.mkdir(parents=True, exist_ok=True)
         record = {"run_id": "r0", "instance_id": "case-1", "rollout_index": 0, "data_source": "swebench-hard"}
         (run_dir / "rollouts.jsonl").write_text(json.dumps(record) + "\n", encoding="utf-8")
-        with ensure_db(Path(command[command.index("--cache-db") + 1])) as conn:
-            upsert_rollout_record(
-                conn,
-                experiment_id=command[command.index("--experiment-id") + 1],
-                provider_source="openai_compatible",
-                model_api_name="dummy-model",
-                model_label=command[command.index("--model-label") + 1],
-                dataset=command[command.index("--dataset-name") + 1],
-                record=record,
-                artifact_rollouts=run_dir / "rollouts.jsonl",
-            )
-            conn.commit()
         return 124, "timeout"
 
     monkeypatch.setattr("p2a.third_party_batch.check_provider_available", lambda *_args, **_kwargs: None)

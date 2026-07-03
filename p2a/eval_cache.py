@@ -163,12 +163,19 @@ def _golden_patch(record: dict[str, Any]) -> str | None:
 def connect(db_path: Path | str, *, timeout: float = 30.0) -> sqlite3.Connection:
     path = Path(db_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path, timeout=timeout)
+    # BEGIN IMMEDIATE acquires the write lock up front; a deferred read-to-write
+    # upgrade can fail with SQLITE_BUSY without waiting for busy_timeout when
+    # another writer holds the lock.
+    conn = sqlite3.connect(path, timeout=timeout, isolation_level="IMMEDIATE")
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute(f"PRAGMA busy_timeout = {int(timeout * 1000)}")
     try:
         conn.execute("PRAGMA journal_mode = WAL")
+        # Under WAL, NORMAL keeps the database consistent on crash and only
+        # relaxes power-loss durability of the latest commits; FULL fsyncs on
+        # every commit and dominates write latency at high rollout throughput.
+        conn.execute("PRAGMA synchronous = NORMAL")
     except sqlite3.DatabaseError:
         pass
     return conn
@@ -342,8 +349,12 @@ def init_db(conn: sqlite3.Connection) -> None:
     _create_eval_tables(conn)
     _ensure_column(conn, "raw_rollouts", "issue_description", "TEXT")
     _ensure_column(conn, "raw_rollouts", "golden_patch", "TEXT")
+    had_rollout_sha = "rollout_sha256" in _table_columns(conn, "raw_rollouts")
     _ensure_column(conn, "raw_rollouts", "rollout_sha256", "TEXT")
-    backfill_raw_rollout_sha256(conn)
+    if not had_rollout_sha:
+        # Full-table backfill only when the column was just created; steady-state
+        # init must stay cheap because writers call it on connection setup.
+        backfill_raw_rollout_sha256(conn)
     _ensure_column(conn, "quantitative_metrics", "fingerprint", "TEXT")
     conn.execute(
         "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)",
@@ -365,7 +376,7 @@ def backfill_raw_rollout_sha256(conn: sqlite3.Connection) -> int:
     if "rollout_sha256" not in columns or "rollout_json" not in columns:
         return 0
     rows = conn.execute(
-        f"""
+        """
         SELECT cell_id, rollout_json
         FROM raw_rollouts
         WHERE rollout_sha256 IS NULL OR rollout_sha256 = ''
@@ -1051,6 +1062,34 @@ def upsert_rollout_record(
     requested_run_id = str(
         record.get("run_id") or f"{experiment_id}:{provider_source}:{model_api_name}:{dataset}:{instance_id}:{rollout_index}"
     )
+    record_error = rollout_record_error(record)
+    if record_error and not record.get("error"):
+        record = {
+            **record,
+            "error": record_error,
+            "error_kind": record.get("error_kind") or EMPTY_ROLLOUT_ERROR_KIND,
+            "error_stage": record.get("error_stage") or "interaction",
+            "system_error": True,
+        }
+    status = ERROR_STATUS if record_error else DONE_STATUS
+    # Serialize the large payloads before the first DML statement: the write
+    # transaction (and with it the database write lock) opens at the first
+    # INSERT/UPDATE, and CPU-bound json work must not extend the lock window.
+    if not record_error:
+        token_usage = record.get("token_usage") if isinstance(record.get("token_usage"), dict) else {}
+        cache_metrics = record.get("metrics") if isinstance(record.get("metrics"), dict) else {}
+        issue_description = _issue_description(record)
+        golden_patch = _golden_patch(record)
+        rollout_hash = sha256_text(json_dumps(record))
+        stored_rollout_payload = json_dumps(slim_rollout_payload(record))
+        messages_payload = json_dumps(record.get("messages") or [])
+        trajectory_payload = json_dumps(record.get("trajectory") or [])
+        step_traces_payload = json_dumps(record.get("p2a_step_traces") or [])
+        reward_payload = json_dumps(record.get("reward"))
+        token_usage_payload = json_dumps(token_usage)
+        cache_metrics_payload = json_dumps(cache_metrics)
+        metrics_payload = json_dumps({"token_usage": token_usage, "cache_metrics": cache_metrics})
+
     cell_id = _cell_id(
         conn,
         experiment_id=experiment_id,
@@ -1062,16 +1101,6 @@ def upsert_rollout_record(
         rollout_index=rollout_index,
     )
     run_id = _unique_raw_run_id(conn, requested_run_id, cell_id)
-    record_error = rollout_record_error(record)
-    if record_error and not record.get("error"):
-        record = {
-            **record,
-            "error": record_error,
-            "error_kind": record.get("error_kind") or EMPTY_ROLLOUT_ERROR_KIND,
-            "error_stage": record.get("error_stage") or "interaction",
-            "system_error": True,
-        }
-    status = ERROR_STATUS if record_error else DONE_STATUS
     conn.execute(
         """
         UPDATE run_cells
@@ -1104,13 +1133,6 @@ def upsert_rollout_record(
         conn.execute("DELETE FROM quantitative_metrics WHERE cell_id = ?", (cell_id,))
         return cell_id
 
-    token_usage = record.get("token_usage") if isinstance(record.get("token_usage"), dict) else {}
-    cache_metrics = record.get("metrics") if isinstance(record.get("metrics"), dict) else {}
-    issue_description = _issue_description(record)
-    golden_patch = _golden_patch(record)
-    rollout_payload = json_dumps(record)
-    rollout_hash = sha256_text(rollout_payload)
-    stored_rollout_payload = json_dumps(slim_rollout_payload(record))
     conn.execute("DELETE FROM raw_rollouts WHERE cell_id = ?", (cell_id,))
     conn.execute(
         """
@@ -1124,14 +1146,14 @@ def upsert_rollout_record(
         (
             run_id,
             cell_id,
-            json_dumps(record.get("messages") or []),
-            json_dumps(record.get("trajectory") or []),
-            json_dumps(record.get("p2a_step_traces") or []),
+            messages_payload,
+            trajectory_payload,
+            step_traces_payload,
             record.get("response_text") or "",
-            json_dumps(record.get("reward")),
+            reward_payload,
             _bool_int(record.get("resolved")),
-            json_dumps(token_usage),
-            json_dumps(cache_metrics),
+            token_usage_payload,
+            cache_metrics_payload,
             issue_description,
             golden_patch,
             stored_rollout_payload,
@@ -1141,10 +1163,6 @@ def upsert_rollout_record(
     )
 
     turns = len(record.get("p2a_step_traces") or record.get("trajectory") or [])
-    metrics = {
-        "token_usage": token_usage,
-        "cache_metrics": cache_metrics,
-    }
     conn.execute(
         """
         INSERT INTO quantitative_metrics(
@@ -1194,41 +1212,11 @@ def upsert_rollout_record(
             _number(token_usage.get("cache_write_tokens")),
             _number(token_usage.get("cost")),
             None,
-            json_dumps(metrics),
+            metrics_payload,
             now,
         ),
     )
     return cell_id
-
-
-def write_dashboard_detail_cache(
-    conn: sqlite3.Connection,
-    *,
-    cell_id: int,
-    detail: Mapping[str, Any],
-    fingerprint: str,
-    cache_metadata: Mapping[str, Any] | None = None,
-) -> None:
-    now = utc_now()
-    row = conn.execute("SELECT metrics_json FROM quantitative_metrics WHERE cell_id = ?", (cell_id,)).fetchone()
-    if row is None:
-        return
-    metrics = json_loads(row["metrics_json"] if row else None, {})
-    if not isinstance(metrics, dict):
-        metrics = {}
-    metrics["detail"] = dict(detail)
-    if cache_metadata is not None:
-        metrics["dashboard_detail_cache"] = dict(cache_metadata)
-    conn.execute(
-        """
-        UPDATE quantitative_metrics
-        SET fingerprint = ?,
-            metrics_json = ?,
-            updated_at = ?
-        WHERE cell_id = ?
-        """,
-        (fingerprint, json_dumps(metrics), now, cell_id),
-    )
 
 
 def ingest_artifacts(
@@ -1278,6 +1266,10 @@ def _std(values: list[float | int | None]) -> float | None:
 
 
 def _detail_from_metric_row(row: Mapping[str, Any]) -> dict[str, Any]:
+    # Hydrated rows carry the parsed detail so avg@k passes do not re-parse the
+    # same metrics_json blob once per k.
+    if isinstance(row, dict) and "_parsed_detail" in row:
+        return row["_parsed_detail"]
     metrics = json_loads(row["metrics_json"], {})
     detail = metrics.get("detail") if isinstance(metrics, dict) else None
     return _sync_path_aliases(detail) if isinstance(detail, dict) else {}
@@ -1748,6 +1740,8 @@ def aggregate_model_metrics(
         params,
     ).fetchall()
     rows = [_hydrate_metric_row(row) for row in rows]
+    for row in rows:
+        row["_parsed_detail"] = _detail_from_metric_row(row)
 
     groups: dict[tuple[str, str, str, str, str], list[sqlite3.Row]] = defaultdict(list)
     for row in rows:
