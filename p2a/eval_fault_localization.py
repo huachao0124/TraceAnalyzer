@@ -36,6 +36,7 @@ from p2a.bonus_map_scope import (
     canonical_detail_case_type,
     traceable_case_family,
 )
+from p2a.provenance import license_references
 
 SUMMARY_SCHEMA_VERSION = "p2a_eval_fault_localization_v1"
 TEXT_FIELDS = (
@@ -605,42 +606,6 @@ def _all_read_hit_nodes(reads: list[dict], bonus_map: dict, *, rewardable_only: 
     return hits
 
 
-def _node_license_tokens(node_key: str, node: dict) -> list[str]:
-    """Identifier tokens whose earlier appearance licenses an arrival at the node."""
-    file_path = str(node.get("file_path") or "")
-    callable_name = node_key.split("::")[-1].split(".")[-1]
-    tokens: list[str] = []
-    if file_path:
-        tokens.append(file_path)
-        basename = file_path.rsplit("/", 1)[-1]
-        if basename and basename != file_path:
-            tokens.append(basename)
-    if len(callable_name) > 3 and not callable_name.startswith("<"):
-        tokens.append(callable_name)
-    return tokens
-
-
-def _step_observation_text(trace: Any) -> str:
-    trace = _maybe_json(trace)
-    if not isinstance(trace, dict):
-        return ""
-    parts: list[str] = []
-    for result_value in trace.get("tool_results") or []:
-        result = _maybe_json(result_value)
-        if isinstance(result, str):
-            parts.append(result)
-            continue
-        if not isinstance(result, dict):
-            continue
-        for key in ("observation", "content", "result", "output", "stderr", "stdout", "error"):
-            value = result.get(key)
-            if isinstance(value, str) and value:
-                parts.append(value)
-            elif value not in (None, ""):
-                parts.append(json.dumps(value, ensure_ascii=False, default=str))
-    return "\n".join(parts)
-
-
 def _record_issue_text(record: dict) -> str:
     for container in _candidate_containers(record):
         for key in ("problem_statement", "issue_description", "issue_text", "issue", "description", "problem"):
@@ -650,76 +615,64 @@ def _record_issue_text(record: dict) -> str:
     return ""
 
 
-def _license_summary(
-    step_items: list[Any],
-    step_reads: list[list[dict]],
-    bonus_map: dict,
-    issue_text: str,
-    *,
-    step_indices: list[int] | None = None,
-) -> dict:
-    """Classify the first arrival at each rewardable Graph node by its license.
+def _leading_prompt_texts(messages: Any) -> list[str]:
+    """System-prompt and first-user-message texts from a chat message list."""
+    if hasattr(messages, "tolist"):
+        messages = messages.tolist()
+    messages = _maybe_json(messages)
+    if not isinstance(messages, list):
+        return []
+    parts: list[str] = []
+    for message in messages:
+        message = _maybe_json(message)
+        if not isinstance(message, dict):
+            break
+        role = str(message.get("role", "")).lower()
+        if role in {"system", "developer"}:
+            text = _content_to_text(message.get("content"))
+            if text:
+                parts.append(text)
+            continue
+        if role == "user":
+            text = _content_to_text(message.get("content"))
+            if text:
+                parts.append(text)
+        break
+    return parts
 
-    An arrival is licensed when the node identity had an antecedent in the
-    observable context before the touching step: the issue text (issue license)
-    or any strictly earlier tool observation (observation license). Unlicensed
-    arrivals are Graph touches with no antecedent.
+
+# Keys that carry the task prompt in scored records: dashboard DB records
+# store the conversation under `messages`; live-validation records copy the
+# dataset's `raw_prompt`/`prompt` chat messages from the batch.
+_PROMPT_KEYS = ("messages", "raw_prompt", "prompt")
+
+
+def _initial_context_text(record: dict) -> str:
+    """Text visible to the model before its first step: task prompt + issue.
+
+    The first prompt-bearing key wins: the system prompt and first user
+    message form the task prompt (a plain-string prompt is used verbatim).
+    The stored issue description is appended so records without any prompt
+    payload still license from the issue.
     """
-    nodes = bonus_map.get("call_graph_nodes", {}) if bonus_map else {}
-    summary = {
-        "n_graph_arrivals": 0,
-        "n_issue_licensed_arrivals": 0,
-        "n_observation_licensed_arrivals": 0,
-        "n_unlicensed_arrivals": 0,
-        "n_unlicensed_root_arrivals": 0,
-        "unlicensed_arrival_rate": None,
-        "unlicensed_arrival_nodes": [],
-    }
-    # Test-file nodes are legitimately discovered by running the failing test,
-    # so their paths never need an issue/observation antecedent.
-    def _is_test_file_node(node: dict) -> bool:
-        file_path = str(node.get("file_path") or "")
-        return file_path.startswith("tests/") or "/tests/" in file_path
-    if not nodes or not any(reads_for_step for reads_for_step in step_reads):
-        return summary
-    prior_observations: list[str] = []
-    seen: set[str] = set()
-    for step_idx, reads_for_step in enumerate(step_reads):
-        hits: set[str] = set()
-        for read in reads_for_step:
-            hits.update(_read_hit_nodes(read, bonus_map))
-        for node_key in sorted(hits - seen):
-            node = nodes.get(node_key) or {}
-            if _is_test_file_node(node):
+    parts: list[str] = []
+    for key in _PROMPT_KEYS:
+        for container in _candidate_containers(record):
+            value = container.get(key)
+            if value is None:
                 continue
-            tokens = _node_license_tokens(node_key, node)
-            summary["n_graph_arrivals"] += 1
-            if issue_text and any(token in issue_text for token in tokens):
-                summary["n_issue_licensed_arrivals"] += 1
-            elif any(token in observation for observation in prior_observations for token in tokens):
-                summary["n_observation_licensed_arrivals"] += 1
+            if isinstance(value, str) and value.strip() and value.strip()[0] not in "[{":
+                parts.append(value)
             else:
-                summary["n_unlicensed_arrivals"] += 1
-                if node.get("node_role") == "root_cause":
-                    summary["n_unlicensed_root_arrivals"] += 1
-                if len(summary["unlicensed_arrival_nodes"]) < 20:
-                    display_idx = step_indices[step_idx] if step_indices and step_idx < len(step_indices) else step_idx + 1
-                    summary["unlicensed_arrival_nodes"].append(
-                        {
-                            "node": node_key,
-                            "node_role": node.get("node_role"),
-                            "hop_distance": node.get("hop_distance"),
-                            "step": display_idx,
-                        }
-                    )
-        seen.update(hits)
-        if step_idx < len(step_items):
-            observation = _step_observation_text(step_items[step_idx])
-            if observation:
-                prior_observations.append(observation)
-    if summary["n_graph_arrivals"]:
-        summary["unlicensed_arrival_rate"] = summary["n_unlicensed_arrivals"] / summary["n_graph_arrivals"]
-    return summary
+                parts.extend(_leading_prompt_texts(value))
+            if parts:
+                break
+        if parts:
+            break
+    issue = _record_issue_text(record)
+    if issue:
+        parts.append(issue)
+    return "\n\n".join(parts)
 
 
 def _kendall_order(first_hits: dict[str, int], bonus_map: dict) -> tuple[float | None, bool]:
@@ -1552,14 +1505,6 @@ def score_record(
         "block_order_defined": False,
         "block_miracle_step": None,
         "block_miracle_severity": None,
-        "license_evaluable": False,
-        "n_graph_arrivals": 0,
-        "n_issue_licensed_arrivals": 0,
-        "n_observation_licensed_arrivals": 0,
-        "n_unlicensed_arrivals": 0,
-        "n_unlicensed_root_arrivals": 0,
-        "unlicensed_arrival_rate": None,
-        "unlicensed_arrival_nodes": [],
         "graph_topology": None,
         "path_evaluable": False,
         "not_path_evaluable_reason": "missing_bonus_map",
@@ -1585,6 +1530,13 @@ def score_record(
         "bad_patterns": bad_patterns,
         **block_stats,
     }
+    result.update(
+        license_references(
+            step_items,
+            _initial_context_text(record),
+            step_indices=display_step_indices,
+        )
+    )
     if not bonus_map:
         return _sync_path_aliases(result)
 
@@ -1603,17 +1555,6 @@ def score_record(
     result["n_rewardable_call_graph_nodes"] = len(rewardable_nodes)
     scoring_step_reads = step_reads if any(reads_for_step for reads_for_step in step_reads) else ([reads] if reads else [])
     scoring_display_step_indices = display_step_indices if scoring_step_reads is step_reads else ([1] if reads else [])
-    if rewardable_nodes and any(reads_for_step for reads_for_step in step_reads):
-        result["license_evaluable"] = True
-        result.update(
-            _license_summary(
-                step_items,
-                step_reads,
-                bonus_map,
-                _record_issue_text(record),
-                step_indices=display_step_indices,
-            )
-        )
     step_first_hits = _step_node_first_hits(step_reads, bonus_map) if step_reads else {}
     display_step_first_hits = (
         _step_node_first_hits(step_reads, bonus_map, step_indices=display_step_indices) if step_reads else {}
@@ -1787,6 +1728,12 @@ def summarize(details: list[dict], *, source: Path, bonus_map_dir: Path, trackin
             counts["n_traceable_bonus"] += 1
         if item["n_reads"]:
             counts["n_with_reads"] += 1
+        if item.get("license_evaluable"):
+            counts["n_license_evaluable"] += 1
+            counts["n_entity_references"] += int(item.get("n_entity_references") or 0)
+            counts["n_unlicensed_references"] += int(item.get("n_unlicensed_references") or 0)
+            if (item.get("n_unlicensed_references") or 0) > 0:
+                counts["n_unlicensed_traces"] += 1
         counts["n_blocks"] += int(item.get("n_blocks") or 0)
         counts["n_scored_read_blocks"] += int(item.get("n_scored_read_blocks") or 0)
         counts["n_achieving_blocks"] += int(item.get("n_achieving_blocks") or 0)
@@ -1987,8 +1934,14 @@ def summarize(details: list[dict], *, source: Path, bonus_map_dir: Path, trackin
             "loop_block_step_share": _rate(counts["n_loop_block_steps"], counts["n_block_steps"]),
             "bad_pattern_trace_rate": _rate(counts["n_traces_with_loop"], n_records),
             "error_spiral_rate": _rate(counts["n_traces_with_error_spiral"], n_records),
+            # Pooled over all first entity references (micro-average): of first
+            # references across evaluable traces, the share with no antecedent.
+            "unlicensed_reference_rate": _rate(counts["n_unlicensed_references"], counts["n_entity_references"]),
+            "unlicensed_trace_rate": _rate(counts["n_unlicensed_traces"], counts["n_license_evaluable"]),
         },
         "averages": {
+            "avg_entity_references": _rate(counts["n_entity_references"], counts["n_license_evaluable"]),
+            "avg_unlicensed_references": _rate(counts["n_unlicensed_references"], counts["n_license_evaluable"]),
             "time_to_anchor": sum(times_to_anchor) / len(times_to_anchor) if times_to_anchor else None,
             "time_to_root": sum(times_to_root) / len(times_to_root) if times_to_root else None,
             "steps_anchor_to_root": sum(steps_anchor_to_root) / len(steps_anchor_to_root) if steps_anchor_to_root else None,

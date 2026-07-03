@@ -587,15 +587,24 @@ anchors exist, root causes do not overlap those anchors, and reward Path edges
 with distinct distances exist. `exposed` is the complementary formerly standard
 case where that clean Pattern denominator is collapsed or unavailable. If one read step observes the
 symptom, intermediate nodes, and root cause together, that simultaneous
-observation is not a miracle. Unlicensed arrival marks the first touch of a
-rewardable Graph node whose file path, file basename, or callable name had no
-antecedent in the issue text or any strictly earlier tool observation; the
-per-trace marker, the trace-list filter tag, and the `Unlicensed
-arrival`/`Unlicensed trace` KPI columns all read the
-`p2a/eval_fault_localization.py` license fields (`license_evaluable`,
-`n_graph_arrivals`, `n_unlicensed_arrivals`, `unlicensed_arrival_nodes`).
-Empirically most arrivals are licensed, so these KPIs act as a rarely-firing
-provenance check rather than a reward-shaping signal. Step colors split into equal role segments when a
+observation is not a miracle. Unlicensed reference marks the first reference
+to an entity in a model action — a file/directory path or code symbol the
+model types as a read or search target (`str_replace_editor` view paths;
+cat/sed/head/tail/ls/find/grep targets and grep-pattern identifiers in
+`execute_bash`) — whose literal (full path or basename for paths, whole-word
+match for symbols) had no antecedent in the initial context (task prompt
+including the issue) or any strictly earlier step's observations: the model
+acted purely on its own prior with no visible clue. Tool calls within one
+step are batched, so same-step observations cannot license; files the model
+itself created are exempt; stopwords are not counted. The marker is computed
+by `p2a/provenance.py` independently of the bonus map, so it is evaluable on
+every trace with step traces. The per-trace marker, the trace-list filter
+tag, and the `Unlicensed reference rate`/`Unlicensed trace rate` KPI columns
+all read its fields (`license_evaluable`, `n_entity_references`,
+`n_unlicensed_references`, `unlicensed_reference_rate`,
+`unlicensed_references`); the per-trace panel lists each unlicensed entity
+with its kind, step, and command snippet. This is an observational metric —
+not a reward signal and not a cheating detector. Step colors split into equal role segments when a
 single step hits multiple map roles; a callable that is both symptom and root
 cause uses a diagonal split so it is visually distinct from a multi-node step
 hit. Node Source uses the full captured callable source when the bonus map

@@ -57,6 +57,8 @@ P2A_VALIDATION_METRICS = (
     "loop_block_step_share",
     "bad_pattern_trace_rate",
     "error_spiral_rate",
+    "unlicensed_reference_rate",
+    "unlicensed_trace_rate",
     "time_to_anchor",
     "time_to_root",
     "steps_anchor_to_root",
@@ -207,6 +209,17 @@ def validation_records_from_batch(
             "extra_info": dict(extra_info),
             "score": scores[idx] if scores and idx < len(scores) else None,
         }
+        # The scorer's initial-context (license) source: the dataset's chat
+        # prompt (`raw_prompt` when data.return_raw_chat is set, else the
+        # parquet `prompt` column) and any full conversation the batch carries.
+        for prompt_key in ("raw_prompt", "prompt", "messages"):
+            value = _maybe_json(_row_value(non_tensor.get(prompt_key), idx))
+            if value is None:
+                continue
+            if hasattr(value, "tolist"):
+                value = value.tolist()
+            if isinstance(value, list | str) and len(value):
+                record[prompt_key] = value
         record["data_source"] = _record_data_source(record, record["extra_fields"], record["extra_info"])
         record["p2a_step_traces"] = _record_step_traces(record, record["extra_fields"], record["extra_info"])
         if record["p2a_step_traces"] is None:

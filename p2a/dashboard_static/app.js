@@ -116,8 +116,8 @@ const MACRO_METRIC_GROUPS = [
       ["Order score", "Whether graph hits move from symptom toward root cause."],
       ["Reverse rate", "Filtered Trace share with reverse traversal marker."],
       ["Miracle rate", "Filtered Trace share with miracle marker."],
-      ["Unlicensed arrival", "Share of first Graph-node arrivals whose identity had no antecedent in the issue text or any earlier observation."],
-      ["Unlicensed trace", "Filtered Trace share with at least one unlicensed Graph arrival."],
+      ["Unlicensed reference rate", "Of first entity references (paths and symbols typed as read or search targets), the share whose literal had no antecedent in the initial context or any strictly earlier step's observations — the model acted on its own prior with no visible clue. Observational metric, not a reward signal and not cheat detection."],
+      ["Unlicensed trace rate", "Filtered Trace share with at least one unlicensed reference."],
       ["Loop trace", "Traces with repeated exploration behavior."],
       ["Error spiral", "Long consecutive tool-error runs."],
     ],
@@ -153,7 +153,7 @@ const TRACE_LEGEND_GROUPS = [
       { sample: '<span class="legend-icon">🔁</span>', text: "Loop: repeated purpose block." },
       { sample: '<span class="legend-icon">✨</span>', text: "Miracle: cause hit before enough graph evidence." },
       { sample: '<span class="legend-icon">🌀</span>', text: "Reverse: traversal goes against dependency order." },
-      { sample: '<span class="legend-icon">🛸</span>', text: "Unlicensed arrival: a Graph node was first touched with no antecedent in the issue text or earlier observations." },
+      { sample: '<span class="legend-icon">🛸</span>', text: "Unlicensed reference: a first path/symbol reference with no antecedent in the initial context or any earlier step's observations — acted on own prior with no visible clue. Observational, not reward or cheat detection." },
     ],
   },
   {
@@ -875,6 +875,8 @@ function metricsFromDetails(details, snapshot) {
     const orderItems = orderMetricItems.filter((item) => item.order_defined === true);
     const blockOrderItems = orderMetricItems.filter((item) => item.block_order_defined === true);
     const licenseItems = items.filter((item) => item.license_evaluable);
+    const entityReferences = sum(licenseItems.map((item) => item.n_entity_references));
+    const unlicensedReferences = sum(licenseItems.map((item) => item.n_unlicensed_references));
     const scoredBlocks = sum(bonusItems.map((item) => item.n_scored_read_blocks));
     const totalBlocks = sum(bonusItems.map((item) => item.n_blocks));
     const cacheHit = sum(items.map((item) => item.cache_hit_tokens));
@@ -913,8 +915,8 @@ function metricsFromDetails(details, snapshot) {
       avg_order_score: avg(orderItems.map((item) => item.order_score)),
       reverse_order_rate: rate(orderMetricItems.map(combinedReverseMarker)),
       miracle_rate: rate(orderMetricItems.map(combinedMiracleMarker)),
-      unlicensed_arrival_rate: avg(licenseItems.map((item) => item.unlicensed_arrival_rate)),
-      unlicensed_trace_rate: rate(licenseItems.map((item) => (item.n_unlicensed_arrivals || 0) > 0)),
+      unlicensed_reference_rate: entityReferences ? unlicensedReferences / entityReferences : null,
+      unlicensed_trace_rate: rate(licenseItems.map((item) => (item.n_unlicensed_references || 0) > 0)),
       avg_blocks_per_trace: totalBlocks && bonusItems.length ? totalBlocks / bonusItems.length : null,
       block_achieve_rate: scoredBlocks ? sum(bonusItems.map((item) => item.n_achieving_blocks)) / scoredBlocks : null,
       block_waste_rate: scoredBlocks ? sum(bonusItems.map((item) => item.n_wasted_blocks)) / scoredBlocks : null,
@@ -1502,8 +1504,8 @@ function kpiColumns(hasCacheWrite) {
     { header: "Order score", group: "exploration_behavior", value: (row) => withStd(row, "avg_order_score") },
     { header: "Reverse rate", group: "exploration_behavior", value: (row) => withStd(row, "reverse_order_rate", pct) },
     { header: "Miracle rate", group: "exploration_behavior", value: (row) => withStd(row, "miracle_rate", pct) },
-    { header: "Unlicensed arrival", group: "exploration_behavior", value: (row) => withStd(row, "unlicensed_arrival_rate", pct) },
-    { header: "Unlicensed trace", group: "exploration_behavior", value: (row) => withStd(row, "unlicensed_trace_rate", pct) },
+    { header: "Unlicensed reference rate", group: "exploration_behavior", value: (row) => withStd(row, "unlicensed_reference_rate", pct) },
+    { header: "Unlicensed trace rate", group: "exploration_behavior", value: (row) => withStd(row, "unlicensed_trace_rate", pct) },
     { header: "Loop trace", group: "exploration_behavior", value: (row) => withStd(row, "loop_trace_rate", pct) },
     { header: "Error spiral", group: "exploration_behavior", value: (row) => withStd(row, "error_spiral_rate", pct) },
     { header: "Blocks", group: "purpose_blocks", value: (row) => withStd(row, "avg_blocks_per_trace", fmt, 1) },
@@ -1719,7 +1721,7 @@ function tracePatternValue(detail, tag) {
   if (tag === "hit_root_cause") return pathNodeRoleHitValue(detail, ["root_cause"], "root_hit");
   if (tag === "unlicensed") {
     if (!detail?.license_evaluable) return null;
-    return (detail.n_unlicensed_arrivals || 0) > 0;
+    return (detail.n_unlicensed_references || 0) > 0;
   }
   if (tag === "edited_root_cause") {
     const direct = booleanPatternValue(detail?.edited_root_cause);
@@ -3397,13 +3399,13 @@ function renderRolloutSelector(detail, snapshot) {
   </label>`;
 }
 
-function renderUnlicensedArrivals(detail) {
-  const nodes = Array.isArray(detail.unlicensed_arrival_nodes) ? detail.unlicensed_arrival_nodes : [];
-  if (!detail.license_evaluable || !nodes.length) return "";
-  const items = nodes
-    .map((item) => `<span class="badge warn" title="role ${esc(item.node_role || "-")} · hop ${esc(String(item.hop_distance ?? "-"))}">${esc(item.node || "-")} @ step ${esc(String(item.step ?? "-"))}</span>`)
+function renderUnlicensedReferences(detail) {
+  const refs = Array.isArray(detail.unlicensed_references) ? detail.unlicensed_references : [];
+  if (!detail.license_evaluable || !refs.length) return "";
+  const items = refs
+    .map((ref) => `<span class="badge warn" title="${esc(ref.action || "-")}">${esc(ref.kind || "-")} ${esc(ref.entity || "-")} @ step ${esc(String(ref.step ?? "-"))} · <code>${esc(ref.action || "-")}</code></span>`)
     .join(" ");
-  return `<div class="run-meta">🛸 Unlicensed arrivals (${nodes.length}): ${items}</div>`;
+  return `<div class="run-meta">🛸 Unlicensed references (${refs.length}): ${items}</div>`;
 }
 
 function renderTraceTitleCard(detail, snapshot) {
@@ -3414,7 +3416,7 @@ function renderTraceTitleCard(detail, snapshot) {
       <div>
         <strong>${esc(detail.instance_id || `record-${detail.record_index}`)}</strong>
         <div class="run-meta">${esc(detail.model_label || "-")} · ${esc(detail.run_id || "-")}</div>
-        ${renderUnlicensedArrivals(detail)}
+        ${renderUnlicensedReferences(detail)}
       </div>
       <div class="trace-title-actions">
         <button class="copy-link" type="button" data-copy-link="experiment">Copy experiment URL</button>
@@ -3576,9 +3578,9 @@ function traceStatusItems(detail) {
     { key: "reverse", label: "reverse", icon: "🌀", active: canShowOrderMetrics && orderScore !== null && orderScore < 0 },
     {
       key: "unlicensed",
-      label: "unlicensed arrival",
+      label: "unlicensed reference",
       icon: "🛸",
-      active: detail.license_evaluable === true && (detail.n_unlicensed_arrivals || 0) > 0,
+      active: detail.license_evaluable === true && (detail.n_unlicensed_references || 0) > 0,
     },
   ];
 }
