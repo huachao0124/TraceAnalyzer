@@ -553,13 +553,18 @@ class RolloutIngestor:
         self.n_skipped = 0
         self.n_detail_cache_failed = 0
         self._offset = 0
+        self._metrics_dirty = False
+        self._stop_event = asyncio.Event()
 
-    def _read_new_records(self) -> list[dict[str, Any]]:
+    def _read_new_records(self) -> tuple[list[dict[str, Any]], int]:
+        """Read complete new JSONL lines; the caller commits the returned offset
+        only after those records were ingested, so a failed ingest re-reads them."""
         if not self.rollouts_path.exists():
-            return []
+            return [], self._offset
         records: list[dict[str, Any]] = []
+        offset = self._offset
         with self.rollouts_path.open("rb") as handle:
-            handle.seek(self._offset)
+            handle.seek(offset)
             while True:
                 line = handle.readline()
                 if not line:
@@ -567,7 +572,7 @@ class RolloutIngestor:
                 if not line.endswith(b"\n"):
                     # Incomplete tail line; re-read it once the writer finishes.
                     break
-                self._offset += len(line)
+                offset += len(line)
                 text = line.decode("utf-8", errors="replace").strip()
                 if not text:
                     continue
@@ -577,7 +582,7 @@ class RolloutIngestor:
                     continue
                 if isinstance(record, dict):
                     records.append(record)
-        return records
+        return records, offset
 
     def _already_ingested(self, conn: sqlite3.Connection, record: dict[str, Any], record_sha: str) -> bool:
         instance_id = str(record.get("instance_id") or "")
@@ -631,8 +636,10 @@ class RolloutIngestor:
                     artifact_rollouts=self.rollouts_path,
                 )
                 conn.commit()
-                if self.bonus_map_dir is not None and not record.get("error"):
-                    pending_details.append((cell_id, record, self.n_ingested))
+                if self.bonus_map_dir is not None:
+                    self._metrics_dirty = True
+                    if not record.get("error"):
+                        pending_details.append((cell_id, record, self.n_ingested))
                 self.n_ingested += 1
             for cell_id, record, index in pending_details:
                 try:
@@ -665,19 +672,32 @@ class RolloutIngestor:
         )
 
     async def ingest_new(self, *, refresh_metrics: bool = False) -> int:
-        records = self._read_new_records()
-        if not records and not refresh_metrics:
+        records, new_offset = self._read_new_records()
+        if not records and not (refresh_metrics and self._metrics_dirty):
             return 0
         async with self.db_lock:
             if records:
                 await asyncio.to_thread(self._ingest_records_sync, records)
-            if refresh_metrics and self.bonus_map_dir is not None and self.n_ingested:
+                self._offset = new_offset
+            if refresh_metrics and self._metrics_dirty:
                 await asyncio.to_thread(self._refresh_model_metrics_sync)
+                self._metrics_dirty = False
         return len(records)
 
+    def stop(self) -> None:
+        self._stop_event.set()
+
     async def run_periodic(self, interval_s: float = 30.0) -> None:
-        while True:
-            await asyncio.sleep(interval_s)
+        # Shut down via stop(), never task.cancel(): cancelling while an ingest
+        # runs inside asyncio.to_thread would release db_lock while the writer
+        # thread is still alive, letting the final ingest start a second
+        # concurrent writer.
+        while not self._stop_event.is_set():
+            try:
+                await asyncio.wait_for(self._stop_event.wait(), timeout=interval_s)
+                break
+            except asyncio.TimeoutError:
+                pass
             try:
                 await self.ingest_new(refresh_metrics=True)
             except (OSError, sqlite3.Error) as exc:
@@ -774,11 +794,13 @@ async def run_model_phase(
     try:
         returncode, output = await _run_subprocess(command, env=model_env, timeout_s=_duration_seconds(config.run_timeout))
     finally:
-        ingest_task.cancel()
+        # Signal instead of cancel so an in-flight ingest thread finishes under
+        # the lock before the final ingest runs (single-writer guarantee).
+        ingestor.stop()
         try:
             await ingest_task
-        except asyncio.CancelledError:
-            pass
+        except (OSError, sqlite3.Error) as exc:
+            print(f"[batch] periodic ingest for {model.label} ended with error: {exc}", flush=True)
         await ingestor.ingest_new(refresh_metrics=True)
     log_path = run_dir / "run.log"
     log_path.write_text(output, encoding="utf-8")
