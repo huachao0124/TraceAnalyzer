@@ -28,12 +28,31 @@ from p2a.eval_cache import (
     delete_run_data,
     ensure_db,
     aggregate_model_metrics,
+    json_dumps,
+    json_loads,
     mark_cells_running,
     upsert_experiment,
     upsert_planned_cells,
     upsert_rollout_record,
-    write_dashboard_detail_cache,
+    utc_now,
 )
+
+
+def _write_legacy_raw_detail_cache(conn, *, cell_id, detail, fingerprint, cache_metadata=None):
+    """Fabricate the retired raw-DB embedded detail cache to exercise migration paths."""
+    row = conn.execute("SELECT metrics_json FROM quantitative_metrics WHERE cell_id = ?", (cell_id,)).fetchone()
+    if row is None:
+        return
+    metrics = json_loads(row["metrics_json"], {})
+    if not isinstance(metrics, dict):
+        metrics = {}
+    metrics["detail"] = dict(detail)
+    if cache_metadata is not None:
+        metrics["dashboard_detail_cache"] = dict(cache_metadata)
+    conn.execute(
+        "UPDATE quantitative_metrics SET fingerprint = ?, metrics_json = ?, updated_at = ? WHERE cell_id = ?",
+        (fingerprint, json_dumps(metrics), utc_now(), cell_id),
+    )
 
 
 def _rollout(instance_id: str, *, resolved: bool = True):
@@ -744,7 +763,7 @@ def test_raw_db_stores_one_structured_trace_copy_and_can_slim_legacy_cache(tmp_p
             metadata = json.loads(
                 build_conn.execute("SELECT cache_metadata_json FROM dashboard_rollout_details").fetchone()["cache_metadata_json"]
             )
-        write_dashboard_detail_cache(
+        _write_legacy_raw_detail_cache(
             conn,
             cell_id=cell_id,
             fingerprint=result["fingerprint"],
@@ -807,7 +826,7 @@ def test_dashboard_reads_do_not_migrate_legacy_raw_detail_cache(tmp_path):
         build_conn.row_factory = sqlite3.Row
         metadata = json.loads(build_conn.execute("SELECT cache_metadata_json FROM dashboard_rollout_details").fetchone()["cache_metadata_json"])
     with ensure_db(db) as conn:
-        write_dashboard_detail_cache(
+        _write_legacy_raw_detail_cache(
             conn,
             cell_id=cell_id,
             fingerprint=result["fingerprint"],
@@ -1578,7 +1597,7 @@ def test_dashboard_detail_cache_does_not_create_hollow_metric_row(tmp_path):
             instance_ids=["case-1"],
         )
         cell_id = conn.execute("SELECT id FROM run_cells").fetchone()["id"]
-        write_dashboard_detail_cache(
+        _write_legacy_raw_detail_cache(
             conn,
             cell_id=cell_id,
             detail={"instance_id": "case-1"},
@@ -1852,7 +1871,7 @@ def test_dashboard_details_load_legacy_raw_rollouts_without_rollout_sha256(tmp_p
     assert snapshot["details"][0]["messages"]
 
 
-def test_init_db_backfills_raw_rollout_sha256(tmp_path):
+def test_migrate_dashboard_databases_backfills_raw_rollout_sha256(tmp_path):
     db = tmp_path / "traces.sqlite"
     with ensure_db(db) as conn:
         upsert_experiment(conn, experiment_id="exp", provider_source="internal_api", dataset="swebench-hard", config_snapshot={})
@@ -1867,6 +1886,13 @@ def test_init_db_backfills_raw_rollout_sha256(tmp_path):
         )
         conn.execute("UPDATE raw_rollouts SET rollout_sha256 = NULL")
         conn.commit()
+
+    # Steady-state init must not rescan the table; the explicit migration path repairs hashes.
+    with ensure_db(db) as conn:
+        row = conn.execute("SELECT rollout_sha256 FROM raw_rollouts").fetchone()
+    assert row["rollout_sha256"] is None
+
+    migrate_dashboard_databases(DashboardRequest(db_path=db, experiment_id="exp"))
 
     with ensure_db(db) as conn:
         row = conn.execute("SELECT rollout_json, rollout_sha256 FROM raw_rollouts").fetchone()

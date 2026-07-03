@@ -25,6 +25,7 @@ from p2a.eval_cache import (
     DONE_STATUS,
     ERROR_STATUS,
     aggregate_model_metrics,
+    backfill_raw_rollout_sha256,
     connection_raw_db_identity,
     connect,
     connect_readonly,
@@ -1276,6 +1277,7 @@ def write_dashboard_detail_cache_for_record(
     near_threshold: float = 0.5,
     m_max: float = 3.0,
     index: int = 0,
+    refresh_model_metrics: bool = True,
 ) -> dict[str, Any]:
     raw_db_value = connection_raw_db_identity(conn)
     if not raw_db_value:
@@ -1361,10 +1363,45 @@ def write_dashboard_detail_cache_for_record(
             detail=detail,
             cache_metadata={**(cache_metadata or {}), "fingerprint": fingerprint},
         )
-        for row in _materialized_model_metrics_rows(conn, request, build_conn=build_conn, include_avg_at=True):
-            write_dashboard_build_model_metrics(build_conn, raw_db_path=Path(raw_db_value), row=row)
+        # Rematerializing the model's aggregate metrics costs O(cached rollouts)
+        # for the model; per-rollout callers throttle it and refresh once at the
+        # end of the run instead of paying O(n²) across a batch.
+        if refresh_model_metrics:
+            for row in _materialized_model_metrics_rows(conn, request, build_conn=build_conn, include_avg_at=True):
+                write_dashboard_build_model_metrics(build_conn, raw_db_path=Path(raw_db_value), row=row)
         build_conn.commit()
     return {"ok": True, "fingerprint": fingerprint, "detail": detail}
+
+
+def refresh_dashboard_model_metrics(
+    db_path: Path | str,
+    *,
+    experiment_id: str | None = None,
+    provider_source: str | None = None,
+    dataset: str | None = None,
+    model_api_name: str | None = None,
+    model_label: str | None = None,
+    bonus_map_dir: Path | None = None,
+    build_db_path: Path | None = None,
+    tracking_mode: str = "view_and_bash",
+    near_threshold: float = 0.5,
+    m_max: float = 3.0,
+) -> None:
+    """Rematerialize dashboard_model_metrics for one scope from the raw DB."""
+    request = DashboardRequest(
+        db_path=Path(db_path),
+        build_db_path=build_db_path,
+        bonus_map_dir=bonus_map_dir,
+        experiment_id=experiment_id,
+        provider_source=provider_source,
+        dataset=dataset,
+        model_api_name=model_api_name,
+        model_label=model_label,
+        tracking_mode=tracking_mode,
+        near_threshold=near_threshold,
+        m_max=m_max,
+    )
+    _refresh_dashboard_build_model_metrics(request)
 
 
 def _raw_record_details(
@@ -1753,6 +1790,9 @@ def _build_db_where(
 def _build_detail_rows_by_cell(
     build_conn: sqlite3.Connection | None,
     request: DashboardRequest,
+    *,
+    include_detail: bool = True,
+    cell_ids: Iterable[int] | None = None,
 ) -> dict[int, sqlite3.Row]:
     if build_conn is None or request.db_path is None:
         return {}
@@ -1764,49 +1804,64 @@ def _build_detail_rows_by_cell(
         model_label=request.model_label,
     )
     prefix = "WHERE" if not where_sql else f"{where_sql} AND"
+    query_params: list[Any] = [*params, raw_db_identity(request.db_path)]
+    cell_filter_sql = ""
+    if cell_ids is not None:
+        ids = sorted({int(cell_id) for cell_id in cell_ids})
+        if not ids:
+            return {}
+        cell_filter_sql = f" AND raw_cell_id IN ({','.join('?' for _ in ids)})"
+        query_params.extend(ids)
+    # detail_json rows average hundreds of KB; validity checks only need the
+    # metadata columns, so callers that count/validate must not pull payloads.
+    detail_sql = "detail_json" if include_detail else "NULL AS detail_json"
     try:
         rows = build_conn.execute(
             f"""
-            SELECT *
+            SELECT
+              raw_db_path, raw_cell_id, experiment_id, provider_source, dataset,
+              model_api_name, model_label, instance_id, rollout_index, rollout_id,
+              run_id, status, raw_rollout_sha256, fingerprint, cache_metadata_json,
+              updated_at, {detail_sql}
             FROM dashboard_rollout_details
-            {prefix} raw_db_path = ?
+            {prefix} raw_db_path = ?{cell_filter_sql}
             """,
-            [*params, raw_db_identity(request.db_path)],
+            query_params,
         ).fetchall()
     except sqlite3.Error:
         return {}
     return {int(row["raw_cell_id"]): row for row in rows}
 
 
-def _validated_build_cached_detail(
+def _build_cached_detail_valid(
     build_row: sqlite3.Row | None,
     record: dict[str, Any],
     request: DashboardRequest,
     *,
     bonus_file_cache: dict[tuple[str, str], Path | None],
     bonus_hash_cache: dict[Path, str | None],
-) -> dict[str, Any] | None:
+) -> bool:
+    """Fingerprint/metadata validity of a build-DB detail row, without touching detail_json."""
     if build_row is None:
-        return None
-    detail = _safe_json_loads(build_row["detail_json"], {})
+        return False
     metadata = _safe_json_loads(build_row["cache_metadata_json"], {})
-    if not isinstance(detail, dict) or not detail or not isinstance(metadata, dict):
-        return None
+    if not isinstance(metadata, dict):
+        return False
     if metadata.get("version") != DASHBOARD_DETAIL_CACHE_VERSION:
-        return None
+        return False
     raw_hash = metadata.get("raw_rollout_sha256")
     current_raw_hash = record.get("raw_rollout_sha256") or build_row["raw_rollout_sha256"]
     if not raw_hash or not current_raw_hash or raw_hash != current_raw_hash or build_row["raw_rollout_sha256"] != current_raw_hash:
-        return None
+        return False
     if metadata.get("tracking_mode") != request.tracking_mode:
-        return None
+        return False
     if metadata.get("near_threshold") != request.near_threshold:
-        return None
+        return False
     if metadata.get("m_max") != request.m_max:
-        return None
+        return False
     metadata_fingerprint = metadata.get("fingerprint")
     if metadata_fingerprint and metadata_fingerprint != build_row["fingerprint"]:
-        return None
+        return False
     bonus_map_file = _db_bonus_map_file_for_instance(
         request,
         dataset=str(record.get("dataset") or record.get("data_source") or "") or None,
@@ -1814,7 +1869,7 @@ def _validated_build_cached_detail(
         cache=bonus_file_cache,
     )
     if bonus_map_file is None and request.bonus_map_dir is None:
-        return dict(detail) if metadata_fingerprint == build_row["fingerprint"] else None
+        return metadata_fingerprint == build_row["fingerprint"]
     if bonus_map_file is not None and bonus_map_file not in bonus_hash_cache:
         bonus_hash_cache[bonus_map_file] = _sha256_file(bonus_map_file)
     payload = {
@@ -1828,8 +1883,30 @@ def _validated_build_cached_detail(
     }
     fingerprint = _dashboard_detail_fingerprint_from_payload(payload)
     if not fingerprint or build_row["fingerprint"] != fingerprint:
-        return None
+        return False
     if metadata_fingerprint and metadata_fingerprint != fingerprint:
+        return False
+    return True
+
+
+def _validated_build_cached_detail(
+    build_row: sqlite3.Row | None,
+    record: dict[str, Any],
+    request: DashboardRequest,
+    *,
+    bonus_file_cache: dict[tuple[str, str], Path | None],
+    bonus_hash_cache: dict[Path, str | None],
+) -> dict[str, Any] | None:
+    if not _build_cached_detail_valid(
+        build_row,
+        record,
+        request,
+        bonus_file_cache=bonus_file_cache,
+        bonus_hash_cache=bonus_hash_cache,
+    ):
+        return None
+    detail = _safe_json_loads(build_row["detail_json"], {})
+    if not isinstance(detail, dict) or not detail:
         return None
     return dict(detail)
 
@@ -1839,6 +1916,7 @@ def _load_db_cached_details(
     request: DashboardRequest,
     *,
     build_conn: sqlite3.Connection | None = None,
+    validate_only: bool = False,
 ) -> list[dict[str, Any]]:
     where_sql, params = _db_where(
         experiment_id=request.experiment_id,
@@ -1944,7 +2022,14 @@ def _load_db_cached_details(
     details: list[dict[str, Any]] = []
     bonus_file_cache: dict[tuple[str, str], Path | None] = {}
     bonus_hash_cache: dict[Path, str | None] = {}
-    build_rows_by_cell = _build_detail_rows_by_cell(build_conn, request)
+    # For a paginated raw-details page, only fetch build rows for the page's
+    # cells; for validation sweeps, fetch metadata columns without detail_json.
+    build_rows_by_cell = _build_detail_rows_by_cell(
+        build_conn,
+        request,
+        include_detail=not validate_only,
+        cell_ids=[int(row["cell_id"]) for row in rows] if include_raw else None,
+    )
     for index, row in enumerate(rows):
         record = _safe_json_loads(row["rollout_json"], {})
         if not isinstance(record, dict):
@@ -1999,15 +2084,26 @@ def _load_db_cached_details(
                 token_usage[token_key] = row[column_key]
         record["token_usage"] = token_usage
         record.setdefault("metrics", _safe_json_loads(row["cache_metrics_json"], {}))
-        detail = (
-            _validated_build_cached_detail(
+        if validate_only:
+            detail = (
+                {}
+                if _build_cached_detail_valid(
+                    build_rows_by_cell.get(int(row["cell_id"])),
+                    record,
+                    request,
+                    bonus_file_cache=bonus_file_cache,
+                    bonus_hash_cache=bonus_hash_cache,
+                )
+                else None
+            )
+        else:
+            detail = _validated_build_cached_detail(
                 build_rows_by_cell.get(int(row["cell_id"])),
                 record,
                 request,
                 bonus_file_cache=bonus_file_cache,
                 bonus_hash_cache=bonus_hash_cache,
             )
-        )
         if detail is not None:
             details.append(_enrich_detail_from_record(detail, record, request))
         else:
@@ -3121,7 +3217,7 @@ def _build_cache_counts_by_key(
     request: DashboardRequest,
 ) -> dict[str, dict[str, int]]:
     cache_request = replace(request, defer_db_scoring=True, include_db_raw_details=False)
-    cached_details = _load_db_cached_details(conn, cache_request, build_conn=build_conn)
+    cached_details = _load_db_cached_details(conn, cache_request, build_conn=build_conn, validate_only=True)
     counts: dict[str, dict[str, int]] = defaultdict(lambda: {"ready": 0, "pending": 0})
     for detail in cached_details:
         if detail.get("cell_status") != DONE_STATUS:
@@ -3268,12 +3364,64 @@ def migrate_dashboard_databases(request: DashboardRequest) -> dict[str, int]:
     try:
         conn = connect(request.db_path, timeout=30.0)
         init_db(conn)
+        # Steady-state init no longer backfills; the explicit migration path is
+        # where missing rollout hashes get repaired.
+        backfill_raw_rollout_sha256(conn)
         conn.commit()
         migrated = _migrate_legacy_raw_dashboard_cache(conn, request)
         return {"legacy_build_rows": migrated}
     finally:
         if conn is not None:
             conn.close()
+
+
+def db_free_page_ratio(db_path: Path | str) -> float:
+    conn = connect_readonly(db_path)
+    try:
+        free = int(conn.execute("PRAGMA freelist_count").fetchone()[0])
+        total = int(conn.execute("PRAGMA page_count").fetchone()[0])
+    finally:
+        conn.close()
+    return (free / total) if total else 0.0
+
+
+def vacuum_dashboard_databases(request: DashboardRequest, *, min_free_ratio: float = 0.0) -> dict[str, Any]:
+    """VACUUM the raw eval DB and the dashboard build DB to reclaim free pages.
+
+    With min_free_ratio set, a database is only vacuumed when its free-page
+    share reaches the threshold, and a lock conflict with an active writer is
+    reported as skipped instead of raised (VACUUM is opportunistic maintenance).
+    """
+    results: dict[str, Any] = {}
+    targets: list[tuple[str, Path]] = []
+    if request.db_path is not None and Path(request.db_path).exists():
+        targets.append(("raw_db", Path(request.db_path)))
+    build_db_path = _dashboard_build_db_path(request)
+    if build_db_path is not None and build_db_path.exists():
+        targets.append(("build_db", build_db_path))
+    for label, path in targets:
+        free_ratio = db_free_page_ratio(path)
+        if free_ratio < min_free_ratio:
+            results[label] = {"path": str(path), "skipped": "below_threshold", "free_page_ratio": round(free_ratio, 4)}
+            continue
+        size_before = path.stat().st_size
+        conn = connect(path, timeout=60.0)
+        try:
+            conn.execute("VACUUM")
+        except sqlite3.OperationalError as exc:
+            if min_free_ratio <= 0.0:
+                raise
+            results[label] = {"path": str(path), "skipped": "database_busy", "detail": str(exc)}
+            continue
+        finally:
+            conn.close()
+        results[label] = {
+            "path": str(path),
+            "free_page_ratio": round(free_ratio, 4),
+            "bytes_before": size_before,
+            "bytes_after": path.stat().st_size,
+        }
+    return results
 
 
 def _migrated_build_detail_cell_ids(request: DashboardRequest) -> set[int]:
@@ -3462,28 +3610,19 @@ def _merge_build_model_rows(
     return sorted(merged, key=lambda item: (str(item.get("experiment_id")), str(item.get("model_label"))))
 
 
-def _build_model_metrics_are_stale(
-    base_rows: list[dict[str, Any]],
-    build_rows: list[dict[str, Any]],
-    build_cache_counts: dict[str, dict[str, int]],
+def _model_metrics_row_is_stale(
+    base_row: dict[str, Any],
+    build_row: dict[str, Any] | None,
+    counts: dict[str, int],
 ) -> bool:
-    build_by_key = {_normalize_model_row(row)["eval_cell_key"]: _normalize_model_row(row) for row in build_rows}
-    for base in [_normalize_model_row(row) for row in base_rows]:
-        key = base["eval_cell_key"]
-        build_row = build_by_key.get(key)
-        counts = build_cache_counts.get(key, {"ready": 0, "pending": 0})
-        build_coverage = int(counts.get("ready") or 0) + int(counts.get("pending") or 0)
-        if not build_row:
-            if build_coverage:
-                return True
-            continue
-        completed_rollouts = int(base.get("done_rollouts") or 0)
-        build_counts_match = int(build_row.get("detail_cache_ready_rollouts") or 0) == int(counts.get("ready") or 0) and int(
-            build_row.get("detail_cache_pending_rollouts") or 0
-        ) == int(counts.get("pending") or 0)
-        if not build_counts_match or build_coverage != completed_rollouts:
-            return True
-    return False
+    build_coverage = int(counts.get("ready") or 0) + int(counts.get("pending") or 0)
+    if not build_row:
+        return bool(build_coverage)
+    completed_rollouts = int(base_row.get("done_rollouts") or 0)
+    build_counts_match = int(build_row.get("detail_cache_ready_rollouts") or 0) == int(counts.get("ready") or 0) and int(
+        build_row.get("detail_cache_pending_rollouts") or 0
+    ) == int(counts.get("pending") or 0)
+    return not build_counts_match or build_coverage != completed_rollouts
 
 
 def _refresh_dashboard_build_model_metrics(request: DashboardRequest) -> None:
@@ -3523,25 +3662,54 @@ def validated_cached_model_metrics(
     if build_db_path is None or not build_db_path.exists():
         return base_rows
     build_conn: sqlite3.Connection | None = None
+    fresh_base: list[dict[str, Any]] = base_rows
+    recomputed: list[dict[str, Any]] = []
     try:
         build_conn = connect_readonly(build_db_path, timeout=2.0)
         build_rows = _load_dashboard_build_model_metrics(build_conn, request)
         build_cache_counts = _build_cache_counts_by_key(conn, build_conn, request)
-        if _build_model_metrics_are_stale(base_rows, build_rows, build_cache_counts):
-            return _materialized_model_metrics_rows(conn, request, build_conn=build_conn, include_avg_at=True)
+        build_by_key = {_normalize_model_row(row)["eval_cell_key"]: _normalize_model_row(row) for row in build_rows}
+        fresh_base = []
+        stale_base: list[dict[str, Any]] = []
+        for base in base_rows:
+            key = base["eval_cell_key"]
+            counts = build_cache_counts.get(key, {"ready": 0, "pending": 0})
+            if _model_metrics_row_is_stale(base, build_by_key.get(key), counts):
+                stale_base.append(base)
+            else:
+                fresh_base.append(base)
+        # Rematerialize only the stale eval cells: full-scope recomputation
+        # loads and parses every cached detail_json in the request scope, which
+        # a single in-flight rollout would otherwise force on every request.
+        for base in stale_base:
+            scoped_request = replace(
+                request,
+                experiment_id=str(base.get("experiment_id") or "") or request.experiment_id,
+                provider_source=str(base.get("provider_source") or "") or request.provider_source,
+                dataset=str(base.get("dataset") or "") or request.dataset,
+                model_api_name=str(base.get("model_api_name") or "") or request.model_api_name,
+                model_label=str(base.get("model_label") or "") or request.model_label,
+            )
+            recomputed.extend(
+                _materialized_model_metrics_rows(conn, scoped_request, build_conn=build_conn, include_avg_at=True)
+            )
     except (OSError, sqlite3.Error):
         build_rows = []
         build_cache_counts = {}
+        fresh_base = base_rows
+        recomputed = []
     finally:
         if build_conn is not None:
             build_conn.close()
-    if not build_rows:
+    if not build_rows and not recomputed:
         return base_rows
-    return _merge_build_model_rows(
-        base_rows,
+    merged = _merge_build_model_rows(
+        fresh_base,
         build_rows,
         build_cache_counts=build_cache_counts,
     )
+    merged.extend(_normalize_model_row(row) for row in recomputed)
+    return sorted(merged, key=lambda item: (str(item.get("experiment_id")), str(item.get("model_label"))))
 
 
 def _eval_cell_registry(model_metrics: list[dict[str, Any]], details: list[dict[str, Any]]) -> list[dict[str, Any]]:
