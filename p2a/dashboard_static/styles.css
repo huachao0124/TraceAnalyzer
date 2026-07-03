@@ -658,9 +658,50 @@ tr.is-selected td {
 .kpi-table table {
   min-width: 2100px;
 }
+.kpi-table {
+  --kpi-experiment-width: 230px;
+  --kpi-kind-width: 96px;
+  --kpi-model-width: 250px;
+}
 .kpi-table th,
 .kpi-table td {
   background-clip: padding-box;
+}
+.kpi-table th.kpi-sticky-col,
+.kpi-table td.kpi-sticky-col {
+  position: sticky;
+  z-index: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: var(--panel);
+  box-shadow: 1px 0 0 rgba(148, 163, 184, .35);
+}
+.kpi-table th.kpi-sticky-col {
+  z-index: 4;
+  background: #f0f3f8;
+}
+.kpi-table tr.is-selected td.kpi-sticky-col {
+  background: var(--accent-soft);
+}
+.kpi-table .kpi-sticky-experiment {
+  left: 0;
+  width: var(--kpi-experiment-width);
+  min-width: var(--kpi-experiment-width);
+  max-width: var(--kpi-experiment-width);
+}
+.kpi-table .kpi-sticky-kind {
+  left: var(--kpi-experiment-width);
+  width: var(--kpi-kind-width);
+  min-width: var(--kpi-kind-width);
+  max-width: var(--kpi-kind-width);
+}
+.kpi-table .kpi-sticky-model {
+  left: calc(var(--kpi-experiment-width) + var(--kpi-kind-width));
+  width: var(--kpi-model-width);
+  min-width: var(--kpi-model-width);
+  max-width: var(--kpi-model-width);
+  box-shadow: 2px 0 0 rgba(148, 163, 184, .45);
 }
 .kpi-table th.metric-group-filter-totals,
 .kpi-table td.metric-group-filter-totals,

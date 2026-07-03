@@ -350,15 +350,19 @@ function renderKpiTable(columns, rows) {
   if (!rows.length) return '<div class="empty">No rows.</div>';
   const header = columns.map((column) => {
     const groupClass = column.group ? metricGroupClass(column.group) : "";
+    const stickyClass = column.sticky ? `kpi-sticky-col kpi-sticky-${column.sticky}` : "";
+    const className = [groupClass, stickyClass].filter(Boolean).join(" ");
     const title = column.group ? ` title="${esc(metricGroupLabel(column.group))}"` : "";
-    return `<th class="${esc(groupClass)}"${title}>${esc(column.header)}</th>`;
+    return `<th class="${esc(className)}"${title}>${esc(column.header)}</th>`;
   }).join("");
   const body = rows.map((row) => {
     const key = cellKey(row);
     const cells = columns.map((column) => {
       const groupClass = column.group ? metricGroupClass(column.group) : "";
+      const stickyClass = column.sticky ? `kpi-sticky-col kpi-sticky-${column.sticky}` : "";
+      const className = [groupClass, stickyClass].filter(Boolean).join(" ");
       const value = column.value(row, key);
-      return `<td class="${esc(groupClass)}">${column.html ? value : esc(value)}</td>`;
+      return `<td class="${esc(className)}">${column.html ? value : esc(value)}</td>`;
     }).join("");
     return `<tr class="${key === state.selectedEvalCellKey ? "is-selected" : ""}" data-eval-cell-key="${esc(key)}">${cells}</tr>`;
   }).join("");
@@ -1476,9 +1480,9 @@ function kpiColumns(hasCacheWrite) {
       html: true,
       value: (_row, key) => `<button class="select-kpi-cell" type="button" data-eval-cell-key="${esc(key)}">${key === state.selectedEvalCellKey ? "Selected" : "Select"}</button>`,
     },
-    { header: "Experiment", fixed: true, value: (row) => row.experiment_id },
-    { header: "Kind", fixed: true, value: (row) => row.source_kind },
-    { header: "Model", fixed: true, value: (row) => row.model_label },
+    { header: "Experiment", fixed: true, sticky: "experiment", value: (row) => row.experiment_id },
+    { header: "Kind", fixed: true, sticky: "kind", value: (row) => row.source_kind },
+    { header: "Model", fixed: true, sticky: "model", value: (row) => row.model_label },
     { header: "Total instances", group: "filter_totals", value: (row) => numeric(row.target) ?? 0 },
     { header: "Done traces", group: "filter_totals", value: (row) => runDoneCount(row) },
     { header: "Error traces", group: "filter_totals", value: (row) => runErrorCount(row) },

@@ -95,6 +95,7 @@ API_SERVER_ERROR_RE = re.compile(
     re.IGNORECASE,
 )
 SYSTEM_ERROR_KINDS = {
+    "interaction_aborted",
     "arl_config_missing",
     "arl_shell_forbidden",
     "arl_shell_unavailable",
@@ -597,6 +598,14 @@ def build_dump_record(
         "error_stage": error_stage,
         "system_error": is_system_error_kind(error_kind),
     }
+    if not payload["error"] and termination_reason in ("unknown_error", "terminal_dead"):
+        payload["error"] = (
+            f"interaction aborted ({termination_reason}): ARL session died or the model "
+            "API stream was cut mid-rollout; the cell is rerunnable"
+        )
+        payload["error_kind"] = "interaction_aborted"
+        payload["error_stage"] = "interaction"
+        payload["system_error"] = True
     derived_error = rollout_record_error(payload)
     if derived_error and not payload["error"]:
         payload["error"] = derived_error

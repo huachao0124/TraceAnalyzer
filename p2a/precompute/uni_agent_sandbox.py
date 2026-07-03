@@ -282,6 +282,8 @@ def build_agent_env_config(task: dict[str, Any], *, instance_id: str, deployment
             "namespace": os.getenv("ARL_NAMESPACE", "default"),
             "experiment_id": os.getenv("ARL_EXPERIMENT_ID", "p2a-uniagent-arl-precompute"),
             "timeout": float(os.getenv("ARL_TIMEOUT", "600")),
+            "idle_timeout_seconds": int(os.getenv("ARL_IDLE_TIMEOUT", "3600")),
+            "max_lifetime_seconds": int(os.getenv("ARL_MAX_LIFETIME", "14400")),
             "startup_timeout": float(os.getenv("ARL_STARTUP_TIMEOUT", os.getenv("ARL_SWEREX_STARTUP_TIMEOUT", "240"))),
             "session_cwd": repo_path,
         }
