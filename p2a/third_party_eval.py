@@ -591,6 +591,7 @@ def build_dump_record(
         "termination_reason": termination_reason,
         "execution_time": interaction_result.get("execution_time"),
         "metrics": _as_jsonable(rollout_cache.get("metrics", {})),
+        "final_patch": interaction_result.get("final_patch") if isinstance(interaction_result, dict) else None,
         "token_usage": _as_jsonable(rollout_cache.get("token_usage", {})),
         "extra_info": extra_info,
         "error": error,
@@ -819,6 +820,65 @@ async def run_provider_smoke(model_cfg: dict[str, Any], provider_cfg: dict[str, 
     }
 
 
+_SESSION_LOSS_MARKERS = ("session", "claim", "not found", "no longer exists")
+
+
+def _is_session_loss(detail: str) -> bool:
+    lowered = detail.lower()
+    return ("404" in lowered or "500" in lowered or "gateway" in lowered) and any(
+        marker in lowered for marker in _SESSION_LOSS_MARKERS
+    )
+
+
+async def _snapshot_final_patch(env: Any) -> str | None:
+    """Extract the final workspace diff right after the interaction, while the
+    rollout session is still alive. Decouples evaluation from session lifetime."""
+    from swerex.runtime.abstract import Command
+
+    runtime = env.deployment.runtime
+    resp = await runtime.execute(
+        Command(
+            command=["bash", "-lc", "cd /testbed && git add -A && git diff --no-color --cached"],
+            timeout=120,
+        )
+    )
+    if int(resp.exit_code or 0) != 0:
+        raise RuntimeError(f"final-patch snapshot failed: {resp.stderr or resp.stdout}")
+    return resp.stdout or ""
+
+
+async def _eval_in_fresh_env(
+    row: dict[str, Any],
+    *,
+    instance_id: str,
+    agent_cfg: dict[str, Any],
+    final_patch: str | None,
+    prior_details: Any,
+) -> tuple[Any, Any]:
+    """Rebuild a sandbox, apply the snapshotted patch, and run the reward eval there.
+
+    Used when the rollout session lost its gateway claim before/​during eval."""
+    if final_patch is None:
+        return False, prior_details
+    fresh_env = _make_env(row, instance_id=instance_id, deployment=agent_cfg.get("deployment", "arl"))
+    try:
+        await fresh_env.start()
+        reward_spec = _make_reward(row, run_id=f"eval-retry-{uuid.uuid4()}", env=fresh_env, agent_cfg=agent_cfg)
+        if reward_spec is None:
+            return False, prior_details
+        if final_patch.strip():
+            await reward_spec._apply_patch(final_patch)  # noqa: SLF001 - same-package reward helper
+        reward_score, reward_details = await reward_spec.compute_reward()
+        if isinstance(reward_details, dict):
+            reward_details["evaluated_in_fresh_env"] = True
+        return reward_score, reward_details
+    finally:
+        try:
+            await fresh_env.close()
+        except Exception:
+            pass
+
+
 async def run_one(
     row: dict[str, Any],
     *,
@@ -833,13 +893,14 @@ async def run_one(
     interaction_result: dict[str, Any] | None = None
     reward_score = None
     reward_details = None
+    final_patch = None
     error = None
     error_kind = None
     error_stage = None
     t0 = time.perf_counter()
 
     async def execute_rollout() -> None:
-        nonlocal env, error_stage, interaction_result, reward_details, reward_score, run_id
+        nonlocal env, error_stage, final_patch, interaction_result, reward_details, reward_score, run_id
         if not instance_id:
             raise ValueError("sample row does not carry instance_id")
         error_stage = "env_config"
@@ -872,9 +933,37 @@ async def run_one(
         )
         error_stage = "interaction"
         interaction_result = await interaction.run()
+        error_stage = "patch_snapshot"
+        try:
+            final_patch = await _snapshot_final_patch(env)
+        except Exception as snapshot_exc:  # noqa: BLE001 - patch snapshot is best-effort
+            final_patch = None
+            interaction_result.setdefault("rollout_cache", {})["final_patch_error"] = f"{type(snapshot_exc).__name__}: {snapshot_exc}"
+        if isinstance(interaction_result, dict):
+            interaction_result["final_patch"] = final_patch
         if reward_spec is not None:
             error_stage = "reward"
-            reward_score, reward_details = await reward_spec.compute_reward(interaction_result=interaction_result)
+            for reward_attempt in range(1, 3):
+                reward_score, reward_details = await reward_spec.compute_reward(interaction_result=interaction_result)
+                if isinstance(reward_details, dict) and reward_details.get("eval_completed") is True:
+                    break
+                detail = str(reward_details.get("error") or "") if isinstance(reward_details, dict) else ""
+                if _is_session_loss(detail) and final_patch is not None:
+                    break  # session is gone; fall through to fresh-sandbox eval
+                if reward_attempt < 2:
+                    await asyncio.sleep(60)
+            if not (isinstance(reward_details, dict) and reward_details.get("eval_completed") is True):
+                error_stage = "reward_fresh_env"
+                reward_score, reward_details = await _eval_in_fresh_env(
+                    row,
+                    instance_id=instance_id,
+                    agent_cfg=agent_cfg,
+                    final_patch=final_patch,
+                    prior_details=reward_details,
+                )
+                if not (isinstance(reward_details, dict) and reward_details.get("eval_completed") is True):
+                    detail = reward_details.get("error") if isinstance(reward_details, dict) else reward_details
+                    raise RuntimeError(f"ARL reward eval failed after retries (gateway): {detail}")
         error_stage = None
 
     try:
