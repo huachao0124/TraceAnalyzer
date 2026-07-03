@@ -539,6 +539,28 @@ def find_newly_created_callables(task: dict) -> list[dict]:
     return []
 
 
+_PATCH_ADDED_DOTTED_SYMBOL_RE = re.compile(
+    r"(?<![A-Za-z0-9_.-])([A-Za-z_][A-Za-z0-9_-]*(?:\.[A-Za-z_][A-Za-z0-9_-]*)+)(?![A-Za-z0-9_.-])"
+)
+
+
+def find_newly_created_non_callable_symbols(task: dict) -> list[str]:
+    """Find dotted config/data symbols added by the fix patch."""
+    symbols: set[str] = set()
+    for patch_key in ("patch", "test_patch"):
+        patch_text = task.get(patch_key)
+        if not isinstance(patch_text, str):
+            continue
+        for line in patch_text.splitlines():
+            if not line.startswith("+") or line.startswith("+++"):
+                continue
+            for match in _PATCH_ADDED_DOTTED_SYMBOL_RE.finditer(line[1:]):
+                symbol = match.group(1)
+                if "." in symbol and not symbol.endswith(".py"):
+                    symbols.add(symbol)
+    return sorted(symbols)
+
+
 _ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
 _PARAMETRIZE_SUFFIX_RE = re.compile(r"\[.*\]$")
 _TEST_FUNC_RE = re.compile(r"(?<![A-Za-z0-9_])(test[A-Za-z0-9_]*)(?=$|[^A-Za-z0-9_])")
@@ -968,6 +990,78 @@ def _swebench_output_has_signature_entry_failure(raw_output: str) -> bool:
     if not raw_output:
         return False
     return any(_SIGNATURE_ENTRY_FAILURE_RE.search(_ANSI_ESCAPE_RE.sub("", line)) for line in raw_output.splitlines())
+
+
+_COLLECTION_FAILURE_RE = re.compile(
+    r"ERROR collecting|ImportError while importing test module|collected 0 items / [1-9][0-9]* errors?",
+    re.IGNORECASE,
+)
+_MISSING_SYMBOL_FAILURE_RE = re.compile(
+    r"ImportError: cannot import name|"
+    r"AttributeError: module .* has no attribute|"
+    r"ModuleNotFoundError: No module named|"
+    r"NameError: name .* is not defined",
+    re.IGNORECASE,
+)
+
+
+def _swebench_output_has_missing_symbol_collection_failure(raw_output: str) -> bool:
+    """Detect collection failures caused by missing buggy-version symbols."""
+    if not raw_output:
+        return False
+    text = _ANSI_ESCAPE_RE.sub("", raw_output)
+    return bool(_COLLECTION_FAILURE_RE.search(text) and _MISSING_SYMBOL_FAILURE_RE.search(text))
+
+
+_MISSING_SYMBOL_NAME_RE = re.compile(
+    r"cannot import name ['\"]([^'\"]+)['\"]|"
+    r"has no attribute ['\"]([^'\"]+)['\"]|"
+    r"does not have the attribute ['\"]([^'\"]+)['\"]|"
+    r"NameError: name ['\"]([^'\"]+)['\"] is not defined"
+)
+_MISSING_NON_CALLABLE_SYMBOL_RE = re.compile(
+    r"No option ['\"]([^'\"]+)['\"]|"
+    r"Unknown option ['\"]([^'\"]+)['\"]|"
+    r"Unknown configuration (?:setting|option) ['\"]([^'\"]+)['\"]|"
+    r"AttributeError:\s*([A-Za-z_][A-Za-z0-9_]*)",
+    re.IGNORECASE,
+)
+
+
+def _swebench_output_missing_newly_created_symbol(raw_output: str, newly_created: list[dict]) -> bool:
+    """Detect failures caused by tests referencing a newly added callable."""
+    if not raw_output or not newly_created:
+        return False
+    added_names = {str(item.get("name") or "") for item in newly_created}
+    added_names.update(str(item.get("qualified_name") or "").rsplit(".", 1)[-1] for item in newly_created)
+    added_names.discard("")
+    if not added_names:
+        return False
+    text = _ANSI_ESCAPE_RE.sub("", raw_output)
+    for match in _MISSING_SYMBOL_NAME_RE.finditer(text):
+        missing = next((group for group in match.groups() if group), "")
+        if missing in added_names:
+            return True
+    return False
+
+
+def _swebench_output_missing_newly_created_non_callable_symbol(
+    raw_output: str,
+    newly_created_symbols: list[str],
+) -> bool:
+    """Detect failures caused by tests referencing a newly added data/config symbol."""
+    if not raw_output or not newly_created_symbols:
+        return False
+    added = {str(symbol) for symbol in newly_created_symbols if str(symbol)}
+    added.update(symbol.rsplit(".", 1)[-1] for symbol in list(added))
+    if not added:
+        return False
+    text = _ANSI_ESCAPE_RE.sub("", raw_output)
+    for match in _MISSING_NON_CALLABLE_SYMBOL_RE.finditer(text):
+        missing = next((group for group in match.groups() if group), "")
+        if missing in added:
+            return True
+    return False
 
 
 def _swebench_output_has_zero_tests(raw_output: str) -> bool:
@@ -1588,8 +1682,12 @@ def compute_dynamic_bonus_map(
 
     all_modified = find_modified_callables_from_task(task)
     newly_created = find_newly_created_callables(task)
+    newly_created_non_callable_symbols = find_newly_created_non_callable_symbols(task)
     backend = (sandbox_backend or os.environ.get("P2A_SANDBOX_BACKEND") or "uni_agent").lower()
-    env_diag: dict = {"sandbox_backend": backend}
+    env_diag: dict = {
+        "sandbox_backend": backend,
+        "newly_created_non_callable_symbols": newly_created_non_callable_symbols,
+    }
     env = None
     has_structured_callable_source = bool(task.get("parsed_commit_content") or task.get("parsed_commit"))
 
@@ -1929,7 +2027,72 @@ def compute_dynamic_bonus_map(
             import_targets = _detect_import_targets(env, all_modified)
             common_diag["import_targets"] = import_targets
             imports_match = bool(import_targets) and all(item.get("matches_repo_path") for item in import_targets)
-            if swebench_like and swebench_f2p_failure_observed and imports_match and _swebench_output_has_signature_entry_failure(raw_output):
+            if (
+                newly_created
+                and swebench_like
+                and swebench_f2p_failure_observed
+                and _swebench_output_missing_newly_created_symbol(raw_output, newly_created)
+            ):
+                print(
+                    f"  [{instance_id}] newly_created: F2P failed before newly added symbols existed. "
+                    f"instrumented={len(instrumented_callables)}"
+                )
+                return _make_result(
+                    instance_id,
+                    "newly_created",
+                    all_modified,
+                    newly_created,
+                    error=False,
+                    reason_code="newly_created_missing_symbol",
+                    diagnostics=common_diag,
+                )
+            if (
+                swebench_like
+                and swebench_f2p_failure_observed
+                and _swebench_output_missing_newly_created_non_callable_symbol(
+                    raw_output,
+                    newly_created_non_callable_symbols,
+                )
+            ):
+                print(
+                    f"  [{instance_id}] newly_created: F2P failed before newly added data symbols existed. "
+                    f"instrumented={len(instrumented_callables)}"
+                )
+                return _make_result(
+                    instance_id,
+                    "newly_created",
+                    all_modified,
+                    newly_created,
+                    error=False,
+                    reason_code="newly_created_missing_non_callable_symbol",
+                    diagnostics=common_diag,
+                )
+            if (
+                swebench_like
+                and swebench_f2p_collection_missing
+                and _swebench_output_missing_newly_created_non_callable_symbol(
+                    raw_output,
+                    newly_created_non_callable_symbols,
+                )
+            ):
+                print(
+                    f"  [{instance_id}] newly_created: F2P collection failed on newly added data symbols. "
+                    f"instrumented={len(instrumented_callables)}"
+                )
+                return _make_result(
+                    instance_id,
+                    "newly_created",
+                    all_modified,
+                    newly_created,
+                    error=False,
+                    reason_code="newly_created_collection_missing_non_callable_symbol",
+                    diagnostics=common_diag,
+                )
+            if (
+                swebench_like
+                and swebench_f2p_failure_observed
+                and _swebench_output_has_signature_entry_failure(raw_output)
+            ):
                 print(f"  [{instance_id}] signature_mismatch: F2P failed before instrumented callable body entry. instrumented={len(instrumented_callables)}")
                 return _make_result(
                     instance_id,
@@ -1949,6 +2112,25 @@ def compute_dynamic_bonus_map(
                     newly_created,
                     error=False,
                     reason_code="newly_created_not_traceable",
+                    diagnostics=common_diag,
+                )
+            if (
+                newly_created
+                and swebench_like
+                and swebench_f2p_collection_missing
+                and _swebench_output_has_missing_symbol_collection_failure(raw_output)
+            ):
+                print(
+                    f"  [{instance_id}] newly_created: F2P collection failed on newly added symbols. "
+                    f"instrumented={len(instrumented_callables)}"
+                )
+                return _make_result(
+                    instance_id,
+                    "newly_created",
+                    all_modified,
+                    newly_created,
+                    error=False,
+                    reason_code="newly_created_collection_missing_symbol",
                     diagnostics=common_diag,
                 )
             if test_exit == 0 and swebench_f2p_collection_missing:

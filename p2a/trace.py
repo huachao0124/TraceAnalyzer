@@ -1438,10 +1438,13 @@ def parse_fault_traces_from_file(
     # by instrument_source().  Fall back to original ranges if the callable
     # was not instrumented (shouldn't happen, but defensive).
     patched_ranges: dict[str, list[tuple[int, int, str]]] = {}
+    patched_by_entry: dict[tuple[str, str], dict] = {}
     for c in modified_callables:
         start = c.get("instr_start_line", c["start_line"])
         end = c.get("instr_end_line", c["end_line"])
         patched_ranges.setdefault(c["file_path"], []).append((start, end, c["qualified_name"]))
+        patched_by_entry[(c["file_path"], c["qualified_name"])] = c
+        patched_by_entry[(c["file_path"], c["name"])] = c
 
     traces: list[list[dict]] = []
 
@@ -1492,6 +1495,22 @@ def parse_fault_traces_from_file(
                     "is_patched": is_patched,
                 }
             )
+
+        if not any(fr["is_patched"] for fr in frames):
+            entry_file = entry.get("file", "")
+            entry_callable = entry.get("callable", "")
+            patched_callable = patched_by_entry.get((entry_file, entry_callable))
+            if patched_callable is not None:
+                frames.append(
+                    {
+                        "file_path": entry_file,
+                        "line_no": patched_callable.get("instr_start_line", patched_callable["start_line"]),
+                        "func_name": patched_callable.get("name", entry_callable),
+                        "qualified_name": patched_callable.get("qualified_name", entry_callable),
+                        "line_content": "",
+                        "is_patched": True,
+                    }
+                )
 
         if frames and (not require_patched or any(fr["is_patched"] for fr in frames)):
             traces.append(frames)
