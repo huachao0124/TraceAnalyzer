@@ -284,6 +284,13 @@ def build_agent_env_config(task: dict[str, Any], *, instance_id: str, deployment
             "timeout": float(os.getenv("ARL_TIMEOUT", "600")),
             "idle_timeout_seconds": int(os.getenv("ARL_IDLE_TIMEOUT", "3600")),
             "max_lifetime_seconds": int(os.getenv("ARL_MAX_LIFETIME", "14400")),
+            # Pool pods default to a 1Gi memory cgroup on the current gateway, which
+            # OOM-kills any real test-suite run; request sane resources explicitly
+            # (applied when the image pool is first created).
+            "resources": {
+                "requests": {"cpu": os.getenv("ARL_CPU_REQUEST", "2"), "memory": os.getenv("ARL_MEM_REQUEST", "4Gi")},
+                "limits": {"cpu": os.getenv("ARL_CPU_LIMIT", "4"), "memory": os.getenv("ARL_MEM_LIMIT", "8Gi")},
+            },
             "startup_timeout": float(os.getenv("ARL_STARTUP_TIMEOUT", os.getenv("ARL_SWEREX_STARTUP_TIMEOUT", "240"))),
             "session_cwd": repo_path,
         }

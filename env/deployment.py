@@ -50,6 +50,15 @@ def _validate_managed_session_signature(callable_obj: Any, kwargs: dict[str, Any
         )
 
 
+def _as_resource_requirements(resources):
+    """Accept a plain {requests,limits} mapping and convert to the SDK type."""
+    if resources is None or not isinstance(resources, dict):
+        return resources
+    from arl.types import ResourceRequirements
+
+    return ResourceRequirements(**resources)
+
+
 def _missing_pool_ref_payload(exc: BaseException) -> dict[str, Any] | None:
     errors = getattr(exc, "errors", None)
     if not callable(errors):
@@ -247,7 +256,7 @@ class ArlDeployment(AbstractDeployment):
             "timeout": self._config.timeout,
             "idle_timeout_seconds": self._config.idle_timeout_seconds,
             "max_lifetime_seconds": self._config.max_lifetime_seconds,
-            "resources": self._config.resources,
+            "resources": _as_resource_requirements(self._config.resources),
             "workspace_dir": self._config.workspace_dir,
             "max_replicas": self._config.max_replicas,
             "api_key": api_key,
