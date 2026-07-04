@@ -303,6 +303,92 @@ class CallableInfo:
         }
 
 
+_TOLERANT_CLASS_RE = re.compile(r"^([ \t]*)class\s+([A-Za-z_][A-Za-z0-9_]*)\b")
+_TOLERANT_DEF_RE = re.compile(r"^([ \t]*)(?:async\s+def|def)\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(")
+
+
+def _line_indent(line: str) -> int:
+    return len(line.expandtabs(8)) - len(line.lstrip(" \t").expandtabs(8))
+
+
+def _assemble_qualified_name(
+    stack: list[tuple[str, str, int]],
+    leaf_name: str,
+) -> str:
+    parts: list[str] = []
+    for kind, name, _ in stack:
+        parts.append(name)
+        if kind == "func":
+            parts.append("<locals>")
+    parts.append(leaf_name)
+    return ".".join(parts)
+
+
+def _find_tolerant_block_end(lines: list[str], start_line: int, indent: int) -> int:
+    end = len(lines)
+    for line_no in range(start_line + 1, len(lines) + 1):
+        line = lines[line_no - 1]
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if _line_indent(line) <= indent:
+            end = line_no - 1
+            break
+    return max(start_line, end)
+
+
+def extract_callables_tolerant(
+    source: str,
+    file_path: str,
+) -> dict[str, CallableInfo]:
+    """Extract callable definitions without parsing full Python syntax."""
+    lines = source.splitlines()
+    callables: dict[str, CallableInfo] = {}
+    stack: list[tuple[str, str, int]] = []
+
+    for line_no, line in enumerate(lines, start=1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or stripped.startswith("@"):
+            continue
+        indent = _line_indent(line)
+        while stack and indent <= stack[-1][2]:
+            stack.pop()
+
+        class_match = _TOLERANT_CLASS_RE.match(line)
+        if class_match:
+            stack.append(("class", class_match.group(2), indent))
+            continue
+
+        def_match = _TOLERANT_DEF_RE.match(line)
+        if not def_match:
+            continue
+        name = def_match.group(2)
+        qualified = _assemble_qualified_name(stack, name)
+        end_line = _find_tolerant_block_end(lines, line_no, indent)
+        snippet = "\n".join(lines[line_no - 1 : end_line])
+        callables[qualified] = CallableInfo(
+            name=name,
+            qualified_name=qualified,
+            file_path=file_path,
+            start_line=line_no,
+            end_line=end_line,
+            source=snippet,
+        )
+        stack.append(("func", name, indent))
+    return callables
+
+
+def extract_callables_with_tolerant_fallback(
+    source: str,
+    file_path: str,
+) -> dict[str, CallableInfo]:
+    """Use AST extraction, falling back to indentation-based callable discovery."""
+    callables = extract_callables_from_ast(source, file_path)
+    if callables:
+        return callables
+    return extract_callables_tolerant(source, file_path)
+
+
 def extract_callables_from_ast(
     source: str,
     file_path: str,
@@ -329,22 +415,10 @@ def extract_callables_from_ast(
     lines = source.splitlines()
     callables: dict[str, CallableInfo] = {}
 
-    def _assemble_qualified_name(
-        stack: list[tuple[str, str]],
-        leaf_name: str,
-    ) -> str:
-        parts: list[str] = []
-        for kind, name in stack:
-            parts.append(name)
-            if kind == "func":
-                parts.append("<locals>")
-        parts.append(leaf_name)
-        return ".".join(parts)
-
-    def _visit(node: ast.AST, stack: list[tuple[str, str]]) -> None:
+    def _visit(node: ast.AST, stack: list[tuple[str, str, int]]) -> None:
         for child in ast.iter_child_nodes(node):
             if isinstance(child, ast.ClassDef):
-                _visit(child, stack + [("class", child.name)])
+                _visit(child, stack + [("class", child.name, -1)])
             elif isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef):
                 qualified = _assemble_qualified_name(stack, child.name)
                 start = child.lineno
@@ -358,7 +432,7 @@ def extract_callables_from_ast(
                     end_line=end,
                     source=snippet,
                 )
-                _visit(child, stack + [("func", child.name)])
+                _visit(child, stack + [("func", child.name, -1)])
             else:
                 _visit(child, stack)
 
@@ -1364,10 +1438,13 @@ def parse_fault_traces_from_file(
     # by instrument_source().  Fall back to original ranges if the callable
     # was not instrumented (shouldn't happen, but defensive).
     patched_ranges: dict[str, list[tuple[int, int, str]]] = {}
+    patched_by_entry: dict[tuple[str, str], dict] = {}
     for c in modified_callables:
         start = c.get("instr_start_line", c["start_line"])
         end = c.get("instr_end_line", c["end_line"])
         patched_ranges.setdefault(c["file_path"], []).append((start, end, c["qualified_name"]))
+        patched_by_entry[(c["file_path"], c["qualified_name"])] = c
+        patched_by_entry[(c["file_path"], c["name"])] = c
 
     traces: list[list[dict]] = []
 
@@ -1418,6 +1495,22 @@ def parse_fault_traces_from_file(
                     "is_patched": is_patched,
                 }
             )
+
+        if not any(fr["is_patched"] for fr in frames):
+            entry_file = entry.get("file", "")
+            entry_callable = entry.get("callable", "")
+            patched_callable = patched_by_entry.get((entry_file, entry_callable))
+            if patched_callable is not None:
+                frames.append(
+                    {
+                        "file_path": entry_file,
+                        "line_no": patched_callable.get("instr_start_line", patched_callable["start_line"]),
+                        "func_name": patched_callable.get("name", entry_callable),
+                        "qualified_name": patched_callable.get("qualified_name", entry_callable),
+                        "line_content": "",
+                        "is_patched": True,
+                    }
+                )
 
         if frames and (not require_patched or any(fr["is_patched"] for fr in frames)):
             traces.append(frames)

