@@ -67,12 +67,17 @@ def _safe_json_loads(raw: str) -> dict[str, Any]:
 
 
 def _reward_test_args(metadata: dict[str, Any]) -> list[str]:
+    selected_files = _reward_test_files(metadata)
+    return [",".join(selected_files)] if selected_files else []
+
+
+def _reward_test_files(metadata: dict[str, Any]) -> list[str]:
     f2p = parse_string_list(metadata.get("FAIL_TO_PASS") or metadata.get("fail_to_pass"))
     p2p = parse_string_list(metadata.get("PASS_TO_PASS") or metadata.get("pass_to_pass"))
     selected_files = selector_files(parse_string_list(metadata.get("selected_test_files_to_run")))
     if not selected_files:
         selected_files = selector_files([*f2p, *p2p])
-    return [",".join(selected_files)] if selected_files else []
+    return selected_files
 
 
 _TERMINAL_CONTROL_RE = re.compile(r"\x1b\][^\x07]*(?:\x07|\x1b\\)|\x1b\[[0-?]*[ -/]*[@-~]|\r")
@@ -386,9 +391,16 @@ class SWEBenchProRewardSpec(AbstractRewardSpec):
         repo_path = _repo_path(self.metadata)
         quoted_repo = shlex.quote(repo_path)
         # After git-sanitize (issue #29), a dataset restore command that targets the original
-        # base commit finds it unreachable; fall back to the synthetic baseline HEAD, which
-        # holds the same base test state.
-        restore_cmd = f"{{ {_restore_tests_command(self.metadata)}; }} || git -C {quoted_repo} checkout HEAD -- ."
+        # base commit finds it unreachable. Fall back to the synthetic baseline HEAD, but only
+        # for the test files; restoring "." would wipe the candidate patch before evaluation.
+        fallback_files = _reward_test_files(self.metadata)
+        fallback_restore = (
+            f"git -C {quoted_repo} checkout HEAD -- "
+            + " ".join(shlex.quote(item) for item in fallback_files)
+            if fallback_files
+            else "true"
+        )
+        restore_cmd = f"{{ {_restore_tests_command(self.metadata)}; }} || {fallback_restore}"
         output_path = shlex.quote(str(paths["output"]))
         stderr_path = shlex.quote(str(paths["stderr"]))
         return "\n".join(
