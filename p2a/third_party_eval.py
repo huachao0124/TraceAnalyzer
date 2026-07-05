@@ -22,6 +22,7 @@ from p2a.api_providers import make_chat_model, normalize_provider_config, provid
 from p2a.bonus_map_scope import parse_bonus_map_instance_filter, select_rows_by_bonus_map_scope
 from p2a.core import BonusMapStore
 from p2a.dashboard_adapter import refresh_dashboard_model_metrics, write_dashboard_detail_cache_for_record
+from p2a.datasets import SWEBENCH_PRO_DATA_SOURCE, swebench_pro_repo_path
 from p2a.eval_cache import EMPTY_ROLLOUT_ERROR_KIND, ensure_db, ingest_artifacts, rollout_record_error, upsert_experiment, upsert_rollout_record
 from p2a.eval_fault_localization import (
     _json_default,
@@ -400,6 +401,18 @@ def _data_source(row: dict[str, Any]) -> str:
         if isinstance(value, str) and value:
             return value
     return "unknown"
+
+
+def _reward_metadata(row: dict[str, Any]) -> dict[str, Any]:
+    reward_cfg = extract_tools_kwargs(row).get("reward") or {}
+    metadata = reward_cfg.get("metadata") if isinstance(reward_cfg, dict) else {}
+    return metadata if isinstance(metadata, dict) else {}
+
+
+def _repo_path_for_snapshot(row: dict[str, Any]) -> str:
+    if _data_source(row) == SWEBENCH_PRO_DATA_SOURCE:
+        return swebench_pro_repo_path(row, _extra_info(row), _reward_metadata(row))
+    return "/testbed"
 
 
 def _prompt(row: dict[str, Any]) -> list[dict[str, Any]]:
@@ -830,15 +843,21 @@ def _is_session_loss(detail: str) -> bool:
     )
 
 
-async def _snapshot_final_patch(env: Any) -> str | None:
+async def _snapshot_final_patch(env: Any, row: dict[str, Any]) -> str | None:
     """Extract the final workspace diff right after the interaction, while the
     rollout session is still alive. Decouples evaluation from session lifetime."""
     from swerex.runtime.abstract import Command
 
     runtime = env.deployment.runtime
+    repo_path = _repo_path_for_snapshot(row)
+    quoted_repo = shlex.quote(repo_path)
+    command = (
+        f"git config --global --add safe.directory {quoted_repo} >/dev/null 2>&1 || true; "
+        f"git -C {quoted_repo} add -A && git -C {quoted_repo} diff --no-color --cached"
+    )
     resp = await runtime.execute(
         Command(
-            command=["bash", "-lc", "cd /testbed && git add -A && git diff --no-color --cached"],
+            command=["bash", "-lc", command],
             timeout=120,
         )
     )
@@ -935,7 +954,7 @@ async def run_one(
         interaction_result = await interaction.run()
         error_stage = "patch_snapshot"
         try:
-            final_patch = await _snapshot_final_patch(env)
+            final_patch = await _snapshot_final_patch(env, row)
         except Exception as snapshot_exc:  # noqa: BLE001 - patch snapshot is best-effort
             final_patch = None
             interaction_result.setdefault("rollout_cache", {})["final_patch_error"] = f"{type(snapshot_exc).__name__}: {snapshot_exc}"

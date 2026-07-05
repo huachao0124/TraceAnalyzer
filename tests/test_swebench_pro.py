@@ -366,6 +366,30 @@ def test_swebench_pro_reward_eval_script_runs_selected_files_as_one_comma_arg():
     assert "test_valid[1,1-expected0]" not in script
 
 
+def test_swebench_pro_reward_restore_fallback_preserves_candidate_patch():
+    from p2a.reward_specs import SWEBenchProRewardSpec
+
+    spec = object.__new__(SWEBenchProRewardSpec)
+    spec.metadata = {
+        "selected_test_files_to_run": json.dumps(["tests/test_demo.py"]),
+        "swebench_pro_repo_path": "/app",
+        "swebench_pro_restore_tests_cmd": "git checkout abc123 -- tests/test_demo.py",
+    }
+
+    script = spec._build_eval_script(
+        {
+            "run_script": Path("/tmp/run.sh"),
+            "parser": Path("/tmp/parser.py"),
+            "stdout": Path("/tmp/stdout.log"),
+            "stderr": Path("/tmp/stderr.log"),
+            "output": Path("/tmp/output.json"),
+        }
+    )
+
+    assert "git -C /app checkout HEAD -- tests/test_demo.py" in script
+    assert "git -C /app checkout HEAD -- ." not in script
+
+
 def test_swebench_pro_reward_eval_script_falls_back_to_nodeid_files():
     from p2a.reward_specs import SWEBenchProRewardSpec
 
