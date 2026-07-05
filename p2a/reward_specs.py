@@ -94,6 +94,21 @@ async def _run_env_command(env: AgentEnv, command: str, *, timeout: int | float 
     return _strip_terminal_controls(await env.communicate(command, timeout=timeout, check=check))
 
 
+async def _read_env_file_text(env: AgentEnv, path: Path, *, tail_bytes: int | None = None) -> str:
+    quoted_path = shlex.quote(path.as_posix())
+    if tail_bytes is None:
+        command = f"if [ -f {quoted_path} ]; then cat {quoted_path}; fi"
+    else:
+        command = f"if [ -f {quoted_path} ]; then tail -c {int(tail_bytes)} {quoted_path}; fi"
+    try:
+        return await _run_env_command(env, command, timeout=60, check="ignore")
+    except Exception:
+        try:
+            return await env.read_file(path)
+        except Exception:
+            return ""
+
+
 def _make_swebench_eval_script_list(instance, specs, env_name, repo_directory, test_patch):
     from swebench.harness.constants import END_TEST_OUTPUT, MAP_REPO_VERSION_TO_SPECS, START_TEST_OUTPUT
     from swebench.harness.test_spec.python import get_test_directives
@@ -333,7 +348,7 @@ class SWEBenchProRewardSpec(AbstractRewardSpec):
             result["eval_execution_time"] = time.perf_counter() - t0
             result["eval_completed"] = True
 
-            output = _safe_json_loads(await self.env.read_file(paths["output"]))
+            output = _safe_json_loads(await _read_env_file_text(self.env, paths["output"]))
             stdout = await self._read_optional(paths["stdout"])
             stderr = await self._read_optional(paths["stderr"])
             eval_report = self._grade(output)
@@ -438,10 +453,7 @@ class SWEBenchProRewardSpec(AbstractRewardSpec):
         return report
 
     async def _read_optional(self, path: Path) -> str:
-        try:
-            return await self.env.read_file(path)
-        except Exception:
-            return ""
+        return await _read_env_file_text(self.env, path, tail_bytes=4000)
 
     @auto_await
     async def _apply_patch(self, patch: str) -> None:
