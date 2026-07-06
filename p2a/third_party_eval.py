@@ -409,6 +409,38 @@ def _reward_metadata(row: dict[str, Any]) -> dict[str, Any]:
     return metadata if isinstance(metadata, dict) else {}
 
 
+def _is_swebench_pro_row(row: dict[str, Any]) -> bool:
+    reward_cfg = extract_tools_kwargs(row).get("reward") or {}
+    reward_name = reward_cfg.get("name") if isinstance(reward_cfg, dict) else None
+    if reward_name == "swe_bench_pro":
+        return True
+    return _data_source(row).strip().lower() in {SWEBENCH_PRO_DATA_SOURCE, "swe-bench-pro"}
+
+
+def _has_swebench_pro_test_patch(row: dict[str, Any]) -> bool:
+    for source in (row, _reward_metadata(row)):
+        value = source.get("test_patch")
+        if isinstance(value, str) and value.strip():
+            return True
+    return False
+
+
+def _validate_swebench_pro_test_patch(rows: list[dict[str, Any]]) -> None:
+    missing = [
+        _instance_id(row) or "<unknown>"
+        for row in rows
+        if _is_swebench_pro_row(row) and not _has_swebench_pro_test_patch(row)
+    ]
+    if missing:
+        examples = ", ".join(missing[:5])
+        suffix = "" if len(missing) <= 5 else f", ... (+{len(missing) - 5} more)"
+        raise ValueError(
+            "SWE-Bench-Pro rows must include non-empty test_patch so gold tests are applied "
+            "only during reward evaluation. Rebuild the parquet with scripts/build_data.py "
+            f"swebench-pro before running eval; missing {len(missing)} row(s): {examples}{suffix}"
+        )
+
+
 def _repo_path_for_snapshot(row: dict[str, Any]) -> str:
     if _data_source(row) == SWEBENCH_PRO_DATA_SOURCE:
         return swebench_pro_repo_path(row, _extra_info(row), _reward_metadata(row))
@@ -1261,6 +1293,7 @@ def main() -> int:
     )
     if not rows:
         raise ValueError("No rows selected")
+    _validate_swebench_pro_test_patch(rows)
     if scope_metadata:
         config.setdefault("experiment", {})["scope"] = scope_metadata
     analysis_cfg = dict(config.get("analysis") or {})

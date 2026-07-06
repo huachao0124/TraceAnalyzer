@@ -49,9 +49,17 @@ def _script_from_metadata_or_dir(metadata: dict[str, Any], *, name: str, key: st
 
 def _restore_tests_command(metadata: dict[str, Any]) -> str:
     value = metadata.get("swebench_pro_restore_tests_cmd")
-    if isinstance(value, str) and value.strip():
+    if isinstance(value, str) and value.strip() and value.strip() != "true":
         return value.strip()
-    return last_nonempty_line(metadata.get("before_repo_set_cmd")) or "true"
+    return last_nonempty_line(metadata.get("before_repo_set_cmd")) or ""
+
+
+def _test_patch_command(metadata: dict[str, Any], quoted_repo: str) -> str:
+    test_patch = metadata.get("test_patch")
+    if not isinstance(test_patch, str) or not test_patch.strip():
+        return ""
+    delimiter = f"P2A_TEST_PATCH_{uuid.uuid4().hex}"
+    return f"git -C {quoted_repo} apply -v - <<'{delimiter}'\n{test_patch}\n{delimiter}"
 
 
 def _repo_path(metadata: dict[str, Any]) -> str:
@@ -400,7 +408,16 @@ class SWEBenchProRewardSpec(AbstractRewardSpec):
             if fallback_files
             else "true"
         )
-        restore_cmd = f"{{ {_restore_tests_command(self.metadata)}; }} || {fallback_restore}"
+        test_patch_cmd = _test_patch_command(self.metadata, quoted_repo)
+        if test_patch_cmd:
+            restore_cmd = "\n".join([fallback_restore, test_patch_cmd])
+        else:
+            restore_tests_command = _restore_tests_command(self.metadata)
+            restore_cmd = (
+                f"{{ {restore_tests_command}; }} || {fallback_restore}"
+                if restore_tests_command
+                else fallback_restore
+            )
         output_path = shlex.quote(str(paths["output"]))
         stderr_path = shlex.quote(str(paths["stderr"]))
         return "\n".join(

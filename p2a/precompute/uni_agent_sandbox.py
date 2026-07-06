@@ -209,8 +209,22 @@ def _extract_post_setup_cmd(task: dict[str, Any]) -> str:
     env_cfg = tools_kwargs.get("env") if isinstance(tools_kwargs.get("env"), dict) else {}
     post_setup_cmd = env_cfg.get("post_setup_cmd")
     if isinstance(post_setup_cmd, str) and post_setup_cmd.strip():
+        if _is_swebench_pro_task(task):
+            return _strip_swebench_pro_reward_restore_from_setup(task, post_setup_cmd)
         return post_setup_cmd
     return R2E_POST_SETUP_CMD
+
+
+def _strip_swebench_pro_reward_restore_from_setup(task: dict[str, Any], post_setup_cmd: str) -> str:
+    restore_tests_cmd = _swebench_pro_restore_tests_cmd(task)
+    if not restore_tests_cmd or restore_tests_cmd == "true":
+        return post_setup_cmd
+    lines = post_setup_cmd.splitlines()
+    for idx in range(len(lines) - 1, -1, -1):
+        if lines[idx].strip() == restore_tests_cmd:
+            del lines[idx]
+            break
+    return "\n".join(lines)
 
 
 def _default_env_variables() -> dict[str, str]:
@@ -554,7 +568,7 @@ def _swebench_pro_restore_tests_cmd(task: dict[str, Any]) -> str | None:
 
     for source in (task, extract_reward_metadata(task)):
         value = source.get("swebench_pro_restore_tests_cmd")
-        if isinstance(value, str) and value.strip():
+        if isinstance(value, str) and value.strip() and value.strip() != "true":
             return value.strip()
         line = last_nonempty_line(source.get("before_repo_set_cmd"))
         if line:

@@ -195,11 +195,17 @@ def _swebench_pro_user_prompt(template: str, problem_statement: str, *, repo_pat
 
 
 def _swebench_pro_restore_tests_cmd(before_repo_set_cmd: str) -> str:
-    return last_nonempty_line(before_repo_set_cmd) or "true"
+    return last_nonempty_line(before_repo_set_cmd) or ""
 
 
 def _swebench_pro_post_setup_cmd(before_repo_set_cmd: str, *, repo_path: str = "/app") -> str:
     lines = [line.strip() for line in str(before_repo_set_cmd or "").splitlines() if line.strip()]
+    restore_tests_cmd = _swebench_pro_restore_tests_cmd(before_repo_set_cmd)
+    if restore_tests_cmd:
+        for idx in range(len(lines) - 1, -1, -1):
+            if lines[idx] == restore_tests_cmd:
+                del lines[idx]
+                break
     quoted_repo = shlex.quote(repo_path)
     base = "\n".join(
         [
@@ -282,6 +288,14 @@ def validate_swebench_pro_parquet(path: str | Path, *, allow_missing_scripts: bo
             f"{', '.join(bad_columns)}; rebuild with --scripts-dir "
             "<SWE-bench_Pro-os/run_scripts>"
         )
+    if "test_patch" not in df.columns:
+        raise ValueError(f"swebench-pro parquet {parquet_path} is missing required columns: test_patch")
+    if df["test_patch"].fillna("").astype(str).str.strip().eq("").any():
+        bad_count = int(df["test_patch"].fillna("").astype(str).str.strip().eq("").sum())
+        raise ValueError(
+            f"swebench-pro parquet {parquet_path} has {bad_count} row(s) with empty test_patch; "
+            "rebuild with scripts/build_data.py swebench-pro"
+        )
 
 
 def cmd_swebench_pro(args) -> int:
@@ -311,6 +325,7 @@ def cmd_swebench_pro(args) -> int:
         "repo_language",
         "base_commit",
         "patch",
+        "test_patch",
         "problem_statement",
         "requirements",
         "interface",
@@ -393,6 +408,7 @@ def cmd_swebench_pro(args) -> int:
             "repo_language": repo_language,
             "base_commit": metadata["base_commit"],
             "patch": metadata["patch"],
+            "test_patch": metadata.get("test_patch") or "",
             "problem_statement": metadata["problem_statement"],
             "requirements": metadata.get("requirements") or "",
             "interface": metadata.get("interface") or "",
