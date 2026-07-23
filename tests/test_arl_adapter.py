@@ -638,17 +638,17 @@ class ArlAdapterTests(unittest.TestCase):
                 "registry.local/custom:tag",
             )
 
-        # 2. a raw namanjain12 R2E ref maps to its pair-diag mirror.
+        # 2. docker_image from parquet passes through as-is (registry set at build time).
         with patched_env(remove=ARL_IMAGE_ENV_KEYS):
             self.assertEqual(
                 select_r2e_image(
                     instance_id="orange3__abcdef1234",
-                    docker_image="namanjain12/orange3_final:abcdef1234",
+                    docker_image="mirrors.tencent.com/arimazhu_gestaltxu_exp/orange3_final:abcdef1234",
                 ),
-                "pair-diag-cn-guangzhou.cr.volces.com/code/orange3_final:abcdef1234",
+                "mirrors.tencent.com/arimazhu_gestaltxu_exp/orange3_final:abcdef1234",
             )
 
-        # 3. an image already on the pair-diag mirror passes through untouched.
+        # 3. pair-diag ref also passes through (for ARL environments).
         with patched_env(remove=ARL_IMAGE_ENV_KEYS):
             ref = "pair-diag-cn-guangzhou.cr.volces.com/code/django_final:abcdef1234"
             self.assertEqual(

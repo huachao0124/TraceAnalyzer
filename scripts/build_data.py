@@ -44,7 +44,7 @@ def _ensure_uni_agent_data_preprocess_path() -> None:
     if path not in sys.path:
         sys.path.insert(0, path)
 
-MIRROR = "pair-diag-cn-guangzhou.cr.volces.com/code"
+MIRROR = os.getenv("P2A_IMAGE_REGISTRY", "pair-diag-cn-guangzhou.cr.volces.com/code")
 HARD_DIFFICULTIES = {"1-4 hours", ">4 hours"}
 CONFIG = SRC_ROOT / "config" / "bad_instances.json"
 
@@ -105,13 +105,13 @@ def cmd_r2e(args) -> int:
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": USER_PROMPT.format(problem_statement=ex["problem_statement"])},
             ],
-            "data_source": data_source,
-            "instance_id": iid,
             "agent_name": "swe_agent",
-            "reward_model": {"ground_truth": md},
-            "extra_info": {"data_source": data_source, "instance_id": iid, "tools_kwargs": tools_kwargs},
-            "parsed_commit_content": pc_json,   # flat top-level (avoids nested-chunk read error)
-            "relevant_files": rel,              # JSON string; normalize_task decodes it
+            "extra_info": {
+                "data_source": data_source, "instance_id": iid,
+                "parsed_commit_content": pc_json,
+                "relevant_files": rel,
+                "tools_kwargs": tools_kwargs,
+            },
         })
     if rel_miss:
         print(f"WARNING: {rel_miss} rows had no relevant_files (static layer widens)", file=sys.stderr)
@@ -169,10 +169,7 @@ def cmd_swebench(args) -> int:
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": USER_PROMPT.format(problem_statement=ex["problem_statement"])},
             ],
-            "data_source": data_source,
-            "instance_id": iid,
             "agent_name": "swe_agent",
-            "reward_model": {"ground_truth": metadata},
             "extra_info": {"data_source": data_source, "instance_id": iid, "tools_kwargs": tools_kwargs},
         })
     pd.DataFrame(rows).to_parquet(args.out, index=False)

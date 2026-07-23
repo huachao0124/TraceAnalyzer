@@ -1,4 +1,4 @@
-"""ARL-native runtime adapter implementing swe-rex's ``AbstractRuntime``.
+"""ARL-native and Nexus runtime adapters implementing swe-rex's ``AbstractRuntime``.
 
 This is the "兼容" layer: uni-agent's ``AgentEnv`` drives a swe-rex
 ``AbstractRuntime`` (9 methods). We keep that *interface* but back it with the
@@ -437,4 +437,283 @@ class ArlRuntime(AbstractRuntime):
             await self._blocking(self._exec_sync, f"rm -rf {shlex.quote(self._state_root)}")
         except Exception as exc:  # noqa: BLE001 - cleanup is best-effort
             self.logger.debug(f"session-state cleanup failed: {exc}")
+        return CloseResponse()
+
+
+class NexusRuntime(AbstractRuntime):
+    """swe-rex ``AbstractRuntime`` backed by a Nexus ``RemoteRuntime`` (HttpRuntime).
+
+    Uses Nexus terminal sessions (``create_terminal_session`` /
+    ``run_command_in_terminal_session``) for a **persistent** shell — ``cd``,
+    ``export``, aliases survive across ``run_in_session`` calls, matching the
+    behavior of ARL's WebSocket PTY shell.
+
+    Falls back to stateless ``run_command`` for one-shot ``execute`` calls.
+    """
+
+    def __init__(
+        self,
+        nexus_runtime: Any,
+        *,
+        run_id: str,
+        logger: Any | None = None,
+    ) -> None:
+        self._nexus = nexus_runtime
+        self.run_id = run_id
+        self.logger = logger or logging.getLogger(f"nexus-runtime.{run_id}")
+        self._terminal_sessions: dict[str, str] = {}
+        self._closed = False
+
+    async def create_session(self, request: CreateBashSessionRequest) -> CreateBashSessionResponse:
+        name = request.session
+        if name not in self._terminal_sessions:
+            unique_sid = f"{name}-{self.run_id}"
+            resp = await self._nexus.create_terminal_session(session_id=unique_sid)
+            sid = getattr(resp, "session_id", None) or unique_sid
+            self._terminal_sessions[name] = sid
+            self.logger.info(f"Created terminal session: {name} -> {sid}")
+            try:
+                await self._nexus.start_command_in_terminal_session(
+                    session_id=sid,
+                    command="BASH_ARGV0=bash; bind 'set enable-bracketed-paste off' 2>/dev/null; true",
+                )
+            except Exception:
+                pass
+        return CreateBashSessionResponse(output="", session_type="bash")
+
+    async def run_in_session(self, action: BashAction | BashInterruptAction) -> BashObservation:
+        """Execute a command via Nexus async terminal API.
+
+        Uses ``start_command_in_terminal_session`` (non-blocking) +
+        ``query_terminal_command_status`` (poll until done). Output comes from
+        nexus_bash's fd-redirect hooks (clean stdout/stderr, no prompt/echo).
+
+        On timeout or stuck commands (trailing backslash, unmatched quotes),
+        sends Ctrl+C via ``send_keys`` to recover the session.
+        """
+        name = getattr(action, "session", "default")
+        if getattr(action, "action_type", "command") == "interrupt":
+            sid = self._terminal_sessions.get(name)
+            if sid:
+                try:
+                    await self._nexus.send_keys_to_terminal_session(
+                        session_id=sid, keys=["C-c", "C-c"],
+                    )
+                except Exception:
+                    pass
+            return BashObservation(output="", exit_code=0, session_type="bash")
+
+        if name not in self._terminal_sessions:
+            await self.create_session(CreateBashSessionRequest(session=name))
+
+        sid = self._terminal_sessions[name]
+        timeout = float(getattr(action, "timeout", None) or _DEFAULT_CMD_TIMEOUT)
+
+        try:
+            # Start command (non-blocking) — returns immediately with command_id
+            info = await self._nexus.start_command_in_terminal_session(
+                session_id=sid,
+                command=action.command,
+            )
+            command_id = info.command_id
+
+            # Poll until command completes (end_time is set by nexus_bash postexec hook)
+            deadline = time.monotonic() + timeout
+            while True:
+                if time.monotonic() > deadline:
+                    # Timeout — interrupt and wait for nexus to mark command done
+                    try:
+                        await self._nexus.send_keys_to_terminal_session(
+                            session_id=sid, keys=["C-c", "C-c"],
+                        )
+                        await asyncio.sleep(1)
+                        await self._nexus.terminate_terminal_session_processes(
+                            session_id=sid,
+                        )
+                    except Exception:
+                        pass
+                    # Poll until nexus marks the command as finished
+                    output = ""
+                    for _ in range(30):
+                        try:
+                            final = await self._nexus.query_terminal_command_status(
+                                session_id=sid, command_id=command_id,
+                            )
+                            output = final.output or final.stdout or ""
+                            if final.end_time is not None:
+                                break
+                        except Exception:
+                            break
+                        await asyncio.sleep(1)
+                    return BashObservation(
+                        output=output,
+                        exit_code=-1,
+                        failure_reason="timeout",
+                        session_type="bash",
+                    )
+
+                await asyncio.sleep(_READ_POLL)
+                status = await self._nexus.query_terminal_command_status(
+                    session_id=sid, command_id=command_id,
+                )
+                if status.end_time is not None:
+                    stdout = status.stdout or ""
+                    stderr = status.stderr or ""
+                    output = status.output or (stdout + stderr) or ""
+                    exit_code = status.exit_code if status.exit_code is not None else 0
+                    return BashObservation(
+                        output=output,
+                        exit_code=exit_code,
+                        failure_reason="",
+                        session_type="bash",
+                    )
+
+        except Exception as exc:
+            exc_str = str(exc)
+            if "Failed to send command" in exc_str:
+                # Shell process died (e.g. `exit` command) — recreate and retry
+                self.logger.warning(f"Shell dead, recreating session {name} and retrying")
+                try:
+                    await self._nexus.destroy_terminal_session(session_id=sid)
+                except Exception:
+                    pass
+                self._terminal_sessions.pop(name, None)
+                try:
+                    await self.create_session(CreateBashSessionRequest(session=name))
+                    return await self.run_in_session(action)
+                except Exception:
+                    pass
+            elif "Command failed to start" in exc_str or "command is already running" in exc_str.lower():
+                # Bad command or previous command still running — Ctrl+C to recover
+                try:
+                    await self._nexus.send_keys_to_terminal_session(
+                        session_id=sid, keys=["C-c", "C-c"],
+                    )
+                except Exception:
+                    pass
+            return BashObservation(
+                output=exc_str,
+                exit_code=1,
+                failure_reason="",
+                session_type="bash",
+            )
+
+    async def close_session(self, request: CloseBashSessionRequest) -> CloseBashSessionResponse:
+        name = request.session
+        sid = self._terminal_sessions.pop(name, None)
+        if sid:
+            try:
+                await self._nexus.destroy_terminal_session(session_id=sid)
+            except Exception as exc:
+                self.logger.warning(f"Failed to destroy terminal session {sid}: {exc}")
+        return CloseBashSessionResponse(session_type="bash")
+
+    async def execute(self, command: Command) -> CommandResponse:
+        cmd = command.command
+        cmd_str = cmd if isinstance(cmd, str) else " ".join(shlex.quote(c) for c in cmd)
+        prefix = ""
+        if getattr(command, "cwd", ""):
+            prefix += f"cd {shlex.quote(command.cwd)} && "
+        for k, v in (getattr(command, "env", None) or {}).items():
+            prefix += f"export {k}={shlex.quote(str(v))}; "
+        timeout = float(getattr(command, "timeout", None) or _DEFAULT_CMD_TIMEOUT)
+        resp = await self._nexus.run_command(
+            command=prefix + cmd_str,
+            timeout=timeout,
+        )
+        return CommandResponse(
+            stdout=resp.stdout or "",
+            stderr=resp.stderr or "",
+            exit_code=resp.return_code if resp.return_code is not None else 0,
+        )
+
+    async def read_file(self, request: ReadFileRequest) -> ReadFileResponse:
+        resp = await self._nexus.run_command(
+            command=f"base64 {shlex.quote(request.path)}",
+            timeout=60,
+        )
+        if (resp.return_code or 0) != 0:
+            raise FileNotFoundError(f"read_file {request.path!r} failed: {resp.stderr}")
+        raw = base64.b64decode("".join((resp.stdout or "").split()))
+        content = raw.decode(request.encoding or "utf-8", request.errors or "strict")
+        return ReadFileResponse(content=content)
+
+    async def write_file(self, request: WriteFileRequest) -> WriteFileResponse:
+        data = request.content.encode("utf-8") if isinstance(request.content, str) else request.content
+        b64 = base64.b64encode(data).decode("ascii")
+        parent = os.path.dirname(request.path)
+        quoted = shlex.quote(request.path)
+        if parent:
+            await self._nexus.run_command(
+                command=f"mkdir -p {shlex.quote(parent)}",
+                timeout=30,
+            )
+        # Write in chunks to stay under shell arg limits.
+        first = True
+        for i in range(0, max(len(b64), 1), _B64_CHUNK):
+            chunk = b64[i : i + _B64_CHUNK] if b64 else ""
+            redirect = ">" if first else ">>"
+            resp = await self._nexus.run_command(
+                command=f"printf %s {shlex.quote(chunk)} | base64 -d {redirect} {quoted}",
+                timeout=60,
+            )
+            if (resp.return_code or 0) != 0:
+                raise RuntimeError(f"write_file failed: {resp.stderr}")
+            first = False
+        return WriteFileResponse()
+
+    async def upload(self, request: UploadRequest) -> UploadResponse:
+        src, dst = request.source_path, request.target_path
+
+        if os.path.isdir(src):
+            buf = io.BytesIO()
+            with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+                tar.add(src, arcname=".")
+            staging = f"/tmp/nexus_upload_{uuid.uuid4().hex}.tgz"
+            b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+            # Upload tarball in chunks.
+            first = True
+            quoted_staging = shlex.quote(staging)
+            for i in range(0, max(len(b64), 1), _B64_CHUNK):
+                chunk = b64[i : i + _B64_CHUNK] if b64 else ""
+                redirect = ">" if first else ">>"
+                await self._nexus.run_command(
+                    command=f"printf %s {shlex.quote(chunk)} | base64 -d {redirect} {quoted_staging}",
+                    timeout=60,
+                )
+                first = False
+            resp = await self._nexus.run_command(
+                command=(
+                    f"mkdir -p {shlex.quote(dst)} && "
+                    f"tar xzf {quoted_staging} -C {shlex.quote(dst)} && "
+                    f"rm -f {quoted_staging}"
+                ),
+                timeout=120,
+            )
+            if (resp.return_code or 0) != 0:
+                raise RuntimeError(f"upload(dir) failed: {resp.stderr}")
+        else:
+            with open(src, "rb") as fh:
+                content = fh.read()
+            write_req = WriteFileRequest(path=dst, content=content)
+            await self.write_file(write_req)
+
+        return UploadResponse()
+
+    async def is_alive(self, *, timeout: float | None = None) -> IsAliveResponse:
+        try:
+            resp = await self._nexus.run_command(
+                command="echo ok",
+                timeout=timeout or 30,
+            )
+            ok = (resp.return_code or 0) == 0 and "ok" in (resp.stdout or "")
+            return IsAliveResponse(is_alive=ok, message="" if ok else (resp.stderr or ""))
+        except Exception as exc:  # noqa: BLE001 - report liveness failures, don't raise
+            return IsAliveResponse(is_alive=False, message=str(exc))
+
+    async def close(self) -> CloseResponse:
+        if self._closed:
+            return CloseResponse()
+        self._closed = True
+        self._terminal_sessions.clear()
         return CloseResponse()

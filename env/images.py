@@ -1,12 +1,9 @@
-"""Image routing for ARL-backed R2E/Uni-Agent runs.
+"""Image routing for R2E/Uni-Agent runs.
 
-R2E instances boot the **pair-diag mirror** of the original R2E ``namanjain12``
-images: ``pair-diag-cn-guangzhou.cr.volces.com/code/{repo}_final:{commit}`` — the
-reference the bonus-map report reproduces on. The build wrapper
-(``scripts/build_data.py r2e``) writes the full pair-diag ref into each row's
-``deployment.image``, so this module normally just passes it through (or mirrors a
-raw ``namanjain12`` ref). ``P2A_ARL_IMAGE_OVERRIDES_JSON`` pins an exact image per
-instance.
+``scripts/build_data.py`` writes the target registry ref into each parquet
+row's ``deployment.image`` at build time (controlled by ``P2A_IMAGE_REGISTRY``).
+This module selects the image for a given instance, with optional per-instance
+overrides via ``P2A_ARL_IMAGE_OVERRIDES_JSON``.
 """
 
 from __future__ import annotations
@@ -14,9 +11,6 @@ from __future__ import annotations
 import json
 import os
 from typing import Any
-
-DEFAULT_MIRROR_REGISTRY = "pair-diag-cn-guangzhou.cr.volces.com"
-DEFAULT_MIRROR_NAMESPACE = "code"
 
 
 def repo_from_instance_id(instance_id: str) -> str | None:
@@ -31,19 +25,6 @@ def suffix_from_instance_id(instance_id: str) -> str | None:
         return None
     suffix = instance_id.rsplit("__", 1)[1].strip().lower()
     return suffix or None
-
-
-def mirror_image(docker_image: str) -> str:
-    """Map an R2E ``namanjain12/{repo}_final:{commit}`` ref to its pair-diag mirror.
-
-    A ref already on the mirror registry is passed through unchanged.
-    """
-    registry = os.getenv("ARL_MIRROR_REGISTRY", DEFAULT_MIRROR_REGISTRY)
-    namespace = os.getenv("ARL_MIRROR_NAMESPACE", DEFAULT_MIRROR_NAMESPACE)
-    if docker_image.startswith(registry):
-        return docker_image
-    image_path = docker_image.split("/", 1)[1] if "/" in docker_image else docker_image
-    return f"{registry.rstrip('/')}/{namespace.strip('/')}/{image_path}"
 
 
 def _env_image_overrides() -> dict[str, str]:
@@ -64,15 +45,12 @@ def select_r2e_image(
     instance_id: str,
     docker_image: str | None = None,
 ) -> str:
-    """Select the ARL image for an R2E instance — the pair-diag mirror.
+    """Select the image for an R2E instance.
 
     Resolution order:
       1. exact per-instance override (``P2A_ARL_IMAGE_OVERRIDES_JSON``);
-      2. the ``docker_image`` carried by the row, mapped to its pair-diag mirror
-         (a pair-diag ref passes through; a ``namanjain12`` ref is mirrored).
-    The build wrapper always writes the pair-diag ref into the row, so (2) is the
-    normal path; the full commit tag cannot be reconstructed from instance_id
-    alone, so a missing ``docker_image`` is an error rather than a silent guess.
+      2. the ``docker_image`` carried by the parquet row (written by
+         ``scripts/build_data.py`` with the registry set by ``P2A_IMAGE_REGISTRY``).
     """
 
     overrides = _env_image_overrides()
@@ -80,12 +58,11 @@ def select_r2e_image(
         return overrides[instance_id]
 
     if docker_image:
-        return mirror_image(docker_image)
+        return docker_image
 
     raise ValueError(
-        f"Cannot select ARL image for {instance_id!r}: no docker_image. The parquet "
-        f"must carry the pair-diag image (scripts/build_data.py r2e) or set "
-        f"P2A_ARL_IMAGE_OVERRIDES_JSON."
+        f"Cannot select image for {instance_id!r}: no docker_image in the parquet row. "
+        f"Rebuild with: python scripts/build_data.py r2e"
     )
 
 

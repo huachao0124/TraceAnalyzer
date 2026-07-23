@@ -52,7 +52,7 @@ DEFAULT_CONFIG = {
         },
     },
     "agent": {
-        "deployment": "arl",
+        "deployment": "nexus",
         "tool_parser": "qwen3_coder",
         "tools": [
             {"name": "str_replace_editor"},
@@ -459,8 +459,10 @@ def _make_env(row: dict[str, Any], *, instance_id: str, deployment: str):
     from uni_agent.interaction import AgentEnv, AgentEnvConfig
 
     env_dict = build_agent_env_config(row, instance_id=instance_id, deployment=deployment)
-    if env_dict["deployment"].get("type") == "arl":
-        env_dict["deployment"]["require_bash_session"] = True
+    deployment_type = env_dict["deployment"].get("type")
+    if deployment_type in ("arl", "nexus"):
+        if deployment_type == "arl":
+            env_dict["deployment"]["require_bash_session"] = True
         env_config = make_env_config(
             env_dict["deployment"],
             env_variables=env_dict.get("env_variables"),
@@ -978,7 +980,7 @@ async def run_one(
         if not instance_id:
             raise ValueError("sample row does not carry instance_id")
         error_stage = "env_config"
-        env = _make_env(row, instance_id=instance_id, deployment=agent_cfg.get("deployment", "arl"))
+        env = _make_env(row, instance_id=instance_id, deployment=agent_cfg.get("deployment", "nexus"))
         run_id = getattr(getattr(env, "deployment", None), "run_id", run_id)
         error_stage = "tool_config"
         tools_manager = _make_tools(agent_cfg)

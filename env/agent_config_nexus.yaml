@@ -3,9 +3,8 @@
   _target_: env.agent_loop.ArlUniAgentLoop
 
   concurrency: 32
-  log_dir: /tmp/swebench_qwen3_coder_arl
+  log_dir: /tmp/swebench_qwen3_coder_nexus
   mask_abnormal_exit_traj: false
-  # Match the Qwen3-Coder XML tool-call template used by the Uni-Agent default model.
   tool_parser: qwen3_coder
 
   interaction:
@@ -14,10 +13,10 @@
 
   env:
     deployment:
-      type: arl
+      type: nexus
       image: python:3.11-slim
-      timeout: 1200
-      startup_timeout: 600
+      timeout: 3600
+      startup_timeout: 1200
     env_variables:
       PIP_PROGRESS_BAR: "off"
       PIP_CACHE_DIR: "~/.cache/pip"

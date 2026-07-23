@@ -25,7 +25,7 @@ class ArlUniAgentLoop(UniAgentLoop):
 
     def _init_env(self, config_dict: dict[str, Any]) -> AgentEnv:
         deployment = config_dict.get("deployment")
-        if not (isinstance(deployment, dict) and deployment.get("type") == "arl"):
+        if not (isinstance(deployment, dict) and deployment.get("type") in ("arl", "nexus")):
             return super()._init_env(config_dict)
 
         env_config = make_env_config(

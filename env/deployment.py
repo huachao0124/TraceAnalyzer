@@ -1,4 +1,4 @@
-"""ARL SDK deployment bridge for Uni-Agent."""
+"""ARL and Nexus sandbox deployment bridges for Uni-Agent."""
 
 from __future__ import annotations
 
@@ -26,6 +26,17 @@ def require_arl_gateway_url(explicit: str | None = None) -> str:
     if not gateway_url:
         raise RuntimeError("ARL_GATEWAY_URL is required; set it or source .secrets/ips.sh.")
     return gateway_url
+
+
+DEFAULT_NEXUS_API_BASE_URL = "http://hyrl-sandbox.prod.woa.com:8052"
+
+
+def _default_nexus_runtime_image() -> str:
+    try:
+        from nexus.runtime.providers.docker import get_package_version
+        return f"mirrors.tencent.com/hunyuan_yanguan/nexus-runtime:{get_package_version()}"
+    except Exception:
+        return "mirrors.tencent.com/hunyuan_yanguan/nexus-runtime:latest"
 
 
 def _supported_kwargs(callable_obj: Any, kwargs: dict[str, Any]) -> dict[str, Any]:
@@ -370,6 +381,169 @@ class ArlDeployment(AbstractDeployment):
         await self.stop()
 
 
+@dataclass
+class NexusDeploymentConfig:
+    """Config for Nexus (sandbox v3) deployments.
+
+    Uses the Nexus sandbox v3 HTTP API to start/stop runtime containers and
+    wraps the resulting runtime URL in a ``tencent-nexus`` ``RemoteRuntime``
+    (aliased as ``HttpRuntime``) plus the local ``NexusRuntime`` swe-rex adapter.
+    """
+
+    image: str
+    type: str = "nexus"
+    api_base_url: str | None = None
+    token: str | None = None
+    runtime_image: str | None = None
+    batch_id: str | None = None
+    timeout: float = 1200.0
+    startup_timeout: float = 600.0
+    environment: dict[str, str] | None = field(default=None)
+    resource_spec: dict[str, int] | None = field(default_factory=lambda: {"cpu": 16, "memory": 16})
+
+    @classmethod
+    def from_mapping(cls, data: dict[str, Any]) -> NexusDeploymentConfig:
+        allowed = {f.name for f in cls.__dataclass_fields__.values()}  # type: ignore[attr-defined]
+        kwargs = {k: v for k, v in data.items() if k in allowed}
+        if "image" not in kwargs or not kwargs["image"]:
+            raise ValueError("Nexus deployment config requires an image")
+        return cls(**kwargs)
+
+    def get_deployment(self, run_id: str) -> NexusDeployment:
+        return NexusDeployment.from_config(self, run_id=run_id)
+
+
+class NexusDeployment(AbstractDeployment):
+    """Boot a Nexus sandbox via ``GongfengRuntimeProvider`` and expose it as swe-rex runtime.
+
+    Delegates sandbox lifecycle (create, watchdog, queue-wait, stop) entirely to
+    the official ``GongfengRuntimeProvider`` from ``tencent-nexus``. We only wrap
+    the resulting ``Runtime`` in a ``NexusRuntime`` swe-rex adapter.
+    """
+
+    def __init__(self, run_id: str, **kwargs: Any) -> None:
+        self.run_id = run_id
+        self._config = NexusDeploymentConfig.from_mapping(kwargs)
+        self.logger = get_logger("nexus-deployment", run_id)
+        self._hooks = CombinedDeploymentHook()
+        self._provider: Any | None = None
+        self._nexus_runtime: Any | None = None
+        self._runtime: AbstractRuntime | None = None
+        self._stopped = False
+        self._runtime_name = f"p2a-{run_id}"
+
+    @classmethod
+    def from_config(cls, config: NexusDeploymentConfig, run_id: str | None = None) -> NexusDeployment:
+        return cls(run_id=run_id or str(uuid.uuid4()), **config.__dict__)
+
+    def add_hook(self, hook: DeploymentHook) -> None:
+        self._hooks.add_hook(hook)
+
+    @property
+    def runtime(self) -> AbstractRuntime:
+        if self._runtime is None:
+            raise DeploymentNotStartedError("Nexus runtime not started")
+        return self._runtime
+
+    async def is_alive(self, *, timeout: float | None = None) -> IsAliveResponse:
+        return await self.runtime.is_alive(timeout=timeout)
+
+    async def start(self, max_retries: int = 5) -> None:
+        """Create a Nexus sandbox via GongfengRuntimeProvider and attach swe-rex adapter."""
+        try:
+            from nexus.runtime.providers.gongfeng import GongfengRuntimeProvider
+            from .runtime import NexusRuntime
+        except ImportError as exc:
+            raise RuntimeError(
+                "Nexus deployment requires tencent-nexus in the execution environment."
+            ) from exc
+
+        api_base = (
+            self._config.api_base_url
+            or os.getenv("GONGFENG_API_BASE_URL", DEFAULT_NEXUS_API_BASE_URL)
+        )
+        token = self._config.token or os.getenv("GONGFENG_TOKEN", "")
+        runtime_image = (
+            self._config.runtime_image
+            or os.getenv("GONGFENG_RUNTIME_IMAGE")
+            or "current"
+        )
+        environment = dict(self._config.environment or {})
+        environment.setdefault("PYTHON_VERSION", "3.12")
+
+        self.logger.info(f"Starting Nexus deployment image={self._config.image} api={api_base}")
+        self._hooks.on_custom_step("Creating Nexus sandbox via GongfengRuntimeProvider")
+
+        self._provider = GongfengRuntimeProvider(
+            api_base_url=api_base,
+            token=token,
+            image=self._config.image,
+            runtime_image=runtime_image,
+            request_timeout=self._config.timeout,
+            resource_spec=self._config.resource_spec,
+            purpose="eval",
+        )
+
+        last_error: Exception | None = None
+        for retry in range(max_retries):
+            try:
+                self._nexus_runtime = await self._provider.acquire(
+                    name=self._runtime_name,
+                    environment=environment,
+                    runtime_id=f"nexus-{uuid.uuid4().hex}",
+                )
+                break
+            except Exception as exc:
+                last_error = exc
+                sleep_time = min(30, 2 ** retry)
+                self.logger.error(f"Nexus sandbox acquire failed: {exc}; retrying in {sleep_time}s")
+                await asyncio.sleep(sleep_time)
+        if self._nexus_runtime is None:
+            raise RuntimeError(
+                f"Failed to acquire Nexus sandbox after {max_retries} retries: {last_error}"
+            ) from last_error
+
+        self._hooks.on_custom_step("Attaching Nexus runtime adapter")
+        self._runtime = NexusRuntime(
+            self._nexus_runtime,
+            run_id=self.run_id,
+            logger=self.logger,
+        )
+        try:
+            await self._runtime.create_session(CreateBashSessionRequest())
+        except Exception as exc:
+            self.logger.warning(
+                f"Eager Nexus shell open failed ({exc!r}); will open lazily on first interactive use"
+            )
+
+    async def stop(self) -> None:
+        if self._stopped:
+            return
+        self._stopped = True
+
+        if self._runtime is not None:
+            try:
+                await self._runtime.close()
+            except Exception as exc:
+                self.logger.error(f"Failed to close Nexus swe-rex runtime: {exc}")
+            self._runtime = None
+
+        if self._provider is not None:
+            try:
+                await self._provider.release(self._runtime_name)
+            except Exception as exc:
+                self.logger.error(f"Failed to release Nexus sandbox: {exc}")
+            self._provider = None
+        self._nexus_runtime = None
+
+    async def __aenter__(self):
+        await self.start()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.stop()
+
+
 def make_env_config(
     deployment: dict[str, Any],
     *,
@@ -378,19 +552,30 @@ def make_env_config(
     tool_install_dir: str | Path = "/usr/local/bin",
 ):
     """Build the light config object accepted by ``AgentEnv``."""
+    deploy_type = deployment.get("type", "arl")
 
     class _Config:
         def __init__(self) -> None:
-            deployment_with_startup = dict(deployment)
-            if env_variables:
-                deployment_with_startup["startup_env_variables"] = dict(env_variables)
-            if post_setup_cmd:
-                deployment_with_startup["shell_post_setup_cmd"] = post_setup_cmd
-            self.deployment = ArlDeploymentConfig.from_mapping(deployment_with_startup)
-            # ARL deployment owns shell setup so startup and reconnects see the
-            # same state. AgentEnv must not replay it through communicate().
-            self.env_variables = None
-            self.post_setup_cmd = None
+            if deploy_type == "nexus":
+                config = NexusDeploymentConfig.from_mapping(deployment)
+                if env_variables:
+                    merged = dict(config.environment or {})
+                    merged.update(env_variables)
+                    config.environment = merged
+                self.deployment = config
+                self.env_variables = env_variables
+                self.post_setup_cmd = post_setup_cmd
+            else:
+                deployment_with_startup = dict(deployment)
+                if env_variables:
+                    deployment_with_startup["startup_env_variables"] = dict(env_variables)
+                if post_setup_cmd:
+                    deployment_with_startup["shell_post_setup_cmd"] = post_setup_cmd
+                self.deployment = ArlDeploymentConfig.from_mapping(deployment_with_startup)
+                # ARL deployment owns shell setup so startup and reconnects see
+                # the same state. AgentEnv must not replay it through communicate().
+                self.env_variables = None
+                self.post_setup_cmd = None
             self.tool_install_dir = Path(tool_install_dir)
 
     return _Config()

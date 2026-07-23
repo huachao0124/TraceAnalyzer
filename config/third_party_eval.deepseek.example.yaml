@@ -16,7 +16,7 @@ model:
     max_tokens: 4096
 
 agent:
-  deployment: arl
+  deployment: nexus
   tool_parser: qwen3_coder
   tools:
     - name: str_replace_editor
