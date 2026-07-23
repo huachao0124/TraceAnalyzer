@@ -225,7 +225,15 @@ def _step_observation_text(trace: Any) -> str:
             continue
         if not isinstance(result, dict):
             continue
-        for key in ("observation", "content", "result", "output", "stderr", "stdout", "error"):
+        for key in (
+            "observation",
+            "content",
+            "result",
+            "output",
+            "stderr",
+            "stdout",
+            "error",
+        ):
             value = result.get(key)
             if isinstance(value, str) and value:
                 parts.append(value)
@@ -613,7 +621,9 @@ def license_references(
         "n_path_references": 0,
         "n_symbol_references": 0,
         "n_unlicensed_references": 0,
+        "n_unlicensed_reference_steps": 0,
         "unlicensed_reference_rate": None,
+        "unlicensed_step_rate": None,
         "unlicensed_references": [],
     }
     if not step_items:
@@ -624,6 +634,7 @@ def license_references(
     created_basenames: set[str] = set()
     seen: set[tuple[str, str]] = set()
     for idx, trace in enumerate(step_items):
+        step_has_unlicensed_reference = False
         tool_calls = _step_tool_calls(trace)
         # Structured tool calls are the preferred channel; steps without them
         # fall back to text-format tool calls so a step is never counted twice.
@@ -646,9 +657,7 @@ def license_references(
             if not ref["entity"] or key in seen:
                 continue
             seen.add(key)
-            if ref["kind"] == "path" and (
-                ref["entity"] in created_paths or _path_basename(ref["entity"]) in created_basenames
-            ):
+            if ref["kind"] == "path" and (ref["entity"] in created_paths or _path_basename(ref["entity"]) in created_basenames):
                 continue
             summary["n_entity_references"] += 1
             if ref["kind"] == "path":
@@ -657,10 +666,9 @@ def license_references(
                 summary["n_symbol_references"] += 1
             if not _reference_is_licensed(ref, licensed_chunks):
                 summary["n_unlicensed_references"] += 1
+                step_has_unlicensed_reference = True
                 if len(summary["unlicensed_references"]) < 20:
-                    step_label = (
-                        step_indices[idx] if step_indices and idx < len(step_indices) else idx + 1
-                    )
+                    step_label = step_indices[idx] if step_indices and idx < len(step_indices) else idx + 1
                     summary["unlicensed_references"].append(
                         {
                             "entity": ref["entity"],
@@ -672,9 +680,10 @@ def license_references(
         observation = _step_observation_text(trace)
         if observation:
             licensed_chunks.append(observation)
+        if step_has_unlicensed_reference:
+            summary["n_unlicensed_reference_steps"] += 1
 
     if summary["n_entity_references"]:
-        summary["unlicensed_reference_rate"] = (
-            summary["n_unlicensed_references"] / summary["n_entity_references"]
-        )
+        summary["unlicensed_reference_rate"] = summary["n_unlicensed_references"] / summary["n_entity_references"]
+    summary["unlicensed_step_rate"] = summary["n_unlicensed_reference_steps"] / len(step_items)
     return summary

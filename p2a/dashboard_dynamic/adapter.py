@@ -20,7 +20,13 @@ from p2a.bonus_map_scope import (
     PATH_CASE_TYPES,
     canonical_detail_case_type,
 )
-from p2a.core import BonusMapStore, _bonus_map_candidate_ids, normalize_action, reads_from_step_trace, writes_from_step_trace
+from p2a.core import (
+    BonusMapStore,
+    _bonus_map_candidate_ids,
+    normalize_action,
+    reads_from_step_trace,
+    writes_from_step_trace,
+)
 from p2a.eval_cache import (
     DONE_STATUS,
     ERROR_STATUS,
@@ -103,7 +109,10 @@ DATASET_PARQUET_FILENAMES = {
     "swebench-hard": ("swe_bench_verified_hard.parquet",),
     "swebench-verified": ("swe_bench_verified.parquet",),
     "swebench-pro": ("swe_bench_pro.parquet",),
-    "r2e-gym-subset": ("r2e_gym_subset_p2a.parquet", "r2e_gym_subset_p2a.train.parquet"),
+    "r2e-gym-subset": (
+        "r2e_gym_subset_p2a.parquet",
+        "r2e_gym_subset_p2a.train.parquet",
+    ),
 }
 THINK_BLOCK_RE = re.compile(r"<think>([\s\S]*?)(?:</think>|\Z)", re.IGNORECASE)
 XML_FUNCTION_RE = re.compile(
@@ -264,7 +273,10 @@ def _parsed_tool_call(tool_call: Any) -> dict[str, Any]:
 
 def _tool_call_from_parsed(parsed: dict[str, Any]) -> dict[str, Any]:
     args = {pair.get("key"): pair.get("value") for pair in parsed.get("arguments", []) if pair.get("key")}
-    return {"type": "function", "function": {"name": parsed.get("name") or "", "arguments": args}}
+    return {
+        "type": "function",
+        "function": {"name": parsed.get("name") or "", "arguments": args},
+    }
 
 
 def _xml_tool_calls(text: str) -> list[dict[str, Any]]:
@@ -353,7 +365,10 @@ def _join_unique_text(parts: Iterable[str | None]) -> str:
 
 
 def _split_reasoning_and_chat(trace: dict[str, Any], tool_calls: list[Any]) -> tuple[str, str, list[dict[str, Any]]]:
-    response_text = _first_text(trace, ("completion", "response_text", "response", "assistant_response", "content"))
+    response_text = _first_text(
+        trace,
+        ("completion", "response_text", "response", "assistant_response", "content"),
+    )
     reasoning = _first_text(trace, ("reasoning", "reasoning_content", "reasoning_text"))
     reasoning_parts = _block_values(trace.get("reasoning_blocks"), block_type="reasoning")
     if not reasoning_parts:
@@ -379,7 +394,13 @@ def _split_reasoning_and_chat(trace: dict[str, Any], tool_calls: list[Any]) -> t
     return reasoning, chat, parsed_calls
 
 
-def _source_kind(*, provider_source: str | None, schema_version: str | None, run_step: Any, log_dir: bool = False) -> str:
+def _source_kind(
+    *,
+    provider_source: str | None,
+    schema_version: str | None,
+    run_step: Any,
+    log_dir: bool = False,
+) -> str:
     source = (provider_source or "").lower()
     schema = (schema_version or "").lower()
     if source in THIRD_PARTY_PROVIDER_SOURCES or "third_party" in schema or "api" in source:
@@ -415,12 +436,7 @@ def _eval_cell_key(parts: dict[str, Any]) -> str:
 
 def _record_metadata(record: dict[str, Any], request: DashboardRequest, *, log_dir: bool = False) -> dict[str, Any]:
     extra = _as_mapping(record.get("extra_fields")) or _as_mapping(record.get("extra_info")) or _as_mapping(record.get("metadata"))
-    provider_source = (
-        request.provider_source
-        or record.get("provider_source")
-        or extra.get("provider_source")
-        or ("local" if log_dir else None)
-    )
+    provider_source = request.provider_source or record.get("provider_source") or extra.get("provider_source") or ("local" if log_dir else None)
     dataset = request.dataset or record.get("dataset") or record.get("data_source") or extra.get("data_source")
     run_step = record.get("run_step") or record.get("global_step") or record.get("trainer_step") or extra.get("run_step")
     schema_version = str(record.get("schema_version") or "")
@@ -434,14 +450,7 @@ def _record_metadata(record: dict[str, Any], request: DashboardRequest, *, log_d
     rollout_index = record.get("rollout_index", extra.get("rollout_index"))
     model_label = record.get("model_label") or record.get("model") or extra.get("model_label") or extra.get("model")
     model_api_name = record.get("model_api_name") or extra.get("model_api_name") or model_label
-    experiment_id = (
-        request.experiment_id
-        or record.get("experiment_id")
-        or extra.get("experiment_id")
-        or (run_id if kind == "local_inference" and run_id else None)
-        or dataset
-        or "adhoc"
-    )
+    experiment_id = request.experiment_id or record.get("experiment_id") or extra.get("experiment_id") or (run_id if kind == "local_inference" and run_id else None) or dataset or "adhoc"
     metadata = {
         "experiment_id": str(experiment_id) if experiment_id is not None else None,
         "source_kind": kind,
@@ -479,7 +488,18 @@ def _first_text_field(record: dict[str, Any], fields: Iterable[str]) -> str | No
 
 
 def _issue_description(record: dict[str, Any]) -> str | None:
-    return _first_text_field(record, ("problem_statement", "issue_description", "issue_text", "issue", "description", "problem", "title"))
+    return _first_text_field(
+        record,
+        (
+            "problem_statement",
+            "issue_description",
+            "issue_text",
+            "issue",
+            "description",
+            "problem",
+            "title",
+        ),
+    )
 
 
 def _golden_patch(record: dict[str, Any]) -> str | None:
@@ -648,11 +668,7 @@ def _step_inspection(record: dict[str, Any], step_details: list[dict[str, Any]])
         if isinstance(value, int | float) and not isinstance(value, bool):
             explicit_step_values.append(int(value))
     explicit_step_offset = 1 if explicit_step_values and min(explicit_step_values) == 0 else 0
-    by_trace_index = {
-        int(detail.get("trace_index", index)): detail
-        for index, detail in enumerate(step_details or [])
-        if isinstance(detail, dict)
-    }
+    by_trace_index = {int(detail.get("trace_index", index)): detail for index, detail in enumerate(step_details or []) if isinstance(detail, dict)}
     out = []
     for index, trace_value in enumerate(traces):
         trace = _as_mapping(trace_value)
@@ -666,7 +682,10 @@ def _step_inspection(record: dict[str, Any], step_details: list[dict[str, Any]])
         scored = by_trace_index.get(index, {})
         action_trace = trace
         if parsed_tool_calls and not tool_calls:
-            action_trace = {**trace, "tool_calls": [_tool_call_from_parsed(call) for call in parsed_tool_calls]}
+            action_trace = {
+                **trace,
+                "tool_calls": [_tool_call_from_parsed(call) for call in parsed_tool_calls],
+            }
         action = normalize_action(action_trace, tracking_mode="view_and_bash")
         recovered_reads = scored.get("reads") or reads_from_step_trace(action_trace, tracking_mode="view_and_bash")
         write_actions = scored.get("writes") or writes_from_step_trace(action_trace)
@@ -700,7 +719,16 @@ def _step_inspection(record: dict[str, Any], step_details: list[dict[str, Any]])
                 "chat_text": chat_text,
                 "thought": trace.get("thought") or "",
                 "think": reasoning_text,
-                "response_text": _first_text(trace, ("response_text", "response", "assistant_response", "completion", "content")),
+                "response_text": _first_text(
+                    trace,
+                    (
+                        "response_text",
+                        "response",
+                        "assistant_response",
+                        "completion",
+                        "content",
+                    ),
+                ),
                 "tool_calls": _jsonable(tool_calls),
                 "parsed_tool_calls": _jsonable(parsed_tool_calls),
                 "tool_results": _jsonable(tool_results),
@@ -721,7 +749,15 @@ def _tool_observation(tool_results: list[Any]) -> str:
     chunks = []
     for result_value in tool_results:
         result = _as_mapping(result_value)
-        for key in ("observation", "content", "result", "output", "stderr", "stdout", "error"):
+        for key in (
+            "observation",
+            "content",
+            "result",
+            "output",
+            "stderr",
+            "stdout",
+            "error",
+        ):
             value = result.get(key)
             if value not in (None, ""):
                 chunks.append(value if isinstance(value, str) else json.dumps(value, ensure_ascii=False, default=_json_default))
@@ -735,10 +771,18 @@ def _looks_like_error(text: str) -> bool:
     sample = str(text or "")[:6000]
     if API_RUNTIME_ERROR_RE.search(sample):
         return True
-    if re.search(r"\b(exit status|exit code|returned non-zero|command not found|segmentation fault)\b", sample, re.IGNORECASE):
+    if re.search(
+        r"\b(exit status|exit code|returned non-zero|command not found|segmentation fault)\b",
+        sample,
+        re.IGNORECASE,
+    ):
         return True
     return any(
-        re.search(r"^\s*(traceback\b|error:|exception:|command failed\b|failed:|failure:|no such file\b|bash:|sh:)", line, re.IGNORECASE)
+        re.search(
+            r"^\s*(traceback\b|error:|exception:|command failed\b|failed:|failure:|no such file\b|bash:|sh:)",
+            line,
+            re.IGNORECASE,
+        )
         for line in sample.splitlines()[:80]
     )
 
@@ -810,9 +854,7 @@ def _enrich_detail_from_record(
 
 
 def _is_scored_detail(record: dict[str, Any]) -> bool:
-    return "record_index" in record and (
-        "path_evaluable" in record or "chain_evaluable" in record or "hit_call_graph" in record or "step_details" in record
-    )
+    return "record_index" in record and ("path_evaluable" in record or "chain_evaluable" in record or "hit_call_graph" in record or "step_details" in record)
 
 
 def _detail_bonus_map(detail: dict[str, Any]) -> dict[str, Any] | None:
@@ -820,15 +862,25 @@ def _detail_bonus_map(detail: dict[str, Any]) -> dict[str, Any] | None:
     nodes: dict[str, dict[str, Any]] = {}
     for node in _path_context_nodes(detail):
         if isinstance(node, dict) and node.get("key"):
-            nodes[str(node["key"])] = {**node, "rewardable": node.get("rewardable", False)}
+            nodes[str(node["key"])] = {
+                **node,
+                "rewardable": node.get("rewardable", False),
+            }
     for node in _path_nodes(detail):
         if isinstance(node, dict) and node.get("key"):
-            nodes[str(node["key"])] = {**node, "rewardable": node.get("rewardable", True)}
+            nodes[str(node["key"])] = {
+                **node,
+                "rewardable": node.get("rewardable", True),
+            }
     topology = detail.get("graph_topology") if isinstance(detail.get("graph_topology"), dict) else {}
     for node in topology.get("nodes") or []:
         if isinstance(node, dict) and node.get("key"):
             current = nodes.get(str(node["key"]), {})
-            nodes[str(node["key"])] = {**node, **current, "rewardable": current.get("rewardable", node.get("rewardable", True))}
+            nodes[str(node["key"])] = {
+                **node,
+                **current,
+                "rewardable": current.get("rewardable", node.get("rewardable", True)),
+            }
     if not nodes:
         return None
     return {
@@ -881,22 +933,14 @@ def _stored_step_first_hits(detail: dict[str, Any], *, display: bool = False) ->
     for fallback, step in enumerate(detail.get("step_details") or []):
         if not isinstance(step, dict):
             continue
-        order = (
-            _stored_step_display_order(step, fallback, offset)
-            if display
-            else _stored_step_order(step, fallback)
-        )
+        order = _stored_step_display_order(step, fallback, offset) if display else _stored_step_order(step, fallback)
         for node in _stored_step_hit_nodes(step):
             first_hits.setdefault(str(node["key"]), order)
     return first_hits
 
 
 def _stored_block_first_hits(detail: dict[str, Any]) -> dict[str, int]:
-    steps_by_trace = {
-        _stored_step_order(step, fallback): step
-        for fallback, step in enumerate(detail.get("step_details") or [])
-        if isinstance(step, dict)
-    }
+    steps_by_trace = {_stored_step_order(step, fallback): step for fallback, step in enumerate(detail.get("step_details") or []) if isinstance(step, dict)}
     first_hits: dict[str, int] = {}
     for fallback, block in enumerate(detail.get("purpose_blocks") or []):
         if not isinstance(block, dict):
@@ -1040,11 +1084,14 @@ def _normalize_details(details: Iterable[dict[str, Any]]) -> list[dict[str, Any]
     normalized = []
     for index, detail in enumerate(details):
         item = _normalize_detail(detail, index=index)
-        item.setdefault("source_kind", _source_kind(
-            provider_source=item.get("provider_source"),
-            schema_version=item.get("schema_version"),
-            run_step=item.get("run_step"),
-        ))
+        item.setdefault(
+            "source_kind",
+            _source_kind(
+                provider_source=item.get("provider_source"),
+                schema_version=item.get("schema_version"),
+                run_step=item.get("run_step"),
+            ),
+        )
         item.setdefault("experiment_key", _experiment_key(item))
         item.setdefault("eval_cell_key", item.get("experiment_key"))
         normalized.append(item)
@@ -1074,14 +1121,16 @@ def _finalize_summary(summary: dict[str, Any]) -> dict[str, Any]:
 
 def _empty_summary(request: DashboardRequest) -> dict[str, Any]:
     bonus_map_dir = request.bonus_map_dir or Path(".")
-    return _finalize_summary(summarize(
-        [],
-        source=Path("empty"),
-        bonus_map_dir=bonus_map_dir,
-        tracking_mode=request.tracking_mode,
-        near_threshold=request.near_threshold,
-        m_max=request.m_max,
-    ))
+    return _finalize_summary(
+        summarize(
+            [],
+            source=Path("empty"),
+            bonus_map_dir=bonus_map_dir,
+            tracking_mode=request.tracking_mode,
+            near_threshold=request.near_threshold,
+            m_max=request.m_max,
+        )
+    )
 
 
 def _record_dashboard_cache(record: dict[str, Any]) -> dict[str, Any]:
@@ -1128,7 +1177,9 @@ def _dashboard_detail_fingerprint_payload(record: dict[str, Any], *, request: Da
     return payload
 
 
-def _dashboard_detail_fingerprint_from_payload(payload: dict[str, Any] | None) -> str | None:
+def _dashboard_detail_fingerprint_from_payload(
+    payload: dict[str, Any] | None,
+) -> str | None:
     if not payload:
         return None
     return _sha256_text(json_dumps(payload))
@@ -1258,7 +1309,10 @@ def _score_records(
                         "raw_rollout_sha256": (cache_metadata or {}).get("raw_rollout_sha256"),
                         "fingerprint": fingerprint,
                         "detail": detail,
-                        "cache_metadata": {**(cache_metadata or {}), "fingerprint": fingerprint},
+                        "cache_metadata": {
+                            **(cache_metadata or {}),
+                            "fingerprint": fingerprint,
+                        },
                     }
                 )
         scored.append(_enrich_detail_from_record(detail, record, request))
@@ -1678,7 +1732,10 @@ def _load_db_records(
             record.setdefault("p2a_step_traces", _safe_json_loads(row["p2a_step_traces_json"], []))
             record.setdefault("response_text", row["final_response"] or "")
             record.setdefault("reward", _safe_json_loads(row["reward_json"], None))
-            record.setdefault("resolved", bool(row["resolved"]) if row["resolved"] is not None else None)
+            record.setdefault(
+                "resolved",
+                bool(row["resolved"]) if row["resolved"] is not None else None,
+            )
             record.setdefault("token_usage", _safe_json_loads(row["token_usage_json"], {}))
             record.setdefault("metrics", _safe_json_loads(row["cache_metrics_json"], {}))
             if row["issue_description"] and not _issue_description(record):
@@ -2153,11 +2210,7 @@ def _run_snapshot(run_dir: Path) -> dict[str, Any]:
         "status": _infer_status(file_set, log_excerpt),
         "last_update": latest,
         "files": file_names,
-        "log_sources": [
-            {"key": rel, "label": "Run log" if rel == "run.log" else Path(rel).name}
-            for rel in file_names
-            if rel == "run.log" or rel.endswith((".log", ".txt"))
-        ],
+        "log_sources": [{"key": rel, "label": "Run log" if rel == "run.log" else Path(rel).name} for rel in file_names if rel == "run.log" or rel.endswith((".log", ".txt"))],
         "log_excerpt": log_excerpt,
     }
 
@@ -2243,11 +2296,7 @@ def _read_log_from_runs(runs: Iterable[dict[str, Any]], run_id: str, source: str
     for run in runs:
         if run.get("run_id") != run_id:
             continue
-        allowed_sources = {
-            str(item.get("key"))
-            for item in run.get("log_sources") or []
-            if isinstance(item, dict) and item.get("key")
-        }
+        allowed_sources = {str(item.get("key")) for item in run.get("log_sources") or [] if isinstance(item, dict) and item.get("key")}
         if source not in allowed_sources:
             raise FileNotFoundError(f"Run {run_id!r} log source {source!r} is not an enumerated log file")
         base = Path(str(run.get("path") or "")).resolve()
@@ -2407,9 +2456,7 @@ def _effective_bonus_map_dirs(
         instance_ids = instance_ids_by_dataset.get(dataset, set())
         for root in _artifact_root_candidates(request):
             candidate = root / "bonus_maps" / dataset
-            if candidate.is_dir() and (
-                not instance_ids or any(_bonus_map_dir_has_instance(candidate, instance_id) for instance_id in instance_ids)
-            ):
+            if candidate.is_dir() and (not instance_ids or any(_bonus_map_dir_has_instance(candidate, instance_id) for instance_id in instance_ids)):
                 bonus_map_dirs[dataset] = candidate
                 break
     _BONUS_MAP_DIR_CACHE[cache_key] = dict(bonus_map_dirs)
@@ -2452,8 +2499,18 @@ def _score_records_by_bonus_map_dir(
         bonus_dir = bonus_map_dirs.get(dataset) or fallback_dir
         if bonus_dir is None:
             continue
-        score_request = replace(request, bonus_map_dir=bonus_dir, dataset=dataset if request.dataset is None else request.dataset)
-        scored.extend(_score_records(dataset_records, request=score_request, start_index=start_index + len(scored)))
+        score_request = replace(
+            request,
+            bonus_map_dir=bonus_dir,
+            dataset=dataset if request.dataset is None else request.dataset,
+        )
+        scored.extend(
+            _score_records(
+                dataset_records,
+                request=score_request,
+                start_index=start_index + len(scored),
+            )
+        )
         scored_datasets.add(dataset)
     return scored, scored_datasets
 
@@ -2466,10 +2523,23 @@ def _source_list_with_bonus(request: DashboardRequest, bonus_map_dirs: dict[str,
     sources = _source_list(request)
     if request.bonus_map_dir is None:
         if isinstance(bonus_map_dirs, Path):
-            sources.append({"kind": "bonus_map_dir", "path": str(bonus_map_dirs), "mode": "inferred"})
+            sources.append(
+                {
+                    "kind": "bonus_map_dir",
+                    "path": str(bonus_map_dirs),
+                    "mode": "inferred",
+                }
+            )
         elif isinstance(bonus_map_dirs, dict):
             for dataset, bonus_map_dir in sorted(bonus_map_dirs.items()):
-                sources.append({"kind": "bonus_map_dir", "path": str(bonus_map_dir), "dataset": dataset, "mode": "inferred"})
+                sources.append(
+                    {
+                        "kind": "bonus_map_dir",
+                        "path": str(bonus_map_dir),
+                        "dataset": dataset,
+                        "mode": "inferred",
+                    }
+                )
     return sources
 
 
@@ -2480,7 +2550,11 @@ def _has_eval_cache_schema(conn: sqlite3.Connection) -> bool:
         WHERE type = 'table' AND name IN ('run_cells', 'raw_rollouts', 'quantitative_metrics')
         """
     ).fetchall()
-    return {str(row["name"]) for row in rows} == {"run_cells", "raw_rollouts", "quantitative_metrics"}
+    return {str(row["name"]) for row in rows} == {
+        "run_cells",
+        "raw_rollouts",
+        "quantitative_metrics",
+    }
 
 
 def _open_readonly_eval_cache(db_path: Path) -> sqlite3.Connection | None:
@@ -2494,7 +2568,9 @@ def _open_readonly_eval_cache(db_path: Path) -> sqlite3.Connection | None:
     return None
 
 
-def _open_readonly_dashboard_build_db(request: DashboardRequest) -> sqlite3.Connection | None:
+def _open_readonly_dashboard_build_db(
+    request: DashboardRequest,
+) -> sqlite3.Connection | None:
     build_db_path = _dashboard_build_db_path(request)
     if build_db_path is None:
         return None
@@ -2620,7 +2696,34 @@ def _f1(precision: float | None, recall: float | None) -> float | None:
 
 
 def _path_node_f1(detail: dict[str, Any]) -> float | None:
-    return _f1(_path_node_precision(detail), _number(_path_value(detail, "path_node_recall", "chain_node_recall")))
+    return _f1(
+        _path_node_precision(detail),
+        _number(_path_value(detail, "path_node_recall", "chain_node_recall")),
+    )
+
+
+def _path_read_f1(detail: dict[str, Any]) -> float | None:
+    stored = _number(detail.get("path_read_f1"))
+    if stored is not None:
+        return stored
+    return _f1(
+        _number(_path_value(detail, "path_read_precision", "chain_read_precision")),
+        _number(_path_value(detail, "path_node_recall", "chain_node_recall")),
+    )
+
+
+def _unique_graph_precision(detail: dict[str, Any]) -> float | None:
+    stored = _number(detail.get("unique_graph_precision"))
+    if stored is not None:
+        return stored
+    return _ratio(detail, "n_unique_rewardable_graph_hit_nodes", "n_unique_graph_hit_nodes")
+
+
+def _unique_graph_f1(detail: dict[str, Any]) -> float | None:
+    stored = _number(detail.get("unique_graph_f1"))
+    if stored is not None:
+        return stored
+    return _f1(_unique_graph_precision(detail), _number(detail.get("hit_recall")))
 
 
 def _distribution(items: Iterable[dict[str, Any]], key: str) -> dict[str, int]:
@@ -2671,7 +2774,9 @@ def _instance_key(detail: dict[str, Any]) -> str:
     return str(detail.get("instance_id") or f"record-{detail.get('record_index', 0)}")
 
 
-def _unique_dataset_details(details: Iterable[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+def _unique_dataset_details(
+    details: Iterable[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
     by_dataset: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
     for detail in details:
         dataset = _dataset_name(detail)
@@ -2712,7 +2817,17 @@ def _dataset_distributions(details: list[dict[str, Any]]) -> dict[str, dict[str,
             else:
                 availability["not_path_evaluable"] += 1
                 availability["not_chain_evaluable"] += 1
-                not_path[str(_path_value(item, "not_path_evaluable_reason", "not_chain_evaluable_reason", "unknown") or "unknown")] += 1
+                not_path[
+                    str(
+                        _path_value(
+                            item,
+                            "not_path_evaluable_reason",
+                            "not_chain_evaluable_reason",
+                            "unknown",
+                        )
+                        or "unknown"
+                    )
+                ] += 1
         out[dataset] = {
             "dataset": dataset,
             "n_instances": len(items),
@@ -2747,8 +2862,25 @@ AVG_AT_METRIC_KEYS = (
     "near_hit_rate",
     "avg_min_distance",
     "avg_read_precision",
+    "avg_unique_graph_precision",
     "avg_node_recall",
+    "avg_unique_graph_f1",
     "avg_hit_f1",
+    "obs_recall",
+    "obs_graph_focus",
+    "obs_graph_steps_per_turn",
+    "obs_unique_nodes_per_read",
+    "obs_unique_nodes_per_turn",
+    "obs_unique_node_coverage_per_read",
+    "obs_unique_node_coverage_per_turn",
+    "obs_new_graph_step_per_read",
+    "obs_repeat_only_step_per_read",
+    "obs_new_graph_step_rate",
+    "obs_repeat_only_step_rate",
+    "obs_new_node_exposure_rate",
+    "obs_repeat_node_exposure_rate",
+    "obs_repeat_node_exposure_per_read_node",
+    "obs_repeat_node_exposure_per_turn_node",
     "path_coverage",
     "chain_graph_coverage",
     "path_hit_rate",
@@ -2763,6 +2895,8 @@ AVG_AT_METRIC_KEYS = (
     "avg_chain_node_f1",
     "avg_path_read_precision",
     "avg_chain_read_precision",
+    "avg_path_read_f1",
+    "avg_chain_read_f1",
     "avg_first_anchor_step",
     "avg_first_root_step",
     "avg_steps_anchor_to_root",
@@ -2772,6 +2906,7 @@ AVG_AT_METRIC_KEYS = (
     "miracle_rate",
     "avg_miracle_severity",
     "unlicensed_reference_rate",
+    "unlicensed_step_rate",
     "unlicensed_trace_rate",
     "avg_block_order_score",
     "block_reverse_order_rate",
@@ -2824,8 +2959,25 @@ def _detail_metric_values(item: dict[str, Any]) -> dict[str, Any]:
         "near_hit_rate": _bool_number(item.get("hit_near")),
         "avg_min_distance": item.get("min_distance"),
         "avg_read_precision": item.get("hit_precision") if path_metric else None,
+        "avg_unique_graph_precision": _unique_graph_precision(item) if path_metric else None,
         "avg_node_recall": item.get("hit_recall") if path_metric else None,
+        "avg_unique_graph_f1": _unique_graph_f1(item) if path_metric else None,
         "avg_hit_f1": item.get("hit_f1") if path_metric else None,
+        "obs_recall": item.get("obs_recall") if item.get("obs_graph_evaluable") else None,
+        "obs_graph_focus": item.get("obs_graph_focus") if item.get("obs_graph_evaluable") else None,
+        "obs_graph_steps_per_turn": item.get("obs_graph_steps_per_turn") if item.get("obs_graph_evaluable") else None,
+        "obs_unique_nodes_per_read": item.get("obs_unique_nodes_per_read") if item.get("obs_graph_evaluable") else None,
+        "obs_unique_nodes_per_turn": item.get("obs_unique_nodes_per_turn") if item.get("obs_graph_evaluable") else None,
+        "obs_unique_node_coverage_per_read": item.get("obs_unique_node_coverage_per_read") if item.get("obs_graph_evaluable") else None,
+        "obs_unique_node_coverage_per_turn": item.get("obs_unique_node_coverage_per_turn") if item.get("obs_graph_evaluable") else None,
+        "obs_new_graph_step_per_read": item.get("obs_new_graph_step_per_read") if item.get("obs_graph_evaluable") else None,
+        "obs_repeat_only_step_per_read": item.get("obs_repeat_only_step_per_read") if item.get("obs_graph_evaluable") else None,
+        "obs_new_graph_step_rate": item.get("obs_new_graph_step_rate") if item.get("obs_graph_evaluable") else None,
+        "obs_repeat_only_step_rate": item.get("obs_repeat_only_step_rate") if item.get("obs_graph_evaluable") else None,
+        "obs_new_node_exposure_rate": item.get("obs_new_node_exposure_rate") if item.get("obs_graph_evaluable") else None,
+        "obs_repeat_node_exposure_rate": item.get("obs_repeat_node_exposure_rate") if item.get("obs_graph_evaluable") else None,
+        "obs_repeat_node_exposure_per_read_node": item.get("obs_repeat_node_exposure_per_read_node") if item.get("obs_graph_evaluable") else None,
+        "obs_repeat_node_exposure_per_turn_node": item.get("obs_repeat_node_exposure_per_turn_node") if item.get("obs_graph_evaluable") else None,
         "path_coverage": _bool_number(_path_value(item, "path_covered", "chain_graph_covered")) if path_metric else None,
         "chain_graph_coverage": _bool_number(_path_value(item, "path_covered", "chain_graph_covered")) if path_metric else None,
         "path_hit_rate": _bool_number(_path_value(item, "path_hit", "chain_hit")) if path_metric else None,
@@ -2840,6 +2992,8 @@ def _detail_metric_values(item: dict[str, Any]) -> dict[str, Any]:
         "avg_chain_node_f1": _path_node_f1(item) if path_metric else None,
         "avg_path_read_precision": _path_value(item, "path_read_precision", "chain_read_precision") if path_metric else None,
         "avg_chain_read_precision": _path_value(item, "path_read_precision", "chain_read_precision") if path_metric else None,
+        "avg_path_read_f1": _path_read_f1(item) if path_metric else None,
+        "avg_chain_read_f1": _path_read_f1(item) if path_metric else None,
         "avg_first_anchor_step": item.get("first_anchor_step") if path_metric else None,
         "avg_first_root_step": item.get("first_root_step") if path_metric else None,
         "avg_steps_anchor_to_root": item.get("steps_anchor_to_root") if path_metric else None,
@@ -2849,9 +3003,8 @@ def _detail_metric_values(item: dict[str, Any]) -> dict[str, Any]:
         "miracle_rate": _bool_number(_combined_miracle_marker(item)) if order_metric else None,
         "avg_miracle_severity": item.get("miracle_severity") if order_metric else None,
         "unlicensed_reference_rate": item.get("unlicensed_reference_rate") if item.get("license_evaluable") else None,
-        "unlicensed_trace_rate": _bool_number((item.get("n_unlicensed_references") or 0) > 0)
-        if item.get("license_evaluable")
-        else None,
+        "unlicensed_step_rate": item.get("unlicensed_step_rate") if item.get("license_evaluable") else None,
+        "unlicensed_trace_rate": _bool_number((item.get("n_unlicensed_references") or 0) > 0) if item.get("license_evaluable") else None,
         "avg_block_order_score": block_order_score,
         "block_reverse_order_rate": _bool_number(_negative(block_order_score)) if block_order_score is not None else None,
         "block_miracle_rate": _bool_number(item.get("block_miracle_step")) if order_metric else None,
@@ -2881,7 +3034,9 @@ def _rollout_index(item: dict[str, Any]) -> int:
     return int(value) if isinstance(value, int | float) and not isinstance(value, bool) else 0
 
 
-def _items_by_instance(items: Iterable[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+def _items_by_instance(
+    items: Iterable[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
     out: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for item in items:
         out[str(item.get("instance_id") or item.get("uid") or "")].append(item)
@@ -2951,7 +3106,14 @@ def _detail_model_metrics(details: list[dict[str, Any]], *, include_avg_at: bool
         groups[key].append(detail)
 
     rows = []
-    for (experiment_key, source_kind, experiment_id, provider_source, dataset, model_label), items in sorted(groups.items()):
+    for (
+        experiment_key,
+        source_kind,
+        experiment_id,
+        provider_source,
+        dataset,
+        model_label,
+    ), items in sorted(groups.items()):
         error_count = sum(1 for item in items if item.get("error") or item.get("system_error"))
         success_items = [item for item in items if not (item.get("error") or item.get("system_error"))]
         path_metric_items = [item for item in items if _is_path_metric_detail(item)]
@@ -2959,8 +3121,11 @@ def _detail_model_metrics(details: list[dict[str, Any]], *, include_avg_at: bool
         order_items = [item for item in order_metric_items if item.get("order_defined") is True]
         block_order_items = [item for item in order_metric_items if item.get("block_order_defined") is True]
         license_items = [item for item in items if item.get("license_evaluable")]
+        obs_graph_items = [item for item in items if item.get("obs_graph_evaluable")]
         entity_references = _sum_int(license_items, "n_entity_references")
         unlicensed_references = _sum_int(license_items, "n_unlicensed_references")
+        trace_steps = _sum_int(license_items, "n_trace_steps")
+        unlicensed_reference_steps = _sum_int(license_items, "n_unlicensed_reference_steps")
         scored_blocks = _sum_int(path_metric_items, "n_scored_read_blocks")
         total_blocks = _sum_int(path_metric_items, "n_blocks")
         scored_block_steps = _sum_int(path_metric_items, "n_scored_read_block_steps")
@@ -2992,8 +3157,25 @@ def _detail_model_metrics(details: list[dict[str, Any]], *, include_avg_at: bool
             "near_hit_rate": _rate(item.get("hit_near") for item in items),
             "avg_min_distance": _avg(item.get("min_distance") for item in items),
             "avg_read_precision": _avg(item.get("hit_precision") for item in path_metric_items),
+            "avg_unique_graph_precision": _avg(_unique_graph_precision(item) for item in path_metric_items),
             "avg_node_recall": _avg(item.get("hit_recall") for item in path_metric_items),
+            "avg_unique_graph_f1": _avg(_unique_graph_f1(item) for item in path_metric_items),
             "avg_hit_f1": _avg(item.get("hit_f1") for item in path_metric_items),
+            "obs_recall": _avg(item.get("obs_recall") for item in obs_graph_items),
+            "obs_graph_focus": _avg(item.get("obs_graph_focus") for item in obs_graph_items),
+            "obs_graph_steps_per_turn": _avg(item.get("obs_graph_steps_per_turn") for item in obs_graph_items),
+            "obs_unique_nodes_per_read": _avg(item.get("obs_unique_nodes_per_read") for item in obs_graph_items),
+            "obs_unique_nodes_per_turn": _avg(item.get("obs_unique_nodes_per_turn") for item in obs_graph_items),
+            "obs_unique_node_coverage_per_read": _avg(item.get("obs_unique_node_coverage_per_read") for item in obs_graph_items),
+            "obs_unique_node_coverage_per_turn": _avg(item.get("obs_unique_node_coverage_per_turn") for item in obs_graph_items),
+            "obs_new_graph_step_per_read": _avg(item.get("obs_new_graph_step_per_read") for item in obs_graph_items),
+            "obs_repeat_only_step_per_read": _avg(item.get("obs_repeat_only_step_per_read") for item in obs_graph_items),
+            "obs_new_graph_step_rate": _avg(item.get("obs_new_graph_step_rate") for item in obs_graph_items),
+            "obs_repeat_only_step_rate": _avg(item.get("obs_repeat_only_step_rate") for item in obs_graph_items),
+            "obs_new_node_exposure_rate": _avg(item.get("obs_new_node_exposure_rate") for item in obs_graph_items),
+            "obs_repeat_node_exposure_rate": _avg(item.get("obs_repeat_node_exposure_rate") for item in obs_graph_items),
+            "obs_repeat_node_exposure_per_read_node": _avg(item.get("obs_repeat_node_exposure_per_read_node") for item in obs_graph_items),
+            "obs_repeat_node_exposure_per_turn_node": _avg(item.get("obs_repeat_node_exposure_per_turn_node") for item in obs_graph_items),
             "path_coverage": _rate(_path_value(item, "path_covered", "chain_graph_covered") for item in path_metric_items),
             "chain_graph_coverage": _rate(_path_value(item, "path_covered", "chain_graph_covered") for item in path_metric_items),
             "path_hit_rate": _rate(_path_value(item, "path_hit", "chain_hit") for item in path_metric_items),
@@ -3006,12 +3188,10 @@ def _detail_model_metrics(details: list[dict[str, Any]], *, include_avg_at: bool
             "avg_chain_node_precision": _avg(_path_node_precision(item) for item in path_metric_items),
             "avg_path_node_f1": _avg(_path_node_f1(item) for item in path_metric_items),
             "avg_chain_node_f1": _avg(_path_node_f1(item) for item in path_metric_items),
-            "avg_path_read_precision": _avg(
-                _path_value(item, "path_read_precision", "chain_read_precision") for item in path_metric_items
-            ),
-            "avg_chain_read_precision": _avg(
-                _path_value(item, "path_read_precision", "chain_read_precision") for item in path_metric_items
-            ),
+            "avg_path_read_precision": _avg(_path_value(item, "path_read_precision", "chain_read_precision") for item in path_metric_items),
+            "avg_chain_read_precision": _avg(_path_value(item, "path_read_precision", "chain_read_precision") for item in path_metric_items),
+            "avg_path_read_f1": _avg(_path_read_f1(item) for item in path_metric_items),
+            "avg_chain_read_f1": _avg(_path_read_f1(item) for item in path_metric_items),
             "avg_first_anchor_step": _avg(item.get("first_anchor_step") for item in path_metric_items),
             "avg_first_root_step": _avg(item.get("first_root_step") for item in path_metric_items),
             "avg_steps_anchor_to_root": _avg(item.get("steps_anchor_to_root") for item in path_metric_items),
@@ -3021,29 +3201,18 @@ def _detail_model_metrics(details: list[dict[str, Any]], *, include_avg_at: bool
             "miracle_rate": _rate(_combined_miracle_marker(item) for item in order_metric_items),
             "avg_miracle_severity": _avg(item.get("miracle_severity") for item in order_metric_items),
             "unlicensed_reference_rate": (unlicensed_references / entity_references) if entity_references else None,
+            "unlicensed_step_rate": (unlicensed_reference_steps / trace_steps) if trace_steps else None,
             "unlicensed_trace_rate": _rate((item.get("n_unlicensed_references") or 0) > 0 for item in license_items),
             "avg_block_order_score": _avg(item.get("block_order_score") for item in block_order_items),
-            "block_reverse_order_rate": _rate(
-                _negative(item.get("block_order_score"))
-                if isinstance(item.get("block_order_score"), int | float) and not isinstance(item.get("block_order_score"), bool)
-                else None
-                for item in order_metric_items
-            ),
-            "block_miracle_rate": _rate(
-                None if item.get("block_miracle_step") is None else bool(item.get("block_miracle_step"))
-                for item in order_metric_items
-            ),
+            "block_reverse_order_rate": _rate(_negative(item.get("block_order_score")) if isinstance(item.get("block_order_score"), int | float) and not isinstance(item.get("block_order_score"), bool) else None for item in order_metric_items),
+            "block_miracle_rate": _rate(None if item.get("block_miracle_step") is None else bool(item.get("block_miracle_step")) for item in order_metric_items),
             "avg_block_efficiency": _avg(item.get("block_efficiency") for item in path_metric_items),
             "avg_blocks_per_trace": (total_blocks / len(path_metric_items)) if path_metric_items else None,
             "block_achieve_rate": (_sum_int(path_metric_items, "n_achieving_blocks") / scored_blocks) if scored_blocks else None,
             "block_waste_rate": (_sum_int(path_metric_items, "n_wasted_blocks") / scored_blocks) if scored_blocks else None,
             "block_loop_rate": (_sum_int(path_metric_items, "n_loop_blocks") / total_blocks) if total_blocks else None,
-            "achieving_block_step_share": (_sum_int(path_metric_items, "n_achieving_block_steps") / scored_block_steps)
-            if scored_block_steps
-            else None,
-            "wasted_block_step_share": (_sum_int(path_metric_items, "n_wasted_block_steps") / scored_block_steps)
-            if scored_block_steps
-            else None,
+            "achieving_block_step_share": (_sum_int(path_metric_items, "n_achieving_block_steps") / scored_block_steps) if scored_block_steps else None,
+            "wasted_block_step_share": (_sum_int(path_metric_items, "n_wasted_block_steps") / scored_block_steps) if scored_block_steps else None,
             "loop_block_step_share": (_sum_int(path_metric_items, "n_loop_block_steps") / block_steps) if block_steps else None,
             "loop_trace_rate": _rate((item.get("bad_patterns") or {}).get("has_loop") for item in items),
             "error_spiral_rate": _rate((item.get("bad_patterns") or {}).get("error_spiral") for item in items),
@@ -3097,6 +3266,7 @@ def _normalize_model_row(row: dict[str, Any]) -> dict[str, Any]:
         ("avg_chain_node_precision", "avg_path_node_precision"),
         ("avg_chain_node_f1", "avg_path_node_f1"),
         ("avg_chain_read_precision", "avg_path_read_precision"),
+        ("avg_chain_read_f1", "avg_path_read_f1"),
         ("chain_graph_coverage", "path_coverage"),
         ("chain_hit_rate", "path_hit_rate"),
     ):
@@ -3117,14 +3287,26 @@ def _merge_model_metrics(base_rows: list[dict[str, Any]], detail_rows: list[dict
         for key, value in current.items():
             if merged_row.get(key) is None:
                 merged_row[key] = value
-        for key in ("target", "target_rollouts", "done", "done_rollouts", "errors", "pending", "selected_scope", "rollouts_per_instance"):
+        for key in (
+            "target",
+            "target_rollouts",
+            "done",
+            "done_rollouts",
+            "errors",
+            "pending",
+            "selected_scope",
+            "rollouts_per_instance",
+        ):
             if current.get(key) is not None:
                 merged_row[key] = current[key]
         for key in ("detail_cache_ready_rollouts", "detail_cache_pending_rollouts"):
             if current.get(key) is not None:
                 merged_row[key] = current[key]
         merged[row["eval_cell_key"]] = _normalize_model_row(merged_row)
-    return sorted(merged.values(), key=lambda item: (str(item.get("experiment_id")), str(item.get("model_label"))))
+    return sorted(
+        merged.values(),
+        key=lambda item: (str(item.get("experiment_id")), str(item.get("model_label"))),
+    )
 
 
 def _base_model_metrics_from_raw(conn: sqlite3.Connection, request: DashboardRequest) -> list[dict[str, Any]]:
@@ -3163,11 +3345,7 @@ def _materialized_model_metrics_rows(
             counts[key]["ready"] += 1
             valid_details.append(detail)
 
-    complete_details = [
-        detail
-        for detail in valid_details
-        if counts[_eval_cell_key(detail)]["pending"] == 0
-    ]
+    complete_details = [detail for detail in valid_details if counts[_eval_cell_key(detail)]["pending"] == 0]
     detail_rows = _detail_model_metrics(complete_details, include_avg_at=include_avg_at) if complete_details else []
     merged = _merge_model_metrics(base_rows, detail_rows)
     for row in merged:
@@ -3404,7 +3582,11 @@ def vacuum_dashboard_databases(request: DashboardRequest, *, min_free_ratio: flo
     for label, path in targets:
         free_ratio = db_free_page_ratio(path)
         if free_ratio < min_free_ratio:
-            results[label] = {"path": str(path), "skipped": "below_threshold", "free_page_ratio": round(free_ratio, 4)}
+            results[label] = {
+                "path": str(path),
+                "skipped": "below_threshold",
+                "free_page_ratio": round(free_ratio, 4),
+            }
             continue
         size_before = path.stat().st_size
         conn = connect(path, timeout=60.0)
@@ -3413,7 +3595,11 @@ def vacuum_dashboard_databases(request: DashboardRequest, *, min_free_ratio: flo
         except sqlite3.OperationalError as exc:
             if min_free_ratio <= 0.0:
                 raise
-            results[label] = {"path": str(path), "skipped": "database_busy", "detail": str(exc)}
+            results[label] = {
+                "path": str(path),
+                "skipped": "database_busy",
+                "detail": str(exc),
+            }
             continue
         finally:
             conn.close()
@@ -3565,7 +3751,10 @@ def slim_dashboard_raw_db(request: DashboardRequest, *, vacuum: bool = False) ->
             after_payload = json_dumps(slim)
             if len(after_payload) >= len(before_payload):
                 continue
-            conn.execute("UPDATE raw_rollouts SET rollout_json = ? WHERE cell_id = ?", (after_payload, row["cell_id"]))
+            conn.execute(
+                "UPDATE raw_rollouts SET rollout_json = ? WHERE cell_id = ?",
+                (after_payload, row["cell_id"]),
+            )
             rollout_rows_slimmed += 1
             rollout_bytes_removed += len(before_payload) - len(after_payload)
         conn.commit()
@@ -3601,15 +3790,25 @@ def _merge_build_model_rows(
         completed_rollouts = int(base.get("done_rollouts") or 0)
         counts = build_cache_counts.get(key, {"ready": 0, "pending": 0})
         build_coverage = int(counts.get("ready") or 0) + int(counts.get("pending") or 0)
-        build_counts_match = bool(build_row) and int(build_row.get("detail_cache_ready_rollouts") or 0) == int(
-            counts.get("ready") or 0
-        ) and int(build_row.get("detail_cache_pending_rollouts") or 0) == int(counts.get("pending") or 0)
+        build_counts_match = bool(build_row) and int(build_row.get("detail_cache_ready_rollouts") or 0) == int(counts.get("ready") or 0) and int(build_row.get("detail_cache_pending_rollouts") or 0) == int(counts.get("pending") or 0)
         if build_row and build_counts_match and build_coverage == completed_rollouts:
             row.update({item_key: item_value for item_key, item_value in build_row.items() if not item_key.startswith("_")})
-            for progress_key in ("target", "target_rollouts", "done", "done_rollouts", "errors", "pending", "selected_scope", "rollouts_per_instance"):
+            for progress_key in (
+                "target",
+                "target_rollouts",
+                "done",
+                "done_rollouts",
+                "errors",
+                "pending",
+                "selected_scope",
+                "rollouts_per_instance",
+            ):
                 row[progress_key] = base.get(progress_key)
         merged.append(_normalize_model_row(row))
-    return sorted(merged, key=lambda item: (str(item.get("experiment_id")), str(item.get("model_label"))))
+    return sorted(
+        merged,
+        key=lambda item: (str(item.get("experiment_id")), str(item.get("model_label"))),
+    )
 
 
 def _model_metrics_row_is_stale(
@@ -3621,9 +3820,7 @@ def _model_metrics_row_is_stale(
     if not build_row:
         return bool(build_coverage)
     completed_rollouts = int(base_row.get("done_rollouts") or 0)
-    build_counts_match = int(build_row.get("detail_cache_ready_rollouts") or 0) == int(counts.get("ready") or 0) and int(
-        build_row.get("detail_cache_pending_rollouts") or 0
-    ) == int(counts.get("pending") or 0)
+    build_counts_match = int(build_row.get("detail_cache_ready_rollouts") or 0) == int(counts.get("ready") or 0) and int(build_row.get("detail_cache_pending_rollouts") or 0) == int(counts.get("pending") or 0)
     return not build_counts_match or build_coverage != completed_rollouts
 
 
@@ -3658,7 +3855,7 @@ def validated_cached_model_metrics(
     request: DashboardRequest,
     *,
     include_avg_at: bool = False,
-    ) -> list[dict[str, Any]]:
+) -> list[dict[str, Any]]:
     base_rows = _base_model_metrics_from_raw(conn, request)
     build_db_path = _dashboard_build_db_path(request)
     if build_db_path is None or not build_db_path.exists():
@@ -3692,9 +3889,7 @@ def validated_cached_model_metrics(
                 model_api_name=str(base.get("model_api_name") or "") or request.model_api_name,
                 model_label=str(base.get("model_label") or "") or request.model_label,
             )
-            recomputed.extend(
-                _materialized_model_metrics_rows(conn, scoped_request, build_conn=build_conn, include_avg_at=True)
-            )
+            recomputed.extend(_materialized_model_metrics_rows(conn, scoped_request, build_conn=build_conn, include_avg_at=True))
     except (OSError, sqlite3.Error):
         build_rows = []
         build_cache_counts = {}
@@ -3711,7 +3906,10 @@ def validated_cached_model_metrics(
         build_cache_counts=build_cache_counts,
     )
     merged.extend(_normalize_model_row(row) for row in recomputed)
-    return sorted(merged, key=lambda item: (str(item.get("experiment_id")), str(item.get("model_label"))))
+    return sorted(
+        merged,
+        key=lambda item: (str(item.get("experiment_id")), str(item.get("model_label"))),
+    )
 
 
 def _eval_cell_registry(model_metrics: list[dict[str, Any]], details: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -3935,11 +4133,7 @@ def build_dashboard_snapshot(request: DashboardRequest) -> dict[str, Any]:
         )
         details.extend(scored_details)
         stored_detail_datasets = {_dataset_name(detail) for detail in stored_db_details}
-        raw_fallback_records = [
-            record
-            for record in _records_for_unscored_datasets(raw_records, scored_datasets)
-            if (_record_dataset(record) or "unknown-dataset") not in stored_detail_datasets
-        ]
+        raw_fallback_records = [record for record in _records_for_unscored_datasets(raw_records, scored_datasets) if (_record_dataset(record) or "unknown-dataset") not in stored_detail_datasets]
         details.extend(_raw_record_details(raw_fallback_records, request=request, start_index=len(details)))
     details.extend(detail for detail in stored_db_details if _dataset_name(detail) not in scored_datasets)
 
@@ -3948,14 +4142,16 @@ def build_dashboard_snapshot(request: DashboardRequest) -> dict[str, Any]:
         if not request.defer_db_scoring:
             _enrich_details_from_dataset_parquet(details, request)
             _enrich_details_from_bonus_map_dirs(details, bonus_map_dirs)
-        summary = _finalize_summary(summarize(
-            details,
-            source=_summary_source(request),
-            bonus_map_dir=_bonus_map_summary_dir(bonus_map_dirs),
-            tracking_mode=request.tracking_mode,
-            near_threshold=request.near_threshold,
-            m_max=request.m_max,
-        ))
+        summary = _finalize_summary(
+            summarize(
+                details,
+                source=_summary_source(request),
+                bonus_map_dir=_bonus_map_summary_dir(bonus_map_dirs),
+                tracking_mode=request.tracking_mode,
+                near_threshold=request.near_threshold,
+                m_max=request.m_max,
+            )
+        )
         summary["trends"] = summarize_trends(
             details,
             tracking_mode=request.tracking_mode,
@@ -4012,7 +4208,10 @@ def build_dashboard_snapshot(request: DashboardRequest) -> dict[str, Any]:
         "dynamic_traceable_model_metrics": path_metric_model_metrics,
         "case_filter_model_metrics": case_filter_model_metrics,
         "case_filter_dataset_stats": case_filter_dataset_stats,
-        "runs": sorted(deduped_runs.values(), key=lambda run: (str(run.get("status")), str(run.get("run_id")))),
+        "runs": sorted(
+            deduped_runs.values(),
+            key=lambda run: (str(run.get("status")), str(run.get("run_id"))),
+        ),
         "details": details[: request.detail_limit],
         "detail_count": len(details),
         "path_metric_detail_count": len(path_metric_details),

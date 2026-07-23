@@ -62,6 +62,15 @@ touching this tree. The research-level `CLAUDE.md` is at the repo root.
   bonus maps, validation details, SQLite eval caches, rollout dumps, analysis
   reports, and dashboard snapshots. Override the root with `P2A_ARTIFACTS_DIR`
   only when needed.
+- Temporary local batch/eval configs that need secrets or private endpoints
+  belong under `.secrets/tmp/`. Do not place one-off experiment YAMLs directly
+  under `.secrets/`; keep the top-level secret config directory for curated,
+  intentionally reusable configs.
+- For temporary experiments, start from the closest existing config for the same
+  dataset and change only the requested experiment scope, model list, rollout
+  range, or output id. Keep adapters, provider settings, concurrency, and other
+  execution defaults unchanged unless the controller explicitly asks to change
+  them.
 - Keep public datasets and reusable checkpoints out of `src/data`; keep
   project-specific artifacts out of the shared datasets/models roots by default.
 

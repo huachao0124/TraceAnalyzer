@@ -328,7 +328,7 @@ def selected_instance_ids(data_file: Path, *, limit: int | None, offset: int) ->
 
 
 def _rollout_jobs(instance_ids: list[str], rollouts_per_instance: int) -> list[tuple[str, int]]:
-    return [(instance_id, rollout_index) for instance_id in instance_ids for rollout_index in range(rollouts_per_instance)]
+    return [(instance_id, rollout_index) for rollout_index in range(rollouts_per_instance) for instance_id in instance_ids]
 
 
 def _model_eval_config(config: BatchConfig, model: BatchModel, run_dir: Path) -> Path:

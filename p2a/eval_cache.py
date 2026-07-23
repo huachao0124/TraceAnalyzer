@@ -104,7 +104,18 @@ def _nonempty_sequence(value: Any) -> bool:
 def _step_has_content(step: Any) -> bool:
     if not isinstance(step, Mapping):
         return False
-    if any(_nonempty_text(step.get(key)) for key in ("response_text", "response", "thought", "reasoning", "action", "tool_name", "command")):
+    if any(
+        _nonempty_text(step.get(key))
+        for key in (
+            "response_text",
+            "response",
+            "thought",
+            "reasoning",
+            "action",
+            "tool_name",
+            "command",
+        )
+    ):
         return True
     return any(_nonempty_sequence(step.get(key)) for key in ("tool_calls", "tool_results", "tool_args"))
 
@@ -120,11 +131,7 @@ def rollout_record_error(record: Mapping[str, Any]) -> str | None:
     if any(_step_has_content(step) for step in [*trajectory, *step_traces]):
         return None
     termination = str(record.get("termination_reason") or "").lower()
-    step_exit_reasons = {
-        str(step.get("exit_reason") or "").lower()
-        for step in [*trajectory, *step_traces]
-        if isinstance(step, Mapping) and step.get("exit_reason")
-    }
+    step_exit_reasons = {str(step.get("exit_reason") or "").lower() for step in [*trajectory, *step_traces] if isinstance(step, Mapping) and step.get("exit_reason")}
     has_failure_shell = termination in EMPTY_ROLLOUT_FAILURE_REASONS or bool(step_exit_reasons & EMPTY_ROLLOUT_FAILURE_REASONS)
     if has_failure_shell:
         return EMPTY_ROLLOUT_ERROR
@@ -153,11 +160,27 @@ def _first_text_field(record: dict[str, Any], fields: Iterable[str]) -> str | No
 
 
 def _issue_description(record: dict[str, Any]) -> str | None:
-    return _first_text_field(record, ("problem_statement", "issue_description", "issue_text", "issue", "description", "problem", "title"))
+    return _first_text_field(
+        record,
+        (
+            "problem_statement",
+            "issue_description",
+            "issue_text",
+            "issue",
+            "description",
+            "problem",
+            "title",
+        ),
+    )
 
 
 def _golden_patch(record: dict[str, Any]) -> str | None:
     return _first_text_field(record, ("golden_patch", "patch", "base_patch", "fix_patch"))
+
+
+def _final_patch(record: dict[str, Any]) -> str | None:
+    value = record.get("final_patch")
+    return value if isinstance(value, str) and value else None
 
 
 def connect(db_path: Path | str, *, timeout: float = 30.0) -> sqlite3.Connection:
@@ -260,6 +283,7 @@ def _create_eval_tables(conn: sqlite3.Connection) -> None:
           cache_metrics_json TEXT,
           issue_description TEXT,
           golden_patch TEXT,
+          final_patch TEXT,
           rollout_json TEXT NOT NULL,
           rollout_sha256 TEXT,
           created_at TEXT NOT NULL
@@ -316,11 +340,7 @@ def _migrate_rollout_index_schema(conn: sqlite3.Connection) -> None:
         return
     run_rows = [dict(row) | {"rollout_index": 0, "rollout_id": None} for row in conn.execute("SELECT * FROM run_cells")]
     raw_rows = [dict(row) for row in conn.execute("SELECT * FROM raw_rollouts")] if _table_exists(conn, "raw_rollouts") else []
-    metric_rows = (
-        [dict(row) for row in conn.execute("SELECT * FROM quantitative_metrics")]
-        if _table_exists(conn, "quantitative_metrics")
-        else []
-    )
+    metric_rows = [dict(row) for row in conn.execute("SELECT * FROM quantitative_metrics")] if _table_exists(conn, "quantitative_metrics") else []
     conn.commit()
     conn.execute("PRAGMA foreign_keys = OFF")
     try:
@@ -349,6 +369,7 @@ def init_db(conn: sqlite3.Connection) -> None:
     _create_eval_tables(conn)
     _ensure_column(conn, "raw_rollouts", "issue_description", "TEXT")
     _ensure_column(conn, "raw_rollouts", "golden_patch", "TEXT")
+    _ensure_column(conn, "raw_rollouts", "final_patch", "TEXT")
     had_rollout_sha = "rollout_sha256" in _table_columns(conn, "raw_rollouts")
     _ensure_column(conn, "raw_rollouts", "rollout_sha256", "TEXT")
     if not had_rollout_sha:
@@ -648,7 +669,13 @@ def _single_target(
     provider_source: str | None = None,
     dataset: str | None = None,
 ) -> list[dict[str, str]]:
-    return [_clean_delete_target(experiment_id=experiment_id, provider_source=provider_source, dataset=dataset)]
+    return [
+        _clean_delete_target(
+            experiment_id=experiment_id,
+            provider_source=provider_source,
+            dataset=dataset,
+        )
+    ]
 
 
 def count_run_data_targets(
@@ -701,7 +728,11 @@ def count_run_data(
 ) -> dict[str, int]:
     return count_run_data_targets(
         conn,
-        _single_target(experiment_id=experiment_id, provider_source=provider_source, dataset=dataset),
+        _single_target(
+            experiment_id=experiment_id,
+            provider_source=provider_source,
+            dataset=dataset,
+        ),
         allow_all=allow_all,
     )
 
@@ -717,8 +748,14 @@ def delete_run_data_targets(
     where_cells, cell_params = _target_where("c", normalized, allow_all=allow_all)
     where_exp, exp_params = _target_where("e", normalized, allow_all=allow_all)
     with conn:
-        conn.execute(f"DELETE FROM run_cells WHERE id IN (SELECT c.id FROM run_cells c WHERE {where_cells})", cell_params)
-        conn.execute(f"DELETE FROM experiments WHERE rowid IN (SELECT e.rowid FROM experiments e WHERE {where_exp})", exp_params)
+        conn.execute(
+            f"DELETE FROM run_cells WHERE id IN (SELECT c.id FROM run_cells c WHERE {where_cells})",
+            cell_params,
+        )
+        conn.execute(
+            f"DELETE FROM experiments WHERE rowid IN (SELECT e.rowid FROM experiments e WHERE {where_exp})",
+            exp_params,
+        )
     return counts
 
 
@@ -732,7 +769,11 @@ def delete_run_data(
 ) -> dict[str, int]:
     return delete_run_data_targets(
         conn,
-        _single_target(experiment_id=experiment_id, provider_source=provider_source, dataset=dataset),
+        _single_target(
+            experiment_id=experiment_id,
+            provider_source=provider_source,
+            dataset=dataset,
+        ),
         allow_all=allow_all,
     )
 
@@ -1019,7 +1060,14 @@ def _cell_id(
           AND instance_id = ?
           AND rollout_index = ?
         """,
-        (experiment_id, provider_source, model_api_name, dataset, instance_id, rollout_index),
+        (
+            experiment_id,
+            provider_source,
+            model_api_name,
+            dataset,
+            instance_id,
+            rollout_index,
+        ),
     ).fetchone()
     if row is None:
         raise RuntimeError("failed to create or load run cell")
@@ -1059,9 +1107,7 @@ def upsert_rollout_record(
     rollout_index = int(record.get("rollout_index") or (detail or {}).get("rollout_index") or 0)
 
     now = utc_now()
-    requested_run_id = str(
-        record.get("run_id") or f"{experiment_id}:{provider_source}:{model_api_name}:{dataset}:{instance_id}:{rollout_index}"
-    )
+    requested_run_id = str(record.get("run_id") or f"{experiment_id}:{provider_source}:{model_api_name}:{dataset}:{instance_id}:{rollout_index}")
     record_error = rollout_record_error(record)
     if record_error and not record.get("error"):
         record = {
@@ -1080,6 +1126,7 @@ def upsert_rollout_record(
         cache_metrics = record.get("metrics") if isinstance(record.get("metrics"), dict) else {}
         issue_description = _issue_description(record)
         golden_patch = _golden_patch(record)
+        final_patch = _final_patch(record)
         rollout_hash = sha256_text(json_dumps(record))
         stored_rollout_payload = json_dumps(slim_rollout_payload(record))
         messages_payload = json_dumps(record.get("messages") or [])
@@ -1139,9 +1186,9 @@ def upsert_rollout_record(
         INSERT INTO raw_rollouts(
           run_id, cell_id, messages_json, trajectory_json, p2a_step_traces_json,
           final_response, reward_json, resolved, token_usage_json, cache_metrics_json,
-          issue_description, golden_patch, rollout_json, rollout_sha256, created_at
+          issue_description, golden_patch, final_patch, rollout_json, rollout_sha256, created_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             run_id,
@@ -1156,6 +1203,7 @@ def upsert_rollout_record(
             cache_metrics_payload,
             issue_description,
             golden_patch,
+            final_patch,
             stored_rollout_payload,
             rollout_hash,
             now,
@@ -1332,7 +1380,34 @@ def _f1(precision: float | None, recall: float | None) -> float | None:
 
 
 def _path_node_f1(detail: dict[str, Any]) -> float | None:
-    return _f1(_path_node_precision(detail), _number(_path_value(detail, "path_node_recall", "chain_node_recall")))
+    return _f1(
+        _path_node_precision(detail),
+        _number(_path_value(detail, "path_node_recall", "chain_node_recall")),
+    )
+
+
+def _path_read_f1(detail: dict[str, Any]) -> float | None:
+    stored = _detail_number(detail, "path_read_f1")
+    if stored is not None:
+        return stored
+    return _f1(
+        _number(_path_value(detail, "path_read_precision", "chain_read_precision")),
+        _number(_path_value(detail, "path_node_recall", "chain_node_recall")),
+    )
+
+
+def _unique_graph_precision(detail: dict[str, Any]) -> float | None:
+    stored = _detail_number(detail, "unique_graph_precision")
+    if stored is not None:
+        return stored
+    return _detail_ratio(detail, "n_unique_rewardable_graph_hit_nodes", "n_unique_graph_hit_nodes")
+
+
+def _unique_graph_f1(detail: dict[str, Any]) -> float | None:
+    stored = _detail_number(detail, "unique_graph_f1")
+    if stored is not None:
+        return stored
+    return _f1(_unique_graph_precision(detail), _detail_number(detail, "hit_recall"))
 
 
 def _detail_distribution(details: list[dict[str, Any]], key: str) -> dict[str, int]:
@@ -1391,8 +1466,25 @@ AVG_AT_METRIC_KEYS = (
     "near_hit_rate",
     "avg_min_distance",
     "avg_read_precision",
+    "avg_unique_graph_precision",
     "avg_node_recall",
+    "avg_unique_graph_f1",
     "avg_hit_f1",
+    "obs_recall",
+    "obs_graph_focus",
+    "obs_graph_steps_per_turn",
+    "obs_unique_nodes_per_read",
+    "obs_unique_nodes_per_turn",
+    "obs_unique_node_coverage_per_read",
+    "obs_unique_node_coverage_per_turn",
+    "obs_new_graph_step_per_read",
+    "obs_repeat_only_step_per_read",
+    "obs_new_graph_step_rate",
+    "obs_repeat_only_step_rate",
+    "obs_new_node_exposure_rate",
+    "obs_repeat_node_exposure_rate",
+    "obs_repeat_node_exposure_per_read_node",
+    "obs_repeat_node_exposure_per_turn_node",
     "path_coverage",
     "chain_graph_coverage",
     "path_hit_rate",
@@ -1407,6 +1499,8 @@ AVG_AT_METRIC_KEYS = (
     "avg_chain_node_f1",
     "avg_path_read_precision",
     "avg_chain_read_precision",
+    "avg_path_read_f1",
+    "avg_chain_read_f1",
     "avg_first_anchor_step",
     "avg_first_root_step",
     "avg_steps_anchor_to_root",
@@ -1415,6 +1509,9 @@ AVG_AT_METRIC_KEYS = (
     "reverse_order_rate",
     "miracle_rate",
     "avg_miracle_severity",
+    "unlicensed_reference_rate",
+    "unlicensed_step_rate",
+    "unlicensed_trace_rate",
     "avg_block_order_score",
     "block_reverse_order_rate",
     "block_miracle_rate",
@@ -1461,8 +1558,25 @@ def _rollout_metric_values(row: Mapping[str, Any]) -> dict[str, float | int | No
         "near_hit_rate": _bool_int(row["near_hit"]),
         "avg_min_distance": _number(row["min_distance"]),
         "avg_read_precision": _detail_number(detail, "hit_precision") if path_metric else None,
+        "avg_unique_graph_precision": _unique_graph_precision(detail) if path_metric else None,
         "avg_node_recall": _detail_number(detail, "hit_recall") if path_metric else None,
+        "avg_unique_graph_f1": _unique_graph_f1(detail) if path_metric else None,
         "avg_hit_f1": _detail_number(detail, "hit_f1") if path_metric else None,
+        "obs_recall": _detail_number(detail, "obs_recall") if detail.get("obs_graph_evaluable") else None,
+        "obs_graph_focus": _detail_number(detail, "obs_graph_focus") if detail.get("obs_graph_evaluable") else None,
+        "obs_graph_steps_per_turn": _detail_number(detail, "obs_graph_steps_per_turn") if detail.get("obs_graph_evaluable") else None,
+        "obs_unique_nodes_per_read": _detail_number(detail, "obs_unique_nodes_per_read") if detail.get("obs_graph_evaluable") else None,
+        "obs_unique_nodes_per_turn": _detail_number(detail, "obs_unique_nodes_per_turn") if detail.get("obs_graph_evaluable") else None,
+        "obs_unique_node_coverage_per_read": _detail_number(detail, "obs_unique_node_coverage_per_read") if detail.get("obs_graph_evaluable") else None,
+        "obs_unique_node_coverage_per_turn": _detail_number(detail, "obs_unique_node_coverage_per_turn") if detail.get("obs_graph_evaluable") else None,
+        "obs_new_graph_step_per_read": _detail_number(detail, "obs_new_graph_step_per_read") if detail.get("obs_graph_evaluable") else None,
+        "obs_repeat_only_step_per_read": _detail_number(detail, "obs_repeat_only_step_per_read") if detail.get("obs_graph_evaluable") else None,
+        "obs_new_graph_step_rate": _detail_number(detail, "obs_new_graph_step_rate") if detail.get("obs_graph_evaluable") else None,
+        "obs_repeat_only_step_rate": _detail_number(detail, "obs_repeat_only_step_rate") if detail.get("obs_graph_evaluable") else None,
+        "obs_new_node_exposure_rate": _detail_number(detail, "obs_new_node_exposure_rate") if detail.get("obs_graph_evaluable") else None,
+        "obs_repeat_node_exposure_rate": _detail_number(detail, "obs_repeat_node_exposure_rate") if detail.get("obs_graph_evaluable") else None,
+        "obs_repeat_node_exposure_per_read_node": _detail_number(detail, "obs_repeat_node_exposure_per_read_node") if detail.get("obs_graph_evaluable") else None,
+        "obs_repeat_node_exposure_per_turn_node": _detail_number(detail, "obs_repeat_node_exposure_per_turn_node") if detail.get("obs_graph_evaluable") else None,
         "path_coverage": _bool_int(_path_value(detail, "path_covered", "chain_graph_covered")) if path_metric else None,
         "chain_graph_coverage": _bool_int(_path_value(detail, "path_covered", "chain_graph_covered")) if path_metric else None,
         "path_hit_rate": _bool_int(_path_value(detail, "path_hit", "chain_hit")) if path_metric else None,
@@ -1477,6 +1591,8 @@ def _rollout_metric_values(row: Mapping[str, Any]) -> dict[str, float | int | No
         "avg_chain_node_f1": _path_node_f1(detail) if path_metric else None,
         "avg_path_read_precision": _number(_path_value(detail, "path_read_precision", "chain_read_precision")) if path_metric else None,
         "avg_chain_read_precision": _number(_path_value(detail, "path_read_precision", "chain_read_precision")) if path_metric else None,
+        "avg_path_read_f1": _path_read_f1(detail) if path_metric else None,
+        "avg_chain_read_f1": _path_read_f1(detail) if path_metric else None,
         "avg_first_anchor_step": _detail_number(detail, "first_anchor_step") if path_metric else None,
         "avg_first_root_step": _detail_number(detail, "first_root_step") if path_metric else None,
         "avg_steps_anchor_to_root": _detail_number(detail, "steps_anchor_to_root") if path_metric else None,
@@ -1485,6 +1601,9 @@ def _rollout_metric_values(row: Mapping[str, Any]) -> dict[str, float | int | No
         "reverse_order_rate": _bool_int(order_score < 0) if order_score is not None else None,
         "miracle_rate": _bool_int(bool(detail.get("miracle_step")) or bool(detail.get("block_miracle_step"))) if order_metric else None,
         "avg_miracle_severity": _detail_number(detail, "miracle_severity") if order_metric else None,
+        "unlicensed_reference_rate": _detail_number(detail, "unlicensed_reference_rate") if detail.get("license_evaluable") else None,
+        "unlicensed_step_rate": _detail_number(detail, "unlicensed_step_rate") if detail.get("license_evaluable") else None,
+        "unlicensed_trace_rate": _bool_int((detail.get("n_unlicensed_references") or 0) > 0) if detail.get("license_evaluable") else None,
         "avg_block_order_score": block_order_score,
         "block_reverse_order_rate": _bool_int(block_order_score < 0) if block_order_score is not None else None,
         "block_miracle_rate": _bool_int(detail.get("block_miracle_step")) if order_metric and detail.get("block_miracle_step") is not None else None,
@@ -1493,12 +1612,8 @@ def _rollout_metric_values(row: Mapping[str, Any]) -> dict[str, float | int | No
         "block_achieve_rate": _detail_ratio(detail, "n_achieving_blocks", "n_scored_read_blocks") if path_metric else None,
         "block_waste_rate": _detail_ratio(detail, "n_wasted_blocks", "n_scored_read_blocks") if path_metric else None,
         "block_loop_rate": _detail_ratio(detail, "n_loop_blocks", "n_blocks") if path_metric else None,
-        "achieving_block_step_share": _detail_ratio(detail, "n_achieving_block_steps", "n_scored_read_block_steps")
-        if path_metric
-        else None,
-        "wasted_block_step_share": _detail_ratio(detail, "n_wasted_block_steps", "n_scored_read_block_steps")
-        if path_metric
-        else None,
+        "achieving_block_step_share": _detail_ratio(detail, "n_achieving_block_steps", "n_scored_read_block_steps") if path_metric else None,
+        "wasted_block_step_share": _detail_ratio(detail, "n_wasted_block_steps", "n_scored_read_block_steps") if path_metric else None,
         "loop_block_step_share": _detail_ratio(detail, "n_loop_block_steps", "n_block_steps") if path_metric else None,
         "loop_trace_rate": _bool_int(bad_patterns.get("has_loop")) if bad_patterns else None,
         "error_spiral_rate": _bool_int(bad_patterns.get("error_spiral")) if bad_patterns else None,
@@ -1519,7 +1634,9 @@ def _rollout_n(group: list[Mapping[str, Any]]) -> int:
     return max(1, max(int(row["rollout_index"] or 0) for row in group) + 1)
 
 
-def _rows_by_instance(rows: Iterable[Mapping[str, Any]]) -> dict[str, list[Mapping[str, Any]]]:
+def _rows_by_instance(
+    rows: Iterable[Mapping[str, Any]],
+) -> dict[str, list[Mapping[str, Any]]]:
     out: dict[str, list[Mapping[str, Any]]] = defaultdict(list)
     for row in rows:
         out[str(row["instance_id"])].append(row)
@@ -1633,9 +1750,7 @@ def _selected_scope_from_snapshot(value: str | None) -> dict[str, Any] | None:
         snapshot.get("selected_scope"),
         snapshot.get("scope"),
         (snapshot.get("experiment") or {}).get("scope") if isinstance(snapshot.get("experiment"), dict) else None,
-        ((snapshot.get("config") or {}).get("experiment") or {}).get("scope")
-        if isinstance(snapshot.get("config"), dict)
-        else None,
+        ((snapshot.get("config") or {}).get("experiment") or {}).get("scope") if isinstance(snapshot.get("config"), dict) else None,
     ):
         if isinstance(candidate, dict) and candidate:
             return candidate
@@ -1780,147 +1895,127 @@ def aggregate_model_metrics(
         order_metric_details = [detail for detail in details if _is_order_metric_detail(detail)]
         order_details = [detail for detail in order_metric_details if detail.get("order_defined") is True]
         block_order_details = [detail for detail in order_metric_details if detail.get("block_order_defined") is True]
+        obs_graph_details = [detail for detail in details if detail.get("obs_graph_evaluable")]
+        license_details = [detail for detail in details if detail.get("license_evaluable")]
+        entity_references = _sum_detail(license_details, "n_entity_references")
+        unlicensed_references = _sum_detail(license_details, "n_unlicensed_references")
+        trace_steps = _sum_detail(license_details, "n_trace_steps")
+        unlicensed_reference_steps = _sum_detail(license_details, "n_unlicensed_reference_steps")
         scored_read_blocks = _sum_detail(path_metric_details, "n_scored_read_blocks")
         total_blocks = _sum_detail(path_metric_details, "n_blocks")
         block_steps = _sum_detail(path_metric_details, "n_block_steps")
         scored_block_steps = _sum_detail(path_metric_details, "n_scored_read_block_steps")
         row_payload = {
-                "experiment_id": exp_id,
-                "provider_source": source,
-                "dataset": ds,
-                "model_api_name": api_name,
-                "model_label": label,
-                "target": len(planned_instances),
-                "target_rollouts": len(group),
-                "done": len(done_instances),
-                "done_rollouts": len(done),
-                "errors": len(errors),
-                "pending": sum(1 for row in group if row["status"] in {PENDING_STATUS, RUNNING_STATUS}),
-                "detail_cache_ready_rollouts": detail_cache_ready,
-                "detail_cache_pending_rollouts": detail_cache_pending,
-                "rollouts_per_instance": rollout_n,
-                "selected_scope": _selected_scope_from_snapshot(group[0]["config_snapshot"]),
-                "pass_at_n": pass_at.get(str(rollout_n)),
-                "pass_at": pass_at,
-                "avg_at": avg_at,
-                "avg_at_std": avg_at_std,
-                "avg_at_n": avg_at_n,
-                "avg_at_n_std": avg_at_n_std,
-                "std_scale": 1,
-                "resolved_rate": _rate([row["resolved"] for row in metric_rows]),
-                "reward_rate": _avg([row["reward"] for row in metric_rows]),
-                "p2a_read_rate": _rate([row["p2a_read"] for row in metric_rows]),
-                "call_graph_hit_rate": _rate([row["call_graph_hit"] for row in metric_rows]),
-                "ground_truth_hit_rate": _rate([row["ground_truth_hit"] for row in metric_rows]),
-                "near_hit_rate": _rate([row["near_hit"] for row in metric_rows]),
-                "avg_min_distance": (sum(float(v) for v in distances) / len(distances)) if distances else None,
-                "avg_read_precision": _avg_detail(path_metric_details, "hit_precision"),
-                "avg_node_recall": _avg_detail(path_metric_details, "hit_recall"),
-                "avg_hit_f1": _avg_detail(path_metric_details, "hit_f1"),
-                "path_coverage": _rate(
-                    [_bool_int(_path_value(detail, "path_covered", "chain_graph_covered")) for detail in path_metric_details]
-                ),
-                "chain_graph_coverage": _rate(
-                    [_bool_int(_path_value(detail, "path_covered", "chain_graph_covered")) for detail in path_metric_details]
-                ),
-                "path_hit_rate": _rate(
-                    [_bool_int(_path_value(detail, "path_hit", "chain_hit")) for detail in path_metric_details]
-                ),
-                "chain_hit_rate": _rate(
-                    [_bool_int(_path_value(detail, "path_hit", "chain_hit")) for detail in path_metric_details]
-                ),
-                "anchor_hit_rate": _rate_detail(path_metric_details, "anchor_hit"),
-                "root_hit_rate": _rate_detail(path_metric_details, "root_hit"),
-                "avg_path_node_recall": _avg(
-                    [_number(_path_value(detail, "path_node_recall", "chain_node_recall")) for detail in path_metric_details]
-                ),
-                "avg_chain_node_recall": _avg(
-                    [_number(_path_value(detail, "path_node_recall", "chain_node_recall")) for detail in path_metric_details]
-                ),
-                "avg_path_node_precision": _avg([_path_node_precision(detail) for detail in path_metric_details]),
-                "avg_chain_node_precision": _avg([_path_node_precision(detail) for detail in path_metric_details]),
-                "avg_path_node_f1": _avg([_path_node_f1(detail) for detail in path_metric_details]),
-                "avg_chain_node_f1": _avg([_path_node_f1(detail) for detail in path_metric_details]),
-                "avg_path_read_precision": _avg(
-                    [_number(_path_value(detail, "path_read_precision", "chain_read_precision")) for detail in path_metric_details]
-                ),
-                "avg_chain_read_precision": _avg(
-                    [_number(_path_value(detail, "path_read_precision", "chain_read_precision")) for detail in path_metric_details]
-                ),
-                "avg_first_anchor_step": _avg_detail(path_metric_details, "first_anchor_step"),
-                "avg_first_root_step": _avg_detail(path_metric_details, "first_root_step"),
-                "avg_steps_anchor_to_root": _avg_detail(path_metric_details, "steps_anchor_to_root"),
-                "anchor_before_root_rate": _rate_detail(path_metric_details, "anchor_before_root"),
-                "avg_order_score": _avg_detail(order_details, "order_score"),
-                "reverse_order_rate": _rate(
-                    [
-                        _bool_int((_detail_number(detail, "order_score") or 0) < 0)
-                        for detail in order_details
-                        if _detail_number(detail, "order_score") is not None
-                    ]
-                ),
-                "miracle_rate": _rate(
-                    [
-                        _bool_int(bool(detail.get("miracle_step")) or bool(detail.get("block_miracle_step")))
-                        for detail in order_metric_details
-                        if detail.get("miracle_step") is not None or detail.get("block_miracle_step") is not None
-                    ]
-                ),
-                "avg_miracle_severity": _avg_detail(order_metric_details, "miracle_severity"),
-                "avg_block_order_score": _avg_detail(block_order_details, "block_order_score"),
-                "block_reverse_order_rate": _rate(
-                    [
-                        _bool_int((_detail_number(detail, "block_order_score") or 0) < 0)
-                        for detail in block_order_details
-                        if _detail_number(detail, "block_order_score") is not None
-                    ]
-                ),
-                "block_miracle_rate": _rate(
-                    [
-                        _bool_int(detail.get("block_miracle_step"))
-                        for detail in order_metric_details
-                        if detail.get("block_miracle_step") is not None
-                    ]
-                ),
-                "avg_block_efficiency": _avg_detail(path_metric_details, "block_efficiency"),
-                "avg_blocks_per_trace": (total_blocks / len(path_metric_details)) if path_metric_details else None,
-                "block_achieve_rate": (_sum_detail(path_metric_details, "n_achieving_blocks") / scored_read_blocks)
-                if scored_read_blocks
-                else None,
-                "block_waste_rate": (_sum_detail(path_metric_details, "n_wasted_blocks") / scored_read_blocks)
-                if scored_read_blocks
-                else None,
-                "block_loop_rate": (_sum_detail(path_metric_details, "n_loop_blocks") / total_blocks) if total_blocks else None,
-                "achieving_block_step_share": (_sum_detail(path_metric_details, "n_achieving_block_steps") / scored_block_steps)
-                if scored_block_steps
-                else None,
-                "wasted_block_step_share": (_sum_detail(path_metric_details, "n_wasted_block_steps") / scored_block_steps)
-                if scored_block_steps
-                else None,
-                "loop_block_step_share": (_sum_detail(path_metric_details, "n_loop_block_steps") / block_steps) if block_steps else None,
-                "loop_trace_rate": _rate_detail([detail.get("bad_patterns") or {} for detail in details], "has_loop"),
-                "error_spiral_rate": _rate_detail([detail.get("bad_patterns") or {} for detail in details], "error_spiral"),
-                "not_path_evaluable_reasons": _detail_distribution(
-                    [detail for detail in details if not _path_value(detail, "path_evaluable", "chain_evaluable")],
-                    "not_path_evaluable_reason",
-                ),
-                "not_chain_evaluable_reasons": _detail_distribution(
-                    [detail for detail in details if not _path_value(detail, "path_evaluable", "chain_evaluable")],
-                    "not_chain_evaluable_reason",
-                ),
-                "path_pattern_flags": _path_pattern_distribution(details, PATH_PATTERN_KEYS),
-                "chain_bad_patterns": _path_pattern_distribution(details, CHAIN_BAD_PATTERN_KEYS),
-                "avg_turns": _avg([row["turns"] for row in metric_rows]),
-                "avg_tool_calls": _avg([row["tool_calls"] for row in metric_rows]),
-                "avg_wall_time": _avg([row["wall_time"] for row in metric_rows]),
-                "avg_input_tokens": _avg([row["input_tokens"] for row in metric_rows]),
-                "avg_output_tokens": _avg([row["output_tokens"] for row in metric_rows]),
-                "avg_reasoning_tokens": _avg([row["reasoning_tokens"] for row in metric_rows]),
-                "cache_hit_rate": (cache_hit / (input_tokens + cache_hit)) if cache_hit and (input_tokens + cache_hit) else None,
-                "cache_write_rate": (cache_write / (input_tokens + cache_write)) if cache_write and (input_tokens + cache_write) else None,
-                "total_cache_write_tokens": cache_write if cache_write else None,
-                "total_cost": sum(float(row["cost"] or 0) for row in metric_rows) if metric_rows else None,
-            }
+            "experiment_id": exp_id,
+            "provider_source": source,
+            "dataset": ds,
+            "model_api_name": api_name,
+            "model_label": label,
+            "target": len(planned_instances),
+            "target_rollouts": len(group),
+            "done": len(done_instances),
+            "done_rollouts": len(done),
+            "errors": len(errors),
+            "pending": sum(1 for row in group if row["status"] in {PENDING_STATUS, RUNNING_STATUS}),
+            "detail_cache_ready_rollouts": detail_cache_ready,
+            "detail_cache_pending_rollouts": detail_cache_pending,
+            "rollouts_per_instance": rollout_n,
+            "selected_scope": _selected_scope_from_snapshot(group[0]["config_snapshot"]),
+            "pass_at_n": pass_at.get(str(rollout_n)),
+            "pass_at": pass_at,
+            "avg_at": avg_at,
+            "avg_at_std": avg_at_std,
+            "avg_at_n": avg_at_n,
+            "avg_at_n_std": avg_at_n_std,
+            "std_scale": 1,
+            "resolved_rate": _rate([row["resolved"] for row in metric_rows]),
+            "reward_rate": _avg([row["reward"] for row in metric_rows]),
+            "p2a_read_rate": _rate([row["p2a_read"] for row in metric_rows]),
+            "call_graph_hit_rate": _rate([row["call_graph_hit"] for row in metric_rows]),
+            "ground_truth_hit_rate": _rate([row["ground_truth_hit"] for row in metric_rows]),
+            "near_hit_rate": _rate([row["near_hit"] for row in metric_rows]),
+            "avg_min_distance": (sum(float(v) for v in distances) / len(distances)) if distances else None,
+            "avg_read_precision": _avg_detail(path_metric_details, "hit_precision"),
+            "avg_unique_graph_precision": _avg([_unique_graph_precision(detail) for detail in path_metric_details]),
+            "avg_node_recall": _avg_detail(path_metric_details, "hit_recall"),
+            "avg_unique_graph_f1": _avg([_unique_graph_f1(detail) for detail in path_metric_details]),
+            "avg_hit_f1": _avg_detail(path_metric_details, "hit_f1"),
+            "obs_recall": _avg_detail(obs_graph_details, "obs_recall"),
+            "obs_graph_focus": _avg_detail(obs_graph_details, "obs_graph_focus"),
+            "obs_graph_steps_per_turn": _avg_detail(obs_graph_details, "obs_graph_steps_per_turn"),
+            "obs_unique_nodes_per_read": _avg_detail(obs_graph_details, "obs_unique_nodes_per_read"),
+            "obs_unique_nodes_per_turn": _avg_detail(obs_graph_details, "obs_unique_nodes_per_turn"),
+            "obs_unique_node_coverage_per_read": _avg_detail(obs_graph_details, "obs_unique_node_coverage_per_read"),
+            "obs_unique_node_coverage_per_turn": _avg_detail(obs_graph_details, "obs_unique_node_coverage_per_turn"),
+            "obs_new_graph_step_per_read": _avg_detail(obs_graph_details, "obs_new_graph_step_per_read"),
+            "obs_repeat_only_step_per_read": _avg_detail(obs_graph_details, "obs_repeat_only_step_per_read"),
+            "obs_new_graph_step_rate": _avg_detail(obs_graph_details, "obs_new_graph_step_rate"),
+            "obs_repeat_only_step_rate": _avg_detail(obs_graph_details, "obs_repeat_only_step_rate"),
+            "obs_new_node_exposure_rate": _avg_detail(obs_graph_details, "obs_new_node_exposure_rate"),
+            "obs_repeat_node_exposure_rate": _avg_detail(obs_graph_details, "obs_repeat_node_exposure_rate"),
+            "obs_repeat_node_exposure_per_read_node": _avg_detail(obs_graph_details, "obs_repeat_node_exposure_per_read_node"),
+            "obs_repeat_node_exposure_per_turn_node": _avg_detail(obs_graph_details, "obs_repeat_node_exposure_per_turn_node"),
+            "path_coverage": _rate([_bool_int(_path_value(detail, "path_covered", "chain_graph_covered")) for detail in path_metric_details]),
+            "chain_graph_coverage": _rate([_bool_int(_path_value(detail, "path_covered", "chain_graph_covered")) for detail in path_metric_details]),
+            "path_hit_rate": _rate([_bool_int(_path_value(detail, "path_hit", "chain_hit")) for detail in path_metric_details]),
+            "chain_hit_rate": _rate([_bool_int(_path_value(detail, "path_hit", "chain_hit")) for detail in path_metric_details]),
+            "anchor_hit_rate": _rate_detail(path_metric_details, "anchor_hit"),
+            "root_hit_rate": _rate_detail(path_metric_details, "root_hit"),
+            "avg_path_node_recall": _avg([_number(_path_value(detail, "path_node_recall", "chain_node_recall")) for detail in path_metric_details]),
+            "avg_chain_node_recall": _avg([_number(_path_value(detail, "path_node_recall", "chain_node_recall")) for detail in path_metric_details]),
+            "avg_path_node_precision": _avg([_path_node_precision(detail) for detail in path_metric_details]),
+            "avg_chain_node_precision": _avg([_path_node_precision(detail) for detail in path_metric_details]),
+            "avg_path_node_f1": _avg([_path_node_f1(detail) for detail in path_metric_details]),
+            "avg_chain_node_f1": _avg([_path_node_f1(detail) for detail in path_metric_details]),
+            "avg_path_read_precision": _avg([_number(_path_value(detail, "path_read_precision", "chain_read_precision")) for detail in path_metric_details]),
+            "avg_chain_read_precision": _avg([_number(_path_value(detail, "path_read_precision", "chain_read_precision")) for detail in path_metric_details]),
+            "avg_path_read_f1": _avg([_path_read_f1(detail) for detail in path_metric_details]),
+            "avg_chain_read_f1": _avg([_path_read_f1(detail) for detail in path_metric_details]),
+            "avg_first_anchor_step": _avg_detail(path_metric_details, "first_anchor_step"),
+            "avg_first_root_step": _avg_detail(path_metric_details, "first_root_step"),
+            "avg_steps_anchor_to_root": _avg_detail(path_metric_details, "steps_anchor_to_root"),
+            "anchor_before_root_rate": _rate_detail(path_metric_details, "anchor_before_root"),
+            "avg_order_score": _avg_detail(order_details, "order_score"),
+            "reverse_order_rate": _rate([_bool_int((_detail_number(detail, "order_score") or 0) < 0) for detail in order_details if _detail_number(detail, "order_score") is not None]),
+            "miracle_rate": _rate([_bool_int(bool(detail.get("miracle_step")) or bool(detail.get("block_miracle_step"))) for detail in order_metric_details if detail.get("miracle_step") is not None or detail.get("block_miracle_step") is not None]),
+            "avg_miracle_severity": _avg_detail(order_metric_details, "miracle_severity"),
+            "unlicensed_reference_rate": (unlicensed_references / entity_references) if entity_references else None,
+            "unlicensed_step_rate": (unlicensed_reference_steps / trace_steps) if trace_steps else None,
+            "unlicensed_trace_rate": _rate([_bool_int((detail.get("n_unlicensed_references") or 0) > 0) for detail in license_details]),
+            "avg_block_order_score": _avg_detail(block_order_details, "block_order_score"),
+            "block_reverse_order_rate": _rate([_bool_int((_detail_number(detail, "block_order_score") or 0) < 0) for detail in block_order_details if _detail_number(detail, "block_order_score") is not None]),
+            "block_miracle_rate": _rate([_bool_int(detail.get("block_miracle_step")) for detail in order_metric_details if detail.get("block_miracle_step") is not None]),
+            "avg_block_efficiency": _avg_detail(path_metric_details, "block_efficiency"),
+            "avg_blocks_per_trace": (total_blocks / len(path_metric_details)) if path_metric_details else None,
+            "block_achieve_rate": (_sum_detail(path_metric_details, "n_achieving_blocks") / scored_read_blocks) if scored_read_blocks else None,
+            "block_waste_rate": (_sum_detail(path_metric_details, "n_wasted_blocks") / scored_read_blocks) if scored_read_blocks else None,
+            "block_loop_rate": (_sum_detail(path_metric_details, "n_loop_blocks") / total_blocks) if total_blocks else None,
+            "achieving_block_step_share": (_sum_detail(path_metric_details, "n_achieving_block_steps") / scored_block_steps) if scored_block_steps else None,
+            "wasted_block_step_share": (_sum_detail(path_metric_details, "n_wasted_block_steps") / scored_block_steps) if scored_block_steps else None,
+            "loop_block_step_share": (_sum_detail(path_metric_details, "n_loop_block_steps") / block_steps) if block_steps else None,
+            "loop_trace_rate": _rate_detail([detail.get("bad_patterns") or {} for detail in details], "has_loop"),
+            "error_spiral_rate": _rate_detail([detail.get("bad_patterns") or {} for detail in details], "error_spiral"),
+            "not_path_evaluable_reasons": _detail_distribution(
+                [detail for detail in details if not _path_value(detail, "path_evaluable", "chain_evaluable")],
+                "not_path_evaluable_reason",
+            ),
+            "not_chain_evaluable_reasons": _detail_distribution(
+                [detail for detail in details if not _path_value(detail, "path_evaluable", "chain_evaluable")],
+                "not_chain_evaluable_reason",
+            ),
+            "path_pattern_flags": _path_pattern_distribution(details, PATH_PATTERN_KEYS),
+            "chain_bad_patterns": _path_pattern_distribution(details, CHAIN_BAD_PATTERN_KEYS),
+            "avg_turns": _avg([row["turns"] for row in metric_rows]),
+            "avg_tool_calls": _avg([row["tool_calls"] for row in metric_rows]),
+            "avg_wall_time": _avg([row["wall_time"] for row in metric_rows]),
+            "avg_input_tokens": _avg([row["input_tokens"] for row in metric_rows]),
+            "avg_output_tokens": _avg([row["output_tokens"] for row in metric_rows]),
+            "avg_reasoning_tokens": _avg([row["reasoning_tokens"] for row in metric_rows]),
+            "cache_hit_rate": (cache_hit / (input_tokens + cache_hit)) if cache_hit and (input_tokens + cache_hit) else None,
+            "cache_write_rate": (cache_write / (input_tokens + cache_write)) if cache_write and (input_tokens + cache_write) else None,
+            "total_cache_write_tokens": cache_write if cache_write else None,
+            "total_cost": sum(float(row["cost"] or 0) for row in metric_rows) if metric_rows else None,
+        }
         for metric_key, metric_value in avg_at_n.items():
             row_payload[metric_key] = metric_value
             std_value = avg_at_n_std.get(metric_key)

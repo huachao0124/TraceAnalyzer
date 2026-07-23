@@ -515,6 +515,28 @@ def _make_reward(row: dict[str, Any], *, run_id: str, env: Any, agent_cfg: dict[
     return load_reward_spec(reward_cfg)
 
 
+async def _run_env_execute_command(
+    env: Any,
+    command: str,
+    *,
+    timeout: int | float | None = None,
+    check: str = "ignore",
+    error_msg: str | None = None,
+) -> str:
+    from swerex.runtime.abstract import Command
+
+    runtime = getattr(getattr(env, "deployment", None), "runtime", None)
+    execute = getattr(runtime, "execute", None)
+    if not callable(execute):
+        raise RuntimeError("Agent runtime execute interface is required; interactive/communicate execution is forbidden")
+    response = await execute(Command(command=["bash", "-lc", command], timeout=timeout))
+    output = (response.stdout or "") + (response.stderr or "")
+    if check == "raise" and int(response.exit_code or 0) != 0:
+        message = error_msg or f"command failed with exit code {response.exit_code}"
+        raise RuntimeError(f"{message}: {output}")
+    return output
+
+
 async def _install_tools(
     env: Any,
     tools: list[Any],
@@ -524,7 +546,7 @@ async def _install_tools(
 ) -> None:
     skip_install_commands = set(skip_install_commands)
     install_dir = env.tool_install_dir
-    await env.communicate(f"export PATH={shlex.quote(install_dir.as_posix())}:$PATH", timeout=timeout, check="raise")
+    path_prefix = f"export PATH={shlex.quote(install_dir.as_posix())}:$PATH; "
     for tool in tools:
         tool_name = tool.name
         if tool.copy_to_remote:
@@ -533,12 +555,18 @@ async def _install_tools(
                 raise FileNotFoundError(f"Tool {tool_name} has no local executable at {local_tool_path!r}")
             container_tool_path = install_dir / tool_name
             await env.copy_to_container(src=local_tool_path, tgt=container_tool_path)
-            await env.communicate(f"chmod +x {container_tool_path.as_posix()}", timeout=timeout, check="raise")
+            await _run_env_execute_command(
+                env,
+                f"chmod +x {shlex.quote(container_tool_path.as_posix())}",
+                timeout=timeout,
+                check="raise",
+            )
         install_cmd = None if tool_name in skip_install_commands else tool.get_install_command()
         if install_cmd:
-            await env.communicate(install_cmd, timeout=timeout, check="raise")
-        await env.communicate(
-            f"which {tool_name}",
+            await _run_env_execute_command(env, path_prefix + install_cmd, timeout=timeout, check="raise")
+        await _run_env_execute_command(
+            env,
+            path_prefix + f"which {shlex.quote(tool_name)}",
             timeout=timeout,
             check="raise",
             error_msg=f"Failed to install tool {tool_name}",
@@ -887,12 +915,7 @@ async def _snapshot_final_patch(env: Any, row: dict[str, Any]) -> str | None:
         f"git config --global --add safe.directory {quoted_repo} >/dev/null 2>&1 || true; "
         f"git -C {quoted_repo} add -A && git -C {quoted_repo} diff --no-color --cached"
     )
-    resp = await runtime.execute(
-        Command(
-            command=["bash", "-lc", command],
-            timeout=120,
-        )
-    )
+    resp = await runtime.execute(Command(command=["bash", "-lc", command], timeout=120))
     if int(resp.exit_code or 0) != 0:
         raise RuntimeError(f"final-patch snapshot failed: {resp.stderr or resp.stdout}")
     return resp.stdout or ""
@@ -1063,7 +1086,7 @@ async def run_batch(
     if rollout_jobs:
         jobs = [(row_by_id[instance_id], rollout_index) for instance_id, rollout_index in rollout_jobs if instance_id in row_by_id]
     else:
-        jobs = [(row, rollout_index) for row in rows for rollout_index in range(max(1, int(rollouts_per_instance or 1)))]
+        jobs = [(row, rollout_index) for rollout_index in range(max(1, int(rollouts_per_instance or 1))) for row in rows]
     instance_semaphores: dict[str, asyncio.Semaphore] = {}
 
     def instance_semaphore(row: dict[str, Any]) -> asyncio.Semaphore:
@@ -1073,8 +1096,8 @@ async def run_batch(
         return instance_semaphores[instance_id]
 
     async def guarded(job_index: int, row: dict[str, Any], rollout_index: int) -> tuple[int, dict[str, Any]]:
-        async with semaphore:
-            async with instance_semaphore(row):
+        async with instance_semaphore(row):
+            async with semaphore:
                 record = await run_one(
                     row,
                     model_cfg=model_cfg,

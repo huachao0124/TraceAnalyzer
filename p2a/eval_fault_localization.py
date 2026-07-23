@@ -47,7 +47,14 @@ TEXT_FIELDS = (
     "output",
     "text",
 )
-STEP_FIELDS = ("global_step", "trainer_step", "validation_step", "training_step", "step", "iteration")
+STEP_FIELDS = (
+    "global_step",
+    "trainer_step",
+    "validation_step",
+    "training_step",
+    "step",
+    "iteration",
+)
 EXECUTION_ERROR_LINE_PATTERN = re.compile(
     r"^\s*(traceback\b|error:|exception:|command failed\b|failed:|failure:|no such file\b|bash:|sh:)",
     re.IGNORECASE,
@@ -92,6 +99,30 @@ LEGACY_PATH_PATTERN_ALIASES = {
     "off_chain_read_spree": "off_path_read_spree",
     "error_spiral_on_chain": "error_spiral_on_path",
 }
+OBS_GRAPH_RATE_KEYS = (
+    "obs_recall",
+    "obs_graph_focus",
+    "obs_graph_steps_per_turn",
+    "obs_unique_nodes_per_read",
+    "obs_unique_nodes_per_turn",
+    "obs_unique_node_coverage_per_read",
+    "obs_unique_node_coverage_per_turn",
+    "obs_new_graph_step_per_read",
+    "obs_repeat_only_step_per_read",
+    "obs_new_graph_step_rate",
+    "obs_repeat_only_step_rate",
+    "obs_new_node_exposure_rate",
+    "obs_repeat_node_exposure_rate",
+    "obs_repeat_node_exposure_per_read_node",
+    "obs_repeat_node_exposure_per_turn_node",
+)
+OBS_PATH_HEADER_PATTERN = re.compile(r"(?:cat -n`? on|running `cat -n` on)\s+(\S+?):")
+OBS_CATN_LINE_PATTERN = re.compile(r"^\s*(\d+)\t")
+OBS_GREP_N_FILE_LINE_PATTERN = re.compile(r"^(?P<file>[^\s:][^:\n]*?):(?P<line>\d+):")
+OBS_GREP_N_LINE_PATTERN = re.compile(r"^(?P<line>\d+)[:-]")
+OBS_GREP_FILE_TEXT_PATTERN = re.compile(r"^(?P<file>[^:\n]+):(?P<text>.*)$")
+OBS_NUMBERED_TEXT_PATTERN = re.compile(r"^\s*\d+\s+(.+)$")
+OBS_SOURCE_LINE_MIN_CHARS = 8
 
 PATH_DETAIL_ALIASES = {
     "chain_evaluable": "path_evaluable",
@@ -102,6 +133,7 @@ PATH_DETAIL_ALIASES = {
     "chain_hit": "path_hit",
     "chain_node_recall": "path_node_recall",
     "chain_read_precision": "path_read_precision",
+    "chain_read_f1": "path_read_f1",
     "n_chain_nodes": "n_path_nodes",
     "n_hit_chain_nodes": "n_hit_path_nodes",
     "chain_bad_patterns": "path_pattern_flags",
@@ -115,6 +147,7 @@ LEGACY_DETAIL_DEFAULTS = {
     "chain_hit": False,
     "chain_node_recall": None,
     "chain_read_precision": None,
+    "chain_read_f1": None,
     "n_chain_nodes": 0,
     "n_hit_chain_nodes": 0,
     "chain_bad_patterns": {},
@@ -152,12 +185,7 @@ def _json_default(value: Any) -> Any:
 def _sync_path_aliases(detail: dict[str, Any]) -> dict[str, Any]:
     """Mirror legacy `chain_*` detail keys to current Path terminology."""
     for legacy_key, path_key in PATH_DETAIL_ALIASES.items():
-        legacy_is_default = (
-            legacy_key in detail
-            and path_key in detail
-            and detail.get(legacy_key) == LEGACY_DETAIL_DEFAULTS.get(legacy_key, object())
-            and detail.get(path_key) != detail.get(legacy_key)
-        )
+        legacy_is_default = legacy_key in detail and path_key in detail and detail.get(legacy_key) == LEGACY_DETAIL_DEFAULTS.get(legacy_key, object()) and detail.get(path_key) != detail.get(legacy_key)
         if path_key in detail and (legacy_key not in detail or legacy_is_default):
             detail[legacy_key] = detail[path_key]
         elif legacy_key in detail and path_key not in detail:
@@ -208,7 +236,11 @@ def _records_from_json_payload(payload: Any) -> Iterable[dict]:
 def iter_records(path: Path) -> Iterable[dict]:
     if path.is_dir():
         for child in sorted(path.rglob("*")):
-            if child.is_file() and child.suffix.lower() in {".jsonl", ".json", ".parquet"}:
+            if child.is_file() and child.suffix.lower() in {
+                ".jsonl",
+                ".json",
+                ".parquet",
+            }:
                 yield from iter_records(child)
         return
 
@@ -606,9 +638,277 @@ def _all_read_hit_nodes(reads: list[dict], bonus_map: dict, *, rewardable_only: 
     return hits
 
 
+def _norm_path(path: str) -> str:
+    path = (path or "").strip()
+    for prefix in ("/app/", "/testbed/", "./"):
+        if path.startswith(prefix):
+            path = path[len(prefix) :]
+    return path.lstrip("/")
+
+
+def _paths_match(observed_path: str, node_path: str) -> bool:
+    observed = _norm_path(observed_path)
+    node = _norm_path(node_path)
+    return bool(observed and node) and (observed == node or observed.endswith("/" + node) or node.endswith("/" + observed))
+
+
+def _action_file(action: str) -> str | None:
+    m = re.search(r"--path\s+(\S+)", action or "")
+    if m:
+        return m.group(1)
+    m = re.search(
+        r"\b(?:cat|sed|grep|head|tail|nl|less|view)\b[^\n]*?\s(/\S+\.\w+|\S+\.\w+)",
+        action or "",
+    )
+    return m.group(1) if m else None
+
+
+def _normalized_source_line(text: str) -> str:
+    return re.sub(r"\s+", " ", (text or "").strip())
+
+
+def _tool_call_action_text(trace: dict) -> str:
+    parts: list[str] = []
+    for call in _normalize_tool_calls(trace.get("tool_calls")):
+        func = call.get("function") or {}
+        name = str(func.get("name") or "")
+        args = _maybe_json(func.get("arguments", {}))
+        if isinstance(args, dict):
+            payload = " ".join(str(args.get(key) or "") for key in ("command", "path", "view_range"))
+        else:
+            payload = str(args or "")
+        parts.append(f"{name} {payload}".strip())
+    return "\n".join(part for part in parts if part)
+
+
+def _step_observation_pairs(trace: Any) -> list[tuple[str, str]]:
+    trace = _normalized_trace(trace)
+    if not trace:
+        return []
+    fallback_action = _tool_call_action_text(trace)
+    pairs: list[tuple[str, str]] = []
+    for result_value in trace.get("tool_results") or []:
+        result = _maybe_json(result_value)
+        if isinstance(result, str):
+            if result.strip():
+                pairs.append((fallback_action, result))
+            continue
+        if not isinstance(result, dict):
+            continue
+        action = str(result.get("action") or result.get("command") or fallback_action or "")
+        for key in ("observation", "content", "result", "output", "stdout"):
+            value = result.get(key)
+            if isinstance(value, str) and value.strip():
+                pairs.append((action, value))
+                break
+    return pairs
+
+
+def _shown_lines_from_observation(action: str, observation: str) -> dict[str, set[int]]:
+    shown: dict[str, set[int]] = defaultdict(set)
+    if not observation:
+        return shown
+    header_file = None
+    header_match = OBS_PATH_HEADER_PATTERN.search(observation)
+    if header_match:
+        header_file = header_match.group(1)
+    default_file = header_file or _action_file(action)
+    for line in observation.splitlines():
+        grep_match = OBS_GREP_N_FILE_LINE_PATTERN.match(line)
+        if grep_match:
+            shown[grep_match.group("file")].add(int(grep_match.group("line")))
+            continue
+        cat_match = OBS_CATN_LINE_PATTERN.match(line)
+        if cat_match and default_file:
+            shown[default_file].add(int(cat_match.group(1)))
+            continue
+        no_file_match = OBS_GREP_N_LINE_PATTERN.match(line)
+        if no_file_match and default_file:
+            shown[default_file].add(int(no_file_match.group("line")))
+    return dict(shown)
+
+
+def _source_line_index(
+    nodes: dict[str, dict],
+) -> tuple[dict[str, dict[str, set[str]]], dict[str, set[str]]]:
+    by_file: dict[str, dict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
+    global_index: dict[str, set[str]] = defaultdict(set)
+    for node_key, node in nodes.items():
+        file_path = str(node.get("file_path") or "")
+        for line in str(node.get("source") or "").splitlines():
+            normalized = _normalized_source_line(line)
+            if len(normalized) < OBS_SOURCE_LINE_MIN_CHARS:
+                continue
+            by_file[file_path][normalized].add(node_key)
+            global_index[normalized].add(node_key)
+    return by_file, global_index
+
+
+def _text_line_hit_nodes(
+    *,
+    query_path: str | None,
+    text: str,
+    by_file: dict[str, dict[str, set[str]]],
+    global_index: dict[str, set[str]],
+) -> set[str]:
+    normalized = _normalized_source_line(text)
+    if len(normalized) < OBS_SOURCE_LINE_MIN_CHARS:
+        return set()
+    hits: set[str] = set()
+    if query_path:
+        for file_path, index in by_file.items():
+            if not _paths_match(query_path, file_path):
+                continue
+            candidates = index.get(normalized, set())
+            if len(candidates) == 1:
+                hits.update(candidates)
+        return hits
+    candidates = global_index.get(normalized, set())
+    return set(candidates) if len(candidates) == 1 else set()
+
+
+def _observation_exposed_nodes(
+    trace: Any,
+    rewardable_nodes: dict[str, dict],
+    by_file: dict[str, dict[str, set[str]]],
+    global_index: dict[str, set[str]],
+) -> set[str]:
+    exposed: set[str] = set()
+    for action, observation in _step_observation_pairs(trace):
+        shown_lines = _shown_lines_from_observation(action, observation)
+        for observed_path, lines in shown_lines.items():
+            for node_key, node in rewardable_nodes.items():
+                if not _paths_match(observed_path, str(node.get("file_path") or "")):
+                    continue
+                start = int(node.get("start_line") or 0)
+                end = int(node.get("end_line") or 0)
+                if any(start <= line <= end for line in lines):
+                    exposed.add(node_key)
+
+        default_file = _action_file(action)
+        for raw_line in observation.splitlines():
+            line = raw_line.rstrip("\n")
+            if not line.strip() or EXECUTION_ERROR_LINE_PATTERN.search(line):
+                continue
+            if OBS_GREP_N_FILE_LINE_PATTERN.match(line) or OBS_GREP_N_LINE_PATTERN.match(line):
+                continue
+            query_path = default_file
+            text = line
+            grep_text_match = OBS_GREP_FILE_TEXT_PATTERN.match(line.strip())
+            if grep_text_match and "." in grep_text_match.group("file"):
+                query_path = grep_text_match.group("file")
+                text = grep_text_match.group("text")
+            else:
+                numbered_text_match = OBS_NUMBERED_TEXT_PATTERN.match(line)
+                if numbered_text_match:
+                    text = numbered_text_match.group(1)
+            exposed.update(
+                _text_line_hit_nodes(
+                    query_path=query_path,
+                    text=text,
+                    by_file=by_file,
+                    global_index=global_index,
+                )
+            )
+    return exposed
+
+
+def _observation_graph_metrics(step_items: list[Any], bonus_map: dict, read_steps: int) -> dict[str, Any]:
+    rewardable_nodes = {key: node for key, node in (bonus_map.get("call_graph_nodes") or {}).items() if is_rewardable_graph_node(node)}
+    base = {
+        "obs_graph_evaluable": bool(step_items and rewardable_nodes),
+        "obs_graph_step_count": 0,
+        "obs_new_graph_step_count": 0,
+        "obs_repeat_only_graph_step_count": 0,
+        "obs_graph_node_exposures": 0,
+        "obs_new_node_exposures": 0,
+        "obs_repeat_node_exposures": 0,
+        "obs_unique_graph_nodes": 0,
+        "obs_recall": None,
+        "obs_graph_focus": None,
+        "obs_graph_steps_per_turn": None,
+        "obs_unique_nodes_per_read": None,
+        "obs_unique_nodes_per_turn": None,
+        "obs_unique_node_coverage_per_read": None,
+        "obs_unique_node_coverage_per_turn": None,
+        "obs_new_graph_step_per_read": None,
+        "obs_repeat_only_step_per_read": None,
+        "obs_new_graph_step_rate": None,
+        "obs_repeat_only_step_rate": None,
+        "obs_new_node_exposure_rate": None,
+        "obs_repeat_node_exposure_rate": None,
+        "obs_repeat_node_exposure_per_read_node": None,
+        "obs_repeat_node_exposure_per_turn_node": None,
+    }
+    if not step_items or not rewardable_nodes:
+        return base
+
+    by_file, global_index = _source_line_index(rewardable_nodes)
+    seen: set[str] = set()
+    graph_steps = 0
+    new_graph_steps = 0
+    repeat_only_steps = 0
+    node_exposures = 0
+    new_node_exposures = 0
+    repeat_node_exposures = 0
+    for trace in step_items:
+        exposed = _observation_exposed_nodes(trace, rewardable_nodes, by_file, global_index)
+        if not exposed:
+            continue
+        graph_steps += 1
+        fresh = exposed - seen
+        if fresh:
+            new_graph_steps += 1
+        else:
+            repeat_only_steps += 1
+        for node_key in exposed:
+            if node_key in seen:
+                repeat_node_exposures += 1
+            else:
+                new_node_exposures += 1
+        node_exposures += len(exposed)
+        seen.update(exposed)
+
+    n_steps = len(step_items)
+    base.update(
+        {
+            "obs_graph_step_count": graph_steps,
+            "obs_new_graph_step_count": new_graph_steps,
+            "obs_repeat_only_graph_step_count": repeat_only_steps,
+            "obs_graph_node_exposures": node_exposures,
+            "obs_new_node_exposures": new_node_exposures,
+            "obs_repeat_node_exposures": repeat_node_exposures,
+            "obs_unique_graph_nodes": len(seen),
+            "obs_recall": _rate(len(seen), len(rewardable_nodes)),
+            "obs_graph_focus": _rate(graph_steps, read_steps),
+            "obs_graph_steps_per_turn": _rate(graph_steps, n_steps),
+            "obs_unique_nodes_per_read": _rate(len(seen), read_steps),
+            "obs_unique_nodes_per_turn": _rate(len(seen), n_steps),
+            "obs_unique_node_coverage_per_read": _rate(len(seen), len(rewardable_nodes) * read_steps),
+            "obs_unique_node_coverage_per_turn": _rate(len(seen), len(rewardable_nodes) * n_steps),
+            "obs_new_graph_step_per_read": _rate(new_graph_steps, read_steps),
+            "obs_repeat_only_step_per_read": _rate(repeat_only_steps, read_steps),
+            "obs_new_graph_step_rate": _rate(new_graph_steps, graph_steps),
+            "obs_repeat_only_step_rate": _rate(repeat_only_steps, graph_steps),
+            "obs_new_node_exposure_rate": _rate(new_node_exposures, node_exposures),
+            "obs_repeat_node_exposure_rate": _rate(repeat_node_exposures, node_exposures),
+            "obs_repeat_node_exposure_per_read_node": _rate(repeat_node_exposures, len(rewardable_nodes) * read_steps),
+            "obs_repeat_node_exposure_per_turn_node": _rate(repeat_node_exposures, len(rewardable_nodes) * n_steps),
+        }
+    )
+    return base
+
+
 def _record_issue_text(record: dict) -> str:
     for container in _candidate_containers(record):
-        for key in ("problem_statement", "issue_description", "issue_text", "issue", "description", "problem"):
+        for key in (
+            "problem_statement",
+            "issue_description",
+            "issue_text",
+            "issue",
+            "description",
+            "problem",
+        ):
             value = container.get(key)
             if isinstance(value, str) and value.strip():
                 return value
@@ -677,11 +977,7 @@ def _initial_context_text(record: dict) -> str:
 
 def _kendall_order(first_hits: dict[str, int], bonus_map: dict) -> tuple[float | None, bool]:
     nodes = bonus_map.get("call_graph_nodes", {})
-    ordered = [
-        (step, 1.0 - float(nodes[node_key]["normalized_distance"]))
-        for node_key, step in first_hits.items()
-        if node_key in nodes
-    ]
+    ordered = [(step, 1.0 - float(nodes[node_key]["normalized_distance"])) for node_key, step in first_hits.items() if node_key in nodes]
     if len({value for _step, value in ordered}) < 2:
         return None, False
 
@@ -717,24 +1013,11 @@ def _miracle_stats(
     root_nodes: Iterable[str] | None = None,
 ) -> tuple[bool | None, int | None]:
     nodes = bonus_map.get("call_graph_nodes", {})
-    intermediate = {
-        node_key: node
-        for node_key, node in nodes.items()
-        if _node_role(node_key, nodes) in {"intermediate", "fix_adapter"}
-        or 0.0 < float(node.get("normalized_distance", -1.0)) < 1.0
-    }
+    intermediate = {node_key: node for node_key, node in nodes.items() if _node_role(node_key, nodes) in {"intermediate", "fix_adapter"} or 0.0 < float(node.get("normalized_distance", -1.0)) < 1.0}
     root_candidates = set(root_nodes or [])
     if not root_candidates:
-        root_candidates = {
-            node_key
-            for node_key, node in nodes.items()
-            if float(node.get("normalized_distance", -1.0)) == 0.0
-        }
-    gt_steps = [
-        first_hits[node_key]
-        for node_key in root_candidates
-        if node_key in first_hits
-    ]
+        root_candidates = {node_key for node_key, node in nodes.items() if float(node.get("normalized_distance", -1.0)) == 0.0}
+    gt_steps = [first_hits[node_key] for node_key in root_candidates if node_key in first_hits]
     if not gt_steps:
         return False, 0
     first_gt = min(gt_steps)
@@ -745,11 +1028,7 @@ def _miracle_stats(
     if not intermediate:
         skipped_anchor = bool(anchor_candidates) and (first_anchor is None or first_gt < first_anchor)
         return (True, 1) if skipped_anchor else (None, None)
-    visited_intermediate_levels = {
-        float(intermediate[node_key]["normalized_distance"])
-        for node_key, step in first_hits.items()
-        if node_key in intermediate and step <= first_gt
-    }
+    visited_intermediate_levels = {float(intermediate[node_key]["normalized_distance"]) for node_key, step in first_hits.items() if node_key in intermediate and step <= first_gt}
     all_intermediate_levels = {float(node["normalized_distance"]) for node in intermediate.values()}
     missing_levels = all_intermediate_levels - visited_intermediate_levels
     skipped_anchor = bool(anchor_candidates) and (first_anchor is None or first_gt < first_anchor)
@@ -838,14 +1117,7 @@ def _path_edges(bonus_map: dict) -> list[tuple[str, str]]:
     metadata = _maybe_json(bonus_map.get("call_graph_edge_metadata"))
     if not isinstance(metadata, list):
         return []
-    return [
-        (str(item["caller"]), str(item["callee"]))
-        for item in metadata
-        if isinstance(item, dict)
-        and item.get("reward_path_edge")
-        and isinstance(item.get("caller"), str)
-        and isinstance(item.get("callee"), str)
-    ]
+    return [(str(item["caller"]), str(item["callee"])) for item in metadata if isinstance(item, dict) and item.get("reward_path_edge") and isinstance(item.get("caller"), str) and isinstance(item.get("callee"), str)]
 
 
 def _graph_edges(bonus_map: dict) -> list[tuple[str, str]]:
@@ -855,13 +1127,7 @@ def _graph_edges(bonus_map: dict) -> list[tuple[str, str]]:
     metadata = _maybe_json(bonus_map.get("call_graph_edge_metadata"))
     if not isinstance(metadata, list):
         return []
-    return [
-        (str(item["caller"]), str(item["callee"]))
-        for item in metadata
-        if isinstance(item, dict)
-        and isinstance(item.get("caller"), str)
-        and isinstance(item.get("callee"), str)
-    ]
+    return [(str(item["caller"]), str(item["callee"])) for item in metadata if isinstance(item, dict) and isinstance(item.get("caller"), str) and isinstance(item.get("callee"), str)]
 
 
 def _call_graph_edges(bonus_map: dict) -> list[tuple[str, str]]:
@@ -926,21 +1192,13 @@ def _path_projection(
     path_edges = [(caller, callee) for caller, callee in _path_edges(bonus_map) if caller in nodes and callee in nodes]
     forward = _reachable_from(anchors, path_edges) if anchors else set()
     backward = _can_reach(roots, path_edges) if roots else set()
-    selected_path_edges = [
-        (caller, callee)
-        for caller, callee in path_edges
-        if caller in forward and callee in forward and caller in backward and callee in backward
-    ]
+    selected_path_edges = [(caller, callee) for caller, callee in path_edges if caller in forward and callee in forward and caller in backward and callee in backward]
     path_node_keys = set(anchors) | set(roots)
     for caller, callee in selected_path_edges:
         path_node_keys.add(caller)
         path_node_keys.add(callee)
     if not selected_path_edges:
-        path_node_keys.update(
-            key
-            for key, node in nodes.items()
-            if _node_role(key, nodes) in PATH_NODE_ROLES and (key in anchors or key in roots)
-        )
+        path_node_keys.update(key for key, node in nodes.items() if _node_role(key, nodes) in PATH_NODE_ROLES and (key in anchors or key in roots))
 
     call_edges = [(caller, callee) for caller, callee in _graph_edges(bonus_map) if caller in nodes and callee in nodes]
     reverse_call_edges: dict[str, set[str]] = defaultdict(set)
@@ -956,11 +1214,7 @@ def _path_projection(
             context_node_keys.add(prev)
             frontier.append(prev)
 
-    context_edge_keys = [
-        (caller, callee)
-        for caller, callee in call_edges
-        if caller in context_node_keys and callee in (context_node_keys | path_node_keys)
-    ]
+    context_edge_keys = [(caller, callee) for caller, callee in call_edges if caller in context_node_keys and callee in (context_node_keys | path_node_keys)]
 
     def node_summary(node_key: str, *, group: str) -> dict[str, Any]:
         node = nodes.get(node_key, {})
@@ -1100,21 +1354,9 @@ def _path_pattern_flags(
 ) -> dict[str, Any]:
     if not path_evaluable:
         return {key: False for key in PATH_PATTERN_KEYS}
-    root_after_anchor = (
-        first_anchor_step is not None
-        and any(step >= first_anchor_step for step in root_hit_steps)
-    )
-    root_before_anchor = (
-        path_case_kind == LATENT_CASE
-        and first_anchor_step is not None
-        and first_root_step is not None
-        and first_root_step < first_anchor_step
-    )
-    path_steps_after_anchor = [
-        step
-        for step in path_hit_steps
-        if first_anchor_step is not None and step > first_anchor_step
-    ]
+    root_after_anchor = first_anchor_step is not None and any(step >= first_anchor_step for step in root_hit_steps)
+    root_before_anchor = path_case_kind == LATENT_CASE and first_anchor_step is not None and first_root_step is not None and first_root_step < first_anchor_step
+    path_steps_after_anchor = [step for step in path_hit_steps if first_anchor_step is not None and step > first_anchor_step]
     flags = {
         "missed_anchor": first_anchor_step is None,
         "missed_root_after_anchor": first_anchor_step is not None and not root_after_anchor,
@@ -1175,7 +1417,13 @@ def _graph_topology(bonus_map: dict, hit_nodes: set[str], first_hits: dict[str, 
 def _node_summaries(node_keys: Iterable[str], bonus_map: dict) -> list[dict]:
     nodes = bonus_map.get("call_graph_nodes", {}) if bonus_map else {}
     summaries = []
-    for node_key in sorted(node_keys, key=lambda key: (float(nodes.get(key, {}).get("normalized_distance", 1.0)), key)):
+    for node_key in sorted(
+        node_keys,
+        key=lambda key: (
+            float(nodes.get(key, {}).get("normalized_distance", 1.0)),
+            key,
+        ),
+    ):
         node = nodes.get(node_key, {})
         summaries.append(
             {
@@ -1195,11 +1443,7 @@ def _node_summaries(node_keys: Iterable[str], bonus_map: dict) -> list[dict]:
 
 def _min_node_distance(node_keys: Iterable[str], bonus_map: dict) -> float | None:
     nodes = bonus_map.get("call_graph_nodes", {}) if bonus_map else {}
-    distances = [
-        float(nodes[node_key].get("normalized_distance", 1.0))
-        for node_key in node_keys
-        if node_key in nodes
-    ]
+    distances = [float(nodes[node_key].get("normalized_distance", 1.0)) for node_key in node_keys if node_key in nodes]
     return min(distances) if distances else None
 
 
@@ -1257,11 +1501,7 @@ def _tool_signature(trace: dict, tracking_mode: str) -> str:
             name = str(func.get("name", "") or "")
             args = _maybe_json(func.get("arguments", {}))
     if isinstance(args, dict):
-        compact_args = {
-            key: str(value)[:120]
-            for key, value in args.items()
-            if key in {"command", "path", "view_range", "old_str", "new_str"}
-        }
+        compact_args = {key: str(value)[:120] for key, value in args.items() if key in {"command", "path", "view_range", "old_str", "new_str"}}
     else:
         compact_args = {}
     return json.dumps(
@@ -1346,10 +1586,7 @@ def _purpose_blocks(
     has_graph = bool((bonus_map or {}).get("call_graph_nodes"))
     blocks = []
     for block_index, block in enumerate(segment_purpose_blocks(normalized_traces, tracking_mode=tracking_mode)):
-        block_step_indices = [
-            display_step_indices[idx] if idx < len(display_step_indices) else idx + 1
-            for idx in block["trace_indices"]
-        ]
+        block_step_indices = [display_step_indices[idx] if idx < len(display_step_indices) else idx + 1 for idx in block["trace_indices"]]
         reads = []
         hit_nodes: set[str] = set()
         hit_trace_offsets = []
@@ -1368,11 +1605,7 @@ def _purpose_blocks(
         achieved = outcome_defined and distance >= 0
         wasted = outcome_defined and not achieved
         first_hit_offset = min(hit_trace_offsets) if hit_trace_offsets else None
-        first_hit_step = (
-            block_step_indices[first_hit_offset]
-            if first_hit_offset is not None and first_hit_offset < len(block_step_indices)
-            else None
-        )
+        first_hit_step = block_step_indices[first_hit_offset] if first_hit_offset is not None and first_hit_offset < len(block_step_indices) else None
         steps_to_achievement = first_hit_offset + 1 if first_hit_offset is not None else None
         blocks.append(
             {
@@ -1401,11 +1634,7 @@ def _block_stats(purpose_blocks: list[dict], n_trace_steps: int) -> dict:
     achieving = [block for block in purpose_blocks if block["achieved"]]
     wasted = [block for block in purpose_blocks if block["wasted"]]
     loops = [block for block in purpose_blocks if block["loop"]]
-    efficiencies = [
-        block["steps_to_achievement"]
-        for block in achieving
-        if isinstance(block.get("steps_to_achievement"), int)
-    ]
+    efficiencies = [block["steps_to_achievement"] for block in achieving if isinstance(block.get("steps_to_achievement"), int)]
     return {
         "n_blocks": len(purpose_blocks),
         "n_scored_read_blocks": len(scored),
@@ -1468,6 +1697,7 @@ def score_record(
     )
     block_stats = _block_stats(purpose_blocks, n_trace_steps=len(step_items))
     bad_patterns = _bad_patterns(step_items, purpose_blocks)
+    n_observation_steps = sum(1 for step in step_items if _step_observation_pairs(step))
 
     result = {
         "record_index": index,
@@ -1479,6 +1709,8 @@ def score_record(
         "step_index_origin": "one_based_display",
         "has_bonus_map": bonus_map is not None,
         "has_step_traces": bool(step_reads),
+        "n_trace_steps": len(step_items),
+        "n_observation_steps": n_observation_steps,
         "n_steps_with_reads": sum(1 for reads_for_step in step_reads if reads_for_step),
         "n_reads": len(reads),
         "read_files": sorted({read["file_path"] for read in reads}),
@@ -1495,7 +1727,11 @@ def score_record(
         "hit_precision": None,
         "hit_recall": None,
         "hit_f1": None,
+        "unique_graph_precision": None,
+        "unique_graph_f1": None,
         "n_hit_nodes": 0,
+        "n_unique_graph_hit_nodes": 0,
+        "n_unique_rewardable_graph_hit_nodes": 0,
         "n_call_graph_nodes": 0,
         "order_score": None,
         "order_defined": False,
@@ -1516,6 +1752,7 @@ def score_record(
         "root_hit": False,
         "path_node_recall": None,
         "path_read_precision": None,
+        "path_read_f1": None,
         "first_anchor_step": None,
         "first_root_step": None,
         "steps_anchor_to_root": None,
@@ -1537,6 +1774,7 @@ def score_record(
             step_indices=display_step_indices,
         )
     )
+    result.update(_observation_graph_metrics(step_items, bonus_map or {}, n_observation_steps))
     if not bonus_map:
         return _sync_path_aliases(result)
 
@@ -1556,9 +1794,7 @@ def score_record(
     scoring_step_reads = step_reads if any(reads_for_step for reads_for_step in step_reads) else ([reads] if reads else [])
     scoring_display_step_indices = display_step_indices if scoring_step_reads is step_reads else ([1] if reads else [])
     step_first_hits = _step_node_first_hits(step_reads, bonus_map) if step_reads else {}
-    display_step_first_hits = (
-        _step_node_first_hits(step_reads, bonus_map, step_indices=display_step_indices) if step_reads else {}
-    )
+    display_step_first_hits = _step_node_first_hits(step_reads, bonus_map, step_indices=display_step_indices) if step_reads else {}
     display_scoring_first_hits_all = (
         _step_node_first_hits(
             scoring_step_reads,
@@ -1575,8 +1811,9 @@ def score_record(
     result["not_path_evaluable_reason"] = not_path_reason
     result["path_case_kind"] = result["bonus_case_type"] if result["bonus_case_type"] in PATH_CASE_TYPES else None
 
-    all_hit_nodes = _all_read_hit_nodes(reads, bonus_map, rewardable_only=False)
-    path_projection = _path_projection(bonus_map, all_hit_nodes, display_scoring_first_hits_all)
+    all_graph_hit_nodes = _all_read_hit_nodes(reads, bonus_map, rewardable_only=False)
+    result["n_unique_graph_hit_nodes"] = len(all_graph_hit_nodes)
+    path_projection = _path_projection(bonus_map, all_graph_hit_nodes, display_scoring_first_hits_all)
     result["path_projection"] = path_projection
     path_node_keys = {node["key"] for node in path_projection.get("path_nodes", path_projection.get("chain_nodes", []))}
     context_node_keys = {node["key"] for node in path_projection.get("context_nodes", [])}
@@ -1598,9 +1835,7 @@ def score_record(
         hit_path_nodes = path_stats["hit_path_nodes"]
         first_anchor = min(path_stats["anchor_hit_steps"]) if path_stats["anchor_hit_steps"] else None
         first_root = min(path_stats["root_hit_steps"]) if path_stats["root_hit_steps"] else None
-        display_first_anchor = (
-            min(display_path_stats["anchor_hit_steps"]) if display_path_stats["anchor_hit_steps"] else None
-        )
+        display_first_anchor = min(display_path_stats["anchor_hit_steps"]) if display_path_stats["anchor_hit_steps"] else None
         display_first_root = min(display_path_stats["root_hit_steps"]) if display_path_stats["root_hit_steps"] else None
         result["n_hit_path_nodes"] = len(hit_path_nodes)
         result["path_hit"] = bool(hit_path_nodes)
@@ -1610,9 +1845,8 @@ def score_record(
         result["first_root_step"] = display_first_root
         result["path_node_recall"] = len(hit_path_nodes) / len(path_node_keys) if path_node_keys else None
         n_path_scored_reads = path_stats["read_hits_path"] + path_stats["read_hits_off_path"]
-        result["path_read_precision"] = (
-            path_stats["read_hits_path"] / n_path_scored_reads if n_path_scored_reads else None
-        )
+        result["path_read_precision"] = path_stats["read_hits_path"] / n_path_scored_reads if n_path_scored_reads else None
+        result["path_read_f1"] = _f1(result["path_read_precision"], result["path_node_recall"])
         if result["path_case_kind"] == LATENT_CASE and first_anchor is not None and first_root is not None:
             result["steps_anchor_to_root"] = first_root - first_anchor
             result["anchor_before_root"] = first_anchor <= first_root
@@ -1635,11 +1869,14 @@ def score_record(
 
     hit_nodes = _all_read_hit_nodes(reads, bonus_map)
     result["n_hit_nodes"] = len(hit_nodes)
+    result["n_unique_rewardable_graph_hit_nodes"] = len(hit_nodes)
+    result["unique_graph_precision"] = len(hit_nodes) / len(all_graph_hit_nodes) if all_graph_hit_nodes else None
     result["graph_topology"] = _graph_topology(bonus_map, hit_nodes, display_step_first_hits)
     if rewardable_nodes:
         result["hit_recall"] = len(hit_nodes) / len(rewardable_nodes)
         hit_read_count = sum(1 for read in reads if _read_hit_nodes(read, bonus_map))
         result["hit_precision"] = hit_read_count / len(reads) if reads else None
+        result["unique_graph_f1"] = _f1(result["unique_graph_precision"], result["hit_recall"])
         if result["hit_precision"] is not None and result["hit_recall"] is not None:
             denom = result["hit_precision"] + result["hit_recall"]
             result["hit_f1"] = 2 * result["hit_precision"] * result["hit_recall"] / denom if denom else 0.0
@@ -1693,22 +1930,41 @@ def _rate(num: int | float, denom: int | float) -> float | None:
     return num / denom
 
 
-def summarize(details: list[dict], *, source: Path, bonus_map_dir: Path, tracking_mode: str, near_threshold: float, m_max: float) -> dict:
+def _f1(precision: float | None, recall: float | None) -> float | None:
+    if precision is None or recall is None:
+        return None
+    denom = precision + recall
+    return 2 * precision * recall / denom if denom else 0.0
+
+
+def summarize(
+    details: list[dict],
+    *,
+    source: Path,
+    bonus_map_dir: Path,
+    tracking_mode: str,
+    near_threshold: float,
+    m_max: float,
+) -> dict:
     counts = Counter()
     by_case: dict[str, Counter] = defaultdict(Counter)
     distances = []
     multipliers = []
     recalls = []
     precisions = []
+    unique_graph_precisions = []
+    unique_graph_f1s = []
     f1s = []
     order_scores = []
     block_order_scores = []
     block_efficiencies = []
     path_recalls = []
     path_read_precisions = []
+    path_read_f1s = []
     times_to_anchor = []
     times_to_root = []
     steps_anchor_to_root = []
+    obs_graph_rates: dict[str, list[float]] = {key: [] for key in OBS_GRAPH_RATE_KEYS}
     recall_histogram = Counter()
     hop_coverage = Counter()
     not_path_reasons = Counter()
@@ -1732,8 +1988,16 @@ def summarize(details: list[dict], *, source: Path, bonus_map_dir: Path, trackin
             counts["n_license_evaluable"] += 1
             counts["n_entity_references"] += int(item.get("n_entity_references") or 0)
             counts["n_unlicensed_references"] += int(item.get("n_unlicensed_references") or 0)
+            counts["n_license_steps"] += int(item.get("n_trace_steps") or 0)
+            counts["n_unlicensed_reference_steps"] += int(item.get("n_unlicensed_reference_steps") or 0)
             if (item.get("n_unlicensed_references") or 0) > 0:
                 counts["n_unlicensed_traces"] += 1
+        if item.get("obs_graph_evaluable"):
+            counts["n_obs_graph_evaluable"] += 1
+            for key in OBS_GRAPH_RATE_KEYS:
+                value = item.get(key)
+                if isinstance(value, int | float) and not isinstance(value, bool):
+                    obs_graph_rates[key].append(float(value))
         counts["n_blocks"] += int(item.get("n_blocks") or 0)
         counts["n_scored_read_blocks"] += int(item.get("n_scored_read_blocks") or 0)
         counts["n_achieving_blocks"] += int(item.get("n_achieving_blocks") or 0)
@@ -1766,6 +2030,8 @@ def summarize(details: list[dict], *, source: Path, bonus_map_dir: Path, trackin
                 path_recalls.append(item["path_node_recall"])
             if item.get("path_read_precision") is not None:
                 path_read_precisions.append(item["path_read_precision"])
+            if item.get("path_read_f1") is not None:
+                path_read_f1s.append(item["path_read_f1"])
             if item.get("first_anchor_step") is not None:
                 times_to_anchor.append(item["first_anchor_step"])
             if item.get("first_root_step") is not None:
@@ -1799,6 +2065,10 @@ def summarize(details: list[dict], *, source: Path, bonus_map_dir: Path, trackin
             recalls.append(item["hit_recall"])
         if item["hit_precision"] is not None:
             precisions.append(item["hit_precision"])
+        if item.get("unique_graph_precision") is not None:
+            unique_graph_precisions.append(item["unique_graph_precision"])
+        if item.get("unique_graph_f1") is not None:
+            unique_graph_f1s.append(item["unique_graph_f1"])
         if item["hit_f1"] is not None:
             f1s.append(item["hit_f1"])
         if item["hit_recall"] is not None:
@@ -1898,8 +2168,10 @@ def summarize(details: list[dict], *, source: Path, bonus_map_dir: Path, trackin
             "chain_hit_rate": _rate(counts["n_chain_hit"], n_path_evaluable),
             "path_node_recall": sum(path_recalls) / len(path_recalls) if path_recalls else None,
             "path_read_precision": sum(path_read_precisions) / len(path_read_precisions) if path_read_precisions else None,
+            "path_read_f1": sum(path_read_f1s) / len(path_read_f1s) if path_read_f1s else None,
             "chain_node_recall": sum(path_recalls) / len(path_recalls) if path_recalls else None,
             "chain_read_precision": sum(path_read_precisions) / len(path_read_precisions) if path_read_precisions else None,
+            "chain_read_f1": sum(path_read_f1s) / len(path_read_f1s) if path_read_f1s else None,
             "anchor_before_root_rate": _rate(counts["n_anchor_before_root"], counts["n_chain_order_defined"]),
             "missed_anchor_rate": _rate(counts["n_missed_anchor"], n_path_evaluable),
             "missed_root_after_anchor_rate": _rate(counts["n_missed_root_after_anchor"], n_path_evaluable),
@@ -1918,6 +2190,8 @@ def summarize(details: list[dict], *, source: Path, bonus_map_dir: Path, trackin
             "near_hit_rate_over_call_graphs": _rate(counts["n_hit_near"], n_with_graph),
             "avg_node_recall": sum(recalls) / len(recalls) if recalls else None,
             "avg_read_precision": sum(precisions) / len(precisions) if precisions else None,
+            "avg_unique_graph_precision": sum(unique_graph_precisions) / len(unique_graph_precisions) if unique_graph_precisions else None,
+            "avg_unique_graph_f1": sum(unique_graph_f1s) / len(unique_graph_f1s) if unique_graph_f1s else None,
             "avg_hit_f1": sum(f1s) / len(f1s) if f1s else None,
             "order_defined_rate": _rate(counts["n_order_defined"], n_with_graph),
             "reverse_order_rate": _rate(counts["n_reverse_order"], counts["n_order_defined"]),
@@ -1937,7 +2211,9 @@ def summarize(details: list[dict], *, source: Path, bonus_map_dir: Path, trackin
             # Pooled over all first entity references (micro-average): of first
             # references across evaluable traces, the share with no antecedent.
             "unlicensed_reference_rate": _rate(counts["n_unlicensed_references"], counts["n_entity_references"]),
+            "unlicensed_step_rate": _rate(counts["n_unlicensed_reference_steps"], counts["n_license_steps"]),
             "unlicensed_trace_rate": _rate(counts["n_unlicensed_traces"], counts["n_license_evaluable"]),
+            **{key: (sum(values) / len(values) if values else None) for key, values in obs_graph_rates.items()},
         },
         "averages": {
             "avg_entity_references": _rate(counts["n_entity_references"], counts["n_license_evaluable"]),
@@ -2041,13 +2317,41 @@ def write_jsonl(path: Path, records: list[dict]) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Score eval rollout fault-localization reads against P2A bonus maps.")
-    parser.add_argument("rollouts", type=Path, help="Rollout dump file or directory (.jsonl, .json, or .parquet)")
-    parser.add_argument("--bonus-map-dir", type=Path, required=True, help="Directory containing <instance_id>.json bonus maps")
-    parser.add_argument("--tracking-mode", choices=["view_only", "view_and_bash"], default="view_and_bash")
-    parser.add_argument("--near-threshold", type=float, default=0.5, help="Distance threshold for near-fault hits")
-    parser.add_argument("--m-max", type=float, default=3.0, help="Multiplier used only for diagnostic best_positive_multiplier")
+    parser.add_argument(
+        "rollouts",
+        type=Path,
+        help="Rollout dump file or directory (.jsonl, .json, or .parquet)",
+    )
+    parser.add_argument(
+        "--bonus-map-dir",
+        type=Path,
+        required=True,
+        help="Directory containing <instance_id>.json bonus maps",
+    )
+    parser.add_argument(
+        "--tracking-mode",
+        choices=["view_only", "view_and_bash"],
+        default="view_and_bash",
+    )
+    parser.add_argument(
+        "--near-threshold",
+        type=float,
+        default=0.5,
+        help="Distance threshold for near-fault hits",
+    )
+    parser.add_argument(
+        "--m-max",
+        type=float,
+        default=3.0,
+        help="Multiplier used only for diagnostic best_positive_multiplier",
+    )
     parser.add_argument("--summary-out", type=Path, default=None, help="Optional path for summary JSON")
-    parser.add_argument("--details-out", type=Path, default=None, help="Optional path for per-record JSONL details")
+    parser.add_argument(
+        "--details-out",
+        type=Path,
+        default=None,
+        help="Optional path for per-record JSONL details",
+    )
     args = parser.parse_args()
 
     if not args.rollouts.exists():
@@ -2078,7 +2382,10 @@ def main() -> int:
 
     if args.summary_out:
         args.summary_out.parent.mkdir(parents=True, exist_ok=True)
-        args.summary_out.write_text(json.dumps(summary, indent=2, default=_json_default) + "\n", encoding="utf-8")
+        args.summary_out.write_text(
+            json.dumps(summary, indent=2, default=_json_default) + "\n",
+            encoding="utf-8",
+        )
     if args.details_out:
         write_jsonl(args.details_out, details)
 

@@ -83,9 +83,10 @@ const MACRO_METRIC_GROUPS = [
     key: "graph",
     title: "Graph",
     items: [
-      ["Graph P.", "Parsed reads that hit a Graph node."],
-      ["Graph R.", "Graph nodes hit by the agent Trace."],
-      ["Graph F1", "Harmonic mean of Graph P. and Graph R."],
+      ["Graph P.", "Share of parsed reads that hit a rewardable Graph node."],
+      ["Unique Graph P.", "Share of unique Trace-hit Graph nodes that are rewardable Graph nodes."],
+      ["Unique Graph R.", "Share of rewardable Graph nodes hit by the agent Trace."],
+      ["Unique Graph F1", "Harmonic mean of Unique Graph P. and Unique Graph R."],
     ],
   },
   {
@@ -103,9 +104,10 @@ const MACRO_METRIC_GROUPS = [
     key: "path",
     title: "Path",
     items: [
-      ["Path P.", "Unique Trace-hit Graph nodes that are on the issue symptom-to-root-cause Path."],
-      ["Path R.", "Unique Path nodes hit by the agent Trace."],
+      ["Path P.", "Share of parsed reads that hit the issue symptom-to-root-cause Path."],
+      ["Path R.", "Share of Path nodes hit by the agent Trace."],
       ["Path F1", "Harmonic mean of Path P. and Path R."],
+      ["Path focus", "Share of unique Trace-hit Path/context nodes that are on the issue symptom-to-root-cause Path."],
     ],
   },
   {
@@ -265,19 +267,26 @@ function passAtValue(row) {
 }
 
 function pathF1Value(row) {
-  const pathF1Key = avgAtValue(row, "avg_path_node_f1") === null || avgAtValue(row, "avg_path_node_f1") === undefined
-    ? "avg_chain_node_f1"
-    : "avg_path_node_f1";
+  const pathF1Key = avgAtValue(row, "avg_path_read_f1") === null || avgAtValue(row, "avg_path_read_f1") === undefined
+    ? "avg_chain_read_f1"
+    : "avg_path_read_f1";
   if (avgAtValue(row, pathF1Key) !== null && avgAtValue(row, pathF1Key) !== undefined) {
     return withStd(row, pathF1Key, pct);
   }
-  const precisionKey = avgAtValue(row, "avg_path_node_precision") === null || avgAtValue(row, "avg_path_node_precision") === undefined
-    ? "avg_chain_node_precision"
-    : "avg_path_node_precision";
+  const precisionKey = avgAtValue(row, "avg_path_read_precision") === null || avgAtValue(row, "avg_path_read_precision") === undefined
+    ? "avg_chain_read_precision"
+    : "avg_path_read_precision";
   const recallKey = avgAtValue(row, "avg_path_node_recall") === null || avgAtValue(row, "avg_path_node_recall") === undefined
     ? "avg_chain_node_recall"
     : "avg_path_node_recall";
   return pct(f1(avgAtValue(row, precisionKey), avgAtValue(row, recallKey)));
+}
+
+function uniqueGraphF1Value(row) {
+  if (avgAtValue(row, "avg_unique_graph_f1") !== null && avgAtValue(row, "avg_unique_graph_f1") !== undefined) {
+    return withStd(row, "avg_unique_graph_f1", pct);
+  }
+  return pct(f1(avgAtValue(row, "avg_unique_graph_precision"), avgAtValue(row, "avg_node_recall")));
 }
 
 function numeric(value) {
@@ -858,6 +867,22 @@ function pathNodeF1(detail) {
   return f1(pathNodePrecision(detail), pathValue(detail, "path_node_recall", "chain_node_recall"));
 }
 
+function pathReadF1(detail) {
+  return f1(pathValue(detail, "path_read_precision", "chain_read_precision"), pathValue(detail, "path_node_recall", "chain_node_recall"));
+}
+
+function uniqueGraphPrecision(detail) {
+  if (detail?.unique_graph_precision !== undefined) return detail.unique_graph_precision;
+  const hitRewardable = numeric(detail?.n_unique_rewardable_graph_hit_nodes);
+  const hitGraph = numeric(detail?.n_unique_graph_hit_nodes);
+  return hitRewardable !== null && hitGraph ? hitRewardable / hitGraph : null;
+}
+
+function uniqueGraphF1(detail) {
+  if (detail?.unique_graph_f1 !== undefined) return detail.unique_graph_f1;
+  return f1(uniqueGraphPrecision(detail), detail?.hit_recall);
+}
+
 function metricsFromDetails(details, snapshot) {
   const cellLookup = new Map(experimentRows(snapshot).map((row) => [cellKey(row), row]));
   const groups = new Map();
@@ -875,8 +900,11 @@ function metricsFromDetails(details, snapshot) {
     const orderItems = orderMetricItems.filter((item) => item.order_defined === true);
     const blockOrderItems = orderMetricItems.filter((item) => item.block_order_defined === true);
     const licenseItems = items.filter((item) => item.license_evaluable);
+    const obsGraphItems = items.filter((item) => item.obs_graph_evaluable);
     const entityReferences = sum(licenseItems.map((item) => item.n_entity_references));
     const unlicensedReferences = sum(licenseItems.map((item) => item.n_unlicensed_references));
+    const traceSteps = sum(licenseItems.map((item) => item.n_trace_steps));
+    const unlicensedReferenceSteps = sum(licenseItems.map((item) => item.n_unlicensed_reference_steps));
     const scoredBlocks = sum(bonusItems.map((item) => item.n_scored_read_blocks));
     const totalBlocks = sum(bonusItems.map((item) => item.n_blocks));
     const cacheHit = sum(items.map((item) => item.cache_hit_tokens));
@@ -898,24 +926,44 @@ function metricsFromDetails(details, snapshot) {
       resolved_rate: rate(items.map((item) => item.resolved)),
       reward_rate: avg(items.map((item) => item.reward)),
       avg_read_precision: avg(bonusItems.map((item) => item.hit_precision)),
+      avg_unique_graph_precision: avg(bonusItems.map(uniqueGraphPrecision)),
       avg_node_recall: avg(bonusItems.map((item) => item.hit_recall)),
+      avg_unique_graph_f1: avg(bonusItems.map(uniqueGraphF1)),
       avg_hit_f1: avg(bonusItems.map((item) => item.hit_f1)),
+      obs_recall: avg(obsGraphItems.map((item) => item.obs_recall)),
+      obs_graph_focus: avg(obsGraphItems.map((item) => item.obs_graph_focus)),
+      obs_graph_steps_per_turn: avg(obsGraphItems.map((item) => item.obs_graph_steps_per_turn)),
+      obs_unique_nodes_per_read: avg(obsGraphItems.map((item) => item.obs_unique_nodes_per_read)),
+      obs_unique_nodes_per_turn: avg(obsGraphItems.map((item) => item.obs_unique_nodes_per_turn)),
+      obs_unique_node_coverage_per_read: avg(obsGraphItems.map((item) => item.obs_unique_node_coverage_per_read)),
+      obs_unique_node_coverage_per_turn: avg(obsGraphItems.map((item) => item.obs_unique_node_coverage_per_turn)),
+      obs_new_graph_step_per_read: avg(obsGraphItems.map((item) => item.obs_new_graph_step_per_read)),
+      obs_repeat_only_step_per_read: avg(obsGraphItems.map((item) => item.obs_repeat_only_step_per_read)),
+      obs_new_graph_step_rate: avg(obsGraphItems.map((item) => item.obs_new_graph_step_rate)),
+      obs_repeat_only_step_rate: avg(obsGraphItems.map((item) => item.obs_repeat_only_step_rate)),
+      obs_new_node_exposure_rate: avg(obsGraphItems.map((item) => item.obs_new_node_exposure_rate)),
+      obs_repeat_node_exposure_rate: avg(obsGraphItems.map((item) => item.obs_repeat_node_exposure_rate)),
+      obs_repeat_node_exposure_per_read_node: avg(obsGraphItems.map((item) => item.obs_repeat_node_exposure_per_read_node)),
+      obs_repeat_node_exposure_per_turn_node: avg(obsGraphItems.map((item) => item.obs_repeat_node_exposure_per_turn_node)),
       anchor_hit_rate: rate(bonusItems.map((item) => item.anchor_hit)),
       root_hit_rate: rate(bonusItems.map((item) => item.root_hit)),
       avg_path_node_recall: avg(bonusItems.map((item) => pathValue(item, "path_node_recall", "chain_node_recall"))),
       avg_path_node_precision: avg(bonusItems.map(pathNodePrecision)),
       avg_path_node_f1: avg(bonusItems.map(pathNodeF1)),
       avg_path_read_precision: avg(bonusItems.map((item) => pathValue(item, "path_read_precision", "chain_read_precision"))),
+      avg_path_read_f1: avg(bonusItems.map(pathReadF1)),
       avg_chain_node_recall: avg(bonusItems.map((item) => pathValue(item, "path_node_recall", "chain_node_recall"))),
       avg_chain_node_precision: avg(bonusItems.map(pathNodePrecision)),
       avg_chain_node_f1: avg(bonusItems.map(pathNodeF1)),
       avg_chain_read_precision: avg(bonusItems.map((item) => pathValue(item, "path_read_precision", "chain_read_precision"))),
+      avg_chain_read_f1: avg(bonusItems.map(pathReadF1)),
       avg_first_anchor_step: avg(bonusItems.map((item) => item.first_anchor_step)),
       avg_first_root_step: avg(bonusItems.map((item) => item.first_root_step)),
       avg_order_score: avg(orderItems.map((item) => item.order_score)),
       reverse_order_rate: rate(orderMetricItems.map(combinedReverseMarker)),
       miracle_rate: rate(orderMetricItems.map(combinedMiracleMarker)),
       unlicensed_reference_rate: entityReferences ? unlicensedReferences / entityReferences : null,
+      unlicensed_step_rate: traceSteps ? unlicensedReferenceSteps / traceSteps : null,
       unlicensed_trace_rate: rate(licenseItems.map((item) => (item.n_unlicensed_references || 0) > 0)),
       avg_blocks_per_trace: totalBlocks && bonusItems.length ? totalBlocks / bonusItems.length : null,
       block_achieve_rate: scoredBlocks ? sum(bonusItems.map((item) => item.n_achieving_blocks)) / scoredBlocks : null,
@@ -1490,21 +1538,30 @@ function kpiColumns(hasCacheWrite) {
     { header: "Error traces", group: "filter_totals", value: (row) => runErrorCount(row) },
     { header: "ToDo traces", group: "filter_totals", value: (row) => runPendingCount(row) },
     { header: "Graph P.", group: "graph", value: (row) => withStd(row, "avg_read_precision", pct) },
-    { header: "Graph R.", group: "graph", value: (row) => withStd(row, "avg_node_recall", pct) },
-    { header: "Graph F1", group: "graph", value: (row) => withStd(row, "avg_hit_f1", pct) },
+    { header: "Unique Graph P.", group: "graph", value: (row) => withStd(row, "avg_unique_graph_precision", pct) },
+    { header: "Unique Graph R.", group: "graph", value: (row) => withStd(row, "avg_node_recall", pct) },
+    { header: "Unique Graph F1", group: "graph", value: (row) => uniqueGraphF1Value(row) },
+    { header: "Obs R.", group: "graph", value: (row) => withStd(row, "obs_recall", pct) },
+    { header: "Obs focus", group: "graph", value: (row) => withStd(row, "obs_graph_focus", pct) },
+    { header: "Obs new/read", group: "graph", value: (row) => withStd(row, "obs_new_graph_step_per_read", pct) },
+    { header: "Obs repeat/read", group: "graph", value: (row) => withStd(row, "obs_repeat_only_step_per_read", pct) },
+    { header: "Obs uniq/node-read", group: "graph", value: (row) => withStd(row, "obs_unique_node_coverage_per_read", pct) },
+    { header: "Obs repeat/node-read", group: "graph", value: (row) => withStd(row, "obs_repeat_node_exposure_per_read_node", pct) },
     { header: "Pass@K", group: "outcome", value: (row) => pct(passAtValue(row)) },
     { header: "Avg@K", group: "outcome", value: (row) => withStd(row, row.resolved_rate === null || row.resolved_rate === undefined ? "reward_rate" : "resolved_rate", pct) },
     { header: "Symptom hit", group: "outcome", value: (row) => withStd(row, "anchor_hit_rate", pct) },
     { header: "Root cause hit", group: "outcome", value: (row) => withStd(row, "root_hit_rate", pct) },
     { header: "First symptom", group: "outcome", value: (row) => withStd(row, "avg_first_anchor_step", fmt, 1) },
     { header: "First root cause", group: "outcome", value: (row) => withStd(row, "avg_first_root_step", fmt, 1) },
-    { header: "Path P.", group: "path", value: (row) => withStd(row, row.avg_path_node_precision === null || row.avg_path_node_precision === undefined ? "avg_chain_node_precision" : "avg_path_node_precision", pct) },
+    { header: "Path P.", group: "path", value: (row) => withStd(row, row.avg_path_read_precision === null || row.avg_path_read_precision === undefined ? "avg_chain_read_precision" : "avg_path_read_precision", pct) },
     { header: "Path R.", group: "path", value: (row) => withStd(row, row.avg_path_node_recall === null || row.avg_path_node_recall === undefined ? "avg_chain_node_recall" : "avg_path_node_recall", pct) },
     { header: "Path F1", group: "path", value: (row) => pathF1Value(row) },
+    { header: "Path focus", group: "path", value: (row) => withStd(row, row.avg_path_node_precision === null || row.avg_path_node_precision === undefined ? "avg_chain_node_precision" : "avg_path_node_precision", pct) },
     { header: "Order score", group: "exploration_behavior", value: (row) => withStd(row, "avg_order_score") },
     { header: "Reverse rate", group: "exploration_behavior", value: (row) => withStd(row, "reverse_order_rate", pct) },
     { header: "Miracle rate", group: "exploration_behavior", value: (row) => withStd(row, "miracle_rate", pct) },
     { header: "Unlicensed reference rate", group: "exploration_behavior", value: (row) => withStd(row, "unlicensed_reference_rate", pct) },
+    { header: "Unlicensed step rate", group: "exploration_behavior", value: (row) => withStd(row, "unlicensed_step_rate", pct) },
     { header: "Unlicensed trace rate", group: "exploration_behavior", value: (row) => withStd(row, "unlicensed_trace_rate", pct) },
     { header: "Loop trace", group: "exploration_behavior", value: (row) => withStd(row, "loop_trace_rate", pct) },
     { header: "Error spiral", group: "exploration_behavior", value: (row) => withStd(row, "error_spiral_rate", pct) },
@@ -3408,6 +3465,20 @@ function renderUnlicensedReferences(detail) {
   return `<div class="run-meta">🛸 Unlicensed references (${refs.length}): ${items}</div>`;
 }
 
+function renderNormalizedContextMetrics(detail) {
+  const items = [
+    ["Obs R", detail.obs_recall],
+    ["Obs focus", detail.obs_graph_focus],
+    ["New/read", detail.obs_new_graph_step_per_read],
+    ["Repeat/read", detail.obs_repeat_only_step_per_read],
+    ["Unique/node-read", detail.obs_unique_node_coverage_per_read],
+    ["Repeat/node-read", detail.obs_repeat_node_exposure_per_read_node],
+    ["Unlicensed step", detail.unlicensed_step_rate],
+  ].filter(([, value]) => numeric(value) !== null);
+  if (!items.length) return "";
+  return `<div class="run-meta">${items.map(([label, value]) => `${esc(label)} ${esc(pct(value))}`).join(" · ")}</div>`;
+}
+
 function renderTraceTitleCard(detail, snapshot) {
   const issue = detail.issue_description || "";
   const patch = detail.golden_patch || "";
@@ -3416,6 +3487,7 @@ function renderTraceTitleCard(detail, snapshot) {
       <div>
         <strong>${esc(detail.instance_id || `record-${detail.record_index}`)}</strong>
         <div class="run-meta">${esc(detail.model_label || "-")} · ${esc(detail.run_id || "-")}</div>
+        ${renderNormalizedContextMetrics(detail)}
         ${renderUnlicensedReferences(detail)}
       </div>
       <div class="trace-title-actions">

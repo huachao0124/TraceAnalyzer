@@ -22,6 +22,15 @@ is on `main`.
   includes bonus maps, validation details, SQLite eval caches, rollout dumps,
   analysis reports, and dashboard snapshots. Use `P2A_ARTIFACTS_DIR` only when
   the whole artifact root must move.
+- Temporary local batch/eval configs that need secrets or private endpoints
+  belong under `.secrets/tmp/`. Do not place one-off experiment YAMLs directly
+  under `.secrets/`; keep the top-level secret config directory for curated,
+  intentionally reusable configs.
+- For temporary experiments, start from the closest existing config for the same
+  dataset and change only the requested experiment scope, model list, rollout
+  range, or output id. Keep adapters, provider settings, concurrency, and other
+  execution defaults unchanged unless the controller explicitly asks to change
+  them.
 - Do not put public/reusable datasets or model checkpoints under `src/data`.
   Do not put TraceAnalyzer-specific run artifacts under `../../datasets` or
   `../../models` by default.

@@ -89,8 +89,6 @@ def _reward_test_files(metadata: dict[str, Any]) -> list[str]:
 
 
 _TERMINAL_CONTROL_RE = re.compile(r"\x1b\][^\x07]*(?:\x07|\x1b\\)|\x1b\[[0-?]*[ -/]*[@-~]|\r")
-
-
 def _strip_terminal_controls(text: str) -> str:
     return _TERMINAL_CONTROL_RE.sub("", text)
 
@@ -98,13 +96,13 @@ def _strip_terminal_controls(text: str) -> str:
 async def _run_env_command(env: AgentEnv, command: str, *, timeout: int | float | None = None, check: str = "ignore") -> str:
     runtime = getattr(getattr(env, "deployment", None), "runtime", None)
     execute = getattr(runtime, "execute", None)
-    if callable(execute):
-        response = await execute(Command(command=["bash", "-lc", command], timeout=timeout))
-        output = _strip_terminal_controls((response.stdout or "") + (response.stderr or ""))
-        if check == "raise" and int(response.exit_code or 0) != 0:
-            raise RuntimeError(f"command failed with exit code {response.exit_code}: {output}")
-        return output
-    return _strip_terminal_controls(await env.communicate(command, timeout=timeout, check=check))
+    if not callable(execute):
+        raise RuntimeError("Agent runtime execute interface is required; interactive/communicate execution is forbidden")
+    response = await execute(Command(command=["bash", "-lc", command], timeout=timeout))
+    output = _strip_terminal_controls((response.stdout or "") + (response.stderr or ""))
+    if check == "raise" and int(response.exit_code or 0) != 0:
+        raise RuntimeError(f"command failed with exit code {response.exit_code}: {output}")
+    return output
 
 
 async def _read_env_file_text(env: AgentEnv, path: Path, *, tail_bytes: int | None = None) -> str:

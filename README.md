@@ -521,11 +521,12 @@ select an eval cell/model before inspecting trajectories.
 
 The Metrics tab is the model-level analysis surface for the selected dataset.
 It renders one comparison table grouped by semantics: Graph metrics
-(`Graph P.`, `Graph R.`, `Graph F1`) score agent reads against the real
-dependency graph captured by instrumentation/failing-test execution; Outcome
-metrics report task success and symptom/root-cause hits; Path metrics score the
-issue symptom-to-root-cause subgraph/path with `Path P.`, `Path R.`, and
-`Path F1`; Pattern, purpose-block, and efficiency/cost
+(`Graph P.`, `Unique Graph P.`, `Unique Graph R.`, `Unique Graph F1`) score
+agent reads and unique hit nodes against the real dependency graph captured by
+instrumentation/failing-test execution; Outcome metrics report task success and
+symptom/root-cause hits; Path metrics score read precision, node coverage, and
+node focus on the issue symptom-to-root-cause subgraph/path with `Path P.`,
+`Path R.`, `Path F1`, and `Path focus`; Pattern, purpose-block, and efficiency/cost
 metrics come after them. Cache-write metrics are hidden
 until populated. In user-facing terminology, Graph means the captured
 dependency graph, Path means the symptom-to-root-cause subgraph/path, and Trace
@@ -766,9 +767,12 @@ the training split and `P2A_EVAL_BONUS_MAP_DIR` at the validation split.
 | `graph_hit_rate_over_call_graphs` | Fraction whose reads hit any node in the eval Graph; the suffix is legacy naming. |
 | `ground_truth_hit_rate_over_call_graphs` | Fraction whose reads hit a patched callable (`distance == 0`). |
 | `near_hit_rate_over_call_graphs` | Fraction whose best read distance is `<= --near-threshold` (default `0.5`). |
-| `avg_read_precision` / `avg_node_recall` / `avg_hit_f1` | Graph P., Graph R., and Graph F1 across scored rollouts. |
-| `avg_path_node_precision` / `avg_path_node_recall` / `avg_path_node_f1` | Dashboard Path P., Path R., and Path F1 over deduplicated Path/context node hits; legacy `avg_chain_*` aliases are kept for old artifacts. |
-| `path_node_recall` / `path_read_precision` | CLI summary aliases for Path node recall and read-level Path hit share; legacy `chain_*` aliases are kept for old artifacts. |
+| `avg_read_precision` | Graph P.: read-level share of parsed reads that hit a rewardable Graph node. |
+| `avg_unique_graph_precision` / `avg_node_recall` / `avg_unique_graph_f1` | Unique Graph P., Unique Graph R., and Unique Graph F1 across scored rollouts. Unique Graph P. is unique rewardable Graph nodes hit divided by unique Graph nodes hit; Unique Graph R. is unique rewardable Graph node coverage. |
+| `avg_hit_f1` | Mixed read-precision/node-recall Graph F1 retained in metric exports. |
+| `avg_path_read_precision` / `avg_path_node_recall` / `avg_path_read_f1` | Dashboard Path P., Path R., and Path F1. Path P. is read-level Path hit share; Path R. is unique Path node coverage; legacy `avg_chain_*` aliases are kept for old artifacts. |
+| `avg_path_node_precision` / `avg_path_node_f1` | Path focus and its node-level F1 over deduplicated Path/context node hits. |
+| `path_node_recall` / `path_read_precision` / `path_read_f1` | CLI summary aliases for Path node coverage, read-level Path hit share, and their F1; legacy `chain_*` aliases are kept for old artifacts. |
 | `avg_order_score` / `reverse_order_rate` | Kendall-style agreement between read order and movement from tests toward patched callables. |
 | `miracle_rate_over_gt_hits` | Fraction of Pattern-evaluable latent ground-truth hits that jump directly to patched code before reading intermediate graph levels. |
 | `avg_block_order_score` / `block_miracle_rate_over_gt_hits` | Same order and miracle diagnostics after purpose-block segmentation. |
@@ -807,7 +811,10 @@ val-p2a/swebench-hard/ground_truth_hit_rate_over_call_graphs
 val-p2a/swebench-hard/near_hit_rate_over_call_graphs
 val-p2a/swebench-hard/avg_node_recall
 val-p2a/swebench-hard/avg_read_precision
+val-p2a/swebench-hard/avg_unique_graph_precision
+val-p2a/swebench-hard/avg_unique_graph_f1
 val-p2a/swebench-hard/avg_hit_f1
+val-p2a/swebench-hard/path_read_f1
 val-p2a/swebench-hard/order_defined_rate
 val-p2a/swebench-hard/reverse_order_rate
 val-p2a/swebench-hard/miracle_rate_over_gt_hits
