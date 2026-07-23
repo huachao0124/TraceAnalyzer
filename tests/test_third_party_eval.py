@@ -92,6 +92,7 @@ def test_resolve_model_config_uses_environment(monkeypatch):
     monkeypatch.setenv("P2A_THIRD_PARTY_BASE_URL", "https://example.test")
     monkeypatch.setenv("P2A_THIRD_PARTY_API_KEY", "secret")
     monkeypatch.setenv("P2A_THIRD_PARTY_MODEL", "demo-model")
+    monkeypatch.setenv("P2A_THIRD_PARTY_PROXY", "http://proxy.example:8080")
 
     config = load_config(None)
     model_config = resolve_model_config(config)
@@ -99,6 +100,7 @@ def test_resolve_model_config_uses_environment(monkeypatch):
     assert model_config["base_url"] == "https://example.test"
     assert model_config["api_key"] == "secret"
     assert model_config["model_name"] == "demo-model"
+    assert model_config["proxy"] == "http://proxy.example:8080"
 
 
 def test_apply_cli_overrides_bounds_smoke_run():

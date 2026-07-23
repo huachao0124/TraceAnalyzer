@@ -400,6 +400,7 @@ class NexusDeploymentConfig:
     startup_timeout: float = 600.0
     environment: dict[str, str] | None = field(default=None)
     resource_spec: dict[str, int] | None = field(default_factory=lambda: {"cpu": 16, "memory": 16})
+    purpose: str | None = None
 
     @classmethod
     def from_mapping(cls, data: dict[str, Any]) -> NexusDeploymentConfig:
@@ -466,12 +467,17 @@ class NexusDeployment(AbstractDeployment):
         runtime_image = (
             self._config.runtime_image
             or os.getenv("GONGFENG_RUNTIME_IMAGE")
-            or "current"
+            or _default_nexus_runtime_image()
         )
         environment = dict(self._config.environment or {})
         environment.setdefault("PYTHON_VERSION", "3.12")
+        purpose = self._config.purpose or os.getenv("GONGFENG_PURPOSE") or "test"
+        if purpose not in {"prod", "eval", "test"}:
+            raise ValueError(f"Invalid Nexus purpose {purpose!r}; expected prod, eval, or test")
 
-        self.logger.info(f"Starting Nexus deployment image={self._config.image} api={api_base}")
+        self.logger.info(
+            f"Starting Nexus deployment image={self._config.image} api={api_base} purpose={purpose}"
+        )
         self._hooks.on_custom_step("Creating Nexus sandbox via GongfengRuntimeProvider")
 
         self._provider = GongfengRuntimeProvider(
@@ -481,7 +487,7 @@ class NexusDeployment(AbstractDeployment):
             runtime_image=runtime_image,
             request_timeout=self._config.timeout,
             resource_spec=self._config.resource_spec,
-            purpose="eval",
+            purpose=purpose,
         )
 
         last_error: Exception | None = None

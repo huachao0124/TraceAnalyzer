@@ -8,6 +8,7 @@ model:
   base_url_env: P2A_THIRD_PARTY_BASE_URL
   api_key_env: P2A_THIRD_PARTY_API_KEY
   model_name_env: P2A_THIRD_PARTY_MODEL
+  proxy_env: P2A_THIRD_PARTY_PROXY
   base_url: https://apic1.ohmycdn.com/v1
   model_name: deepseek-v4-flash
   timeout: 300

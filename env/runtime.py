@@ -61,6 +61,8 @@ from swerex.runtime.abstract import (
 # arg-length limit. base64 expands ~4/3, so 60k chars ≈ 45 KiB of raw bytes/step.
 _B64_CHUNK = 60_000
 _DEFAULT_CMD_TIMEOUT = 60.0
+_NEXUS_START_COMMAND_TIMEOUT = 10.0
+_READ_POLL = 0.5
 
 # Transient-error retry. At full-corpus (~4.5k instance) scale the ARL gateway
 # occasionally drops a connection mid-call. Stateless execute calls are safe to
@@ -473,15 +475,34 @@ class NexusRuntime(AbstractRuntime):
             self._terminal_sessions[name] = sid
             self.logger.info(f"Created terminal session: {name} -> {sid}")
             try:
-                await self._nexus.start_command_in_terminal_session(
-                    session_id=sid,
-                    command="BASH_ARGV0=bash; bind 'set enable-bracketed-paste off' 2>/dev/null; true",
+                await asyncio.wait_for(
+                    self._nexus.start_command_in_terminal_session(
+                        session_id=sid,
+                        command="BASH_ARGV0=bash; bind 'set enable-bracketed-paste off' 2>/dev/null; true",
+                    ),
+                    timeout=_NEXUS_START_COMMAND_TIMEOUT,
                 )
+            except asyncio.TimeoutError:
+                self.logger.warning("Nexus terminal session init timed out for %s", name)
+                try:
+                    await asyncio.wait_for(
+                        self._nexus.terminate_terminal_session_processes(session_id=sid),
+                        timeout=_NEXUS_START_COMMAND_TIMEOUT,
+                    )
+                except Exception:
+                    pass
             except Exception:
                 pass
         return CreateBashSessionResponse(output="", session_type="bash")
 
-    async def run_in_session(self, action: BashAction | BashInterruptAction) -> BashObservation:
+    _MAX_RETRY_DEPTH = 2
+
+    async def run_in_session(
+        self,
+        action: BashAction | BashInterruptAction,
+        *,
+        _retry_depth: int = 0,
+    ) -> BashObservation:
         """Execute a command via Nexus async terminal API.
 
         Uses ``start_command_in_terminal_session`` (non-blocking) +
@@ -510,11 +531,44 @@ class NexusRuntime(AbstractRuntime):
         timeout = float(getattr(action, "timeout", None) or _DEFAULT_CMD_TIMEOUT)
 
         try:
-            # Start command (non-blocking) — returns immediately with command_id
-            info = await self._nexus.start_command_in_terminal_session(
-                session_id=sid,
-                command=action.command,
-            )
+            # The gateway can wait on a stale shell hook before returning. Bound
+            # the SDK call so one wedged session cannot block the whole rollout.
+            try:
+                info = await asyncio.wait_for(
+                    self._nexus.start_command_in_terminal_session(
+                        session_id=sid,
+                        command=action.command,
+                    ),
+                    timeout=_NEXUS_START_COMMAND_TIMEOUT,
+                )
+            except asyncio.TimeoutError:
+                self.logger.warning(
+                    "Nexus start_command timed out on session %s; terminating children",
+                    name,
+                )
+                try:
+                    await asyncio.wait_for(
+                        self._nexus.terminate_terminal_session_processes(session_id=sid),
+                        timeout=_NEXUS_START_COMMAND_TIMEOUT,
+                    )
+                except Exception:
+                    pass
+                await asyncio.sleep(2)
+                try:
+                    info = await asyncio.wait_for(
+                        self._nexus.start_command_in_terminal_session(
+                            session_id=sid,
+                            command=action.command,
+                        ),
+                        timeout=_NEXUS_START_COMMAND_TIMEOUT,
+                    )
+                except asyncio.TimeoutError:
+                    return BashObservation(
+                        output="Nexus start_command timed out after recovery",
+                        exit_code=-1,
+                        failure_reason="timeout",
+                        session_type="bash",
+                    )
             command_id = info.command_id
 
             # Poll until command completes (end_time is set by nexus_bash postexec hook)
@@ -560,7 +614,7 @@ class NexusRuntime(AbstractRuntime):
                     stdout = status.stdout or ""
                     stderr = status.stderr or ""
                     output = status.output or (stdout + stderr) or ""
-                    exit_code = status.exit_code if status.exit_code is not None else 0
+                    exit_code = status.exit_code if status.exit_code is not None else -1
                     return BashObservation(
                         output=output,
                         exit_code=exit_code,
@@ -570,9 +624,19 @@ class NexusRuntime(AbstractRuntime):
 
         except Exception as exc:
             exc_str = str(exc)
+            if _retry_depth >= self._MAX_RETRY_DEPTH:
+                self.logger.error(
+                    "Nexus session retry depth exceeded for %s",
+                    name,
+                )
+                return BashObservation(
+                    output=exc_str,
+                    exit_code=1,
+                    failure_reason="max_retries",
+                    session_type="bash",
+                )
             if "Failed to send command" in exc_str:
-                # Shell process died (e.g. `exit` command) — recreate and retry
-                self.logger.warning(f"Shell dead, recreating session {name} and retrying")
+                self.logger.warning("Shell dead, recreating session %s and retrying", name)
                 try:
                     await self._nexus.destroy_terminal_session(session_id=sid)
                 except Exception:
@@ -580,11 +644,21 @@ class NexusRuntime(AbstractRuntime):
                 self._terminal_sessions.pop(name, None)
                 try:
                     await self.create_session(CreateBashSessionRequest(session=name))
-                    return await self.run_in_session(action)
+                    return await self.run_in_session(action, _retry_depth=_retry_depth + 1)
                 except Exception:
                     pass
-            elif "Command failed to start" in exc_str or "command is already running" in exc_str.lower():
-                # Bad command or previous command still running — Ctrl+C to recover
+            elif "command is already running" in exc_str.lower():
+                self.logger.warning("Nexus session %s is still busy; terminating children", name)
+                try:
+                    await self._nexus.terminate_terminal_session_processes(session_id=sid)
+                except Exception:
+                    pass
+                await asyncio.sleep(2)
+                try:
+                    return await self.run_in_session(action, _retry_depth=_retry_depth + 1)
+                except Exception:
+                    pass
+            elif "Command failed to start" in exc_str:
                 try:
                     await self._nexus.send_keys_to_terminal_session(
                         session_id=sid, keys=["C-c", "C-c"],
@@ -715,5 +789,10 @@ class NexusRuntime(AbstractRuntime):
         if self._closed:
             return CloseResponse()
         self._closed = True
+        for sid in list(self._terminal_sessions.values()):
+            try:
+                await self._nexus.destroy_terminal_session(session_id=sid)
+            except Exception as exc:
+                self.logger.debug("Failed to destroy Nexus terminal session %s: %r", sid, exc)
         self._terminal_sessions.clear()
         return CloseResponse()

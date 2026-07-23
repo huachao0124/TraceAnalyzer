@@ -1,6 +1,8 @@
 import asyncio
 
+import openai
 import pytest
+import uni_agent.interaction as uni_agent_interaction
 
 import p2a.internal_api_adapter as internal_api_adapter
 from p2a.api_providers import (
@@ -178,6 +180,59 @@ def test_internal_api_defaults_to_tracked_adapter():
     assert "adapter" not in cfg
     assert "api_module" not in cfg
     assert load_internal_adapter(cfg).__name__ == "p2a.internal_api_adapter"
+
+
+def test_openai_compatible_proxy_is_applied_outside_uni_agent(monkeypatch):
+    class FakeUpstreamModel:
+        def __init__(self, **data):
+            self.__dict__.update(data)
+            self.client = "upstream-default"
+
+        def set_tools_schemas(self, _tools_schemas):
+            pass
+
+        async def prepare_rollout_cache(self, _messages):
+            return {}
+
+        async def append_messages_to_rollout_cache(self, _new_messages, rollout_cache):
+            return rollout_cache
+
+        async def query(self, _messages, rollout_cache, **_kwargs):
+            return "", [], rollout_cache, {}
+
+    class FakeHttpClient:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    class FakeAsyncOpenAI:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    monkeypatch.setattr(
+        uni_agent_interaction,
+        "OpenAICompatibleChatModel",
+        FakeUpstreamModel,
+    )
+    monkeypatch.setattr(openai, "DefaultAsyncHttpxClient", FakeHttpClient)
+    monkeypatch.setattr(openai, "AsyncOpenAI", FakeAsyncOpenAI)
+
+    model = make_chat_model(
+        {
+            "base_url": "https://example.test/v1",
+            "api_key": "secret",
+            "model_name": "demo-model",
+            "timeout": 30,
+            "proxy": "http://proxy.example:8080",
+        },
+        {"source": "openai_compatible"},
+    )
+
+    assert not hasattr(model.inner, "proxy")
+    assert model.inner._p2a_http_client.kwargs == {
+        "proxy": "http://proxy.example:8080",
+        "timeout": 30,
+    }
+    assert model.inner.client.kwargs["http_client"] is model.inner._p2a_http_client
 
 
 def test_internal_api_default_checks_private_api_module(tmp_path):

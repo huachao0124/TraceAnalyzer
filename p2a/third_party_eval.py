@@ -43,6 +43,7 @@ DEFAULT_CONFIG = {
         "base_url_env": "P2A_THIRD_PARTY_BASE_URL",
         "api_key_env": "P2A_THIRD_PARTY_API_KEY",
         "model_name_env": "P2A_THIRD_PARTY_MODEL",
+        "proxy_env": "P2A_THIRD_PARTY_PROXY",
         "base_url": "",
         "model_name": "",
         "timeout": 300,
@@ -76,7 +77,15 @@ DEFAULT_CONFIG = {
     },
     "bonus_map_instance_filter": {},
 }
-_REDACT_KEYS = ("api_key", "apikey", "token", "secret", "password", "authorization")
+_REDACT_KEYS = (
+    "api_key",
+    "apikey",
+    "token",
+    "secret",
+    "password",
+    "authorization",
+    "proxy",
+)
 API_QUOTA_ERROR_RE = re.compile(
     r"("
     r"insufficient\s+(?:balance|quota|credit|credits|funds)|"
@@ -233,19 +242,23 @@ def resolve_model_config(config: dict[str, Any]) -> dict[str, Any]:
     base_url = _env_or_value(model_cfg, "base_url")
     api_key = _env_or_value(model_cfg, "api_key")
     model_name = _env_or_value(model_cfg, "model_name")
+    proxy = _env_or_value(model_cfg, "proxy")
     if provider_cfg["source"] == "openai_compatible" and not base_url:
         raise ValueError("model.base_url is required, either directly or via model.base_url_env")
     if provider_cfg["source"] == "openai_compatible" and not api_key:
         raise ValueError("model.api_key is required via model.api_key_env; do not commit API keys")
     if not model_name:
         raise ValueError("model.model_name is required, either directly or via model.model_name_env")
-    return {
+    resolved = {
         "base_url": base_url,
         "api_key": api_key,
         "model_name": model_name,
         "timeout": model_cfg.get("timeout", 300),
         "sampling_params": dict(model_cfg.get("sampling_params") or {}),
     }
+    if proxy:
+        resolved["proxy"] = proxy
+    return resolved
 
 
 def _maybe_json(value: Any) -> Any:

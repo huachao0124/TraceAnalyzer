@@ -14,6 +14,7 @@
   env:
     deployment:
       type: nexus
+      purpose: test
       image: python:3.11-slim
       timeout: 3600
       startup_timeout: 1200

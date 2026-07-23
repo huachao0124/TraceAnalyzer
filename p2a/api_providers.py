@@ -152,6 +152,29 @@ def _validate_model_protocol(model: Any, *, source: str) -> None:
         )
 
 
+def _make_openai_compatible_model(model_cfg: dict[str, Any]) -> Any:
+    """Build the upstream model and apply P2A-only HTTP transport settings."""
+    from uni_agent.interaction import OpenAICompatibleChatModel
+
+    cfg = dict(model_cfg)
+    proxy = str(cfg.pop("proxy", "") or "").strip()
+    model = OpenAICompatibleChatModel(**cfg)
+    if not proxy:
+        return model
+
+    from openai import AsyncOpenAI, DefaultAsyncHttpxClient
+
+    http_client = DefaultAsyncHttpxClient(proxy=proxy, timeout=model.timeout)
+    model.client = AsyncOpenAI(
+        api_key=model.api_key,
+        base_url=model.base_url,
+        timeout=model.timeout,
+        http_client=http_client,
+    )
+    model._p2a_http_client = http_client
+    return model
+
+
 def _usage_number(payload: dict[str, Any], *keys: str) -> int | float:
     for key in keys:
         value = payload.get(key)
@@ -242,9 +265,7 @@ def make_chat_model(
     cfg = normalize_provider_config(provider_cfg)
     source = cfg["source"]
     if source == OPENAI_COMPATIBLE:
-        from uni_agent.interaction import OpenAICompatibleChatModel
-
-        model = OpenAICompatibleChatModel(**model_cfg)
+        model = _make_openai_compatible_model(model_cfg)
     elif source == INTERNAL_API:
         module = load_internal_adapter(cfg, repo_root=repo_root)
         model = _call_factory(
