@@ -12,6 +12,9 @@ import json
 import os
 from typing import Any
 
+DEFAULT_MIRROR_REGISTRY = "pair-diag-cn-guangzhou.cr.volces.com"
+DEFAULT_MIRROR_NAMESPACE = "code"
+
 
 def repo_from_instance_id(instance_id: str) -> str | None:
     if "__" not in instance_id:
@@ -25,6 +28,20 @@ def suffix_from_instance_id(instance_id: str) -> str | None:
         return None
     suffix = instance_id.rsplit("__", 1)[1].strip().lower()
     return suffix or None
+
+
+def mirror_image(docker_image: str) -> str:
+    """Build a mirror ref for data generation and registry maintenance.
+
+    Runtime selection does not rewrite parquet image refs. This helper remains
+    available to builders that explicitly materialize the target ref.
+    """
+    registry = os.getenv("ARL_MIRROR_REGISTRY", DEFAULT_MIRROR_REGISTRY)
+    namespace = os.getenv("ARL_MIRROR_NAMESPACE", DEFAULT_MIRROR_NAMESPACE)
+    if docker_image.startswith(registry):
+        return docker_image
+    image_path = docker_image.split("/", 1)[1] if "/" in docker_image else docker_image
+    return f"{registry.rstrip('/')}/{namespace.strip('/')}/{image_path}"
 
 
 def _env_image_overrides() -> dict[str, str]:
@@ -62,7 +79,7 @@ def select_r2e_image(
 
     raise ValueError(
         f"Cannot select image for {instance_id!r}: no docker_image in the parquet row. "
-        f"Rebuild with: python scripts/build_data.py r2e"
+        f"Rebuild with: uv run python scripts/build_data.py r2e"
     )
 
 
