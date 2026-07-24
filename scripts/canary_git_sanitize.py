@@ -74,13 +74,11 @@ def cmd_offline(_args) -> int:
     return 0 if ok else 1
 
 
-def _run(runtime, command: str, timeout: int = 120) -> tuple[str, int]:
+def _run(sandbox, command: str, timeout: int = 120) -> tuple[str, int]:
     import asyncio
 
-    from swerex.runtime.abstract import Command
-
     resp = asyncio.get_event_loop().run_until_complete(
-        runtime.execute(Command(command=["bash", "-lc", command], timeout=timeout))
+        sandbox.exec_shell(command, timeout=timeout)
     )
     return ((resp.stdout or "") + (resp.stderr or "")), int(resp.exit_code or 0)
 
@@ -88,10 +86,9 @@ def _run(runtime, command: str, timeout: int = 120) -> tuple[str, int]:
 def cmd_arl(args) -> int:
     import pandas as pd
 
-    from env.deployment import make_env_config
+    from env.sandbox import build_sandbox_from_deployment
     from p2a.datasets import swebench_pro_repo_path
     from p2a.precompute.uni_agent_sandbox import build_agent_env_config
-    from uni_agent.interaction import AgentEnv
 
     rows = pd.read_parquet(args.parquet).to_dict("records")
     if not rows:
@@ -105,39 +102,34 @@ def cmd_arl(args) -> int:
         if env_dict["deployment"].get("type") != "arl":
             print("  [SKIP] not an ARL row")
             continue
-        env_dict["deployment"]["require_bash_session"] = True
         repo = swebench_pro_repo_path(row.get("reward_model", {}).get("ground_truth", {})) if "swe_bench_pro" in str(row) else "/testbed"
-        cfg = make_env_config(
+        sandbox = build_sandbox_from_deployment(
             env_dict["deployment"],
-            env_variables=env_dict.get("env_variables"),
             post_setup_cmd=env_dict.get("post_setup_cmd"),
-            tool_install_dir=env_dict.get("tool_install_dir", "/usr/local/bin"),
         )
-        env = AgentEnv(run_id=f"canary-{iid}", env_config=cfg)
         import asyncio
 
-        asyncio.get_event_loop().run_until_complete(env.deployment.start())
-        runtime = env.deployment.runtime
+        asyncio.get_event_loop().run_until_complete(sandbox.start())
         ok = True
-        log_all, _ = _run(runtime, f"cd {repo} && git log --all --oneline | wc -l")
+        log_all, _ = _run(sandbox, f"cd {repo} && git log --all --oneline | wc -l")
         ok &= _check("git log --all shows one baseline commit", log_all.strip().splitlines()[-1].strip() == "1", log_all.strip())
-        subject, _ = _run(runtime, f"cd {repo} && git log -1 --pretty=%s")
+        subject, _ = _run(sandbox, f"cd {repo} && git log -1 --pretty=%s")
         ok &= _check("HEAD is the baseline commit", subject.strip().splitlines()[-1].strip() == "baseline", subject.strip())
         # The sanitizer re-points at most ONE version tag (nearest ancestor release, kept
         # for setuptools-scm/versioneer installs) at the baseline commit; nothing else.
-        refs, _ = _run(runtime, f"cd {repo} && git for-each-ref --format='%(refname)' | grep -v -e '^refs/heads/' -e '^refs/tags/' | wc -l")
+        refs, _ = _run(sandbox, f"cd {repo} && git for-each-ref --format='%(refname)' | grep -v -e '^refs/heads/' -e '^refs/tags/' | wc -l")
         ok &= _check("no remote/foreign refs remain", refs.strip().splitlines()[-1].strip() == "0", refs.strip())
-        tags, _ = _run(runtime, f"cd {repo} && git tag | wc -l")
+        tags, _ = _run(sandbox, f"cd {repo} && git tag | wc -l")
         ok &= _check("at most one preserved version tag", int(tags.strip().splitlines()[-1].strip() or 0) <= 1, tags.strip())
-        tag_shas, _ = _run(runtime, f'cd {repo} && for t in $(git tag); do git rev-list -n1 "$t"; done | sort -u')
-        head_sha, _ = _run(runtime, f"cd {repo} && git rev-parse HEAD")
+        tag_shas, _ = _run(sandbox, f'cd {repo} && for t in $(git tag); do git rev-list -n1 "$t"; done | sort -u')
+        head_sha, _ = _run(sandbox, f"cd {repo} && git rev-parse HEAD")
         tag_lines = [line.strip() for line in tag_shas.strip().splitlines() if line.strip()]
         ok &= _check("preserved tag points at baseline only",
                      not tag_lines or tag_lines == [head_sha.strip().splitlines()[-1].strip()], tag_shas.strip())
-        _run(runtime, f"cd {repo} && echo '# p2a-canary' >> README.md 2>/dev/null || echo '# p2a-canary' > p2a_canary.txt")
-        diff, _ = _run(runtime, f"cd {repo} && git diff HEAD --name-only | wc -l")
+        _run(sandbox, f"cd {repo} && echo '# p2a-canary' >> README.md 2>/dev/null || echo '# p2a-canary' > p2a_canary.txt")
+        diff, _ = _run(sandbox, f"cd {repo} && git diff HEAD --name-only | wc -l")
         ok &= _check("git diff HEAD captures a model edit", int(diff.strip().splitlines()[-1].strip() or 0) >= 1, diff.strip())
-        asyncio.get_event_loop().run_until_complete(env.deployment.stop())
+        asyncio.get_event_loop().run_until_complete(sandbox.stop())
         print(f"  {iid}:", "PASS" if ok else "FAIL")
         overall &= ok
     print("\nARL CANARY:", "PASS" if overall else "FAIL")

@@ -48,11 +48,20 @@ dependencies = [
 # Ray job startup can resolve from the lock without fetching editable build
 # metadata from PyPI. The locked Linux training target uses CUDA 13.0 torch
 # wheels, which install on CPU hosts but are large.
-train = ["verl"]
+train = [
+    "verl",
+    # Agent Framework imports these at rollout-manager startup, but the pinned
+    # verl setup metadata does not yet declare them.
+    "cachetools",
+    "fastapi",
+    "uvicorn",
+    "TransferQueue==0.1.8",
+]
 
 # ── gpu: training accelerators ────────────────────────────────────────────────
 # GPU packages are installed via pip on GPU nodes (not resolved by uv).
-# Versions: torch==2.10.0 (PyPI cu128), vllm==0.18.0, megatron-core==0.16.0,
+# Versions: use the compatibility set from the pinned verl 0.9 revision
+# (notably vLLM <=0.12.0), plus the cluster's CUDA-compatible torch build.
 #   mbridge==0.15.1, cupy-cuda12x, flash-attn (source), TE (source), APEX (source).
 # See docs/gpu-cluster-training-guide.md for install instructions.
 gpu = [
@@ -91,23 +100,23 @@ requires-dist = []
 
 [[tool.uv.dependency-metadata]]
 name = "verl"
-version = "0.8.0.dev0"
+version = "0.9.0.dev"
 requires-dist = [
     "accelerate",
     "codetiming",
     "datasets",
     "dill",
     "hydra-core",
-    "numpy<2.0.0",
+    "numpy>=2.0.0",
     "pandas",
     "peft",
     "pyarrow>=19.0.0",
     "pybind11",
     "pylatexenc",
-    "ray[default]>=2.54.0",
+    "ray[default]>=2.41.0",
     "torchdata",
-    "tensordict>=0.8.0",
-    "transformers",
+    "tensordict>=0.8.0,<=0.10.0,!=0.9.0",
+    "transformers!=5.6.0",
     "wandb",
     "packaging>=20.0",
     "tensorboard",
@@ -123,15 +132,14 @@ requires-dist = [
     "liger-kernel; extra == 'gpu'",
     "flash-attn; extra == 'gpu'",
     "math-verify; extra == 'math'",
-    "vllm>=0.18.0; extra == 'vllm'",
-    "tensordict>=0.8.0; extra == 'vllm'",
+    "vllm>=0.8.5,<=0.12.0; extra == 'vllm'",
+    "tensordict>=0.8.0,<=0.10.0,!=0.9.0; extra == 'vllm'",
     "sglang[srt,openai]==0.5.8; extra == 'sglang'",
     "torch==2.9.1; extra == 'sglang'",
     "tensordict>=0.8.0,<=0.10.0,!=0.9.0; extra == 'sglang'",
     "trl<=0.9.6; extra == 'trl'",
     "mbridge; extra == 'mcore'",
     "tensorrt-llm>=1.2.0rc6; extra == 'trtllm'",
-    "TransferQueue==0.1.6; extra == 'transferqueue'",
 ]
 provides-extra = [
     "test",
@@ -144,7 +152,6 @@ provides-extra = [
     "trl",
     "mcore",
     "trtllm",
-    "transferqueue",
 ]
 
 [tool.uv.extra-build-dependencies]

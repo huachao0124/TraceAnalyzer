@@ -1,3 +1,4 @@
+import asyncio
 import importlib.util
 import json
 from pathlib import Path
@@ -255,40 +256,36 @@ def test_validate_swebench_pro_parquet_rejects_empty_scripts(tmp_path):
         build_data.validate_swebench_pro_parquet(path)
 
 
-def test_swebench_reward_runs_eval_through_execute_not_shared_communicate(monkeypatch):
+def test_swebench_reward_runs_eval_through_sandbox(monkeypatch):
     from p2a.reward_specs import SWEBenchRewardSpec
-    from uni_agent.reward import load_reward_spec
 
     calls = {"execute": [], "write_file": []}
 
-    class FakeRuntime:
-        async def execute(self, command):
+    class FakeSandbox:
+        async def exec_shell(self, command, **_kwargs):
             calls["execute"].append(command)
             return SimpleNamespace(stdout="clean eval output", stderr="", exit_code=0)
-
-    class FakeEnv:
-        deployment = SimpleNamespace(runtime=FakeRuntime())
 
         async def write_file(self, path, content):
             calls["write_file"].append((path, content))
 
-        async def communicate(self, *_args, **_kwargs):
-            raise AssertionError("reward eval must not use shared communicate")
-
-    spec = load_reward_spec({"name": "swe_bench", "run_id": "run-1", "metadata": {}, "env": FakeEnv()})
+    spec = SWEBenchRewardSpec(
+        run_id="run-1",
+        metadata={},
+        sandbox=FakeSandbox(),
+    )
     assert isinstance(spec, SWEBenchRewardSpec)
     monkeypatch.setattr(spec, "_build_eval_script", lambda: "echo eval\n")
     monkeypatch.setattr(spec, "_get_eval_report", lambda output: {"resolved": True, "captured": output})
 
-    reward, details = spec.compute_reward()
+    reward, details = asyncio.run(spec.compute_reward())
 
     assert reward is True
     assert details["resolved"] is True
     assert details["eval_completed"] is True
     assert calls["write_file"]
     assert len(calls["execute"]) == 1
-    assert calls["execute"][0].command[:2] == ["bash", "-lc"]
-    assert "bash /tmp/eval_script_" in calls["execute"][0].command[2]
+    assert "bash /tmp/eval_script_" in calls["execute"][0]
 
 
 def test_swebench_pro_reward_grades_f2p_and_p2p():
@@ -421,13 +418,13 @@ def test_swebench_pro_sandbox_execute_does_not_activate_verified_conda():
 
     calls = []
 
-    class FakeRuntime:
-        async def execute(self, command):
-            calls.append(command.command)
+    class FakeSandbox:
+        async def exec_shell(self, command, **_kwargs):
+            calls.append(command)
             return SimpleNamespace(stdout="", stderr="", exit_code=0)
 
     adapter = UniAgentSandboxAdapter(
-        SimpleNamespace(deployment=SimpleNamespace(runtime=FakeRuntime())),
+        FakeSandbox(),
         swebench_pro=True,
         repo_path="/app",
     )
@@ -444,19 +441,19 @@ def test_swebench_pro_create_sandbox_does_not_mark_verified(monkeypatch):
 
     created = {}
 
-    class FakeConfig:
-        deployment = {"type": "local"}
-        env_variables = None
-        post_setup_cmd = None
-        tool_install_dir = "/tools"
+    class FakeSandbox:
+        pass
 
-    class FakeAgentEnv:
-        def __init__(self, run_id, env_config):
-            created["run_id"] = run_id
-            created["env_config"] = env_config
+    fake_sandbox = FakeSandbox()
 
-    monkeypatch.setattr("uni_agent.interaction.AgentEnvConfig", lambda **_kwargs: FakeConfig())
-    monkeypatch.setattr("uni_agent.interaction.AgentEnv", FakeAgentEnv)
+    def fake_builder(deployment):
+        created["deployment"] = deployment
+        return fake_sandbox
+
+    monkeypatch.setattr(
+        "env.sandbox.build_sandbox_from_deployment",
+        fake_builder,
+    )
 
     task = {
         "data_source": "swebench-pro",
@@ -477,6 +474,7 @@ def test_swebench_pro_create_sandbox_does_not_mark_verified(monkeypatch):
     assert adapter.swebench_pro is True
     assert adapter.swebench_verified is False
     assert adapter.repo_path == "/app"
+    assert adapter.sandbox is fake_sandbox
 
 
 def test_swebench_pro_arl_env_config_uses_app_session_cwd(monkeypatch):

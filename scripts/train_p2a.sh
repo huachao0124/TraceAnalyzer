@@ -59,11 +59,12 @@ resolve_env_path_if_set P2A_EVAL_BONUS_MAP_DIR
 resolve_env_path_if_set P2A_EVAL_FILTER_BONUS_MAP_DIR
 resolve_env_path_if_set P2A_EVAL_DETAILS_DIR
 RUNTIME_ENV=${RUNTIME_ENV:-"${RAY_DATA_HOME}/data/swe_agent/runtime_env_arl.yaml"}
-# Agent-loop actors on every node load this path, so it must resolve on all of
-# them; the (staged) source tree is present per-node at the same location,
-# unlike RAY_DATA_HOME which is node-local to the head.
-DEFAULT_AGENT_CONFIG_PATH="${SRC_ROOT}/env/agent_config_nexus.yaml"
-AGENT_CONFIG_PATH=${AGENT_CONFIG_PATH:-"${DEFAULT_AGENT_CONFIG_PATH}"}
+# Agent Framework workers on every node load this path from the staged source.
+DEFAULT_TASK_CONFIG_PATH="${SRC_ROOT}/env/agent_config_nexus.yaml"
+TASK_CONFIG_PATH=${TASK_CONFIG_PATH:-"${AGENT_CONFIG_PATH:-${DEFAULT_TASK_CONFIG_PATH}}"}
+GATEWAY_COUNT=${GATEWAY_COUNT:-8}
+AGENT_CONCURRENCY=${AGENT_CONCURRENCY:-32}
+AGENT_LOG_DIR=${AGENT_LOG_DIR:-"${RAY_DATA_HOME}/logs/${project_name}/${exp_name}"}
 PYTHON_BIN=${PYTHON_BIN:-"${UV_PROJECT_ENVIRONMENT}/bin/python"}
 RAY_BIN=${RAY_BIN:-"${UV_PROJECT_ENVIRONMENT}/bin/ray"}
 echo "[P2A] UV_PROJECT_ENVIRONMENT=${UV_PROJECT_ENVIRONMENT}"
@@ -185,12 +186,12 @@ if [[ -n "${P2A_BONUS_MAP_DIR:-}${P2A_EVAL_BONUS_MAP_DIR:-}" && -z "${UNI_AGENT_
     export UNI_AGENT_P2A_TRACE=1
 fi
 
-mkdir -p "$(dirname "${RUNTIME_ENV}")"
+mkdir -p "$(dirname "${RUNTIME_ENV}")" "${AGENT_LOG_DIR}"
 if [[ ! -f "${RUNTIME_ENV}" ]]; then
-    cp "${UNI_AGENT_DIR}/examples/swe_agent_235b/runtime_env.yaml" "${RUNTIME_ENV}"
+    cp "${SRC_ROOT}/config/runtime_env.yaml" "${RUNTIME_ENV}"
 fi
-if [[ ! -f "${AGENT_CONFIG_PATH}" ]]; then
-    echo "[P2A] AGENT_CONFIG_PATH does not exist: ${AGENT_CONFIG_PATH}" >&2
+if [[ ! -f "${TASK_CONFIG_PATH}" ]]; then
+    echo "[P2A] TASK_CONFIG_PATH does not exist: ${TASK_CONFIG_PATH}" >&2
     exit 2
 fi
 
@@ -386,9 +387,19 @@ PY
     actor_rollout_ref.rollout.response_length=${max_response_length} \
     actor_rollout_ref.rollout.multi_turn.enable=True \
     actor_rollout_ref.rollout.multi_turn.max_parallel_calls=1 \
+    ++actor_rollout_ref.rollout.multi_turn.format=qwen3_coder \
     actor_rollout_ref.rollout.agent.num_workers=${NUM_AGENT_WORKERS:-128} \
-    actor_rollout_ref.rollout.agent.agent_loop_config_path=${AGENT_CONFIG_PATH} \
-    actor_rollout_ref.rollout.agent.default_agent_loop=swe_agent \
+    ++actor_rollout_ref.rollout.agent.agent_loop_manager_class=uni_agent.framework.entry.AgentFrameworkRolloutAdapter \
+    ++actor_rollout_ref.rollout.custom.agent_framework.framework_class_fqn=env.framework.P2AAgentFramework \
+    ++actor_rollout_ref.rollout.custom.agent_framework.gateway_count=${GATEWAY_COUNT} \
+    ++actor_rollout_ref.rollout.custom.agent_framework.log_dir="${AGENT_LOG_DIR}" \
+    ++actor_rollout_ref.rollout.custom.agent_framework.agent_runners.task.runner_fqn=env.task_runner.run_task \
+    ++actor_rollout_ref.rollout.custom.agent_framework.agent_runners.task.dispatch_mode=inline_async \
+    ++actor_rollout_ref.rollout.custom.agent_framework.agent_runners.task.max_concurrent_sessions=${AGENT_CONCURRENCY} \
+    ++actor_rollout_ref.rollout.custom.agent_framework.agent_runners.task.runner_kwargs.task_config_path="${TASK_CONFIG_PATH}" \
+    ++actor_rollout_ref.rollout.custom.agent_framework.agent_runners.task.runner_kwargs.model_name="$(basename "${MODEL_PATH}")" \
+    ++actor_rollout_ref.rollout.custom.agent_framework.agent_runners.task.runner_kwargs.report_reward=True \
+    ++actor_rollout_ref.rollout.custom.agent_framework.use_reward_loop_worker=False \
     actor_rollout_ref.rollout.gpu_memory_utilization=0.7 \
     actor_rollout_ref.rollout.tensor_model_parallel_size=${gen_tp} \
     actor_rollout_ref.rollout.expert_parallel_size=${infer_ep} \

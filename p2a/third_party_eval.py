@@ -31,7 +31,11 @@ from p2a.eval_fault_localization import (
     summarize,
     write_jsonl,
 )
-from p2a.precompute.uni_agent_sandbox import build_agent_env_config, extract_tools_kwargs
+from p2a.precompute.uni_agent_sandbox import (
+    build_agent_env_config,
+    extract_reward_metadata,
+    extract_tools_kwargs,
+)
 
 
 DEFAULT_CONFIG = {
@@ -402,7 +406,7 @@ def _instance_id(row: dict[str, Any]) -> str | None:
     for value in (
         row.get("instance_id"),
         _extra_info(row).get("instance_id"),
-        (extract_tools_kwargs(row).get("reward") or {}).get("metadata", {}).get("instance_id"),
+        extract_reward_metadata(row).get("instance_id"),
     ):
         if isinstance(value, str) and value:
             return value
@@ -417,14 +421,16 @@ def _data_source(row: dict[str, Any]) -> str:
 
 
 def _reward_metadata(row: dict[str, Any]) -> dict[str, Any]:
-    reward_cfg = extract_tools_kwargs(row).get("reward") or {}
-    metadata = reward_cfg.get("metadata") if isinstance(reward_cfg, dict) else {}
-    return metadata if isinstance(metadata, dict) else {}
+    return extract_reward_metadata(row)
 
 
 def _is_swebench_pro_row(row: dict[str, Any]) -> bool:
-    reward_cfg = extract_tools_kwargs(row).get("reward") or {}
-    reward_name = reward_cfg.get("name") if isinstance(reward_cfg, dict) else None
+    tools_kwargs = extract_tools_kwargs(row)
+    task_cfg = tools_kwargs.get("task") or {}
+    reward_cfg = tools_kwargs.get("reward") or {}
+    reward_name = (
+        task_cfg.get("name") if isinstance(task_cfg, dict) else None
+    ) or (reward_cfg.get("name") if isinstance(reward_cfg, dict) else None)
     if reward_name == "swe_bench_pro":
         return True
     return _data_source(row).strip().lower() in {SWEBENCH_PRO_DATA_SOURCE, "swe-bench-pro"}
@@ -468,124 +474,210 @@ def _prompt(row: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _make_env(row: dict[str, Any], *, instance_id: str, deployment: str):
-    from env.deployment import make_env_config
-    from uni_agent.interaction import AgentEnv, AgentEnvConfig
+    from env.sandbox import build_sandbox_from_deployment
 
-    env_dict = build_agent_env_config(row, instance_id=instance_id, deployment=deployment)
-    deployment_type = env_dict["deployment"].get("type")
-    if deployment_type in ("arl", "nexus"):
-        if deployment_type == "arl":
-            env_dict["deployment"]["require_bash_session"] = True
-        env_config = make_env_config(
-            env_dict["deployment"],
-            env_variables=env_dict.get("env_variables"),
-            post_setup_cmd=env_dict.get("post_setup_cmd"),
-            tool_install_dir=env_dict.get("tool_install_dir", "/usr/local/bin"),
+    env_dict = build_agent_env_config(
+        row,
+        instance_id=instance_id,
+        deployment=deployment,
+    )
+    deployment_config = dict(env_dict["deployment"])
+    if deployment_config.get("type") == "nexus":
+        deployment_config["environment"] = dict(
+            env_dict.get("env_variables") or {}
         )
-    else:
-        env_config = AgentEnvConfig(**env_dict)
-    return AgentEnv(run_id=f"p2a-third-party-{uuid.uuid4()}", env_config=env_config)
-
-
-def _make_tools(agent_cfg: dict[str, Any]):
-    from uni_agent.interaction import ToolsManager, ToolsManagerConfig
-
-    return ToolsManager(
-        ToolsManagerConfig(
-            tools=agent_cfg.get("tools") or DEFAULT_CONFIG["agent"]["tools"],
-            parser=agent_cfg.get("tool_parser", "qwen3_coder"),
-        )
+    return build_sandbox_from_deployment(
+        deployment_config,
+        post_setup_cmd=env_dict.get("post_setup_cmd"),
     )
 
 
-def _make_model(model_cfg: dict[str, Any], provider_cfg: dict[str, Any] | None = None):
+def _tool_specs(agent_cfg: dict[str, Any]) -> list[dict[str, Any]]:
+    interaction_cfg = dict(agent_cfg.get("interaction") or {})
+    command_timeout = float(interaction_cfg.get("action_timeout", 300))
+    shell_env = {
+        "PIP_PROGRESS_BAR": "off",
+        "PIP_CACHE_DIR": "~/.cache/pip",
+        "PAGER": "cat",
+        "MANPAGER": "cat",
+        "LESS": "-R",
+        "TQDM_DISABLE": "1",
+        "GIT_PAGER": "cat",
+    }
+    specs = []
+    for raw in agent_cfg.get("tools") or DEFAULT_CONFIG["agent"]["tools"]:
+        spec = dict(raw)
+        if spec.get("name") == "execute_bash":
+            spec["name"] = "stateful_shell"
+        if spec.get("name") == "stateful_shell":
+            spec.setdefault("command_timeout", command_timeout)
+            spec.setdefault("env_vars", shell_env)
+        specs.append(spec)
+    return specs
+
+
+def _make_tools(agent_cfg: dict[str, Any], sandbox: Any):
+    from uni_agent.tools import Toolbox
+
+    return Toolbox.from_specs(_tool_specs(agent_cfg), sandbox=sandbox)
+
+
+def _make_model(
+    model_cfg: dict[str, Any],
+    provider_cfg: dict[str, Any] | None = None,
+):
     return make_chat_model(model_cfg, provider_cfg)
 
 
-def _make_interaction(*, run_id: str, env: Any, model: Any, tools_manager: Any, messages: list[dict], agent_cfg: dict):
-    from uni_agent.interaction import AgentInteraction
-
+async def _run_interaction(
+    *,
+    model: Any,
+    toolbox: Any,
+    messages: list[dict],
+    agent_cfg: dict,
+) -> dict[str, Any]:
     interaction_cfg = dict(agent_cfg.get("interaction") or {})
-    return AgentInteraction(
-        run_id=run_id,
-        env=env,
-        model=model,
-        tools_manager=tools_manager,
-        messages=messages,
-        **interaction_cfg,
+    max_turns = int(interaction_cfg.get("max_turns", 100))
+    action_timeout = float(interaction_cfg.get("action_timeout", 300))
+    timeout_budget = int(interaction_cfg.get("timeout_budget", 3))
+    transcript = list(messages)
+    trajectory: list[dict[str, Any]] = []
+    rollout_cache = await model.prepare_rollout_cache(transcript)
+    started = time.perf_counter()
+    timeouts = 0
+    model.set_tools_schemas(toolbox.schemas())
+
+    try:
+        async with toolbox.entered(retry=3, timeout=60):
+            for step_index in range(1, max_turns + 1):
+                text, tool_calls, rollout_cache, _generation_info = (
+                    await model.query(transcript, rollout_cache)
+                )
+                assistant_message: dict[str, Any] = {
+                    "role": "assistant",
+                    "content": text,
+                }
+                if tool_calls:
+                    assistant_message["tool_calls"] = tool_calls
+                transcript.append(assistant_message)
+
+                step = {
+                    "step_idx": step_index,
+                    "response": text,
+                    "thought": text,
+                    "tool_results": [],
+                    "exit_reason": "completed",
+                }
+                trajectory.append(step)
+                if not tool_calls:
+                    step["exit_reason"] = "finished"
+                    break
+
+                tool_messages = []
+                saw_finish = False
+                for call in tool_calls:
+                    function = call.get("function") or {}
+                    name = str(function.get("name") or "")
+                    result = await toolbox.call(
+                        name,
+                        function.get("arguments"),
+                        timeout=action_timeout,
+                    )
+                    if result.status == "timeout":
+                        timeouts += 1
+                    observation = result.to_observation()
+                    step["tool_results"].append(
+                        {
+                            "name": name,
+                            "status": result.status,
+                            "content": observation,
+                        }
+                    )
+                    tool_message = {
+                        "role": "tool",
+                        "tool_call_id": call.get("id"),
+                        "name": name,
+                        "content": observation,
+                    }
+                    transcript.append(tool_message)
+                    tool_messages.append(tool_message)
+                    saw_finish = saw_finish or name in {"submit", "finish"}
+                rollout_cache = await model.append_messages_to_rollout_cache(
+                    tool_messages,
+                    rollout_cache,
+                )
+                if timeouts > timeout_budget:
+                    step["exit_reason"] = "timeout_limit"
+                    break
+                if saw_finish:
+                    step["exit_reason"] = "finished"
+                    break
+            else:
+                if trajectory:
+                    trajectory[-1]["exit_reason"] = "max_turns"
+    finally:
+        close = getattr(model, "aclose", None)
+        if close is not None:
+            await close()
+
+    return {
+        "messages": transcript,
+        "trajectory": trajectory,
+        "rollout_cache": rollout_cache,
+        "execution_time": time.perf_counter() - started,
+    }
+
+
+async def _compute_reward(
+    row: dict[str, Any],
+    *,
+    sandbox: Any,
+    agent_cfg: dict[str, Any],
+) -> tuple[Any, Any]:
+    tools_kwargs = extract_tools_kwargs(row)
+    task_config = (
+        tools_kwargs.get("task")
+        if isinstance(tools_kwargs.get("task"), dict)
+        else {}
     )
+    reward_config = (
+        tools_kwargs.get("reward")
+        if isinstance(tools_kwargs.get("reward"), dict)
+        else {}
+    )
+    reward_name = task_config.get("name") or reward_config.get("name")
+    if not reward_name:
+        return None, None
 
+    metadata = extract_reward_metadata(row)
+    eval_timeout = float(agent_cfg.get("reward_eval_timeout", 600))
+    if reward_name == "r2e_gym":
+        from env.tasks import compute_r2e_reward
 
-def _make_reward(row: dict[str, Any], *, run_id: str, env: Any, agent_cfg: dict[str, Any]):
-    from uni_agent.reward import load_reward_spec
-
-    import p2a.reward_specs  # noqa: F401 - registers P2A-local Uni-Agent reward specs
-
-    reward_cfg = dict(extract_tools_kwargs(row).get("reward") or {})
-    if not reward_cfg:
-        return None
-    reward_cfg["run_id"] = run_id
-    reward_cfg["env"] = env
-    reward_cfg["eval_timeout"] = agent_cfg.get("reward_eval_timeout", reward_cfg.get("eval_timeout", 600))
-    return load_reward_spec(reward_cfg)
-
-
-async def _run_env_execute_command(
-    env: Any,
-    command: str,
-    *,
-    timeout: int | float | None = None,
-    check: str = "ignore",
-    error_msg: str | None = None,
-) -> str:
-    from swerex.runtime.abstract import Command
-
-    runtime = getattr(getattr(env, "deployment", None), "runtime", None)
-    execute = getattr(runtime, "execute", None)
-    if not callable(execute):
-        raise RuntimeError("Agent runtime execute interface is required; interactive/communicate execution is forbidden")
-    response = await execute(Command(command=["bash", "-lc", command], timeout=timeout))
-    output = (response.stdout or "") + (response.stderr or "")
-    if check == "raise" and int(response.exit_code or 0) != 0:
-        message = error_msg or f"command failed with exit code {response.exit_code}"
-        raise RuntimeError(f"{message}: {output}")
-    return output
-
-
-async def _install_tools(
-    env: Any,
-    tools: list[Any],
-    *,
-    timeout: int | float,
-    skip_install_commands: list[str] | set[str],
-) -> None:
-    skip_install_commands = set(skip_install_commands)
-    install_dir = env.tool_install_dir
-    path_prefix = f"export PATH={shlex.quote(install_dir.as_posix())}:$PATH; "
-    for tool in tools:
-        tool_name = tool.name
-        if tool.copy_to_remote:
-            local_tool_path = tool.local_path
-            if local_tool_path is None or not local_tool_path.is_file():
-                raise FileNotFoundError(f"Tool {tool_name} has no local executable at {local_tool_path!r}")
-            container_tool_path = install_dir / tool_name
-            await env.copy_to_container(src=local_tool_path, tgt=container_tool_path)
-            await _run_env_execute_command(
-                env,
-                f"chmod +x {shlex.quote(container_tool_path.as_posix())}",
-                timeout=timeout,
-                check="raise",
-            )
-        install_cmd = None if tool_name in skip_install_commands else tool.get_install_command()
-        if install_cmd:
-            await _run_env_execute_command(env, path_prefix + install_cmd, timeout=timeout, check="raise")
-        await _run_env_execute_command(
-            env,
-            path_prefix + f"which {shlex.quote(tool_name)}",
-            timeout=timeout,
-            check="raise",
-            error_msg=f"Failed to install tool {tool_name}",
+        details = await compute_r2e_reward(
+            metadata,
+            sandbox,
+            eval_timeout=eval_timeout,
         )
+    elif reward_name == "swe_bench":
+        from p2a.reward_specs import compute_swebench_reward
+
+        details = await compute_swebench_reward(
+            metadata,
+            sandbox,
+            eval_timeout=eval_timeout,
+        )
+    elif reward_name == "swe_bench_pro":
+        from p2a.reward_specs import compute_swebench_pro_reward
+
+        details = await compute_swebench_pro_reward(
+            metadata,
+            sandbox,
+            eval_timeout=eval_timeout,
+        )
+    else:
+        raise ValueError(f"Unsupported standalone reward task: {reward_name!r}")
+    return bool(details.get("resolved")), details
 
 
 def build_step_traces(interaction_result: dict[str, Any]) -> list[dict[str, Any]]:
@@ -897,15 +989,23 @@ async def run_provider_smoke(model_cfg: dict[str, Any], provider_cfg: dict[str, 
         {"role": "system", "content": "You are a terse smoke-test assistant."},
         {"role": "user", "content": "Reply with exactly: ok"},
     ]
-    rollout_cache = await model.prepare_rollout_cache(messages)
-    text, tool_calls, _cache, generation_info = await model.query(messages, rollout_cache)
-    return {
-        "ok": True,
-        "has_text": bool(text.strip()),
-        "text_preview": text.strip()[:80],
-        "n_tool_calls": len(tool_calls),
-        "generation_info": generation_info,
-    }
+    try:
+        rollout_cache = await model.prepare_rollout_cache(messages)
+        text, tool_calls, _cache, generation_info = await model.query(
+            messages,
+            rollout_cache,
+        )
+        return {
+            "ok": True,
+            "has_text": bool(text.strip()),
+            "text_preview": text.strip()[:80],
+            "n_tool_calls": len(tool_calls),
+            "generation_info": generation_info,
+        }
+    finally:
+        close = getattr(model, "aclose", None)
+        if close is not None:
+            await close()
 
 
 _SESSION_LOSS_MARKERS = ("session", "claim", "not found", "no longer exists")
@@ -918,22 +1018,49 @@ def _is_session_loss(detail: str) -> bool:
     )
 
 
-async def _snapshot_final_patch(env: Any, row: dict[str, Any]) -> str | None:
+async def _snapshot_final_patch(sandbox: Any, row: dict[str, Any]) -> str | None:
     """Extract the final workspace diff right after the interaction, while the
     rollout session is still alive. Decouples evaluation from session lifetime."""
-    from swerex.runtime.abstract import Command
-
-    runtime = env.deployment.runtime
     repo_path = _repo_path_for_snapshot(row)
     quoted_repo = shlex.quote(repo_path)
     command = (
         f"git config --global --add safe.directory {quoted_repo} >/dev/null 2>&1 || true; "
         f"git -C {quoted_repo} add -A && git -C {quoted_repo} diff --no-color --cached"
     )
-    resp = await runtime.execute(Command(command=["bash", "-lc", command], timeout=120))
+    resp = await sandbox.exec_shell(command, timeout=120)
     if int(resp.exit_code or 0) != 0:
         raise RuntimeError(f"final-patch snapshot failed: {resp.stderr or resp.stdout}")
     return resp.stdout or ""
+
+
+async def _apply_candidate_patch(
+    sandbox: Any,
+    row: dict[str, Any],
+    patch: str,
+) -> None:
+    if not patch.strip():
+        return
+    repo_path = _repo_path_for_snapshot(row)
+    patch_path = f"/tmp/p2a_candidate_{uuid.uuid4().hex}.diff"
+    await sandbox.write_file(patch_path, patch)
+    commands = [
+        f"git apply --whitespace=fix {shlex.quote(patch_path)}",
+        f"git apply --reject --whitespace=nowarn {shlex.quote(patch_path)}",
+        f"patch --batch --fuzz=5 -p1 -i {shlex.quote(patch_path)}",
+    ]
+    errors = []
+    for command in commands:
+        response = await sandbox.exec_shell(
+            command,
+            timeout=120,
+            workdir=repo_path,
+        )
+        if int(response.exit_code or 0) == 0:
+            return
+        errors.append((response.stderr or response.stdout or "")[-500:])
+    raise RuntimeError(
+        "failed to apply candidate patch in fresh sandbox: " + " | ".join(errors)
+    )
 
 
 async def _eval_in_fresh_env(
@@ -949,21 +1076,26 @@ async def _eval_in_fresh_env(
     Used when the rollout session lost its gateway claim before/​during eval."""
     if final_patch is None:
         return False, prior_details
-    fresh_env = _make_env(row, instance_id=instance_id, deployment=agent_cfg.get("deployment", "arl"))
+    fresh_env = _make_env(
+        row,
+        instance_id=instance_id,
+        deployment=agent_cfg.get("deployment", "arl"),
+    )
     try:
         await fresh_env.start()
-        reward_spec = _make_reward(row, run_id=f"eval-retry-{uuid.uuid4()}", env=fresh_env, agent_cfg=agent_cfg)
-        if reward_spec is None:
-            return False, prior_details
         if final_patch.strip():
-            await reward_spec._apply_patch(final_patch)  # noqa: SLF001 - same-package reward helper
-        reward_score, reward_details = await reward_spec.compute_reward()
+            await _apply_candidate_patch(fresh_env, row, final_patch)
+        reward_score, reward_details = await _compute_reward(
+            row,
+            sandbox=fresh_env,
+            agent_cfg=agent_cfg,
+        )
         if isinstance(reward_details, dict):
             reward_details["evaluated_in_fresh_env"] = True
         return reward_score, reward_details
     finally:
         try:
-            await fresh_env.close()
+            await fresh_env.stop()
         except Exception:
             pass
 
@@ -996,32 +1128,18 @@ async def run_one(
         env = _make_env(row, instance_id=instance_id, deployment=agent_cfg.get("deployment", "nexus"))
         run_id = getattr(getattr(env, "deployment", None), "run_id", run_id)
         error_stage = "tool_config"
-        tools_manager = _make_tools(agent_cfg)
+        toolbox = _make_tools(agent_cfg, env)
         error_stage = "model_config"
         model = _make_model(model_cfg, provider_cfg)
-        model.set_tools_schemas(tools_manager.tools_schemas)
-        error_stage = "interaction_config"
-        interaction = _make_interaction(
-            run_id=run_id,
-            env=env,
+        error_stage = "env_start"
+        await env.start()
+        error_stage = "interaction"
+        interaction_result = await _run_interaction(
             model=model,
-            tools_manager=tools_manager,
+            toolbox=toolbox,
             messages=_prompt(row),
             agent_cfg=agent_cfg,
         )
-        error_stage = "reward_config"
-        reward_spec = _make_reward(row, run_id=run_id, env=env, agent_cfg=agent_cfg)
-        error_stage = "env_start"
-        await env.start()
-        error_stage = "tool_install"
-        await _install_tools(
-            env,
-            tools_manager.tools,
-            timeout=agent_cfg.get("tool_install_timeout", 300),
-            skip_install_commands=agent_cfg.get("skip_tool_install_commands") or [],
-        )
-        error_stage = "interaction"
-        interaction_result = await interaction.run()
         error_stage = "patch_snapshot"
         try:
             final_patch = await _snapshot_final_patch(env, row)
@@ -1030,29 +1148,51 @@ async def run_one(
             interaction_result.setdefault("rollout_cache", {})["final_patch_error"] = f"{type(snapshot_exc).__name__}: {snapshot_exc}"
         if isinstance(interaction_result, dict):
             interaction_result["final_patch"] = final_patch
-        if reward_spec is not None:
-            error_stage = "reward"
-            for reward_attempt in range(1, 3):
-                reward_score, reward_details = await reward_spec.compute_reward(interaction_result=interaction_result)
-                if isinstance(reward_details, dict) and reward_details.get("eval_completed") is True:
-                    break
-                detail = str(reward_details.get("error") or "") if isinstance(reward_details, dict) else ""
-                if _is_session_loss(detail) and final_patch is not None:
-                    break  # session is gone; fall through to fresh-sandbox eval
-                if reward_attempt < 2:
-                    await asyncio.sleep(60)
-            if not (isinstance(reward_details, dict) and reward_details.get("eval_completed") is True):
-                error_stage = "reward_fresh_env"
-                reward_score, reward_details = await _eval_in_fresh_env(
-                    row,
-                    instance_id=instance_id,
-                    agent_cfg=agent_cfg,
-                    final_patch=final_patch,
-                    prior_details=reward_details,
+        error_stage = "reward"
+        for reward_attempt in range(1, 3):
+            reward_score, reward_details = await _compute_reward(
+                row,
+                sandbox=env,
+                agent_cfg=agent_cfg,
+            )
+            if reward_details is None or (
+                isinstance(reward_details, dict)
+                and reward_details.get("eval_completed") is True
+            ):
+                break
+            detail = (
+                str(reward_details.get("error") or "")
+                if isinstance(reward_details, dict)
+                else ""
+            )
+            if _is_session_loss(detail) and final_patch is not None:
+                break
+            if reward_attempt < 2:
+                await asyncio.sleep(60)
+        if reward_details is not None and not (
+            isinstance(reward_details, dict)
+            and reward_details.get("eval_completed") is True
+        ):
+            error_stage = "reward_fresh_env"
+            reward_score, reward_details = await _eval_in_fresh_env(
+                row,
+                instance_id=instance_id,
+                agent_cfg=agent_cfg,
+                final_patch=final_patch,
+                prior_details=reward_details,
+            )
+            if not (
+                isinstance(reward_details, dict)
+                and reward_details.get("eval_completed") is True
+            ):
+                detail = (
+                    reward_details.get("error")
+                    if isinstance(reward_details, dict)
+                    else reward_details
                 )
-                if not (isinstance(reward_details, dict) and reward_details.get("eval_completed") is True):
-                    detail = reward_details.get("error") if isinstance(reward_details, dict) else reward_details
-                    raise RuntimeError(f"ARL reward eval failed after retries (gateway): {detail}")
+                raise RuntimeError(
+                    f"sandbox reward eval failed after retries: {detail}"
+                )
         error_stage = None
 
     try:
@@ -1063,7 +1203,7 @@ async def run_one(
     finally:
         if env is not None:
             try:
-                await env.close()
+                await env.stop()
             except Exception:
                 pass
     record = build_dump_record(

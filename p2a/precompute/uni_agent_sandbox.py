@@ -1,6 +1,6 @@
 """Uni-Agent sandbox adapter for dynamic P2A bonus-map construction.
 
-This module starts Uni-Agent ``AgentEnv`` sandboxes and exposes the small
+This module starts Uni-Agent ``Sandbox`` providers and exposes the small
 synchronous sandbox surface (``_run`` / ``_execute_raw`` / ``repo_path`` /
 ``alt_path``) that ``p2a.trace`` instrumentation helpers expect.
 """
@@ -13,7 +13,6 @@ import concurrent.futures
 import json
 import os
 import shlex
-import uuid
 from pathlib import Path
 from typing import Any
 
@@ -104,6 +103,11 @@ def extract_tools_kwargs(task: dict[str, Any]) -> dict[str, Any]:
 
 def extract_reward_metadata(task: dict[str, Any]) -> dict[str, Any]:
     tools_kwargs = extract_tools_kwargs(task)
+    task_config = tools_kwargs.get("task")
+    if isinstance(task_config, dict) and isinstance(
+        task_config.get("metadata"), dict
+    ):
+        return task_config["metadata"]
     reward = tools_kwargs.get("reward")
     if isinstance(reward, dict) and isinstance(reward.get("metadata"), dict):
         return reward["metadata"]
@@ -183,10 +187,16 @@ def derive_r2e_vefaas_image(instance_id: str) -> str | None:
 
 def _extract_image(task: dict[str, Any], instance_id: str, *, deployment: str = "vefaas") -> str | None:
     tools_kwargs = extract_tools_kwargs(task)
+    task_config = tools_kwargs.get("task") if isinstance(tools_kwargs.get("task"), dict) else {}
+    sandbox_config = (
+        task_config.get("sandbox")
+        if isinstance(task_config.get("sandbox"), dict)
+        else {}
+    )
     env_cfg = tools_kwargs.get("env") if isinstance(tools_kwargs.get("env"), dict) else {}
     deployment_cfg = env_cfg.get("deployment") if isinstance(env_cfg.get("deployment"), dict) else {}
     # An explicit per-sample image override always wins.
-    explicit = deployment_cfg.get("image") or env_cfg.get("image")
+    explicit = sandbox_config.get("image") or deployment_cfg.get("image") or env_cfg.get("image")
     if isinstance(explicit, str) and explicit:
         return explicit
     # veFaaS only hosts the enterprise r2e-gym-subset registry. The parquet's
@@ -206,8 +216,19 @@ def _extract_image(task: dict[str, Any], instance_id: str, *, deployment: str = 
 
 def _extract_post_setup_cmd(task: dict[str, Any]) -> str:
     tools_kwargs = extract_tools_kwargs(task)
+    task_config = tools_kwargs.get("task") if isinstance(tools_kwargs.get("task"), dict) else {}
+    sandbox_config = (
+        task_config.get("sandbox")
+        if isinstance(task_config.get("sandbox"), dict)
+        else {}
+    )
+    sandbox_kwargs = (
+        sandbox_config.get("sandbox_kwargs")
+        if isinstance(sandbox_config.get("sandbox_kwargs"), dict)
+        else {}
+    )
     env_cfg = tools_kwargs.get("env") if isinstance(tools_kwargs.get("env"), dict) else {}
-    post_setup_cmd = env_cfg.get("post_setup_cmd")
+    post_setup_cmd = sandbox_kwargs.get("post_setup_cmd") or env_cfg.get("post_setup_cmd")
     if isinstance(post_setup_cmd, str) and post_setup_cmd.strip():
         if _is_swebench_pro_task(task):
             return _strip_swebench_pro_reward_restore_from_setup(task, post_setup_cmd)
@@ -247,7 +268,7 @@ def _required_env(name: str) -> str:
 
 
 def build_agent_env_config(task: dict[str, Any], *, instance_id: str, deployment: str | None = None) -> dict[str, Any]:
-    """Build a Uni-Agent ``AgentEnvConfig`` dict from a dataset/sample row."""
+    """Build a sandbox deployment mapping from a dataset/sample row."""
     impl = (deployment or os.getenv("P2A_DEPLOYMENT") or os.getenv("DEPLOYMENT") or "vefaas").lower()
     if impl in ("arl", "nexus"):
         from env.images import select_image_for_sample
@@ -338,7 +359,7 @@ class UniAgentSandboxAdapter:
 
     def __init__(
         self,
-        agent_env,
+        sandbox,
         *,
         default_timeout: int = 300,
         swebench_verified: bool = False,
@@ -347,7 +368,7 @@ class UniAgentSandboxAdapter:
         startup_env_variables: dict[str, str] | None = None,
         post_setup_cmd: str | None = None,
     ):
-        self.agent_env = agent_env
+        self.sandbox = sandbox
         self.default_timeout = default_timeout
         self.swebench_verified = swebench_verified
         self.swebench_pro = swebench_pro
@@ -357,7 +378,9 @@ class UniAgentSandboxAdapter:
         self.post_setup_cmd = post_setup_cmd
 
     def start(self) -> None:
-        self.agent_env.start()
+        result = self.sandbox.start()
+        if asyncio.iscoroutine(result):
+            _run_coro(result)
         setup_parts = [
             f"export {key}={shlex.quote(str(value))}"
             for key, value in sorted(self.startup_env_variables.items())
@@ -373,16 +396,11 @@ class UniAgentSandboxAdapter:
                 raise RuntimeError(f"sandbox post-setup failed exit={exit_code}: {(stderr or stdout)[-1000:]}")
 
     def close(self) -> None:
-        self.agent_env.close()
+        result = self.sandbox.stop()
+        if asyncio.iscoroutine(result):
+            _run_coro(result)
 
     def _execute_raw(self, command: str, timeout: int | float | None = None) -> tuple[str, str, int]:
-        # One-shot ``execute`` (stateless ManagedSession.execute over HTTP, retry-wrapped
-        # in ArlRuntime._session_execute). Tracing commands are self-contained
-        # and all cross-step state lives on the sandbox filesystem. This mirrors
-        # the pre-migration tracer and returns stdout/stderr as separate streams
-        # the way ``_run`` callers expect.
-        from swerex.runtime.abstract import Command
-
         # Inject the sandbox env every call (one-shot execute = fresh shell, no persistent state),
         # mirroring the pre-migration tracer: R2E-Gym → PATH with the venv first + cwd=/testbed;
         # SWE-bench → conda activate testbed. Without this the venv python is unresolved (exit 127).
@@ -395,15 +413,14 @@ class UniAgentSandboxAdapter:
         else:
             run_command = command
             env = {"PATH": _R2E_DOCKER_PATH}
-        cmd = Command(
-            command=run_command,
-            shell=True,
-            check=False,
-            timeout=float(timeout or self.default_timeout),
-            cwd=self.repo_path,
-            env=env,
+        result = _run_coro(
+            self.sandbox.exec_shell(
+                run_command,
+                timeout=float(timeout or self.default_timeout),
+                workdir=self.repo_path,
+                env=env,
+            )
         )
-        result = _run_coro(self.agent_env.deployment.runtime.execute(cmd))
         return result.stdout or "", result.stderr or "", int(getattr(result, "exit_code", 0))
 
     def _run(self, command: str, timeout: int | float | None = None) -> tuple[str, str]:
@@ -411,10 +428,17 @@ class UniAgentSandboxAdapter:
         return stdout, stderr
 
     def read_file(self, path: str | Path) -> str:
-        return self.agent_env.read_file(path)
+        result = self.sandbox.read_file(str(path))
+        if asyncio.iscoroutine(result):
+            result = _run_coro(result)
+        if isinstance(result, bytes):
+            return result.decode("utf-8", errors="replace")
+        return str(result)
 
     def write_file(self, path: str | Path, content: str) -> None:
-        self.agent_env.write_file(path, content)
+        result = self.sandbox.write_file(str(path), content)
+        if asyncio.iscoroutine(result):
+            _run_coro(result)
 
     def _materialize_old_file_contents(self, task: dict[str, Any]) -> dict[str, Any]:
         old_sources = _old_file_contents_from_task(task)
@@ -512,46 +536,29 @@ class UniAgentSandboxAdapter:
 
 
 def create_uni_agent_sandbox(task: dict[str, Any], *, instance_id: str) -> UniAgentSandboxAdapter:
-    from uni_agent.interaction import AgentEnv, AgentEnvConfig
+    from env.sandbox import build_sandbox_from_deployment
 
     config = build_agent_env_config(task, instance_id=instance_id)
     swebench_pro = _is_swebench_pro_task(task)
     swebench_verified = False if swebench_pro else _is_swebench_verified_task(task)
     repo_path = _repo_path_for_task(task) if swebench_pro else None
-    if config["deployment"].get("type") in ("arl", "nexus"):
-        from env.deployment import make_env_config
-
-        env_config = make_env_config(
-            config["deployment"],
-            env_variables=None,
-            post_setup_cmd=None,
-            tool_install_dir=config.get("tool_install_dir", "/usr/local/bin"),
-        )
-    else:
-        env_config = AgentEnvConfig(**config)
-    env = AgentEnv(run_id=f"p2a-bonus-{uuid.uuid4()}", env_config=env_config)
-    if config["deployment"].get("type") == "arl":
-        return UniAgentSandboxAdapter(
-            env,
-            swebench_verified=swebench_verified,
-            swebench_pro=swebench_pro,
-            repo_path=repo_path,
-            startup_env_variables=config.get("env_variables"),
-            post_setup_cmd=config.get("post_setup_cmd"),
-        )
+    sandbox = build_sandbox_from_deployment(config["deployment"])
     return UniAgentSandboxAdapter(
-        env,
+        sandbox,
         swebench_verified=swebench_verified,
         swebench_pro=swebench_pro,
         repo_path=repo_path,
+        startup_env_variables=config.get("env_variables"),
+        post_setup_cmd=config.get("post_setup_cmd"),
     )
 
 
 def _is_swebench_verified_task(task: dict[str, Any]) -> bool:
     tools_kwargs = extract_tools_kwargs(task)
+    task_config = tools_kwargs.get("task") if isinstance(tools_kwargs.get("task"), dict) else {}
     reward = tools_kwargs.get("reward") if isinstance(tools_kwargs.get("reward"), dict) else {}
     metadata = extract_reward_metadata(task)
-    reward_name = reward.get("name")
+    reward_name = task_config.get("name") or reward.get("name")
     if reward_name == "swe_bench":
         return True
     if metadata.get("FAIL_TO_PASS") is not None or task.get("FAIL_TO_PASS") is not None:
@@ -561,9 +568,10 @@ def _is_swebench_verified_task(task: dict[str, Any]) -> bool:
 
 def _is_swebench_pro_task(task: dict[str, Any]) -> bool:
     tools_kwargs = extract_tools_kwargs(task)
+    task_config = tools_kwargs.get("task") if isinstance(tools_kwargs.get("task"), dict) else {}
     reward = tools_kwargs.get("reward") if isinstance(tools_kwargs.get("reward"), dict) else {}
     metadata = extract_reward_metadata(task)
-    if reward.get("name") == "swe_bench_pro":
+    if task_config.get("name") == "swe_bench_pro" or reward.get("name") == "swe_bench_pro":
         return True
     for source in (task, metadata):
         data_source = str(source.get("data_source") or "").strip().lower()

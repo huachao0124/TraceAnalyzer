@@ -95,11 +95,17 @@ def select_image_for_sample(sample_or_task: dict[str, Any], *, instance_id: str 
     if not isinstance(extra, dict):
         extra = {}
 
-    tools_kwargs = extra.get("tools_kwargs") if isinstance(extra.get("tools_kwargs"), dict) else {}
+    tools_kwargs = sample_or_task.get("tools_kwargs")
+    if not isinstance(tools_kwargs, dict):
+        tools_kwargs = extra.get("tools_kwargs") if isinstance(extra.get("tools_kwargs"), dict) else {}
+    task = tools_kwargs.get("task") if isinstance(tools_kwargs.get("task"), dict) else {}
+    sandbox = task.get("sandbox") if isinstance(task.get("sandbox"), dict) else {}
     env = tools_kwargs.get("env") if isinstance(tools_kwargs.get("env"), dict) else {}
     deployment = env.get("deployment") if isinstance(env.get("deployment"), dict) else {}
     reward = tools_kwargs.get("reward") if isinstance(tools_kwargs.get("reward"), dict) else {}
-    metadata = reward.get("metadata") if isinstance(reward.get("metadata"), dict) else {}
+    metadata = task.get("metadata") if isinstance(task.get("metadata"), dict) else {}
+    if not metadata:
+        metadata = reward.get("metadata") if isinstance(reward.get("metadata"), dict) else {}
 
     iid = (
         instance_id
@@ -112,5 +118,10 @@ def select_image_for_sample(sample_or_task: dict[str, Any], *, instance_id: str 
     if not iid:
         raise ValueError("Cannot select image: sample has no instance_id")
 
-    docker_image = deployment.get("image") or env.get("image") or sample_or_task.get("docker_image")
+    docker_image = (
+        sandbox.get("image")
+        or deployment.get("image")
+        or env.get("image")
+        or sample_or_task.get("docker_image")
+    )
     return select_r2e_image(instance_id=str(iid), docker_image=docker_image)

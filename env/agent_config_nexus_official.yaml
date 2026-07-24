@@ -1,0 +1,55 @@
+- name: r2e_gym
+  sandbox:
+    provider: nexus
+    runtime_timeout: 7200
+    sandbox_kwargs:
+      purpose: test
+      startup_timeout: 1200
+      resource_spec:
+        cpu: 4
+        memory: 8
+  agent:
+    name: react
+    max_steps: 200
+    action_timeout: 120
+    tools:
+      - name: stateful_shell
+        command_timeout: 120
+        env_vars: &shell_env
+          PAGER: "cat"
+          GIT_PAGER: "cat"
+          MANPAGER: "cat"
+          TQDM_DISABLE: "1"
+          PIP_PROGRESS_BAR: "off"
+      - name: str_replace_editor
+      - name: submit
+    model:
+      temperature: 1.0
+      top_p: 1.0
+      max_total_tokens: 131072
+  eval_timeout: 600
+
+- name: swe_bench
+  sandbox:
+    provider: nexus
+    runtime_timeout: 7200
+    sandbox_kwargs:
+      purpose: test
+      startup_timeout: 1200
+      resource_spec:
+        cpu: 4
+        memory: 8
+  agent:
+    name: react
+    max_steps: 200
+    action_timeout: 120
+    tools:
+      - name: stateful_shell
+        command_timeout: 120
+        env_vars: *shell_env
+      - name: str_replace_editor
+      - name: submit
+    model:
+      temperature: 1.0
+      top_p: 1.0
+      max_total_tokens: 131072

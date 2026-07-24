@@ -153,8 +153,8 @@ def _validate_model_protocol(model: Any, *, source: str) -> None:
 
 
 def _make_openai_compatible_model(model_cfg: dict[str, Any]) -> Any:
-    """Build the upstream model and apply P2A-only HTTP transport settings."""
-    from uni_agent.interaction import OpenAICompatibleChatModel
+    """Build the standalone model and apply P2A-only HTTP transport settings."""
+    from p2a.openai_chat_model import OpenAICompatibleChatModel
 
     cfg = dict(model_cfg)
     proxy = str(cfg.pop("proxy", "") or "").strip()

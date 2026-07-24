@@ -5,7 +5,7 @@ usage() {
   cat <<'EOF'
 Usage: src/scripts/uni_agent_arl.sh prepare|data|smoke|debug|all
 
-prepare  Write ARL runtime_env.yaml and agent_config.yaml into $RAY_DATA_HOME.
+prepare  Write ARL runtime_env.yaml and task_config.yaml into $RAY_DATA_HOME.
 data     Generate ARL-backed R2E-Gym-Subset train parquet.
 smoke    Boot one ARL sandbox and verify SDK runtime persistence/upload.
 debug    Run the ARL-aligned train_p2a.sh launcher.
@@ -20,7 +20,7 @@ UNI_AGENT_DIR="${SRC_DIR}/uni-agent"
 RAY_DATA_HOME="${RAY_DATA_HOME:-${HOME}/verl}"
 DATA_DIR="${RAY_DATA_HOME}/data/swe_agent"
 RUNTIME_ENV="${RUNTIME_ENV:-${DATA_DIR}/runtime_env_arl.yaml}"
-AGENT_CONFIG_PATH="${AGENT_CONFIG_PATH:-${DATA_DIR}/agent_config_arl.yaml}"
+TASK_CONFIG_PATH="${TASK_CONFIG_PATH:-${AGENT_CONFIG_PATH:-${DATA_DIR}/task_config_arl.yaml}}"
 TRAIN_FILE="${TRAIN_FILE:-${DATA_DIR}/r2e_gym_subset_p2a.train.parquet}"
 TEST_FILE="${TEST_FILE:-${DATA_DIR}/r2e_gym_subset_p2a.train.parquet}"
 
@@ -36,9 +36,9 @@ prepare() {
   require_uni_agent
   mkdir -p "$DATA_DIR"
   if [[ ! -f "$RUNTIME_ENV" ]]; then
-    cp "${UNI_AGENT_DIR}/examples/swe_agent_235b/runtime_env.yaml" "$RUNTIME_ENV"
+    cp "${SRC_DIR}/config/runtime_env.yaml" "$RUNTIME_ENV"
   fi
-  cp "${SRC_DIR}/env/agent_config_arl.yaml" "$AGENT_CONFIG_PATH"
+  cp "${SRC_DIR}/env/agent_config_arl.yaml" "$TASK_CONFIG_PATH"
   (cd "$SRC_DIR" && uv run python -m p2a.runtime_env "$RUNTIME_ENV" --src-root "$SRC_DIR" --drop-working-dir --env-profile arl)
 
   local debug_concurrency="${UNI_AGENT_DEBUG_CONCURRENCY:-4}"
@@ -46,15 +46,15 @@ prepare() {
   local debug_action_timeout="${UNI_AGENT_DEBUG_ACTION_TIMEOUT:-120}"
   local debug_eval_timeout="${UNI_AGENT_DEBUG_EVAL_TIMEOUT:-300}"
 
-  sed -i -E "s/^  concurrency: .*/  concurrency: ${debug_concurrency}/" "$AGENT_CONFIG_PATH"
-  sed -i -E "s/^    max_turns: .*/    max_turns: ${debug_max_turns}/" "$AGENT_CONFIG_PATH"
-  sed -i -E "s/^    action_timeout: .*/    action_timeout: ${debug_action_timeout}/" "$AGENT_CONFIG_PATH"
-  sed -i -E "s/^    eval_timeout: .*/    eval_timeout: ${debug_eval_timeout}/" "$AGENT_CONFIG_PATH"
+  sed -i -E "s/^    max_steps: .*/    max_steps: ${debug_max_turns}/" "$TASK_CONFIG_PATH"
+  sed -i -E "s/^    action_timeout: .*/    action_timeout: ${debug_action_timeout}/" "$TASK_CONFIG_PATH"
+  sed -i -E "s/^  eval_timeout: .*/  eval_timeout: ${debug_eval_timeout}/" "$TASK_CONFIG_PATH"
 
   cat <<EOF
 Prepared Uni-Agent ARL config:
   RUNTIME_ENV=${RUNTIME_ENV}
-  AGENT_CONFIG_PATH=${AGENT_CONFIG_PATH}
+  TASK_CONFIG_PATH=${TASK_CONFIG_PATH}
+  AGENT_CONCURRENCY=${debug_concurrency}
   TRAIN_FILE=${TRAIN_FILE}
   TEST_FILE=${TEST_FILE}
 EOF
@@ -95,8 +95,8 @@ debug() {
     echo "Missing $RUNTIME_ENV; run prepare first." >&2
     exit 1
   fi
-  if [[ ! -f "$AGENT_CONFIG_PATH" ]]; then
-    echo "Missing $AGENT_CONFIG_PATH; run prepare first." >&2
+  if [[ ! -f "$TASK_CONFIG_PATH" ]]; then
+    echo "Missing $TASK_CONFIG_PATH; run prepare first." >&2
     exit 1
   fi
 
@@ -108,7 +108,8 @@ debug() {
   export TRAIN_FILE
   export TEST_FILE
   export RUNTIME_ENV
-  export AGENT_CONFIG_PATH
+  export TASK_CONFIG_PATH
+  export AGENT_CONCURRENCY="${UNI_AGENT_DEBUG_CONCURRENCY:-4}"
   if [[ -n "${P2A_BONUS_MAP_DIR:-}" ]]; then
     echo "P2A_BONUS_MAP_DIR is set; debug will run P2A advantage reshape, not pure baseline." >&2
   fi

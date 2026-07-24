@@ -8,11 +8,10 @@ import json
 import os
 from pathlib import Path
 import subprocess
-import sys
 import tempfile
 import unittest
 import uuid
-from types import ModuleType, SimpleNamespace
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from env.deployment import ArlDeployment, ArlDeploymentConfig, make_env_config
@@ -43,10 +42,23 @@ def patched_env(updates: dict[str, str] | None = None, *, remove: tuple[str, ...
 
 
 class ArlAdapterTests(unittest.TestCase):
-    def test_agent_config_pins_qwen3_coder_tool_parser(self) -> None:
-        text = Path("env/agent_config_arl.yaml").read_text(encoding="utf-8")
-        self.assertIn("_target_: env.agent_loop.ArlUniAgentLoop", text)
-        self.assertIn("tool_parser: qwen3_coder", text)
+    def test_agent_config_uses_agent_framework_tasks(self) -> None:
+        import yaml
+
+        configs = yaml.safe_load(
+            Path("env/agent_config_arl.yaml").read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            {config["name"] for config in configs},
+            {"r2e_gym", "swe_bench", "swe_bench_pro"},
+        )
+        for config in configs:
+            self.assertEqual(config["sandbox"]["provider"], "arl")
+            self.assertEqual(config["agent"]["name"], "react")
+            self.assertEqual(
+                [tool["name"] for tool in config["agent"]["tools"]],
+                ["stateful_shell", "str_replace_editor", "submit"],
+            )
 
     def test_make_env_config_maps_arl_deployment_without_uni_agent_union(self) -> None:
         env_config = make_env_config(
@@ -433,18 +445,19 @@ class ArlAdapterTests(unittest.TestCase):
 
         calls = {"start": 0, "commands": []}
 
-        class FakeRuntime:
-            async def execute(self, command):
+        class FakeSandbox:
+            async def start(self):
+                calls["start"] += 1
+
+            async def stop(self):
+                return None
+
+            async def exec_shell(self, command, **_kwargs):
                 calls["commands"].append(command)
                 return SimpleNamespace(stdout="", stderr="", exit_code=0)
 
-        fake_env = SimpleNamespace(
-            start=lambda: calls.__setitem__("start", calls["start"] + 1),
-            deployment=SimpleNamespace(runtime=FakeRuntime()),
-        )
-
         adapter = UniAgentSandboxAdapter(
-            fake_env,
+            FakeSandbox(),
             startup_env_variables={"PAGER": "cat"},
             post_setup_cmd="echo ready",
         )
@@ -452,180 +465,58 @@ class ArlAdapterTests(unittest.TestCase):
 
         self.assertEqual(calls["start"], 1)
         self.assertEqual(len(calls["commands"]), 1)
-        command = calls["commands"][0].command
+        command = calls["commands"][0]
         self.assertIn("export PAGER=cat", command)
         self.assertIn("echo ready", command)
 
-    def test_agent_loop_maps_arl_env_without_pydantic_deployment_union(self) -> None:
-        import env as env_package
+    def test_legacy_row_normalizes_to_agent_framework_task(self) -> None:
+        from env.task_runner import normalize_tools_kwargs
 
-        created = {}
-
-        def fake_agent_env(run_id, env_config):
-            created["run_id"] = run_id
-            created["env_config"] = env_config
-            return SimpleNamespace(run_id=run_id, env_config=env_config)
-
-        fake_agent_loop = ModuleType("uni_agent.agent_loop")
-
-        class FakeUniAgentLoop:
-            def _init_env(self, config_dict):
-                return SimpleNamespace(super_config=config_dict)
-
-        fake_agent_loop.UniAgentLoop = FakeUniAgentLoop
-        fake_interaction = ModuleType("uni_agent.interaction")
-        fake_interaction.AgentEnv = fake_agent_env
-
-        config_dict = {
-            "deployment": {
-                "type": "arl",
-                "image": "registry.local/r2e:latest",
-                "gateway_url": "http://gateway",
-            },
-            "env_variables": {"PIP_CACHE_DIR": "~/.cache/pip"},
-            "post_setup_cmd": "git checkout abc123",
-            "tool_install_dir": "/tools",
-        }
-
-        try:
-            sys.modules.pop("env.agent_loop", None)
-            if hasattr(env_package, "agent_loop"):
-                delattr(env_package, "agent_loop")
-            with patch.dict(
-                sys.modules,
-                {
-                    "uni_agent.agent_loop": fake_agent_loop,
-                    "uni_agent.interaction": fake_interaction,
-                },
-            ):
-                from env import agent_loop as agent_loop_module
-
-                loop = object.__new__(agent_loop_module.ArlUniAgentLoop)
-                loop.run_id = "run-1"
-                agent_env = loop._init_env(config_dict)
-        finally:
-            sys.modules.pop("env.agent_loop", None)
-            if hasattr(env_package, "agent_loop"):
-                delattr(env_package, "agent_loop")
-
-        self.assertIs(agent_env.env_config, created["env_config"])
-        self.assertEqual(created["run_id"], "run-1")
-        self.assertEqual(agent_env.env_config.deployment.type, "arl")
-        self.assertEqual(agent_env.env_config.deployment.image, "registry.local/r2e:latest")
-        self.assertEqual(agent_env.env_config.deployment.gateway_url, "http://gateway")
-        self.assertEqual(
-            agent_env.env_config.deployment.startup_env_variables,
-            {"PIP_CACHE_DIR": "~/.cache/pip"},
-        )
-        self.assertEqual(agent_env.env_config.deployment.shell_post_setup_cmd, "git checkout abc123")
-        self.assertIsNone(agent_env.env_config.env_variables)
-        self.assertIsNone(agent_env.env_config.post_setup_cmd)
-
-    def test_agent_loop_attaches_p2a_traces_from_rollout_cache_without_uni_agent_patch(self) -> None:
-        import env as env_package
-
-        fake_agent_loop = ModuleType("uni_agent.agent_loop")
-
-        class FakeUniAgentLoop:
-            pass
-
-        fake_agent_loop.UniAgentLoop = FakeUniAgentLoop
-        fake_interaction = ModuleType("uni_agent.interaction")
-        fake_interaction.AgentEnv = lambda run_id, env_config: SimpleNamespace(run_id=run_id, env_config=env_config)
-
-        class FakeToolsManager:
-            async def parse_action(self, model_output):
-                if "no-tool" in model_output:
-                    return model_output, []
-                return "inspect file", [
-                    {
-                        "function": {
-                            "name": "str_replace_editor",
-                            "arguments": {
-                                "command": "view",
-                                "path": "/testbed/pkg/demo.py",
-                                "view_range": [1, 5],
-                            },
-                        }
-                    }
-                ]
-
-        try:
-            sys.modules.pop("env.agent_loop", None)
-            if hasattr(env_package, "agent_loop"):
-                delattr(env_package, "agent_loop")
-            with patch.dict(
-                sys.modules,
-                {
-                    "uni_agent.agent_loop": fake_agent_loop,
-                    "uni_agent.interaction": fake_interaction,
-                },
-            ):
-                from env import agent_loop as agent_loop_module
-
-                loop = object.__new__(agent_loop_module.ArlUniAgentLoop)
-                loop.tools_manager = FakeToolsManager()
-                loop._p2a_run_kwargs = {
-                    "tools_kwargs": {
-                        "reward": {
-                            "metadata": {
-                                "instance_id": "demo__abc123",
-                            }
-                        }
-                    }
-                }
-                loop._p2a_run_config = {}
-                interaction_result = {
-                    "trajectory": [
-                        SimpleNamespace(step_idx=1, response="tool response", exit_reason="completed"),
-                        SimpleNamespace(step_idx=2, response="no-tool response", exit_reason="format_error"),
-                    ],
-                    "rollout_cache": {
-                        "response_mask": [1, 1, 0, 0, 1, 1, 1],
-                        "extra_fields": {},
+        normalized = normalize_tools_kwargs(
+            {
+                "env": {
+                    "deployment": {
+                        "type": "arl",
+                        "image": "registry.local/r2e:latest",
+                        "timeout": 1200,
                     },
-                }
-                with patched_env({"UNI_AGENT_P2A_TRACE": "1"}):
-                    asyncio.run(loop._attach_p2a_extra_fields(interaction_result))
-        finally:
-            sys.modules.pop("env.agent_loop", None)
-            if hasattr(env_package, "agent_loop"):
-                delattr(env_package, "agent_loop")
+                    "post_setup_cmd": "git checkout abc123",
+                },
+                "reward": {
+                    "name": "r2e_gym",
+                    "metadata": {"instance_id": "demo__abc123"},
+                },
+            },
+            raw_prompt=[{"role": "user", "content": "fix it"}],
+        )
 
-        extra_fields = interaction_result["rollout_cache"]["extra_fields"]
-        self.assertEqual(extra_fields["instance_id"], "demo__abc123")
-        self.assertEqual(extra_fields["response_text"], "tool response\nno-tool response")
+        task = normalized["task"]
+        self.assertEqual(task["name"], "r2e_gym")
+        self.assertEqual(task["sandbox"]["provider"], "arl")
+        self.assertEqual(task["sandbox"]["image"], "registry.local/r2e:latest")
+        self.assertEqual(task["sandbox"]["runtime_timeout"], 1200)
         self.assertEqual(
-            extra_fields["p2a_step_traces"],
-            [
-                {
-                    "step_idx": 1,
-                    "response_start": 0,
-                    "response_end": 2,
-                    "thought": "inspect file",
-                    "tool_calls": [
-                        {
-                            "function": {
-                                "name": "str_replace_editor",
-                                "arguments": {
-                                    "command": "view",
-                                    "path": "/testbed/pkg/demo.py",
-                                    "view_range": [1, 5],
-                                },
-                            }
-                        }
-                    ],
-                    "parse_error": None,
-                },
-                {
-                    "step_idx": 2,
-                    "response_start": 4,
-                    "response_end": 7,
-                    "thought": "no-tool response",
-                    "tool_calls": [],
-                    "parse_error": "No function call found in the response.",
-                },
-            ],
+            task["sandbox"]["sandbox_kwargs"]["post_setup_cmd"],
+            "git checkout abc123",
+        )
+        self.assertEqual(task["metadata"]["instance_id"], "demo__abc123")
+
+    def test_agent_framework_extracts_instance_and_generated_spans(self) -> None:
+        from env.framework import _generated_spans, _instance_id
+
+        sample_fields = {
+            "tools_kwargs": {
+                "task": {
+                    "metadata": {
+                        "instance_id": "demo__abc123",
+                    }
+                }
+            }
+        }
+        self.assertEqual(_instance_id(sample_fields), "demo__abc123")
+        self.assertEqual(
+            _generated_spans([1, 1, 0, 0, 1, 1, 1]),
+            [(0, 2), (4, 7)],
         )
 
     def test_image_override_and_pair_diag_routing_are_explicit(self) -> None:

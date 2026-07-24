@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import logging
 import os
 import shlex
 import threading
@@ -18,14 +19,15 @@ from swerex.deployment.hooks.abstract import CombinedDeploymentHook, DeploymentH
 from swerex.exceptions import DeploymentNotStartedError
 from swerex.runtime.abstract import AbstractRuntime, CreateBashSessionRequest, IsAliveResponse
 
-from uni_agent.async_logging import get_logger
-
-
 def require_arl_gateway_url(explicit: str | None = None) -> str:
     gateway_url = explicit or os.getenv("ARL_GATEWAY_URL")
     if not gateway_url:
         raise RuntimeError("ARL_GATEWAY_URL is required; set it or source .secrets/ips.sh.")
     return gateway_url
+
+
+def _deployment_logger(name: str, run_id: str) -> logging.Logger:
+    return logging.getLogger(f"{name}.{run_id}")
 
 
 DEFAULT_NEXUS_API_BASE_URL = "http://hyrl-sandbox.prod.woa.com:8052"
@@ -67,7 +69,10 @@ def _as_resource_requirements(resources):
         return resources
     from arl.types import ResourceRequirements
 
-    return ResourceRequirements(**resources)
+    if "requests" in resources or "limits" in resources:
+        return ResourceRequirements(**resources)
+    values = {key: str(value) for key, value in resources.items()}
+    return ResourceRequirements(requests=values, limits=values)
 
 
 def _missing_pool_ref_payload(exc: BaseException) -> dict[str, Any] | None:
@@ -115,13 +120,7 @@ def _attach_managed_session_payload(session: Any, payload: dict[str, Any]) -> An
 
 @dataclass
 class ArlDeploymentConfig:
-    """Config object consumed by ``AgentEnv`` through ``get_deployment``.
-
-    The ARL-aware agent loop builds this config directly and passes it to
-    ``AgentEnv``, keeping the Uni-Agent submodule untouched. The runtime itself
-    is backed by the external ``arl-env`` SDK plus a local ``AbstractRuntime``
-    adapter, not by a SWE-ReX server inside the sandbox.
-    """
+    """Configuration for the ARL-backed Agent Framework sandbox provider."""
 
     image: str
     type: str = "arl"
@@ -178,7 +177,7 @@ class ArlDeployment(AbstractDeployment):
     def __init__(self, run_id: str, **kwargs: Any) -> None:
         self.run_id = run_id
         self._config = ArlDeploymentConfig.from_mapping(kwargs)
-        self.logger = get_logger("arl-deployment", run_id)
+        self.logger = _deployment_logger("arl-deployment", run_id)
         self._hooks = CombinedDeploymentHook()
         self._session: Any | None = None
         self._runtime: AbstractRuntime | None = None
@@ -247,7 +246,7 @@ class ArlDeployment(AbstractDeployment):
             from .runtime import ArlRuntime
         except ImportError as exc:
             raise RuntimeError(
-                "ARL direct deployment requires arl-env==0.4.1 in the Uni-Agent execution environment "
+                "ARL direct deployment requires arl-env>=0.16.0 in the Uni-Agent execution environment "
                 "and env.runtime.ArlRuntime in this source tree."
             ) from exc
 
@@ -332,8 +331,8 @@ class ArlDeployment(AbstractDeployment):
         )
         self._hooks.on_custom_step("Waiting for ARL execute readiness")
         await self._wait_until_runtime_ready(self._config.startup_timeout)
-        # AgentEnv.communicate() needs cwd/env continuity; ArlRuntime preserves
-        # that state while routing every command through ManagedSession.execute.
+        # Rollout tools need cwd/env continuity; ArlRuntime preserves that
+        # state while routing commands through the managed session.
         eager_shell_timeout = float(os.getenv("ARL_EAGER_SHELL_TIMEOUT", "10"))
         preflight_timeout = self._config.bash_session_preflight_timeout(eager_shell_timeout)
         try:
@@ -425,7 +424,7 @@ class NexusDeployment(AbstractDeployment):
     def __init__(self, run_id: str, **kwargs: Any) -> None:
         self.run_id = run_id
         self._config = NexusDeploymentConfig.from_mapping(kwargs)
-        self.logger = get_logger("nexus-deployment", run_id)
+        self.logger = _deployment_logger("nexus-deployment", run_id)
         self._hooks = CombinedDeploymentHook()
         self._provider: Any | None = None
         self._nexus_runtime: Any | None = None
@@ -557,7 +556,7 @@ def make_env_config(
     post_setup_cmd: str | None = None,
     tool_install_dir: str | Path = "/usr/local/bin",
 ):
-    """Build the light config object accepted by ``AgentEnv``."""
+    """Build the deployment compatibility object used by smoke tests."""
     deploy_type = deployment.get("type", "arl")
 
     class _Config:
@@ -579,7 +578,7 @@ def make_env_config(
                     deployment_with_startup["shell_post_setup_cmd"] = post_setup_cmd
                 self.deployment = ArlDeploymentConfig.from_mapping(deployment_with_startup)
                 # ARL deployment owns shell setup so startup and reconnects see
-                # the same state. AgentEnv must not replay it through communicate().
+                # the same state. Callers must not replay it through another shell.
                 self.env_variables = None
                 self.post_setup_cmd = None
             self.tool_install_dir = Path(tool_install_dir)

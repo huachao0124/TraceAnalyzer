@@ -1,8 +1,8 @@
 """ARL-native and Nexus runtime adapters implementing swe-rex's ``AbstractRuntime``.
 
-This is the "兼容" layer: uni-agent's ``AgentEnv`` drives a swe-rex
-``AbstractRuntime`` (9 methods). We keep that *interface* but back it with the
-**ARL SDK** (``arl-env``) directly — no swe-rex server:
+The local Agent Framework sandbox providers use this compatibility interface
+to back Uni-Agent's ``Sandbox`` API with the ARL SDK or Nexus, without running
+a swe-rex server inside the sandbox:
 
   * bash-session methods -> execute-backed session-state wrapper over
     ``ManagedSession.execute``. ``cd`` and exported env persist through small

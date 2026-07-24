@@ -153,6 +153,7 @@ def _record_instance_id(
     for value in (
         extra_fields.get("instance_id"),
         extra_info.get("instance_id"),
+        _get_nested(extra_info, "tools_kwargs", "task", "metadata", "instance_id"),
         _get_nested(extra_info, "tools_kwargs", "reward", "metadata", "instance_id"),
     ):
         if isinstance(value, str) and value:

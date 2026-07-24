@@ -110,6 +110,32 @@ def _schema_v5_bonus_map(instance_id="demo__path"):
     }
 
 
+def test_validation_records_read_instance_id_from_native_task_metadata():
+    records = validation_records_from_batch(
+        FakeBatch(
+            {
+                "extra_info": np.array(
+                    [
+                        {
+                            "tools_kwargs": {
+                                "task": {
+                                    "name": "swe_bench",
+                                    "metadata": {"instance_id": "demo__native-task"},
+                                }
+                            }
+                        }
+                    ],
+                    dtype=object,
+                )
+            }
+        ),
+        output_texts=["done"],
+    )
+
+    assert records[0]["instance_id"] == "demo__native-task"
+    assert records[0]["extra_fields"]["instance_id"] == "demo__native-task"
+
+
 def test_validation_metrics_use_schema_v5_path_projection(tmp_path):
     bonus_dir = tmp_path / "bonus_maps"
     bonus_dir.mkdir()

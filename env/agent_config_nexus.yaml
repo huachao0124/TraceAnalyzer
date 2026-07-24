@@ -1,36 +1,78 @@
-- name: swe_agent
-
-  _target_: env.agent_loop.ArlUniAgentLoop
-
-  concurrency: 32
-  log_dir: /tmp/swebench_qwen3_coder_nexus
-  mask_abnormal_exit_traj: false
-  tool_parser: qwen3_coder
-
-  interaction:
-    action_timeout: 600
-    max_turns: 50
-
-  env:
-    deployment:
-      type: nexus
+- name: r2e_gym
+  sandbox:
+    provider: nexus
+    runtime_timeout: 3600
+    sandbox_kwargs:
       purpose: test
-      image: python:3.11-slim
-      timeout: 3600
       startup_timeout: 1200
-    env_variables:
-      PIP_PROGRESS_BAR: "off"
-      PIP_CACHE_DIR: "~/.cache/pip"
-      PAGER: "cat"
-      MANPAGER: "cat"
-      LESS: "-R"
-      TQDM_DISABLE: "1"
-      GIT_PAGER: "cat"
+      resource_spec:
+        cpu: 16
+        memory: 16
+  agent:
+    name: react
+    max_steps: 50
+    action_timeout: 600
+    tools:
+      - name: stateful_shell
+        command_timeout: 600
+        env_vars: &shell_env
+          PIP_PROGRESS_BAR: "off"
+          PIP_CACHE_DIR: "~/.cache/pip"
+          PAGER: "cat"
+          MANPAGER: "cat"
+          LESS: "-R"
+          TQDM_DISABLE: "1"
+          GIT_PAGER: "cat"
+      - name: str_replace_editor
+      - name: submit
+    model:
+      max_total_tokens: 65536
+  eval_timeout: 600
 
-  tools:
-    - name: str_replace_editor
-    - name: execute_bash
-    - name: submit
+- name: swe_bench
+  sandbox:
+    provider: nexus
+    runtime_timeout: 3600
+    sandbox_kwargs:
+      purpose: test
+      startup_timeout: 1200
+      resource_spec:
+        cpu: 16
+        memory: 16
+  agent:
+    name: react
+    max_steps: 50
+    action_timeout: 600
+    tools:
+      - name: stateful_shell
+        command_timeout: 600
+        env_vars: *shell_env
+      - name: str_replace_editor
+      - name: submit
+    model:
+      max_total_tokens: 65536
+  eval_timeout: 600
 
-  reward:
-    eval_timeout: 600
+- name: swe_bench_pro
+  sandbox:
+    provider: nexus
+    runtime_timeout: 3600
+    sandbox_kwargs:
+      purpose: test
+      startup_timeout: 1200
+      resource_spec:
+        cpu: 16
+        memory: 16
+  agent:
+    name: react
+    max_steps: 50
+    action_timeout: 600
+    tools:
+      - name: stateful_shell
+        command_timeout: 600
+        env_vars: *shell_env
+      - name: str_replace_editor
+      - name: submit
+    model:
+      max_total_tokens: 65536
+  eval_timeout: 1800

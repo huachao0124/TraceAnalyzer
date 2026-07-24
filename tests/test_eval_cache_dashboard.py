@@ -12,6 +12,7 @@ from p2a.dashboard_adapter import (
     _case_filter_model_metrics,
     _looks_like_error,
     _normalize_detail,
+    _row_instance_id,
     build_dashboard_snapshot,
     migrate_dashboard_databases,
     read_dashboard_log,
@@ -103,6 +104,49 @@ def _set_dataset(record: dict, dataset: str) -> dict:
     if isinstance(record.get("extra_info"), dict):
         record["extra_info"]["data_source"] = dataset
     return record
+
+
+def test_native_task_metadata_is_available_to_eval_cache_and_dashboard(tmp_path):
+    db = tmp_path / "traces.sqlite"
+    record = _rollout("case-native", resolved=True)
+    record.pop("instance_id")
+    record["extra_info"]["tools_kwargs"] = {
+        "task": {
+            "name": "swe_bench",
+            "metadata": {
+                "instance_id": "case-native",
+                "problem_statement": "Native Task Config issue",
+                "patch": "diff --git a/a.py b/a.py\n+native\n",
+            },
+        }
+    }
+
+    assert _row_instance_id(record) == "case-native"
+    with ensure_db(db) as conn:
+        upsert_experiment(
+            conn,
+            experiment_id="exp",
+            provider_source="internal_api",
+            dataset="swebench-hard",
+            config_snapshot={"ok": True},
+        )
+        upsert_rollout_record(
+            conn,
+            experiment_id="exp",
+            provider_source="internal_api",
+            model_api_name="dummy-model",
+            model_label="dummy",
+            dataset="swebench-hard",
+            record=record,
+            detail=_detail("case-native", case_type="direct"),
+        )
+        conn.commit()
+        raw_row = conn.execute(
+            "SELECT issue_description, golden_patch FROM raw_rollouts"
+        ).fetchone()
+
+    assert raw_row["issue_description"] == "Native Task Config issue"
+    assert raw_row["golden_patch"] == "diff --git a/a.py b/a.py\n+native"
 
 
 def test_dashboard_marks_api_resource_failures_as_errors():

@@ -179,7 +179,7 @@ pick a different environment than the lock — `uv run python ...`, `uv run pyte
   requirement. Commands written for the user should stay in the normal form
   they can run from `src/`, such as `bash scripts/...` or `uv run ...`, without
   Codex-only cache prefixes.
-- For ARL runs, use `scripts/uni_agent_arl.sh`; it keeps `uni-agent/` unmodified and routes runtime startup through `env.agent_loop.ArlUniAgentLoop`.
+- For ARL runs, use `scripts/uni_agent_arl.sh`; it keeps `uni-agent/` unmodified and registers the local Agent Framework provider through `env.sandbox.ArlSandbox`.
 
 ## Unit Test Policy
 

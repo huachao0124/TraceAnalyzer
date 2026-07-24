@@ -473,9 +473,11 @@ def _record_metadata(record: dict[str, Any], request: DashboardRequest, *, log_d
 def _nested_mappings(record: dict[str, Any]) -> list[dict[str, Any]]:
     extra = record.get("extra_info") if isinstance(record.get("extra_info"), dict) else {}
     tools = extra.get("tools_kwargs") if isinstance(extra.get("tools_kwargs"), dict) else {}
+    task = tools.get("task") if isinstance(tools.get("task"), dict) else {}
+    task_metadata = task.get("metadata") if isinstance(task.get("metadata"), dict) else {}
     reward = tools.get("reward") if isinstance(tools.get("reward"), dict) else {}
-    metadata = reward.get("metadata") if isinstance(reward.get("metadata"), dict) else {}
-    return [record, extra, tools, reward, metadata]
+    reward_metadata = reward.get("metadata") if isinstance(reward.get("metadata"), dict) else {}
+    return [record, extra, tools, task, task_metadata, reward, reward_metadata]
 
 
 def _first_text_field(record: dict[str, Any], fields: Iterable[str]) -> str | None:

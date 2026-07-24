@@ -2,9 +2,9 @@ import asyncio
 
 import openai
 import pytest
-import uni_agent.interaction as uni_agent_interaction
 
 import p2a.internal_api_adapter as internal_api_adapter
+import p2a.openai_chat_model as openai_chat_model
 from p2a.api_providers import (
     ProviderLoadError,
     check_provider_available,
@@ -209,7 +209,7 @@ def test_openai_compatible_proxy_is_applied_outside_uni_agent(monkeypatch):
             self.kwargs = kwargs
 
     monkeypatch.setattr(
-        uni_agent_interaction,
+        openai_chat_model,
         "OpenAICompatibleChatModel",
         FakeUpstreamModel,
     )

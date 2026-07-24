@@ -1,12 +1,9 @@
-"""P2A-local Uni-Agent reward specs.
-
-Importing this module registers reward specs without modifying the Uni-Agent
-submodule.
-"""
+"""P2A-local reward evaluators for Agent Framework sandboxes."""
 
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import shlex
@@ -14,13 +11,6 @@ import time
 import uuid
 from pathlib import Path
 from typing import Any
-
-from swerex.runtime.abstract import Command
-from uni_agent.async_logging import get_logger
-from uni_agent.interaction import AgentEnv
-from uni_agent.reward.base import AbstractRewardSpec
-from uni_agent.reward.registry import REWARD_SPEC_MODULES, REWARD_SPEC_REGISTRY, register_reward_spec
-from uni_agent.utils import auto_await
 
 from p2a.datasets import last_nonempty_line, parse_string_list, selector_files, swebench_pro_repo_path
 
@@ -93,29 +83,34 @@ def _strip_terminal_controls(text: str) -> str:
     return _TERMINAL_CONTROL_RE.sub("", text)
 
 
-async def _run_env_command(env: AgentEnv, command: str, *, timeout: int | float | None = None, check: str = "ignore") -> str:
-    runtime = getattr(getattr(env, "deployment", None), "runtime", None)
-    execute = getattr(runtime, "execute", None)
-    if not callable(execute):
-        raise RuntimeError("Agent runtime execute interface is required; interactive/communicate execution is forbidden")
-    response = await execute(Command(command=["bash", "-lc", command], timeout=timeout))
+async def _run_env_command(
+    sandbox: Any,
+    command: str,
+    *,
+    timeout: int | float | None = None,
+    check: str = "ignore",
+) -> str:
+    response = await sandbox.exec_shell(command, timeout=timeout)
     output = _strip_terminal_controls((response.stdout or "") + (response.stderr or ""))
     if check == "raise" and int(response.exit_code or 0) != 0:
         raise RuntimeError(f"command failed with exit code {response.exit_code}: {output}")
     return output
 
 
-async def _read_env_file_text(env: AgentEnv, path: Path, *, tail_bytes: int | None = None) -> str:
+async def _read_env_file_text(sandbox: Any, path: Path, *, tail_bytes: int | None = None) -> str:
     quoted_path = shlex.quote(path.as_posix())
     if tail_bytes is None:
         command = f"if [ -f {quoted_path} ]; then cat {quoted_path}; fi"
     else:
         command = f"if [ -f {quoted_path} ]; then tail -c {int(tail_bytes)} {quoted_path}; fi"
     try:
-        return await _run_env_command(env, command, timeout=60, check="ignore")
+        return await _run_env_command(sandbox, command, timeout=60, check="ignore")
     except Exception:
         try:
-            return await env.read_file(path)
+            content = await sandbox.read_file(path.as_posix())
+            if isinstance(content, bytes):
+                return content.decode("utf-8", errors="replace")
+            return str(content)
         except Exception:
             return ""
 
@@ -171,21 +166,29 @@ def _make_swebench_eval_script_list(instance, specs, env_name, repo_directory, t
     return eval_commands
 
 
-class SWEBenchRewardSpec(AbstractRewardSpec):
-    """SWE-Bench verifier that evaluates through the runtime execute interface."""
+class SWEBenchRewardSpec:
+    """SWE-Bench verifier that evaluates through the Sandbox API."""
 
-    def __init__(self, *, run_id: str, metadata: dict, env: AgentEnv, eval_timeout: int = 300):
+    def __init__(
+        self,
+        *,
+        metadata: dict,
+        sandbox: Any | None = None,
+        env: Any | None = None,
+        run_id: str = "swe-bench-eval",
+        eval_timeout: int = 300,
+    ):
         self.run_id = run_id
         self.metadata = metadata
-        self.env = env
-        self.logger = get_logger("reward_spec", run_id=run_id)
+        self.sandbox = sandbox or env
+        if self.sandbox is None:
+            raise ValueError("SWEBenchRewardSpec requires sandbox")
+        self.logger = logging.getLogger(f"reward_spec.{run_id}")
         self.eval_timeout = eval_timeout
 
-    @auto_await
     async def apply_gold_patch(self) -> None:
         await self._apply_patch(str(self.metadata.get("patch") or ""))
 
-    @auto_await
     async def compute_reward(self, **kwargs) -> tuple[bool, dict]:
         result = {
             "eval_completed": False,
@@ -196,11 +199,11 @@ class SWEBenchRewardSpec(AbstractRewardSpec):
         try:
             eval_script = self._build_eval_script()
             eval_script_container = Path(f"/tmp/eval_script_{uuid.uuid4()}.sh")
-            await self.env.write_file(eval_script_container, eval_script)
+            await self.sandbox.write_file(eval_script_container.as_posix(), eval_script)
 
             execution_t0 = time.perf_counter()
             output = await _run_env_command(
-                self.env,
+                self.sandbox,
                 f"bash {shlex.quote(str(eval_script_container))} 2>&1",
                 timeout=self.eval_timeout,
                 check="ignore",
@@ -237,27 +240,28 @@ class SWEBenchRewardSpec(AbstractRewardSpec):
         )
         return "\n".join(["#!/bin/bash", "set -uxo pipefail"] + eval_script_list) + "\n"
 
-    @auto_await
     async def _get_interaction_env_patch(self) -> str:
         try:
             env_patch_file = Path(f"/tmp/patch_{uuid.uuid4()}.diff")
             await _run_env_command(
-                self.env,
+                self.sandbox,
                 f"cd /testbed && git add -A && git diff --no-color --cached > {shlex.quote(env_patch_file.as_posix())}",
                 check="ignore",
             )
-            return await self.env.read_file(env_patch_file)
+            content = await self.sandbox.read_file(env_patch_file.as_posix())
+            if isinstance(content, bytes):
+                return content.decode("utf-8", errors="replace")
+            return str(content)
         except Exception as exc:  # noqa: BLE001 - preserve upstream fallback semantics
             self.logger.error(f"Failed to get interaction environment patch: {exc}")
             return ""
 
-    @auto_await
     async def _apply_patch(self, patch: str) -> None:
         if not patch.strip():
             self.logger.info("Empty patch, nothing to apply.")
             return
         patch_path = Path(f"/tmp/patch_{uuid.uuid4()}.diff")
-        await self.env.write_file(patch_path, patch)
+        await self.sandbox.write_file(patch_path.as_posix(), patch)
         commands = [
             f"cd /testbed && git apply --whitespace=fix {shlex.quote(patch_path.as_posix())}",
             f"cd /testbed && git apply --reject --whitespace=nowarn {shlex.quote(patch_path.as_posix())}",
@@ -266,7 +270,7 @@ class SWEBenchRewardSpec(AbstractRewardSpec):
         last_error: Exception | None = None
         for command in commands:
             try:
-                await _run_env_command(self.env, command, check="raise")
+                await _run_env_command(self.sandbox, command, check="raise")
                 self.logger.info("Applied patch successfully!")
                 return
             except RuntimeError as exc:
@@ -311,26 +315,29 @@ class SWEBenchRewardSpec(AbstractRewardSpec):
         return eval_report
 
 
-REWARD_SPEC_REGISTRY["swe_bench"] = SWEBenchRewardSpec
-REWARD_SPEC_MODULES["swe_bench"] = "p2a.reward_specs"
-
-
-@register_reward_spec("swe_bench_pro")
-class SWEBenchProRewardSpec(AbstractRewardSpec):
+class SWEBenchProRewardSpec:
     """SWE-Bench-Pro verifier using the official per-instance run script/parser."""
 
-    def __init__(self, *, run_id: str, metadata: dict, env: AgentEnv, eval_timeout: int = 1800):
+    def __init__(
+        self,
+        *,
+        metadata: dict,
+        sandbox: Any | None = None,
+        env: Any | None = None,
+        run_id: str = "swe-bench-pro-eval",
+        eval_timeout: int = 1800,
+    ):
         self.run_id = run_id
         self.metadata = metadata
-        self.env = env
+        self.sandbox = sandbox or env
+        if self.sandbox is None:
+            raise ValueError("SWEBenchProRewardSpec requires sandbox")
         self.eval_timeout = eval_timeout
-        self.logger = get_logger("reward_spec", run_id=run_id)
+        self.logger = logging.getLogger(f"reward_spec.{run_id}")
 
-    @auto_await
     async def apply_gold_patch(self) -> None:
         await self._apply_patch(str(self.metadata.get("patch") or ""))
 
-    @auto_await
     async def compute_reward(self, **kwargs) -> tuple[bool, dict]:
         result = {
             "eval_completed": False,
@@ -347,11 +354,11 @@ class SWEBenchProRewardSpec(AbstractRewardSpec):
             )
             paths = await self._write_eval_files(run_script=run_script, parser_script=parser_script)
             eval_script = self._build_eval_script(paths)
-            await self.env.write_file(paths["eval_script"], eval_script)
+            await self.sandbox.write_file(paths["eval_script"].as_posix(), eval_script)
 
             t0 = time.perf_counter()
             await _run_env_command(
-                self.env,
+                self.sandbox,
                 f"bash {shlex.quote(str(paths['eval_script']))} 2>&1 | cat",
                 timeout=self.eval_timeout,
                 check="ignore",
@@ -359,7 +366,9 @@ class SWEBenchProRewardSpec(AbstractRewardSpec):
             result["eval_execution_time"] = time.perf_counter() - t0
             result["eval_completed"] = True
 
-            output = _safe_json_loads(await _read_env_file_text(self.env, paths["output"]))
+            output = _safe_json_loads(
+                await _read_env_file_text(self.sandbox, paths["output"])
+            )
             stdout = await self._read_optional(paths["stdout"])
             stderr = await self._read_optional(paths["stderr"])
             eval_report = self._grade(output)
@@ -387,8 +396,14 @@ class SWEBenchProRewardSpec(AbstractRewardSpec):
             "stderr": base.with_name(base.name + "_stderr.log"),
             "output": base.with_name(base.name + "_output.json"),
         }
-        await self.env.write_file(paths["run_script"], run_script if run_script.endswith("\n") else f"{run_script}\n")
-        await self.env.write_file(paths["parser"], parser_script if parser_script.endswith("\n") else f"{parser_script}\n")
+        await self.sandbox.write_file(
+            paths["run_script"].as_posix(),
+            run_script if run_script.endswith("\n") else f"{run_script}\n",
+        )
+        await self.sandbox.write_file(
+            paths["parser"].as_posix(),
+            parser_script if parser_script.endswith("\n") else f"{parser_script}\n",
+        )
         return paths
 
     def _build_eval_script(self, paths: dict[str, Path]) -> str:
@@ -480,14 +495,13 @@ class SWEBenchProRewardSpec(AbstractRewardSpec):
         return report
 
     async def _read_optional(self, path: Path) -> str:
-        return await _read_env_file_text(self.env, path, tail_bytes=4000)
+        return await _read_env_file_text(self.sandbox, path, tail_bytes=4000)
 
-    @auto_await
     async def _apply_patch(self, patch: str) -> None:
         if not patch.strip():
             return
         patch_path = Path(f"/tmp/p2a_swebench_pro_gold_{uuid.uuid4().hex}.diff")
-        await self.env.write_file(patch_path, patch)
+        await self.sandbox.write_file(patch_path.as_posix(), patch)
         repo_path = shlex.quote(_repo_path(self.metadata))
         patch_arg = shlex.quote(patch_path.as_posix())
         commands = [
@@ -498,8 +512,38 @@ class SWEBenchProRewardSpec(AbstractRewardSpec):
         last_error: Exception | None = None
         for command in commands:
             try:
-                await _run_env_command(self.env, command, check="raise")
+                await _run_env_command(self.sandbox, command, check="raise")
                 return
             except RuntimeError as exc:
                 last_error = exc
         raise RuntimeError("Failed to apply patch with any command") from last_error
+
+
+async def compute_swebench_reward(
+    metadata: dict[str, Any],
+    sandbox: Any,
+    *,
+    eval_timeout: float = 300,
+) -> dict[str, Any]:
+    """Evaluate one SWE-Bench candidate in an already-started sandbox."""
+    _, details = await SWEBenchRewardSpec(
+        metadata=metadata,
+        sandbox=sandbox,
+        eval_timeout=int(eval_timeout),
+    ).compute_reward()
+    return details
+
+
+async def compute_swebench_pro_reward(
+    metadata: dict[str, Any],
+    sandbox: Any,
+    *,
+    eval_timeout: float = 1800,
+) -> dict[str, Any]:
+    """Evaluate one SWE-Bench-Pro candidate in an already-started sandbox."""
+    _, details = await SWEBenchProRewardSpec(
+        metadata=metadata,
+        sandbox=sandbox,
+        eval_timeout=int(eval_timeout),
+    ).compute_reward()
+    return details

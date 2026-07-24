@@ -7,8 +7,9 @@ Every "build data" job lives here as a subcommand:
   swebench-pro      HF -> SWE-Bench-Pro Python eval subset (Phase 1)
   skip-list      regenerate config/bad_instances.json from gate results (maintenance)
 
-Each sources from HuggingFace and reuses Uni-Agent's schema/prompt constants by
-import (never copied). No dependency on the retired src-backup fork.
+Each source reuses the current Uni-Agent task prompt constants and writes native
+Agent Framework Task Configs while retaining explicit legacy aliases for older
+analysis artifacts.
 
 Usage (from src/, HF reachable):
   PYTHONPATH=.:uni-agent:uni-agent/verl:uni-agent/examples/data_preprocess \
@@ -30,19 +31,8 @@ from pathlib import Path
 
 import pandas as pd
 
-# data_preprocess example modules require a known DEPLOYMENT value at import; we use
-# only their prompt constants. This is not the runtime backend. The parquet rows
-# below carry pair-diag image refs, and agent_config_arl.yaml supplies ARL at launch.
-os.environ.setdefault("DEPLOYMENT", "vefaas")
-
 SRC_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SRC_ROOT))  # src/ on path
-
-
-def _ensure_uni_agent_data_preprocess_path() -> None:
-    path = str(SRC_ROOT / "uni-agent" / "examples" / "data_preprocess")
-    if path not in sys.path:
-        sys.path.insert(0, path)
 
 MIRROR = os.getenv("P2A_IMAGE_REGISTRY", "pair-diag-cn-guangzhou.cr.volces.com/code")
 HARD_DIFFICULTIES = {"1-4 hours", ">4 hours"}
@@ -63,11 +53,10 @@ from p2a.sandbox_git import append_sanitize  # noqa: E402
 # ── r2e ───────────────────────────────────────────────────────────────────────
 def cmd_r2e(args) -> int:
     from p2a.hf_assets import load_shared_dataset
+    from p2a.precompute.uni_agent_sandbox import R2E_POST_SETUP_CMD
     from p2a.skip_cases import load_skip_ids
     from r2egym.commit_models.diff_classes import ParsedCommit
-    # Import Uni-Agent's prompt/setup constants only.  The row source below is
-    # the canonical R2E dataset, not dyyyyyyyy/r2e-gym-subset-filtered.
-    from r2e_gym_subset_filtered import POST_SETUP_CMD, SYSTEM_PROMPT, USER_PROMPT
+    from uni_agent.tasks.swe_rebench.preprocess import SYSTEM_PROMPT, USER_PROMPT
 
     def ident(repo, pc_json, commit):
         pc = ParsedCommit(**json.loads(pc_json))
@@ -90,22 +79,38 @@ def cmd_r2e(args) -> int:
         rel_hit += rel is not None
         rel_miss += rel is None
         data_source = R2E_DATA_SOURCE
+        prompt = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": USER_PROMPT.format(problem_statement=ex["problem_statement"])},
+        ]
+        image = f"{MIRROR}/{repo}_final:{fixed}"
+        post_setup_cmd = append_sanitize(
+            R2E_POST_SETUP_CMD,
+            "/testbed",
+            buggy_ref=buggy,
+        )
         tools_kwargs = {
+            "task": {
+                "name": "r2e_gym",
+                "sandbox": {
+                    "image": image,
+                    "sandbox_kwargs": {"post_setup_cmd": post_setup_cmd},
+                },
+                "prompt": prompt,
+                "metadata": md,
+            },
             "env": {
-                "deployment": {"image": f"{MIRROR}/{repo}_final:{fixed}"},
+                "deployment": {"image": image},
                 # Image boots at the FIXED commit; restore the buggy state, then replace
                 # .git with a neutral baseline so the model cannot recover the gold patch
                 # from history (issue #29). Precompute strips this block and keeps history.
-                "post_setup_cmd": append_sanitize(POST_SETUP_CMD, "/testbed", buggy_ref=buggy),
+                "post_setup_cmd": post_setup_cmd,
             },
             "reward": {"name": "r2e_gym", "metadata": md},
         }
         rows.append({
-            "prompt": [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": USER_PROMPT.format(problem_statement=ex["problem_statement"])},
-            ],
-            "agent_name": "swe_agent",
+            "prompt": prompt,
+            "agent_name": "task",
             "extra_info": {
                 "data_source": data_source, "instance_id": iid,
                 "parsed_commit_content": pc_json,
@@ -132,10 +137,7 @@ def cmd_r2e(args) -> int:
 # ── swebench-verified / swebench-hard ─────────────────────────────────────────
 def cmd_swebench(args) -> int:
     from p2a.hf_assets import load_shared_dataset
-    # swe_bench_verified's modal branch is import-safe on Python <3.11; we use only its prompts.
-    os.environ["DEPLOYMENT"] = "modal"
-    _ensure_uni_agent_data_preprocess_path()
-    from swe_bench_verified import SYSTEM_PROMPT, USER_PROMPT
+    from uni_agent.tasks.swe_bench.preprocess import SYSTEM_PROMPT, USER_PROMPT
 
     def reset(base: str) -> str:
         return " && ".join(["cd /testbed", "git restore .", "git reset --hard",
@@ -154,22 +156,34 @@ def cmd_swebench(args) -> int:
         if want is not None and d not in want:
             continue
         metadata = {**ex, "difficulty": d}
+        prompt = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": USER_PROMPT.format(problem_statement=ex["problem_statement"])},
+        ]
+        image = f"{MIRROR}/swebench-verified:sweb.eval.x86_64.{iid}"
+        post_setup_cmd = append_sanitize(reset(ex["base_commit"]), "/testbed")
         tools_kwargs = {
+            "task": {
+                "name": "swe_bench",
+                "sandbox": {
+                    "image": image,
+                    "sandbox_kwargs": {"post_setup_cmd": post_setup_cmd},
+                },
+                "prompt": prompt,
+                "metadata": metadata,
+            },
             "env": {
-                "deployment": {"image": f"{MIRROR}/swebench-verified:sweb.eval.x86_64.{iid}"},
+                "deployment": {"image": image},
                 # Base checkout (reset) restores intended state; the sanitize tail then
                 # replaces .git with a neutral baseline so the model cannot read the fix
                 # from history (issue #29). Precompute strips the tail and keeps history.
-                "post_setup_cmd": append_sanitize(reset(ex["base_commit"]), "/testbed"),
+                "post_setup_cmd": post_setup_cmd,
             },
             "reward": {"name": "swe_bench", "metadata": metadata},
         }
         rows.append({
-            "prompt": [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": USER_PROMPT.format(problem_statement=ex["problem_statement"])},
-            ],
-            "agent_name": "swe_agent",
+            "prompt": prompt,
+            "agent_name": "task",
             "extra_info": {"data_source": data_source, "instance_id": iid, "tools_kwargs": tools_kwargs},
         })
     pd.DataFrame(rows).to_parquet(args.out, index=False)
@@ -298,10 +312,7 @@ def validate_swebench_pro_parquet(path: str | Path, *, allow_missing_scripts: bo
 def cmd_swebench_pro(args) -> int:
     from env.images import mirror_image
     from p2a.hf_assets import load_shared_dataset
-
-    os.environ["DEPLOYMENT"] = "modal"
-    _ensure_uni_agent_data_preprocess_path()
-    from swe_bench_verified import SYSTEM_PROMPT, USER_PROMPT
+    from uni_agent.tasks.swe_bench.preprocess import SYSTEM_PROMPT, USER_PROMPT
 
     language = (args.language or "python").strip().lower()
     if language != "python":
@@ -384,21 +395,40 @@ def cmd_swebench_pro(args) -> int:
             "swebench_pro_restore_tests_cmd": _swebench_pro_restore_tests_cmd(str(ex.get("before_repo_set_cmd") or "")),
             **script_fields,
         }
+        prompt = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": _swebench_pro_user_prompt(
+                    USER_PROMPT,
+                    _swebench_pro_problem_text(ex),
+                ),
+            },
+        ]
+        post_setup_cmd = _swebench_pro_post_setup_cmd(
+            str(ex.get("before_repo_set_cmd") or "")
+        )
         tools_kwargs = {
+            "task": {
+                "name": "swe_bench_pro",
+                "sandbox": {
+                    "image": metadata["image"],
+                    "sandbox_kwargs": {"post_setup_cmd": post_setup_cmd},
+                },
+                "prompt": prompt,
+                "metadata": metadata,
+            },
             "env": {
                 "deployment": {"image": metadata["image"]},
-                "post_setup_cmd": _swebench_pro_post_setup_cmd(str(ex.get("before_repo_set_cmd") or "")),
+                "post_setup_cmd": post_setup_cmd,
             },
             "reward": {"name": "swe_bench_pro", "metadata": metadata},
         }
         row = {
-            "prompt": [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": _swebench_pro_user_prompt(USER_PROMPT, _swebench_pro_problem_text(ex))},
-            ],
+            "prompt": prompt,
             "data_source": SWEBENCH_PRO_DATA_SOURCE,
             "instance_id": iid,
-            "agent_name": "swe_agent",
+            "agent_name": "task",
             "reward_model": {"ground_truth": metadata},
             "extra_info": {"data_source": SWEBENCH_PRO_DATA_SOURCE, "instance_id": iid, "tools_kwargs": tools_kwargs},
             "repo": metadata["repo"],

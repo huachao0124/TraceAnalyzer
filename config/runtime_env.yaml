@@ -1,0 +1,12 @@
+env_vars:
+  PYTHONPATH: "uni-agent/verl:uni-agent:."
+  TORCH_NCCL_AVOID_RECORD_STREAMS: "1"
+  CUDA_DEVICE_MAX_CONNECTIONS: "1"
+  CUDA_HOME: "/usr/local/cuda-13.0"
+  CUDA_PATH: "/usr/local/cuda-13.0"
+  NVTE_FRAMEWORK: "pytorch"
+  NCCL_CUMEM_ENABLE: "1"
+  NCCL_NVLS_ENABLE: "1"
+  NCCL_MNNVL_ENABLE: "1"
+  VLLM_USE_NCCL_SYMM_MEM: "1"
+  VLLM_USE_DEEP_GEMM: "0"

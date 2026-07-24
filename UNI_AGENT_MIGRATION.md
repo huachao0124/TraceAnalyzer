@@ -1,209 +1,178 @@
-# Uni-Agent Migration Notes
+# Uni-Agent Migration
 
-This project now uses a local `src/` source repository for P2A code and Uni-Agent as a nested submodule under `src/uni-agent/`.
+TraceAnalyzer keeps Uni-Agent and its nested verl checkout pristine. P2A-specific
+training, sandbox, task, data, and analysis behavior lives in this repository.
 
-## Layout
+## Pinned Stack
 
-- `src/`: P2A source repository with GitHub remote
-  `git@github.com:Siyuexi/TraceAnalyzer.git`; development is on `main`.
-- `src/p2a/`: P2A advantage reshape, bonus-map loading, and precompute utilities.
-- `src/env/`: local ARL SDK deployment glue, image routing, ARL-aware Uni-Agent loop adapter, and smoke/data helpers. The external `arl-env` SDK owns the `arl` import name.
-- `src/scripts/`: project helper scripts for baseline preparation and launch.
-- `src/uni-agent/`: pristine Uni-Agent submodule. Its `origin` is the fork mirror (`git@github.com:Siyuexi/uni-agent.git`), and `upstream` points to `git@github.com:verl-project/uni-agent.git` when upstream sync is needed.
-- `src/uni-agent/verl`: nested verl submodule required by Uni-Agent training scripts.
-- `src-backup/`: previous rLLM/TraceAnalyzer submodule. It is preserved as-is and should not be touched for the baseline migration.
+| Component | Pin |
+|---|---|
+| Uni-Agent | `3d4e40140db0455c7a3c669a68c58fc7c0ae8095` |
+| verl | `78bba31d1a6b95084d83f8bddd59c190ca704144` |
+| verl package version | `0.9.0.dev0` |
 
-## Baseline Reproduction Path
-
-Run the current ARL baseline path first, without P2A advantage reshape:
-
-1. Prepare ARL runtime env and agent config.
-2. Generate R2E-Gym-Subset train parquet. Re-run this after the migration; the
-   local builder embeds `git checkout <commit_hash>` in each sample's
-   `post_setup_cmd` so sandboxes start from the buggy commit rather than the
-   fixed image HEAD.
-3. Generate SWE-Bench Verified HARD eval parquet.
-4. Run `src/scripts/train_p2a.sh` with `P2A_BONUS_MAP_DIR` unset.
-
-P2A bonus-map instrumentation should be added only after the baseline can run end-to-end.
-Lightweight P2A rollout instrumentation is available but disabled by default. The
-local `env.agent_loop.ArlUniAgentLoop` adapter attaches it without submodule edits; set
-`UNI_AGENT_P2A_TRACE=1` before `src/scripts/uni_agent_arl.sh prepare` if you want
-per-step spans and parsed tool calls to be carried in rollout `extra_fields`.
-
-Dynamic bonus-map construction uses Uni-Agent sandboxes (ARL backend). The trace
-instrumentation/parsing engine is a first-class module of this source tree,
-`p2a/trace.py` (no dependency on `src-backup`). In dynamic mode, the precompute script starts a Uni-Agent
-`AgentEnv`, runs the sample `post_setup_cmd`, explicitly checks out the buggy
-commit inferred from `commit_hash` or `instance_id`, instruments `/testbed`, and
-runs `/root/run_tests.sh`. This is the path intended for the R2E-Gym-Subset
-ARL/Uni-Agent dynamic bonus-map build.
-
-For P2A training, use `src/scripts/train_p2a.sh` from the project root. That script
-creates or updates `$RAY_DATA_HOME/data/swe_agent/runtime_env_arl.yaml` with
-`PYTHONPATH=uni-agent/verl:uni-agent:.`, and uses
-`$RAY_DATA_HOME/data/swe_agent/agent_config_arl.yaml` by default. Leave
-`P2A_BONUS_MAP_DIR` unset to reproduce the Uni-Agent baseline; set it only for
-P2A advantage reshape.
-
-## Required ARL Environment
-
-Do not commit credentials or cluster-local endpoints. Provide them through the shell
-environment or by editing the generated runtime env file under `$RAY_DATA_HOME`.
+Initialize both levels after cloning:
 
 ```bash
-source .secrets/ips.sh
-: "${ARL_GATEWAY_URL:?set ARL_GATEWAY_URL or create .secrets/ips.sh}"
-export ARL_NAMESPACE="default"
-export ARL_EXPERIMENT_ID="p2a-uniagent-arl"
-export UNI_AGENT_P2A_TRACE="1"  # optional process tracing; omit for pure baseline
-```
-
-## Uni-Agent Install Commands
-
-Run these on the GPU server after entering the Python environment you want to use:
-
-```bash
-cd src
 git submodule update --init --recursive
-export CUDA_HOME=/usr/local/cuda-13.0
-export CUDA_PATH=$CUDA_HOME
-uv sync --locked --extra train --extra gpu
-UV_PROJECT_ENVIRONMENT=$PWD/.venv uv run --no-sync python scripts/check_uni_agent_runtime.py
+uv sync --locked --extra train --extra dev
 ```
 
-The fused Megatron/mbridge launcher uses this uv-managed `.venv` and native CUDA
-13.0. `scripts/main.sh`, `scripts/train_p2a.sh`, and `scripts/ray_setup.sh`
-stage the selected venv to worker-local disk.
-
-## One-Command Project Helper
-
-From the project root:
+All Python commands from this directory must use the locked environment:
 
 ```bash
-src/scripts/uni_agent_arl.sh prepare
+PYTHONPATH=uni-agent/verl:uni-agent:. uv run python -c \
+  "import uni_agent, verl, env.sandbox, env.tasks"
 ```
 
-This creates:
+## Agent Framework Integration
 
-- `$RAY_DATA_HOME/data/swe_agent/runtime_env_arl.yaml`
-- `$RAY_DATA_HOME/data/swe_agent/agent_config_arl.yaml`
+The pinned Uni-Agent uses Agent Framework Task Configs instead of the removed
+`AgentEnv`/agent-loop interfaces.
 
-If ARL/P2A environment variables above are set, the helper writes them into
-`runtime_env_arl.yaml`. It also lowers the debug rollout config from the
-upstream high-concurrency defaults when running through `uni_agent_arl.sh debug`.
+- `env/sandbox.py` registers `arl` and `nexus` Sandbox providers.
+- `env/tasks.py` registers the local `r2e_gym` and `swe_bench` tasks.
+- `env/task_runner.py` resolves native Task Config rows and translates existing
+  `tools_kwargs.env` plus `tools_kwargs.reward` rows at runtime.
+- `env/framework.py` attaches instance IDs and decoded model responses to rollout
+  records for P2A scoring and dashboard inspection.
+- `env/agent_config_*.yaml` are Task Config files despite their retained
+  compatibility filenames.
+- `config/runtime_env.yaml` is the repository-owned Ray runtime template.
 
-Generate datasets after Uni-Agent dependencies are installed:
+The local providers delegate lifecycle and file/command operations to
+`env.deployment` and `env.runtime`. ARL connects through `arl-env`; Nexus uses the
+Nexus runtime API. Neither path modifies the Uni-Agent submodule.
 
-```bash
-src/scripts/uni_agent_arl.sh data
+## Dataset Schema
+
+`scripts/build_data.py` writes a native Task Config at
+`extra_info.tools_kwargs.task`:
+
+```text
+task:
+  name: r2e_gym | swe_bench
+  prompt: [...]
+  sandbox:
+    image: ...
+    sandbox_kwargs: ...
+  metadata:
+    instance_id: ...
 ```
 
-Run the baseline debug job after Ray/GPU/model/ARL are ready:
+The builder also writes explicit `env` and `reward` aliases so existing bonus-map
+and dashboard artifacts remain readable. Launchers can consume both old and new
+parquets through `env.task_runner.run_task`.
+
+Generate datasets with:
 
 ```bash
-src/scripts/uni_agent_arl.sh smoke
-src/scripts/uni_agent_arl.sh debug
+PYTHONPATH=uni-agent/verl:uni-agent:. uv run python scripts/build_data.py r2e \
+  --out ../../datasets/p2a/r2e_gym_subset_p2a.parquet
+
+PYTHONPATH=uni-agent/verl:uni-agent:. uv run python scripts/build_data.py swebench-verified \
+  --out ../../datasets/p2a/swe_bench_verified.parquet
 ```
 
-The helper sets:
+## Four-Node Official Baseline
 
-- `TRAIN_FILE=$RAY_DATA_HOME/data/swe_agent/r2e_gym_subset_p2a.train.parquet`
-- `TEST_FILE=$RAY_DATA_HOME/data/swe_agent/r2e_gym_subset_p2a.train.parquet` for debug
-- `RUNTIME_ENV=$RAY_DATA_HOME/data/swe_agent/runtime_env_arl.yaml`
-- `AGENT_CONFIG_PATH=$RAY_DATA_HOME/data/swe_agent/agent_config_arl.yaml`
+`scripts/train_qwen3_moe_official_4node.sh` adapts the current upstream
+Qwen3-Coder MoE recipe to 4 nodes / 32 GPUs:
 
-## Manual Baseline Commands
+- `colocate_async`
+- 64 prompts x 8 responses per step
+- TP4 / PP1 / CP4 / EP8 / ETP1
+- 8 Agent Framework gateways
+- 512 maximum in-flight task sessions
+- Nexus `purpose=test`
+
+PP is 1 rather than the upstream 8-node recipe's PP2. With 32 GPUs this keeps
+the non-expert decomposition at TP4 x PP1 x CP4 = 16 and gives data parallel
+degree 2. Expert decomposition is ETP1 x EP8 x PP1 = 8 and gives expert data
+parallel degree 4.
+
+Validate the command without submitting a Ray job:
 
 ```bash
-cd src
-export RAY_DATA_HOME="${RAY_DATA_HOME:-$HOME/verl}"
-mkdir -p "${RAY_DATA_HOME}/data/swe_agent"
+SYNC_DRY_RUN=1 \
+MODEL_PATH=../../models/Qwen3-Coder-30B-A3B-Instruct \
+TRAIN_FILE=../../datasets/p2a/r2e_gym_subset_p2a.train.parquet \
+TEST_FILE=../../datasets/p2a/swe_bench_verified.parquet \
+bash scripts/train_qwen3_moe_official_4node.sh
+```
 
-cp uni-agent/examples/agent_interaction/runtime_env.yaml \
-  "${RAY_DATA_HOME}/data/swe_agent/runtime_env_arl.yaml"
-cp env/agent_config_arl.yaml \
-  "${RAY_DATA_HOME}/data/swe_agent/agent_config_arl.yaml"
+Run it only after the 4-node Ray cluster and GPU runtime are ready:
 
-PYTHONPATH=.:uni-agent:uni-agent/examples/data_preprocess \
-  uv run python scripts/build_data.py r2e \
-    --out "${RAY_DATA_HOME}/data/swe_agent/r2e_gym_subset_p2a.parquet"
-PYTHONPATH=.:uni-agent:uni-agent/examples/data_preprocess \
-  uv run python scripts/build_data.py swebench-hard \
-    --out "${RAY_DATA_HOME}/data/swe_agent/swe_bench_verified_hard.parquet"
+```bash
+bash scripts/train_qwen3_moe_official_4node.sh
+```
 
-export TRAIN_FILE="${RAY_DATA_HOME}/data/swe_agent/r2e_gym_subset_p2a.train.parquet"
-export TEST_FILE="${RAY_DATA_HOME}/data/swe_agent/swe_bench_verified_hard.parquet"
-export RUNTIME_ENV="${RAY_DATA_HOME}/data/swe_agent/runtime_env_arl.yaml"
-export AGENT_CONFIG_PATH="${RAY_DATA_HOME}/data/swe_agent/agent_config_arl.yaml"
+## Fully Async P2A
 
-# Baseline: leave P2A_BONUS_MAP_DIR unset.
+`scripts/train_p2a.sh` remains the fully async P2A launcher. It uses
+`p2a.main`, the pinned verl fully-async policy modules, and the same Agent
+Framework task runner.
+
+Leave `P2A_BONUS_MAP_DIR` unset for a vanilla fully-async baseline. Set it to a
+matching map directory to enable P2A advantage reshaping:
+
+```bash
+export P2A_BONUS_MAP_DIR="$PWD/data/bonus_maps/r2e-gym-subset"
 bash scripts/train_p2a.sh
 ```
 
-## P2A Bonus Map Precompute
+## ARL Helper
 
-After ARL connectivity and Uni-Agent dependencies are available, dynamic
-bonus maps can be generated against the Uni-Agent R2E parquet:
+Provide credentials and endpoints through the environment or `.secrets/ips.sh`;
+never commit them:
 
 ```bash
-PYTHONPATH=src \
-python -m p2a.precompute.precompute_bonus_maps \
-  "${RAY_DATA_HOME}/data/swe_agent/r2e_gym_subset_p2a.train.parquet" \
-  --output_dir "${RAY_DATA_HOME}/data/swe_agent/bonus_maps" \
+source .secrets/ips.sh
+: "${ARL_GATEWAY_URL:?set ARL_GATEWAY_URL}"
+```
+
+The helper prepares repository-owned runtime and Task Config files:
+
+```bash
+bash scripts/uni_agent_arl.sh prepare
+bash scripts/uni_agent_arl.sh smoke
+bash scripts/uni_agent_arl.sh data
+bash scripts/uni_agent_arl.sh debug
+```
+
+`smoke` is the live gate before an ARL launch. It verifies sandbox startup,
+persistent shell state, and file upload.
+
+## Bonus-Map Precompute
+
+Dynamic precompute uses the same registered Sandbox providers:
+
+```bash
+PYTHONPATH=uni-agent/verl:uni-agent:. P2A_DEPLOYMENT=arl \
+  uv run python -m p2a.precompute.precompute_bonus_maps \
+  ../../datasets/p2a/r2e_gym_subset_p2a.train.parquet \
+  --output_dir data/bonus_maps/r2e-gym-subset \
   --mode dynamic \
   --sandbox_backend uni_agent \
   --n_parallel 4 \
-  --limit 20 \
   --save_trace_sidecars
 ```
 
-Use low `--n_parallel` first because each dynamic item starts a sandbox. The
-only sandbox backend is `uni_agent` (backed by the ARL deployment).
+Start with low parallelism because each item creates a sandbox.
 
-The Uni-Agent dynamic path applies the sample `post_setup_cmd`, performs a
-plain buggy checkout, instruments `/testbed`, and runs `/root/run_tests.sh`.
-There is intentionally no generalized startup-fixup layer in the current ARL
-migration path.
+## Verification
 
-## Known Tomorrow Blockers
-
-- GPU dependencies and Ray cluster are not configured in this workspace yet.
-- `train_p2a.sh` submits a Ray job; Ray must be running on the GPU server.
-- The direct ARL SDK path requires `arl-env==0.4.1` in the ambient Uni-Agent
-  execution environment and in the training image/environment; this source tree
-  currently does not own a `src/pyproject.toml`/`uv.lock`.
-
-## ARL-backed Uni-Agent Path
-
-ARL is integrated without editing the `uni-agent/` submodule. The local
-`env.agent_loop.ArlUniAgentLoop` intercepts `env.deployment.type=arl`, boots an
-ARL managed sandbox through the external `arl-env` SDK, and hands Uni-Agent a
-local runtime adapter that implements the SWE-ReX `AbstractRuntime` interface
-over ARL's persistent interactive shell.
-
-Key commands from `src/`:
+CPU-side checks:
 
 ```bash
-scripts/uni_agent_arl.sh prepare
-scripts/uni_agent_arl.sh smoke
-scripts/uni_agent_arl.sh data
+PYTHONPATH=uni-agent/verl:uni-agent:. uv run pytest -q tests
+PYTHONPATH=uni-agent/verl:uni-agent:. uv run ruff check \
+  env p2a scripts tests
+bash -n scripts/train_sync_baseline.sh \
+  scripts/train_qwen3_moe_official_4node.sh \
+  scripts/train_p2a.sh scripts/uni_agent_arl.sh
 ```
 
-`smoke` is the hard gate before training. It verifies that the ARL SDK sandbox
-is reachable, that `run_in_session` persists `export`/`cd` through the
-interactive shell, and that `upload` works. If this fails, do not start
-training; the ARL runtime adapter needs to be fixed first.
-
-R2E image routing defaults:
-
-- `coveragepy` and `orange3` use the verified enterprise image
-  `enterprise-public-cn-beijing.cr.volces.com/r2e-gym-subset/{instance}:latest`.
-- Other `namanjain12/*_final` images are rewritten through the ARL mirror
-  `${ARL_MIRROR_REGISTRY:-pair-diag-cn-guangzhou.cr.volces.com}/${ARL_MIRROR_NAMESPACE:-code}/...`.
-- Extend `P2A_ARL_ENTERPRISE_REPOS` or set exact `P2A_ARL_IMAGE_OVERRIDES_JSON`
-  after the full reproduction-gate audit identifies more anomalous images.
-
-For dynamic bonus-map precompute, set `P2A_DEPLOYMENT=arl` while keeping
-`--sandbox_backend uni_agent`; the existing adapter will use the ARL bridge and
-still run the plain buggy checkout gate before instrumentation.
+GPU imports and an actual Ray launch still require the cluster's CUDA,
+TransformerEngine, mbridge, vLLM, NCCL, Nexus/ARL credentials, and shared model
+assets. CPU validation does not replace that live gate.
